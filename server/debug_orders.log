@@ -1,0 +1,6 @@
+[2026-01-31T20:09:51.903Z] Updating Order 1: courierId=26, newStatus=assigned
+[2026-01-31T20:11:06.371Z] Updating Order 1: courierId=26, newStatus=assigned
+[2026-02-01T16:05:16.322Z] Updating Order 2: courierId=30, newStatus=assigned
+[2026-02-01T16:56:35.982Z] Updating Order 2: courierId=30, newStatus=assigned
+[2026-02-01T16:57:58.300Z] Updating Order 2: courierId=30, newStatus=assigned
+[2026-02-01T16:59:57.421Z] Updating Order 2: courierId=30, newStatus=assigned
