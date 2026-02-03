@@ -11,90 +11,66 @@ export default function LoginPage() {
     const router = useRouter();
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            {/* Visual Blobs for Login Background */}
+            <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-primary/10 rounded-full blur-[100px] z-0" />
+            <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-secondary/10 rounded-full blur-[100px] z-0" />
 
             <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center mb-10"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center mb-12 relative z-10"
             >
-                <h1 className="text-4xl font-bold text-slate-900 mb-2">أهلاً بك في قريبلك 👋</h1>
-                <p className="text-slate-500 text-lg">سجل دخولك عشان تقدر تستفيد بكل المميزات</p>
+                <h1 className="text-3xl font-bold text-white mb-2 flex items-center justify-center gap-2">
+                    <span className="text-4xl">👋</span> أهلاً بك في قريبلك
+                </h1>
+                <p className="text-slate-400 text-lg font-medium">سجل دخولك عشان تقدر تستفيد بكل المميزات</p>
             </motion.div>
 
-            <div className="grid md:grid-cols-3 gap-6 w-full max-w-6xl">
+            <div className="flex flex-col md:flex-row gap-8 w-full max-w-5xl justify-center relative z-10">
 
-                {/* Customer Card */}
+                {/* Customer Card matching Image #2 */}
                 <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
                     whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => router.push("/login/user")}
+                    className="flex-1"
                 >
-                    <Card className="h-full cursor-pointer hover:border-primary/50 hover:shadow-xl transition-all border-2 border-transparent relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <CardContent className="p-8 flex flex-col items-center text-center h-full justify-center">
-                            <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <User className="w-10 h-10 text-indigo-600" />
+                    <Card className="h-full cursor-pointer border-0 shadow-2xl bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] overflow-hidden group">
+                        <CardContent className="p-10 flex flex-col items-center text-center h-full">
+                            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 border border-primary/20">
+                                <User className="w-10 h-10 text-primary" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-800 mb-3">أنا عميل</h2>
-                            <p className="text-slate-500 mb-8">
+                            <h2 className="text-2xl font-bold text-white mb-2 font-cairo">أنا عميل</h2>
+                            <p className="text-slate-400 mb-8 max-w-[250px] flex-1">
                                 عايز أطلب أكل، أحجز صيانة، أو أدور على خدمات في المدينة.
                             </p>
-                            <div className="w-full h-12 rounded-md bg-primary text-primary-foreground flex items-center justify-center text-lg font-medium shadow hover:bg-primary/90">
+                            <Button className="w-full h-14 rounded-[1.25rem] bg-primary hover:bg-primary/90 text-white text-lg font-bold shadow-lg shadow-primary/20 mt-auto">
                                 دخول كمستخدم
-                            </div>
+                            </Button>
                         </CardContent>
                     </Card>
                 </motion.div>
 
-                {/* Service Provider Card */}
+                {/* Unified Service Provider Card matching Image #2 */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
                     whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => router.push("/login/provider")}
+                    className="flex-1"
                 >
-                    <Card className="h-full cursor-pointer hover:border-orange-500/50 hover:shadow-xl transition-all border-2 border-transparent relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <CardContent className="p-8 flex flex-col items-center text-center h-full justify-center">
-                            <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <Store className="w-10 h-10 text-orange-600" />
+                    <Card className="h-full cursor-pointer border-0 shadow-2xl bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] overflow-hidden group">
+                        <CardContent className="p-10 flex flex-col items-center text-center h-full">
+                            <div className="w-24 h-24 bg-secondary/10 rounded-full flex items-center justify-center mb-6 border border-secondary/20">
+                                <Store className="w-10 h-10 text-secondary" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-800 mb-3">أنا مقدم خدمة</h2>
-                            <p className="text-slate-500 mb-8">
+                            <h2 className="text-2xl font-bold text-white mb-2 font-cairo">أنا مقدم خدمة</h2>
+                            <p className="text-slate-400 mb-8 max-w-[250px] flex-1">
                                 صاحب مطعم، محل، أو صنايعي وعايز أدير شغلي وأستقبل طلبات.
                             </p>
-                            <div className="w-full h-12 rounded-md bg-orange-500 text-white flex items-center justify-center text-lg font-medium shadow hover:bg-orange-600">
+                            <Button className="w-full h-14 rounded-[1.25rem] bg-secondary hover:bg-secondary/90 text-white text-lg font-bold shadow-lg shadow-secondary/20 mt-auto">
                                 دخول كشريك
-                            </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-
-                {/* Partner/Halan Card */}
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => router.push("/login/partner")}
-                >
-                    <Card className="h-full cursor-pointer hover:border-violet-500/50 hover:shadow-xl transition-all border-2 border-transparent relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <CardContent className="p-8 flex flex-col items-center text-center h-full justify-center">
-                            <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <Truck className="w-10 h-10 text-violet-600" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-slate-800 mb-3">أنا شريك توصيل</h2>
-                            <p className="text-slate-500 mb-8">
-                                سائق توصيل أو مشرف في نظام حالاً لإدارة التوصيل.
-                            </p>
-                            <div className="w-full h-12 rounded-md bg-gradient-to-r from-violet-600 to-blue-600 text-white flex items-center justify-center text-lg font-medium shadow hover:from-violet-700 hover:to-blue-700">
-                                دخول لحالاً 🚚
-                            </div>
+                            </Button>
                         </CardContent>
                     </Card>
                 </motion.div>
@@ -104,11 +80,10 @@ export default function LoginPage() {
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="mt-10"
+                className="mt-12 relative z-10"
             >
-                <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors">
-                    <ArrowLeft className="w-4 h-4" />
+                <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors font-bold text-lg">
+                    <ArrowLeft className="w-5 h-5 -rotate-180" />
                     العودة للرئيسية
                 </Link>
             </motion.div>

@@ -48,6 +48,8 @@ interface User {
     email: string;
     password?: string;
     type?: "customer" | "provider";
+    phone?: string;
+    avatar?: string;
 }
 
 interface Booking {
@@ -91,6 +93,16 @@ interface AppContextType {
 
     // Review actions
     addReview: (providerId: string, rating: number, comment: string) => Promise<boolean>;
+
+    // User actions
+    updateUser: (data: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        avatar?: string;
+        oldPassword?: string;
+        newPassword?: string;
+    }) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -197,6 +209,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Registration failed:", error);
             return false;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const updateUser = async (data: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        avatar?: string;
+        oldPassword?: string;
+        newPassword?: string;
+    }): Promise<boolean> => {
+        try {
+            setIsLoading(true);
+            const result = await authApi.updateProfile(data);
+            if (result.success) {
+                setCurrentUser(result.user);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error("Update profile failed:", error);
+            throw error;
         } finally {
             setIsLoading(false);
         }
@@ -371,6 +407,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         loginUser,
         logout,
         registerUser,
+        updateUser,
         submitProviderRequest,
         googleLogin,
         refreshProviders,

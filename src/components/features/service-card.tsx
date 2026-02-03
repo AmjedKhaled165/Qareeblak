@@ -42,12 +42,21 @@ export function ServiceCard({ provider }: { provider: ServiceProvider }) {
     const ctaText = isOrder ? "اطلب الآن" : "احجز موعد";
 
     // Dynamic styling based on category
-    let headerColor = "bg-slate-100";
-    let iconColor = "text-slate-400";
+    let headerColor = "bg-accent/50";
+    let iconColor = "text-muted-foreground/30";
 
-    if (provider.category.includes("مطعم")) { headerColor = "bg-orange-100"; iconColor = "text-orange-500"; }
-    else if (provider.category.includes("صيانة")) { headerColor = "bg-blue-100"; iconColor = "text-blue-500"; }
-    else if (provider.category.includes("طبي")) { headerColor = "bg-green-100"; iconColor = "text-green-500"; }
+    if (provider.category.includes("مطعم")) { 
+        headerColor = "bg-orange-100 dark:bg-orange-950/30"; 
+        iconColor = "text-orange-500 dark:text-orange-400"; 
+    }
+    else if (provider.category.includes("صيانة")) { 
+        headerColor = "bg-blue-100 dark:bg-blue-950/30"; 
+        iconColor = "text-blue-500 dark:text-blue-400"; 
+    }
+    else if (provider.category.includes("طبي")) { 
+        headerColor = "bg-green-100 dark:bg-green-950/30"; 
+        iconColor = "text-green-500 dark:text-green-400"; 
+    }
 
     const [showAuthGuard, setShowAuthGuard] = useState(false);
 
@@ -68,7 +77,7 @@ export function ServiceCard({ provider }: { provider: ServiceProvider }) {
                 whileHover={{ y: -5 }}
                 className="h-full"
             >
-                <Card className="overflow-hidden hover:shadow-xl transition-all border-none shadow-md h-full flex flex-col group bg-white">
+                <Card className="overflow-hidden hover:shadow-xl transition-all border border-border shadow-sm h-full flex flex-col group bg-card">
                     <div className={`relative h-40 w-full ${headerColor} flex items-center justify-center overflow-hidden`}>
                         <div className={`text-6xl font-bold opacity-20 ${iconColor} select-none group-hover:scale-110 transition-transform duration-500`}>
                             {provider.name.charAt(0)}
@@ -77,12 +86,12 @@ export function ServiceCard({ provider }: { provider: ServiceProvider }) {
                     <CardContent className="p-4 flex-1 relative">
                         <div className="flex justify-between items-start mb-2">
                             <div>
-                                <h3 className="font-bold text-lg text-slate-900 line-clamp-1">{provider.name}</h3>
-                                <p className="text-sm text-slate-500 font-medium">{provider.category}</p>
+                                <h3 className="font-bold text-lg text-foreground line-clamp-1">{provider.name}</h3>
+                                <p className="text-sm text-muted-foreground font-medium">{provider.category}</p>
                             </div>
-                            <div className={`flex items-center gap-1 ${provider.reviews > 0 ? 'bg-yellow-50 border-yellow-100' : 'bg-slate-50 border-slate-100'} px-2 py-1 rounded-full border`}>
-                                <Star className={`h-3 w-3 ${provider.reviews > 0 ? 'text-yellow-500 fill-yellow-500' : 'text-slate-300'}`} />
-                                <span className="text-xs font-bold text-slate-700">{provider.reviews > 0 ? provider.rating : 0}</span>
+                            <div className={`flex items-center gap-1 ${provider.reviews > 0 ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/50' : 'bg-accent border-border'} px-2 py-1 rounded-full border`}>
+                                <Star className={`h-3 w-3 ${provider.reviews > 0 ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground'}`} />
+                                <span className="text-xs font-bold text-foreground">{provider.reviews > 0 ? provider.rating : 0}</span>
                             </div>
                         </div>
 
@@ -96,7 +105,7 @@ export function ServiceCard({ provider }: { provider: ServiceProvider }) {
                             التفاصيل
                         </Button>
                         <Button
-                            className={`flex-1 gap-2 text-white shadow-lg rounded-xl font-bold ${isOrder ? "bg-orange-500 hover:bg-orange-600 shadow-orange-200" : "bg-primary hover:bg-primary/90 shadow-primary/20"}`}
+                            className={`flex-1 gap-2 text-white shadow-lg rounded-xl font-bold ${isOrder ? "bg-orange-500 hover:bg-orange-600 shadow-orange-500/20" : "bg-primary hover:bg-primary/90 shadow-primary/20"}`}
                             variant="default"
                             onClick={handleBookingClick}
                         >

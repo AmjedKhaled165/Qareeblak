@@ -20,22 +20,34 @@ import { apiCall } from "@/lib/api";
 
 // Stats Card Component
 function StatsCard({ title, value, icon: Icon, color }: { title: string; value: string | number; icon: any; color: string }) {
+    // Determine color classes based on the hex passed (for the 4 standard colors)
+    const getColorClasses = (hex: string) => {
+        switch (hex.toLowerCase()) {
+            case '#10b981': return { bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400' };
+            case '#3b82f6': return { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400' };
+            case '#8b5cf6': return { bg: 'bg-violet-500/20', border: 'border-violet-500/30', text: 'text-violet-400' };
+            case '#f59e0b': return { bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400' };
+            default: return { bg: 'bg-slate-500/20', border: 'border-slate-500/30', text: 'text-slate-400' };
+        }
+    };
+
+    const classes = getColorClasses(color);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-md flex-1 min-w-[150px]"
+            className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-5 shadow-xl flex-1 min-w-[150px] hover:border-violet-500/30 transition-all hover:scale-[1.02]"
         >
             <div className="flex justify-between items-start mb-3">
                 <div
-                    className="w-11 h-11 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: color + '20' }}
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${classes.bg} border ${classes.border}`}
                 >
-                    <Icon className="w-6 h-6" style={{ color }} />
+                    <Icon className={`w-6 h-6 ${classes.text}`} />
                 </div>
             </div>
-            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{title}</p>
+            <p className="text-3xl font-bold text-white mb-1">{value}</p>
+            <p className="text-sm text-slate-400 font-medium">{title}</p>
         </motion.div>
     );
 }
@@ -183,159 +195,170 @@ export default function ManagerDashboard() {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100" dir="rtl">
-            {/* Violet Gradient Header - Manager specific */}
+        <div className="min-h-screen bg-background text-foreground font-cairo transition-colors duration-500" dir="rtl">
+            {/* Midnight Violet Header */}
             <div
-                className="p-6 pt-10 rounded-b-[30px] shadow-lg"
-                style={{
-                    background: 'linear-gradient(135deg, #624AF2 0%, #504DFF 100%)'
-                }}
+                className="p-8 pt-12 rounded-b-[3.5rem] shadow-2xl relative overflow-hidden bg-gradient-to-br from-[#1E1B4B] to-[#4338CA] border-b border-white/5"
             >
-                <div className="flex justify-between items-center mb-5">
-                    <div className="text-right">
-                        <h1 className="text-2xl font-bold text-white mb-1">لوحة القيادة</h1>
-                        <p className="text-white/80 text-sm">إدارة الفريق والأداء</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={onRefresh}
-                            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-                        >
-                            <RefreshCw className={`w-5 h-5 text-white ${refreshing ? 'animate-spin' : ''}`} />
-                        </button>
-                        <button
-                            onClick={() => router.push('/partner/settings')}
-                            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-                        >
-                            <Settings className="w-5 h-5 text-white" />
-                        </button>
-                        <button
-                            onClick={handleLogout}
-                            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-                        >
-                            <LogOut className="w-5 h-5 text-white" />
-                        </button>
-                    </div>
-                </div>
+                {/* Decorative Lights */}
+                <div className="absolute top-[-50%] left-[-10%] w-64 h-64 bg-violet-500/20 rounded-full blur-[80px]" />
+                <div className="absolute bottom-[-20%] right-[-5%] w-80 h-80 bg-blue-500/10 rounded-full blur-[100px]" />
 
-                {/* Period Toggles */}
-                <div className="flex gap-2 justify-center">
-                    {periods.map((p) => (
-                        <button
-                            key={p.key}
-                            onClick={() => setPeriod(p.key as any)}
-                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${period === p.key
-                                ? 'bg-white text-violet-600'
-                                : 'bg-white/20 text-white hover:bg-white/30'
-                                }`}
-                        >
-                            {p.label}
-                        </button>
-                    ))}
+                <div className="relative z-10">
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-white mb-2 drop-shadow-sm">لوحة القيادة</h1>
+                            <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 bg-violet-400 rounded-full animate-pulse" />
+                                <p className="text-white/80 text-sm">إدارة الفريق والأداء</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onRefresh}
+                                title="تحديث البيانات"
+                                className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"
+                            >
+                                <RefreshCw className={`w-5 h-5 text-white ${refreshing ? 'animate-spin' : ''}`} />
+                            </button>
+                            <button
+                                onClick={() => router.push('/partner/settings')}
+                                title="الإعدادات"
+                                className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"
+                            >
+                                <Settings className="w-5 h-5 text-white" />
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                title="تسجيل الخروج"
+                                className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-all border border-red-500/20"
+                            >
+                                <LogOut className="w-5 h-5 text-red-400" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Period Toggles - Dark Themed */}
+                    <div className="flex gap-2 p-1.5 bg-black/20 backdrop-blur-md rounded-2xl w-fit mx-auto border border-white/5">
+                        {periods.map((p) => (
+                            <button
+                                key={p.key}
+                                onClick={() => setPeriod(p.key as any)}
+                                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${period === p.key
+                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25'
+                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
             {/* Content */}
-            <div className="p-4 pb-24">
+            <div className="w-full p-6 pb-20">
 
                 {isLoading && !stats ? (
-                    <div className="flex items-center justify-center py-20">
-                        <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
+                    <div className="flex flex-col items-center justify-center py-32">
+                        <div className="w-14 h-14 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4" />
+                        <p className="text-slate-400 animate-pulse">جاري تحميل البيانات...</p>
                     </div>
                 ) : (
                     <>
                         {/* Stats Cards */}
                         {stats?.summary && (
-                            <div className="space-y-3 mb-6">
-                                <div className="flex gap-3">
-                                    <StatsCard
-                                        title="إجمالي الدخل"
-                                        value={parseFloat(stats.summary.total_delivery_fees || 0).toFixed(0)}
-                                        icon={DollarSign}
-                                        color="#4CAF50"
-                                    />
-                                    <StatsCard
-                                        title="المبيعات"
-                                        value={parseFloat(stats.summary.total_sales || 0).toFixed(0)}
-                                        icon={ShoppingCart}
-                                        color="#2196F3"
-                                    />
-                                </div>
-                                <div className="flex gap-3">
-                                    <StatsCard
-                                        title="طلبات ناجحة"
-                                        value={stats.summary.delivered}
-                                        icon={CheckCircle}
-                                        color="#504DFF"
-                                    />
-                                    <StatsCard
-                                        title="المناديب"
-                                        value={stats.summary.total_drivers}
-                                        icon={Users}
-                                        color="#FF9800"
-                                    />
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+                                <StatsCard
+                                    title="إجمالي الدخل"
+                                    value={`${parseFloat(stats.summary.total_delivery_fees || 0).toFixed(0)} ج.م`}
+                                    icon={DollarSign}
+                                    color="#10B981"
+                                />
+                                <StatsCard
+                                    title="المبيعات"
+                                    value={`${parseFloat(stats.summary.total_sales || 0).toFixed(0)} ج.م`}
+                                    icon={ShoppingCart}
+                                    color="#3B82F6"
+                                />
+                                <StatsCard
+                                    title="طلبات ناجحة"
+                                    value={stats.summary.delivered}
+                                    icon={CheckCircle}
+                                    color="#8B5CF6"
+                                />
+                                <StatsCard
+                                    title="المناديب المتوفرين"
+                                    value={stats.summary.total_drivers}
+                                    icon={Users}
+                                    color="#F59E0B"
+                                />
                             </div>
                         )}
 
-                        {/* Section Title & Map Button */}
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">أداء المناديب</h2>
+                        {/* Section Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <span className="w-1 h-6 bg-violet-500 rounded-full" />
+                                أداء المناديب
+                            </h2>
                             <button
                                 onClick={() => router.push('/partner/map')}
-                                className="flex items-center gap-1 px-3 py-2 bg-indigo-600 text-white rounded-full text-xs font-semibold hover:bg-indigo-700 transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold hover:bg-indigo-500/20 transition-all shadow-lg shadow-indigo-500/5"
                             >
                                 <MapPin className="w-4 h-4" />
-                                الخريطة
+                                خريطة المناديب
                             </button>
                         </div>
 
-                        {/* Driver List - Click to track */}
-                        <div className="space-y-3">
+                        {/* Driver List */}
+                        <div className="space-y-4">
                             {stats?.drivers?.length === 0 ? (
-                                <div className="text-center py-8 text-slate-500">
-                                    لا يوجد مناديب
+                                <div className="text-center py-16 bg-slate-900/20 rounded-[2.5rem] border border-dashed border-white/10">
+                                    <p className="text-slate-500 font-medium">لا يوجد مناديب نشطين حالياً</p>
                                 </div>
                             ) : (
-                                stats?.drivers?.map((driver: any) => (
+                                stats?.drivers?.map((driver: any, idx: number) => (
                                     <motion.div
                                         key={driver.id}
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        whileHover={{ scale: 1.01 }}
-                                        className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm flex items-center justify-between group"
+                                        initial={{ opacity: 0, y: 15 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.1 }}
+                                        onClick={() => router.push(`/partner/tracking/${driver.id}?name=${encodeURIComponent(driver.name_ar || driver.name)}&username=${driver.username}`)}
+                                        className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-5 shadow-xl hover:border-violet-500/30 transition-all cursor-pointer group"
                                     >
-                                        <div
-                                            className="flex items-center gap-4 flex-1 cursor-pointer"
-                                            onClick={() => router.push(`/partner/tracking/${driver.id}?name=${encodeURIComponent(driver.name_ar || driver.name)}&username=${driver.username}`)}
-                                        >
-                                            <img
-                                                src={driver.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name_ar || driver.name)}&background=random`}
-                                                alt={driver.name_ar || driver.name}
-                                                className="w-12 h-12 rounded-full object-cover border border-slate-100 dark:border-slate-700"
-                                            />
-                                            <div>
-                                                <p className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-violet-600 transition-colors">
-                                                    {driver.name_ar || driver.name}
-                                                </p>
-                                                <div className="flex gap-4 text-sm text-slate-500 dark:text-slate-400">
-                                                    <span>الطلبات: <span className="font-bold text-slate-700 dark:text-slate-200">{driver.delivered || 0}</span></span>
-                                                    <span>|</span>
-                                                    <span>الأرباح: <span className="font-bold text-green-600 dark:text-green-400">{parseFloat(driver.delivery_fees || 0).toFixed(0)}</span></span>
+                                        <div className="flex items-center justify-between mb-5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="relative">
+                                                    <img
+                                                        src={driver.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name_ar || driver.name)}&background=8b5cf6&color=fff`}
+                                                        alt={driver.name_ar || driver.name}
+                                                        className="w-14 h-14 rounded-2xl object-cover border-2 border-white/10 group-hover:border-violet-500/50 transition-all shadow-lg"
+                                                    />
+                                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-[#0F172A] rounded-full" />
                                                 </div>
+                                                <div>
+                                                    <p className="font-bold text-lg text-white group-hover:text-violet-400 transition-colors">{driver.name_ar || driver.name}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-slate-400 font-medium uppercase tracking-wider">ID: {driver.id}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-violet-500/20 transition-all">
+                                                <MapPin className="w-5 h-5 text-slate-500 group-hover:text-violet-400" />
                                             </div>
                                         </div>
 
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                router.push(`/partner/tracking/${driver.id}?name=${encodeURIComponent(driver.name_ar || driver.name)}&username=${driver.username}`);
-                                            }}
-                                            className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                                            title="تتبع الموقع"
-                                        >
-                                            <MapPin className="w-5 h-5" />
-                                        </button>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-black/20 rounded-[1.5rem] p-4 border border-white/5 text-center">
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5 font-bold">تم التسليم</p>
+                                                <p className="text-xl font-bold text-white leading-none">{driver.delivered || 0}</p>
+                                            </div>
+                                            <div className="bg-black/20 rounded-[1.5rem] p-4 border border-white/5 text-center">
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5 font-bold">الأرباح</p>
+                                                <p className="text-xl font-bold text-emerald-400 leading-none">{parseFloat(driver.delivery_fees || 0).toFixed(0)}</p>
+                                            </div>
+                                        </div>
                                     </motion.div>
                                 ))
                             )}
@@ -344,17 +367,19 @@ export default function ManagerDashboard() {
                 )}
             </div>
 
-            {/* FABs */}
+            {/* FABs - Themed */}
             <button
                 onClick={() => router.push('/partner/orders')}
-                className="fixed left-5 bottom-24 w-14 h-14 rounded-full bg-orange-500 text-white shadow-lg flex items-center justify-center hover:bg-orange-600 transition-colors z-50"
+                title="عرض جميع الطلبات"
+                className="fixed left-6 bottom-24 w-14 h-14 rounded-2xl bg-orange-500 text-white shadow-xl shadow-orange-500/20 flex items-center justify-center hover:bg-orange-600 transition-all hover:scale-110 active:scale-90 z-50 border-b-4 border-orange-700"
             >
                 <ListOrdered className="w-6 h-6" />
             </button>
 
             <button
                 onClick={() => router.push('/partner/orders/create')}
-                className="fixed left-5 bottom-8 w-14 h-14 rounded-full bg-green-500 text-white shadow-lg flex items-center justify-center hover:bg-green-600 transition-colors z-50"
+                title="إنشاء طلب جديد"
+                className="fixed left-6 bottom-6 w-14 h-14 rounded-2xl bg-emerald-500 text-white shadow-xl shadow-emerald-500/20 flex items-center justify-center hover:bg-emerald-600 transition-all hover:scale-110 active:scale-90 z-50 border-b-4 border-emerald-700"
             >
                 <Plus className="w-6 h-6" />
             </button>

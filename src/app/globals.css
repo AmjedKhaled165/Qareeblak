@@ -3,17 +3,20 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Brand Colors */
-  --primary: #4F46E5;
+  /* Image-accurate Colors */
+  --primary: #4F46E5; /* Indigo/Blue for General & User Actions */
   --primary-foreground: #FFFFFF;
 
-  --secondary: #14B8A6;
+  --secondary: #F97316; /* Orange for Partner Actions */
   --secondary-foreground: #FFFFFF;
 
-  --accent: #F3F4F6;
-  --accent-foreground: #1F2937;
+  --highlight: #FFCC18; /* Yellow for specific CTAs */
+  --highlight-foreground: #1E293B;
 
-  --background: #F8FAFC;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+
+  --background: #FFFFFF;
   --foreground: #0F172A;
 
   --card: #FFFFFF;
@@ -22,41 +25,31 @@
   --border: #E2E8F0;
   --input: #E2E8F0;
 
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
-
-  --radius: 0.75rem;
+  --radius: 1.25rem; /* More rounded as seen in Image #1 & #2 */
 }
 
 .dark {
-  /* Dark Mode Colors */
-  --primary: #6366F1;
-  /* Indigo 500 */
+  /* Impressive & Deep Dark Mode Palette */
+  --primary: #6366F1; /* Vibrant Indigo */
   --primary-foreground: #FFFFFF;
 
-  --secondary: #2DD4BF;
-  /* Teal 400 */
-  --secondary-foreground: #111827;
+  --secondary: #F97316; /* Glowing Orange */
+  --secondary-foreground: #FFFFFF;
 
-  --accent: #1F2937;
-  /* Gray 800 */
-  --accent-foreground: #F3F4F6;
+  --highlight: #FED330;
+  --highlight-foreground: #0F172A;
 
-  --background: #0F172A;
-  /* Slate 900 */
+  --background: #020617; /* Deepest Midnight Blue (Slate 950) */
   --foreground: #F8FAFC;
-  /* Slate 50 */
 
-  --card: #1E293B;
-  /* Slate 800 */
-  --card-foreground: #F8FAFC;
+  --card: #0F172A; /* Slate 900 for cards */
+  --card-foreground: #F1F5F9;
 
-  --border: #334155;
-  /* Slate 700 */
-  --input: #334155;
+  --border: #1E293B; /* Slate 800 */
+  --input: #1E293B;
 
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
+  --accent: #1E293B;
+  --accent-foreground: #F8FAFC;
 }
 
 @theme inline {
@@ -64,8 +57,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -76,14 +69,14 @@
   --color-destructive-foreground: var(--destructive-foreground);
 
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 8px);
 
   --font-sans: var(--font-cairo), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  @apply bg-background text-foreground;
+  @apply bg-background text-foreground transition-colors duration-500;
 }
 
 /* Glassmorphism utilities */

@@ -84,6 +84,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                             {/* Close Button */}
                             <button
                                 onClick={() => removeToast(t.id)}
+                                title="إغلاق"
+                                aria-label="إغلاق"
                                 className="absolute left-3 top-3 text-slate-400 hover:text-slate-600 transition-colors"
                             >
                                 <X className="w-4 h-4" />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
     ArrowRight,
     Package,
@@ -225,16 +226,21 @@ export default function OrdersPage() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100" dir="rtl">
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 p-4 border-b dark:border-slate-800 sticky top-0 z-10 flex items-center gap-3">
-                <button onClick={() => router.back()} className="p-2">
+                <button onClick={() => router.back()} className="p-2" title="العودة" aria-label="العودة">
                     <ArrowRight className="w-6 h-6 text-slate-800 dark:text-slate-100" />
                 </button>
                 <h1 className="text-xl font-bold">{isCourier ? 'طلباتي' : 'كل الطلبات'}</h1>
-                <button
-                    onClick={fetchOrders}
-                    className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center ml-auto"
-                >
-                    <RefreshCw className={`w-5 h-5 text-slate-600 dark:text-slate-300 ${isLoading ? 'animate-spin' : ''}`} />
-                </button>
+                <div className="mr-auto flex items-center gap-2">
+                    <ThemeToggle />
+                    <button
+                        onClick={fetchOrders}
+                        title="تحديث الطلبات"
+                        aria-label="تحديث الطلبات"
+                        className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center"
+                    >
+                        <RefreshCw className={`w-5 h-5 text-slate-600 dark:text-slate-300 ${isLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
             </div>
 
             {/* Filter Tabs - Hidden for couriers */}
@@ -357,6 +363,8 @@ export default function OrdersPage() {
                                                 <>
                                                     <button
                                                         onClick={(e) => handleEdit(e, order.id)}
+                                                        title="تعديل"
+                                                        aria-label="تعديل الطلب"
                                                         className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
                                                     >
                                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -365,6 +373,8 @@ export default function OrdersPage() {
                                                     </button>
                                                     <button
                                                         onClick={(e) => handleDelete(e, order.id)}
+                                                        title="حذف"
+                                                        aria-label="حذف الطلب"
                                                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
                                                     >
                                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -386,6 +396,8 @@ export default function OrdersPage() {
             {!isCourier && (
                 <button
                     onClick={() => router.push('/partner/orders/create')}
+                    title="إنشاء طلب جديد"
+                    aria-label="إنشاء طلب جديد"
                     className="fixed left-5 bottom-8 w-14 h-14 rounded-full bg-violet-600 text-white shadow-lg flex items-center justify-center hover:bg-violet-700 transition-colors z-50"
                 >
                     <Plus className="w-7 h-7" />

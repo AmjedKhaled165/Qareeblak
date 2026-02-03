@@ -99,7 +99,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                             transition={{ type: "spring", duration: 0.3 }}
                             className="fixed inset-0 flex items-center justify-center z-50 p-4"
                         >
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border dark:border-slate-800" onClick={e => e.stopPropagation()}>
                                 {/* Header */}
                                 <div className="p-6 pb-4">
                                     <div className="flex items-start gap-4">
@@ -107,16 +107,18 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                                             <AlertTriangle className={`w-6 h-6 ${styles.iconColor}`} />
                                         </div>
                                         <div className="flex-1">
-                                            <h3 className="text-lg font-bold text-slate-900 mb-1">
+                                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
                                                 {options.title}
                                             </h3>
-                                            <p className="text-slate-600 text-sm leading-relaxed">
+                                            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
                                                 {options.message}
                                             </p>
                                         </div>
                                         <button
                                             onClick={handleCancel}
-                                            className="p-1 rounded-full hover:bg-slate-100 transition-colors"
+                                            title="إغلاق"
+                                            aria-label="إغلاق"
+                                            className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                         >
                                             <X className="w-5 h-5 text-slate-400" />
                                         </button>
@@ -124,7 +126,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="bg-slate-50 px-6 py-4 flex items-center justify-end gap-3">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 flex items-center justify-end gap-3">
                                     <Button
                                         variant="outline"
                                         onClick={handleCancel}

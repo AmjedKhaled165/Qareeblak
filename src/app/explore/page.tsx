@@ -4,9 +4,10 @@ import { ServiceCard } from "@/components/features/service-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, SlidersHorizontal, Utensils, Wrench, Pill, Car, ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 import { useAppStore } from "@/hooks/use-app-store";
 
@@ -21,10 +22,17 @@ const CATEGORIES = [
 
 export default function ExplorePage() {
     const { providers, isInitialized, currentUser } = useAppStore();
+    const router = useRouter();
     const [activeCategory, setActiveCategory] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
 
-    if (!isInitialized) return null; // Avoid hydration mismatch
+    useEffect(() => {
+        if (currentUser?.type === 'provider') {
+            router.replace('/provider-dashboard');
+        }
+    }, [currentUser, router]);
+
+    if (!isInitialized || currentUser?.type === 'provider') return null; // Avoid hydration mismatch or provider flash
 
     const filteredProviders = providers.filter(provider => {
         const matchesCategory = activeCategory === "all" || provider.category === activeCategory;
@@ -35,12 +43,12 @@ export default function ExplorePage() {
     });
 
     return (
-        <div className="min-h-screen bg-slate-50/50 py-8">
+        <div className="min-h-screen bg-background py-8">
             <div className="container mx-auto px-4">
                 {/* Header & Filter */}
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold mb-2">تصفح الخدمات</h1>
+                        <h1 className="text-3xl font-bold mb-2 text-foreground">تصفح الخدمات</h1>
                         <p className="text-muted-foreground">أكثر من 50 خدمة متاحة في أسيوط الجديدة</p>
                     </div>
 
@@ -67,10 +75,10 @@ export default function ExplorePage() {
                             key={cat.id}
                             onClick={() => setActiveCategory(cat.id)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm font-medium border",
+                                "flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm font-bold border",
                                 activeCategory === cat.id
-                                    ? "bg-primary text-white border-primary shadow-md hover:bg-primary/90"
-                                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                    ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 hover:bg-primary/90"
+                                    : "bg-card text-muted-foreground border-border hover:bg-accent hover:text-foreground"
                             )}
                         >
                             {cat.icon && <cat.icon className="h-4 w-4" />}
@@ -96,12 +104,12 @@ export default function ExplorePage() {
                             animate={{ opacity: 1, scale: 1 }}
                             className="col-span-full flex flex-col items-center justify-center py-20 text-center"
                         >
-                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4 text-muted-foreground">
                                 <Search className="h-8 w-8" />
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-900">لا توجد نتائج</h3>
+                            <h3 className="text-lg font-semibold text-foreground">لا توجد نتائج</h3>
                             <p className="text-muted-foreground mb-4">لم نجد أي خدمات تطابق بحثك في هذا القسم.</p>
-                            <Button variant="outline" onClick={() => { setActiveCategory("all"); setSearchQuery(""); }}>عرض كل الخدمات</Button>
+                            <Button variant="outline" className="border-border hover:bg-accent" onClick={() => { setActiveCategory("all"); setSearchQuery(""); }}>عرض كل الخدمات</Button>
                         </motion.div>
                     )}
                 </motion.div>

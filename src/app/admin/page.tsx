@@ -50,14 +50,14 @@ export default function AdminDashboard() {
         }
     };
 
-    if (!isInitialized) return <div className="p-10 text-center text-slate-500">جاري التحميل...</div>;
+    if (!isInitialized) return <div className="p-10 text-center text-muted-foreground font-cairo">جاري التحميل...</div>;
 
     const pendingRequests = requests.filter(r => r.status === 'pending');
 
     const stats = [
-        { label: "طلبات معلقة", value: pendingRequests.length.toString(), icon: Clock, color: "text-orange-600", bg: "bg-orange-100" },
-        { label: "مقدمي الخدمات", value: (providers || []).length.toString(), icon: Store, color: "text-purple-600", bg: "bg-purple-100" },
-        { label: "إجمالي الحجوزات", value: (bookings || []).length.toString(), icon: ShoppingBag, color: "text-emerald-600", bg: "bg-emerald-100" },
+        { label: "طلبات معلقة", value: pendingRequests.length.toString(), icon: Clock, color: "text-orange-400", bg: "bg-orange-400/10" },
+        { label: "مقدمي الخدمات", value: (providers || []).length.toString(), icon: Store, color: "text-indigo-400", bg: "bg-indigo-400/10" },
+        { label: "إجمالي الحجوزات", value: (bookings || []).length.toString(), icon: ShoppingBag, color: "text-emerald-400", bg: "bg-emerald-400/10" },
     ];
 
     const handleApprove = async (id: string, name: string) => {
@@ -142,23 +142,23 @@ export default function AdminDashboard() {
         <div className="space-y-6">
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">لوحة التحكم</h1>
-                    <p className="text-slate-500 mt-2">نظرة عامة على أداء المنصة والطلبات.</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground font-cairo">لوحة التحكم</h1>
+                    <p className="text-muted-foreground mt-2 font-cairo">نظرة عامة على أداء المنصة والطلبات.</p>
                 </div>
             </header>
 
             {/* Custom Tabs */}
             <div className="space-y-6">
-                <div className="flex p-1 bg-slate-100/80 rounded-xl w-fit">
+                <div className="flex p-1 bg-muted/30 rounded-2xl w-fit border border-border/50">
                     {(['overview', 'requests', 'providers', 'bookings'] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`
-                                relative px-6 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
+                                relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 font-cairo
                                 ${activeTab === tab
-                                    ? "text-slate-900 shadow-sm bg-white"
-                                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                                    ? "text-foreground shadow-lg bg-card border border-border/50"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                 }
                             `}
                         >
@@ -167,7 +167,7 @@ export default function AdminDashboard() {
                                 <span className="flex items-center gap-2">
                                     الطلبات
                                     {pendingRequests.length > 0 && (
-                                        <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
+                                        <span className="bg-destructive text-destructive-foreground text-[10px] px-2 py-0.5 rounded-full animate-pulse">
                                             {pendingRequests.length}
                                         </span>
                                     )}
@@ -190,78 +190,78 @@ export default function AdminDashboard() {
                             {/* Stats Cards */}
                             <div className="grid gap-4 md:grid-cols-3">
                                 {stats.map((stat, index) => (
-                                    <Card key={index} className="border-none shadow-sm overflow-hidden">
+                                    <Card key={index} className="border-border/50 shadow-sm overflow-hidden bg-card rounded-[1.5rem]">
                                         <CardContent className="p-6">
                                             <div className="flex items-center justify-between space-y-0 pb-2">
-                                                <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                                                <div className={`p-2 rounded-lg ${stat.bg}`}>
-                                                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                                                <p className="text-sm font-bold text-muted-foreground font-cairo">{stat.label}</p>
+                                                <div className={`p-2.5 rounded-xl ${stat.bg}`}>
+                                                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
                                                 </div>
                                             </div>
-                                            <div className="text-2xl font-bold">{stat.value}</div>
+                                            <div className="text-3xl font-black mt-2">{stat.value}</div>
                                         </CardContent>
                                     </Card>
                                 ))}
                             </div>
 
-                            <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-6 md:grid-cols-2">
                                 {/* Pending Requests */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
+                                <Card className="bg-card border-border/50 rounded-[2rem] overflow-hidden">
+                                    <CardHeader className="bg-muted/30 pb-4">
+                                        <CardTitle className="flex items-center gap-2 font-cairo">
                                             طلبات الانضمام
                                             {pendingRequests.length > 0 && (
-                                                <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                                                <span className="bg-orange-500/10 text-orange-500 text-xs px-2.5 py-1 rounded-full font-bold">
                                                     {pendingRequests.length} معلق
                                                 </span>
                                             )}
                                         </CardTitle>
-                                        <CardDescription>طلبات تحتاج مراجعتك</CardDescription>
+                                        <CardDescription className="font-cairo">طلبات تحتاج مراجعتك</CardDescription>
                                     </CardHeader>
-                                    <CardContent>
+                                    <CardContent className="pt-6">
                                         <div className="space-y-4">
                                             {pendingRequests.slice(0, 5).map(req => (
-                                                <div key={req.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                                                <div key={req.id} className="flex items-center justify-between border-b border-border/50 pb-4 last:border-0 last:pb-0">
                                                     <div>
-                                                        <p className="font-semibold">{req.name}</p>
-                                                        <p className="text-sm text-slate-500">{req.category}</p>
+                                                        <p className="font-bold text-foreground">{req.name}</p>
+                                                        <p className="text-sm text-muted-foreground">{req.category}</p>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleApprove(req.id, req.name)}>
+                                                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg" onClick={() => handleApprove(req.id, req.name)}>
                                                             <CheckCircle2 className="w-4 h-4" />
                                                         </Button>
-                                                        <Button size="sm" variant="destructive" onClick={() => handleReject(req.id, req.name)}>
+                                                        <Button size="sm" variant="destructive" className="rounded-lg" onClick={() => handleReject(req.id, req.name)}>
                                                             <XCircle className="w-4 h-4" />
                                                         </Button>
                                                     </div>
                                                 </div>
                                             ))}
                                             {pendingRequests.length === 0 && (
-                                                <p className="text-center text-slate-500 py-4">لا توجد طلبات جديدة ✨</p>
+                                                <p className="text-center text-muted-foreground py-4 font-cairo">لا توجد طلبات جديدة ✨</p>
                                             )}
                                         </div>
                                     </CardContent>
                                 </Card>
 
                                 {/* Recent Providers */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>مقدمي الخدمات</CardTitle>
-                                        <CardDescription>المسجلين في المنصة</CardDescription>
+                                <Card className="bg-card border-border/50 rounded-[2rem] overflow-hidden">
+                                    <CardHeader className="bg-muted/30 pb-4">
+                                        <CardTitle className="font-cairo">مقدمي الخدمات</CardTitle>
+                                        <CardDescription className="font-cairo">المسجلين في المنصة</CardDescription>
                                     </CardHeader>
-                                    <CardContent>
+                                    <CardContent className="pt-6">
                                         <div className="space-y-4">
                                             {(providers || []).slice(0, 5).map(prov => (
-                                                <div key={prov.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                                                <div key={prov.id} className="flex items-center justify-between border-b border-border/50 pb-4 last:border-0 last:pb-0">
                                                     <div>
-                                                        <p className="font-semibold">{prov.name}</p>
-                                                        <p className="text-sm text-slate-500">{prov.category}</p>
+                                                        <p className="font-bold text-foreground">{prov.name}</p>
+                                                        <p className="text-sm text-muted-foreground">{prov.category}</p>
                                                     </div>
-                                                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs">نشط</span>
+                                                    <span className="bg-emerald-500/10 text-emerald-500 px-2.5 py-1 rounded-full text-xs font-bold">نشط</span>
                                                 </div>
                                             ))}
                                             {(providers || []).length === 0 && (
-                                                <p className="text-center text-slate-500 py-4">لا يوجد مقدمي خدمات بعد</p>
+                                                <p className="text-center text-muted-foreground py-4 font-cairo">لا يوجد مقدمي خدمات بعد</p>
                                             )}
                                         </div>
                                     </CardContent>
@@ -273,60 +273,60 @@ export default function AdminDashboard() {
                     {/* REQUESTS TAB */}
                     {activeTab === 'requests' && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
+                            <Card className="bg-card border-border/50 rounded-[2rem] overflow-hidden">
+                                <CardHeader className="bg-muted/30 pb-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div>
-                                            <CardTitle>طلبات الانضمام</CardTitle>
-                                            <CardDescription>قبول أو رفض طلبات مقدمي الخدمات الجدد</CardDescription>
+                                            <CardTitle className="font-cairo">طلبات الانضمام</CardTitle>
+                                            <CardDescription className="font-cairo">قبول أو رفض طلبات مقدمي الخدمات الجدد</CardDescription>
                                         </div>
-                                        <div className="relative w-64">
-                                            <Search className="absolute right-2 top-2.5 h-4 w-4 text-slate-500" />
+                                        <div className="relative w-full md:w-64">
+                                            <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
                                             <Input
                                                 placeholder="بحث عن طلب..."
-                                                className="pr-8"
+                                                className="pr-10 h-10 rounded-xl bg-background border-border/50"
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
                                             />
                                         </div>
                                     </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pt-6 px-4 md:px-6">
                                     {loadingRequests ? (
-                                        <p className="text-center py-10 text-slate-500">جاري التحميل...</p>
+                                        <p className="text-center py-10 text-muted-foreground font-cairo">جاري التحميل...</p>
                                     ) : (
                                         <div className="space-y-4">
                                             {filteredRequests.filter(r => r.status === 'pending').length === 0 ? (
-                                                <div className="text-center py-10 text-slate-500">
-                                                    <CheckCircle2 className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                                                    <p>لا توجد طلبات معلقة 🎉</p>
+                                                <div className="text-center py-10 text-muted-foreground">
+                                                    <CheckCircle2 className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                                    <p className="font-cairo text-lg">لا توجد طلبات معلقة 🎉</p>
                                                 </div>
                                             ) : (
                                                 filteredRequests.filter(r => r.status === 'pending').map((req) => (
-                                                    <div key={req.id} className="flex items-center justify-between p-4 border rounded-lg bg-slate-50/50">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+                                                    <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between p-5 border border-border/50 rounded-2xl bg-muted/20 hover:bg-muted/30 transition-all gap-4">
+                                                        <div className="flex items-center gap-4 text-right">
+                                                            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-2xl border border-primary/20">
                                                                 {req.name[0]}
                                                             </div>
                                                             <div>
-                                                                <h4 className="font-semibold">{req.name}</h4>
-                                                                <div className="flex items-center text-sm text-slate-500 gap-3">
-                                                                    <span>{req.category}</span>
-                                                                    <span>•</span>
+                                                                <h4 className="font-black text-foreground text-lg">{req.name}</h4>
+                                                                <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-3 mt-1 font-medium">
+                                                                    <span className="bg-background px-2 py-0.5 rounded-lg border border-border/50">{req.category}</span>
+                                                                    <span className="hidden md:inline">•</span>
                                                                     <span>{req.phone}</span>
-                                                                    <span>•</span>
+                                                                    <span className="hidden md:inline">•</span>
                                                                     <span>{req.location}</span>
                                                                 </div>
-                                                                <p className="text-xs text-slate-400">{req.email}</p>
+                                                                <p className="text-xs text-muted-foreground mt-1 opacity-70">{req.email}</p>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleApprove(req.id, req.name)}>
-                                                                <CheckCircle2 className="w-4 h-4 ml-1" />
+                                                            <Button className="flex-1 md:flex-none h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold font-cairo px-6" onClick={() => handleApprove(req.id, req.name)}>
+                                                                <CheckCircle2 className="w-4 h-4 ml-2" />
                                                                 قبول
                                                             </Button>
-                                                            <Button variant="destructive" onClick={() => handleReject(req.id, req.name)}>
-                                                                <XCircle className="w-4 h-4 ml-1" />
+                                                            <Button variant="outline" className="flex-1 md:flex-none h-11 border-destructive/50 text-destructive hover:bg-destructive/10 rounded-xl font-bold font-cairo px-6" onClick={() => handleReject(req.id, req.name)}>
+                                                                <XCircle className="w-4 h-4 ml-2" />
                                                                 رفض
                                                             </Button>
                                                         </div>
@@ -343,47 +343,55 @@ export default function AdminDashboard() {
                     {/* PROVIDERS TAB */}
                     {activeTab === 'providers' && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>مقدمي الخدمات</CardTitle>
-                                    <CardDescription>إدارة مقدمي الخدمات المسجلين</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="relative mb-4">
-                                        <Search className="absolute right-2 top-2.5 h-4 w-4 text-slate-500" />
-                                        <Input
-                                            placeholder="بحث عن مقدم خدمة..."
-                                            className="pr-8"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
+                            <Card className="bg-card border-border/50 rounded-[2rem] overflow-hidden">
+                                <CardHeader className="bg-muted/30">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div>
+                                            <CardTitle className="font-cairo">مقدمي الخدمات</CardTitle>
+                                            <CardDescription className="font-cairo">إدارة مقدمي الخدمات المسجلين</CardDescription>
+                                        </div>
+                                        <div className="relative w-full md:w-64">
+                                            <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="بحث عن مقدم خدمة..."
+                                                className="pr-10 h-10 rounded-xl bg-background border-border/50"
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
+                                </CardHeader>
+                                <CardContent className="pt-6">
+                                    <div className="space-y-3">
                                         {filteredProviders.length === 0 ? (
-                                            <p className="text-center py-10 text-slate-500">لا يوجد مقدمي خدمات</p>
+                                            <p className="text-center py-10 text-muted-foreground font-cairo">لا يوجد مقدمي خدمات</p>
                                         ) : (
                                             filteredProviders.map((prov) => (
-                                                <div key={prov.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors border-b last:border-0">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="h-10 w-10 rounded-lg bg-slate-200 flex items-center justify-center text-xl">
+                                                <div key={prov.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 hover:bg-muted/30 rounded-2xl transition-all border border-transparent hover:border-border/50 gap-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center text-2xl border border-border/50">
                                                             🏪
                                                         </div>
                                                         <div>
-                                                            <p className="font-medium">{prov.name}</p>
-                                                            <p className="text-xs text-slate-500">{prov.category} • {prov.email}</p>
+                                                            <p className="font-black text-foreground">{prov.name}</p>
+                                                            <p className="text-xs text-muted-foreground font-medium">{prov.category} • {prov.email}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-4 text-sm text-slate-600">
-                                                        <span>⭐ {prov.rating}</span>
-                                                        <span>{prov.reviews} تقييم</span>
-                                                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs">نشط</span>
+                                                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                                        <div className="flex items-center gap-1 font-bold text-foreground">
+                                                            <span className="text-amber-400 text-lg">⭐</span>
+                                                            {prov.rating}
+                                                        </div>
+                                                        <div className="text-xs">{prov.reviews} تقييم</div>
+                                                        <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-[10px] font-black uppercase">نشط</span>
                                                         <Button
-                                                            size="sm"
-                                                            variant="destructive"
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl h-10 w-10"
                                                             disabled={isLoading}
                                                             onClick={() => handleDeleteProvider(prov.id, prov.name)}
                                                         >
-                                                            <Trash2 className="h-4 w-4" />
+                                                            <Trash2 className="h-5 w-5" />
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -398,49 +406,51 @@ export default function AdminDashboard() {
                     {/* BOOKINGS TAB */}
                     {activeTab === 'bookings' && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>سجل الحجوزات</CardTitle>
-                                    <CardDescription>متابعة جميع العمليات</CardDescription>
+                            <Card className="bg-card border-border/50 rounded-[2rem] overflow-hidden">
+                                <CardHeader className="bg-muted/30">
+                                    <CardTitle className="font-cairo">سجل الحجوزات</CardTitle>
+                                    <CardDescription className="font-cairo">متابعة جميع العمليات</CardDescription>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pt-6">
                                     <div className="space-y-4">
                                         {filteredBookings.length === 0 ? (
-                                            <p className="text-center text-slate-500 py-10">لا توجد حجوزات حتى الآن</p>
+                                            <p className="text-center text-muted-foreground py-10 font-cairo">لا توجد حجوزات حتى الآن</p>
                                         ) : (
-                                            <div className="border rounded-lg overflow-hidden">
-                                                <table className="w-full text-sm text-right">
-                                                    <thead className="bg-slate-50 text-slate-500 font-medium">
-                                                        <tr>
-                                                            <th className="p-3">العميل</th>
-                                                            <th className="p-3">مقدم الخدمة</th>
-                                                            <th className="p-3">الخدمة</th>
-                                                            <th className="p-3">الحالة</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y">
-                                                        {filteredBookings.map((book) => (
-                                                            <tr key={book.id} className="hover:bg-slate-50/50 transition-colors">
-                                                                <td className="p-3 font-medium">{book.userName}</td>
-                                                                <td className="p-3 text-slate-600">{book.providerName}</td>
-                                                                <td className="p-3">{book.serviceName}</td>
-                                                                <td className="p-3">
-                                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium
-                                                                        ${book.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : ''}
-                                                                        ${book.status === 'pending' ? 'bg-orange-100 text-orange-700' : ''}
-                                                                        ${book.status === 'completed' ? 'bg-blue-100 text-blue-700' : ''}
-                                                                        ${book.status === 'rejected' ? 'bg-red-100 text-red-700' : ''}
-                                                                    `}>
-                                                                        {book.status === 'confirmed' && 'جاري التنفيذ'}
-                                                                        {book.status === 'pending' && 'قيد الانتظار'}
-                                                                        {book.status === 'completed' && 'مكتمل'}
-                                                                        {book.status === 'rejected' && 'مرفوض'}
-                                                                    </span>
-                                                                </td>
+                                            <div className="border border-border/50 rounded-2xl overflow-hidden">
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-sm text-right">
+                                                        <thead className="bg-muted text-muted-foreground font-black font-cairo border-b border-border/50">
+                                                            <tr>
+                                                                <th className="p-4">العميل</th>
+                                                                <th className="p-4">مقدم الخدمة</th>
+                                                                <th className="p-4">الخدمة</th>
+                                                                <th className="p-4">الحالة</th>
                                                             </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-border/50 font-medium font-cairo">
+                                                            {filteredBookings.map((book) => (
+                                                                <tr key={book.id} className="hover:bg-muted/30 transition-colors">
+                                                                    <td className="p-4 font-black text-foreground">{book.userName}</td>
+                                                                    <td className="p-4 text-muted-foreground">{book.providerName}</td>
+                                                                    <td className="p-4 text-muted-foreground">{book.serviceName}</td>
+                                                                    <td className="p-4">
+                                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black
+                                                                            ${book.status === 'confirmed' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : ''}
+                                                                            ${book.status === 'pending' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : ''}
+                                                                            ${book.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : ''}
+                                                                            ${book.status === 'rejected' ? 'bg-destructive/10 text-destructive border border-destructive/20' : ''}
+                                                                        `}>
+                                                                            {book.status === 'confirmed' && 'جاري التنفيذ'}
+                                                                            {book.status === 'pending' && 'قيد الانتظار'}
+                                                                            {book.status === 'completed' && 'مكتمل'}
+                                                                            {book.status === 'rejected' && 'مرفوض'}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -448,6 +458,7 @@ export default function AdminDashboard() {
                             </Card>
                         </motion.div>
                     )}
+
                 </AnimatePresence>
             </div>
         </div>

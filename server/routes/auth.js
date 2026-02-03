@@ -272,4 +272,77 @@ router.post('/requests/:id/reject', async (req, res) => {
     }
 });
 
+// Update profile
+router.put('/profile', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'غير مصرح' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.id;
+
+        const { name, email, phone, avatar, oldPassword, newPassword } = req.body;
+
+        // Get current user
+        const userResult = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'المستخدم غير موجود' });
+        }
+        const currentUser = userResult.rows[0];
+
+        // Prepare update values
+        let updateQuery = 'UPDATE users SET name = $1, phone = $2, avatar = $3';
+        let queryParams = [name || currentUser.name, phone || currentUser.phone, avatar || currentUser.avatar];
+        let paramIndex = 4;
+
+        // Handle Email Change
+        if (email && email !== currentUser.email) {
+            // Check if email taken
+            const emailCheck = await db.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userId]);
+            if (emailCheck.rows.length > 0) {
+                return res.status(400).json({ error: 'البريد الإلكتروني مستخدم بالفعل' });
+            }
+            updateQuery += `, email = $${paramIndex}`;
+            queryParams.push(email);
+            paramIndex++;
+        }
+
+        // Handle Password Change
+        if (newPassword) {
+            if (!oldPassword) {
+                return res.status(400).json({ error: 'يرجى إدخال كلمة المرور الحالية لتعيين كلمة مرور جديدة' });
+            }
+
+            const isMatch = await bcrypt.compare(oldPassword, currentUser.password);
+            if (!isMatch) {
+                return res.status(400).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+            }
+
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            updateQuery += `, password = $${paramIndex}`;
+            queryParams.push(hashedPassword);
+            paramIndex++;
+        }
+
+        updateQuery += ` WHERE id = $${paramIndex} RETURNING id, name, email, phone, avatar, user_type`;
+        queryParams.push(userId);
+
+        const result = await db.query(updateQuery, queryParams);
+        const updatedUser = result.rows[0];
+
+        res.json({
+            success: true,
+            message: 'تم تحديث البيانات بنجاح',
+            user: updatedUser
+        });
+
+    } catch (error) {
+        console.error('Update profile error:', error);
+        res.status(500).json({ error: 'حدث خطأ في تحديث البيانات' });
+    }
+});
+
 module.exports = router;

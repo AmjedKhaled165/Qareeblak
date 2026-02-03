@@ -156,120 +156,129 @@ export default function DriverDashboard() {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col" dir="rtl">
-            {/* Violet Gradient Header - Driver */}
+        <div className="min-h-screen bg-background text-foreground font-cairo flex flex-col transition-colors duration-500" dir="rtl">
+            {/* Midnight Violet Header - Driver */}
             <div
-                className="p-6 pt-10 rounded-b-[30px] shadow-lg flex-shrink-0"
-                style={{
-                    background: 'linear-gradient(135deg, #624AF2 0%, #504DFF 100%)'
-                }}
+                className="p-8 pt-12 rounded-b-[3.5rem] shadow-2xl relative overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#1E1B4B] to-[#4338CA] border-b border-white/5"
             >
-                <div className="flex justify-between items-center mb-5">
-                    <div className="flex items-center gap-3 text-right">
-                        <img
-                            src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name_ar || user?.name || 'U')}&background=random`}
-                            alt={user?.name_ar}
-                            className="w-12 h-12 rounded-full border-2 border-white/30 object-cover"
-                        />
-                        <div>
-                            <h1 className="text-2xl font-bold text-white mb-1">الطلبات الحالية</h1>
-                            <p className="text-white/80 text-sm">مرحباً، {user?.name_ar || user?.name}</p>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => router.push('/partner/settings')}
-                            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-                        >
-                            <Settings className="w-5 h-5 text-white" />
-                        </button>
-                        <button
-                            onClick={handleLogout}
-                            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-                        >
-                            <LogOut className="w-5 h-5 text-white" />
-                        </button>
-                    </div>
-                </div>
+                {/* Decorative Elements */}
+                <div className="absolute top-[-50%] left-[-10%] w-64 h-64 bg-violet-500/20 rounded-full blur-[80px]" />
+                <div className="absolute bottom-[-20%] right-[-5%] w-80 h-80 bg-blue-500/10 rounded-full blur-[100px]" />
 
-                {/* Add Order Quick Box */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-2"
-                >
-                    <button
-                        onClick={() => router.push('/partner/orders/create')}
-                        className="w-full bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-4 flex items-center justify-between transition-all"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-green-400/20 flex items-center justify-center">
-                                <PlusCircle className="w-6 h-6 text-green-400" />
+                <div className="relative z-10">
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-4 text-right">
+                            <div className="relative">
+                                <img
+                                    src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name_ar || user?.name || 'U')}&background=8b5cf6&color=fff`}
+                                    alt={user?.name_ar}
+                                    className="w-16 h-16 rounded-2xl border-2 border-white/20 object-cover shadow-xl"
+                                />
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-[#1E1B4B] rounded-full shadow-lg" />
                             </div>
-                            <div className="text-right">
-                                <p className="text-white font-bold">إضافة طلب خارجي</p>
-                                <p className="text-white/60 text-xs text-right">أضف طلب جديد واستلم بياناته فوراً</p>
+                            <div>
+                                <h1 className="text-2xl font-bold text-white drop-shadow-sm">الطلبات الحالية</h1>
+                                <p className="text-white/60 text-sm">مرحباً، <span className="text-violet-200 font-bold">{user?.name_ar || user?.name}</span></p>
                             </div>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-white/40 -rotate-180" />
-                    </button>
-                </motion.div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => router.push('/partner/settings')}
+                                title="الإعدادات"
+                                className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all border border-white/10"
+                            >
+                                <Settings className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                title="تسجيل الخروج"
+                                className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-all border border-red-500/20 shadow-lg"
+                            >
+                                <LogOut className="w-5 h-5 text-red-400" />
+                            </button>
+                        </div>
+                    </div>
 
-                {/* Tracking Status Indicator */}
-                <div
-                    className="mx-auto flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full mb-4"
-                >
-                    <div className={`w-2.5 h-2.5 rounded-full ${isTracking ? 'bg-green-400' : 'bg-red-400'} ${!isTracking && 'animate-pulse'}`} />
-                    <span className="text-white text-sm font-medium">
-                        {isTracking ? 'التتبع نشط (صالح لمدة 24 ساعة)' : 'التتبع متوقف'}
-                    </span>
-                </div>
+                    {/* Quick Add Order - Themed */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-6"
+                    >
+                        <button
+                            onClick={() => router.push('/partner/orders/create')}
+                            className="w-full bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/10 rounded-3xl p-5 flex items-center justify-between transition-all group shadow-xl"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/10">
+                                    <PlusCircle className="w-7 h-7 text-emerald-400" />
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-white font-bold text-lg">إضافة طلب خارجي</p>
+                                    <p className="text-white/40 text-xs">سجل طلبك وثبّت بياناته الآن</p>
+                                </div>
+                            </div>
+                            <ArrowRight className="w-6 h-6 text-white/30 -rotate-180 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                        </button>
+                    </motion.div>
 
-                {/* View Toggles */}
-                <div className="flex bg-black/20 p-1 rounded-xl">
-                    <button
-                        onClick={() => setView('list')}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'list'
-                            ? 'bg-white text-violet-600 shadow-sm'
-                            : 'text-white/70 hover:bg-white/10'
-                            }`}
-                    >
-                        <List className="w-4 h-4" />
-                        الطلبات
-                    </button>
-                    <button
-                        onClick={() => setView('map')}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'map'
-                            ? 'bg-white text-violet-600 shadow-sm'
-                            : 'text-white/70 hover:bg-white/10'
-                            }`}
-                    >
-                        <MapIcon className="w-4 h-4" />
-                        الخريطة
-                    </button>
+                    {/* Tracking Status Indicator - Themed */}
+                    <div className="flex items-center justify-center gap-3 bg-black/30 backdrop-blur-xl px-5 py-2.5 rounded-2xl mb-6 border border-white/5 shadow-inner">
+                        <div className={`w-3 h-3 rounded-full ${isTracking ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'} ${!isTracking && 'animate-pulse'}`} />
+                        <span className="text-white/80 text-sm font-bold tracking-tight">
+                            {isTracking ? 'التتبع نشط (صالح لمدة 24 ساعة)' : 'التتبع متوقف حالياً'}
+                        </span>
+                    </div>
+
+                    {/* View Toggles - Midnight Theme */}
+                    <div className="flex bg-black/40 backdrop-blur-md p-1.5 rounded-2xl border border-white/5 shadow-2xl">
+                        <button
+                            onClick={() => setView('list')}
+                            className={`flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'list'
+                                ? 'bg-white text-indigo-950 shadow-xl scale-100'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <List className="w-4 h-4" />
+                            قائمة الطلبات
+                        </button>
+                        <button
+                            onClick={() => setView('map')}
+                            className={`flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'map'
+                                ? 'bg-white text-indigo-950 shadow-xl scale-100'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <MapIcon className="w-4 h-4" />
+                            خريطة التوصيل
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 flex flex-col">
+            {/* Content Container */}
+            <div className="flex-1 flex flex-col w-full">
                 {view === 'list' ? (
-                    <div className="p-4 pb-8">
-                        {/* Quick Action Buttons */}
-                        <div className="space-y-3 mb-6">
+                    <div className="p-6 pb-12">
+                        {/* Quick Action Buttons - Midnight */}
+                        <div className="grid grid-cols-1 gap-4 mb-10">
                             <motion.button
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.1 }}
                                 onClick={() => router.push('/partner/orders')}
-                                className="w-full flex items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all"
+                                className="w-full flex items-center justify-between gap-4 bg-card/40 border-border/10 shadow-lg hover:border-primary/30 transition-all group"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                                        <Receipt className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20 group-hover:scale-110 transition-transform">
+                                        <Receipt className="w-6 h-6 text-orange-400" />
                                     </div>
-                                    <span className="font-bold text-slate-700 dark:text-slate-200">عرض طلباتي السابقة</span>
+                                    <div className="text-right">
+                                        <span className="font-bold text-lg text-foreground block">طلباتي السابقة</span>
+                                        <span className="text-xs text-slate-500">مراجعة الأرشيف والمحفظة</span>
+                                    </div>
                                 </div>
-                                <ArrowRight className="w-5 h-5 text-slate-300 -rotate-180" />
+                                <ArrowRight className="w-6 h-6 text-slate-600 -rotate-180 group-hover:text-foreground group-hover:translate-x-1 transition-all" />
                             </motion.button>
 
                             <motion.button
@@ -277,75 +286,89 @@ export default function DriverDashboard() {
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.2 }}
                                 onClick={() => router.push('/partner/stats')}
-                                className="w-full flex items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all"
+                                className="w-full flex items-center justify-between gap-4 bg-card/40 border-border/10 shadow-lg hover:border-primary/30 transition-all group"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                                        <BarChart3 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center border border-violet-500/20 group-hover:scale-110 transition-transform">
+                                        <BarChart3 className="w-6 h-6 text-violet-400" />
                                     </div>
-                                    <span className="font-bold text-slate-700 dark:text-slate-200">تقارير الأداء والدخل</span>
+                                    <div className="text-right">
+                                        <span className="font-bold text-lg text-foreground block">تقارير الأداء</span>
+                                        <span className="text-xs text-slate-500">تحليل الدخل والإنتاجية</span>
+                                    </div>
                                 </div>
-                                <ArrowRight className="w-5 h-5 text-slate-300 -rotate-180" />
+                                <ArrowRight className="w-6 h-6 text-slate-600 -rotate-180 group-hover:text-foreground group-hover:translate-x-1 transition-all" />
                             </motion.button>
                         </div>
 
                         {/* Active Orders Section */}
-                        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">طلبات نشطة ({activeOrders.length})</h2>
+                        <div className="flex items-center justify-between mb-6 px-2">
+                            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                                <span className="w-1 h-6 bg-violet-500 rounded-full" />
+                                طلبات نشطة ({activeOrders.length})
+                            </h2>
+                            <button
+                                onClick={fetchActiveOrders}
+                                title="تحديث الطلبات"
+                                className="p-2.5 rounded-2xl bg-muted border border-border hover:bg-muted/80 transition-all"
+                            >
+                                <RefreshCw className={`w-4 h-4 text-slate-400 ${isLoading ? 'animate-spin' : ''}`} />
+                            </button>
+                        </div>
 
                         {isLoading ? (
-                            <div className="flex items-center justify-center py-10">
-                                <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
+                            <div className="flex flex-col items-center justify-center py-20">
+                                <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4" />
+                                <p className="text-slate-500 text-sm animate-pulse font-medium">جاري التحديث...</p>
                             </div>
                         ) : activeOrders.length === 0 ? (
-                            <div className="text-center py-12">
-                                <ClipboardList className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-                                <p className="text-slate-500 dark:text-slate-400">لا توجد طلبات حالياً</p>
+                            <div className="text-center py-20 bg-slate-900/20 rounded-[3rem] border border-dashed border-white/10 mx-2 shadow-inner">
+                                <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <ClipboardList className="w-10 h-10 text-slate-600" />
+                                </div>
+                                <p className="text-foreground font-bold text-lg mb-2">لا توجد طلبات جارية</p>
+                                <p className="text-slate-500 text-sm px-10">استمتع باستراحة، سنخبرك فور وصول طلب جديد.</p>
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                {activeOrders.map((order) => (
+                            <div className="space-y-4">
+                                {activeOrders.map((order, idx) => (
                                     <motion.div
                                         key={order.id}
-                                        initial={{ opacity: 0, y: 10 }}
+                                        initial={{ opacity: 0, y: 15 }}
                                         animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.1 }}
                                         onClick={() => router.push(`/partner/orders/${order.id}`)}
-                                        className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                                        className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-6 shadow-xl hover:border-violet-500/30 transition-all cursor-pointer group"
                                     >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="font-bold text-slate-800 dark:text-slate-100">طلب #{order.id}</span>
-                                            <span className="px-3 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full text-xs font-semibold">
-                                                نشط
-                                            </span>
-                                        </div>
-                                        <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">{order.customer_name}</p>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm mb-2 flex items-center gap-1">
-                                            <MapPin className="w-4 h-4" />
-                                            {order.delivery_address}
-                                        </p>
-                                        <div className="flex justify-between items-end">
-                                            <p className="text-slate-400 text-xs">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full text-[10px] font-bold text-violet-400 tracking-wider">
+                                                    #{order.id}
+                                                </span>
+                                                <span className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-[10px] font-bold text-emerald-400">
+                                                    {order.status}
+                                                </span>
+                                            </div>
+                                            <p className="text-slate-500 text-[10px] font-bold">
                                                 {new Date(order.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                                             </p>
-                                            <div className="text-left">
-                                                {(() => {
-                                                    const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
-                                                    const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
-                                                    const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
-                                                    const grandTotal = itemsTotal + deliFee;
+                                        </div>
 
-                                                    if (grandTotal === 0 && deliFee === 0) return null;
+                                        <div className="text-right mb-6">
+                                            <h3 className="text-foreground font-bold text-xl group-hover:text-violet-400 transition-colors mb-2">{order.customer_name}</h3>
+                                            <div className="flex items-center gap-2 text-slate-400 group-hover:text-slate-300 transition-colors">
+                                                <MapPin className="w-4 h-4 text-violet-500 flex-shrink-0" />
+                                                <span className="text-sm truncate font-medium">{order.delivery_address}</span>
+                                            </div>
+                                        </div>
 
-                                                    return (
-                                                        <div className="flex flex-col items-end">
-                                                            <span className="font-bold text-green-600 dark:text-green-400 text-lg leading-none">
-                                                                {grandTotal.toFixed(0)} ج.م
-                                                            </span>
-                                                            <span className="text-[10px] text-slate-400 mt-1">
-                                                                + {deliFee} توصيل
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })()}
+                                        <div className="flex items-center justify-between pt-5 border-t border-white/5">
+                                            <div className="text-right">
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">صافي الربح المتوقع</p>
+                                                <p className="text-2xl font-black text-emerald-400 leading-none">{parseFloat(order.delivery_fee?.toString() || '0').toFixed(0)} <span className="text-xs font-bold text-emerald-500/60 mr-1">ج.م</span></p>
+                                            </div>
+                                            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:bg-violet-500 group-hover:text-foreground transition-all shadow-lg">
+                                                <ArrowRight className="w-5 h-5 -rotate-180" />
                                             </div>
                                         </div>
                                     </motion.div>
@@ -354,8 +377,8 @@ export default function DriverDashboard() {
                         )}
                     </div>
                 ) : (
-                    <div className="flex-1 relative bg-slate-200 dark:bg-slate-900">
-                        {/* Map View */}
+                    /* Existing Map View */
+                    <div className="flex-1 relative bg-[#020617]">
                         <div className="absolute inset-0 z-0">
                             <MapContainer
                                 center={currentLocation ? [currentLocation.lat, currentLocation.lng] : [MAP_CENTER.lat, MAP_CENTER.lng]}
@@ -373,26 +396,29 @@ export default function DriverDashboard() {
 
                                 {currentLocation && (
                                     <Marker position={[currentLocation.lat, currentLocation.lng]} icon={createMyIcon()}>
-                                        <Popup>
-                                            <div className="text-center">
-                                                <p className="font-bold">موقعك الحالي</p>
-                                            </div>
-                                        </Popup>
+                                        <Popup>موقعك الحالي</Popup>
                                     </Marker>
                                 )}
                             </MapContainer>
                         </div>
 
-                        {/* Order Cards Overlay */}
-                        <div className="absolute bottom-4 left-4 right-4 z-[500] flex gap-3 overflow-x-auto pb-2 snap-x">
+                        {/* Overlay Cards - Themed */}
+                        <div className="absolute bottom-6 left-4 right-4 z-[500] flex gap-4 overflow-x-auto pb-4 snap-x no-scrollbar">
                             {activeOrders.map((order) => (
                                 <div
                                     key={order.id}
-                                    className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-lg min-w-[250px] snap-center cursor-pointer border-l-4 border-violet-500"
+                                    className="bg-[#0F172A]/90 backdrop-blur-xl p-5 rounded-[2rem] shadow-2xl min-w-[280px] snap-center cursor-pointer border border-white/10 hover:border-violet-500/50 transition-all flex flex-col gap-2"
                                     onClick={() => router.push(`/partner/orders/${order.id}`)}
                                 >
-                                    <p className="font-bold text-sm text-slate-800 dark:text-slate-100">طلب #{order.id}</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{order.delivery_address}</p>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-black text-violet-400 uppercase tracking-tighter">طلب #{order.id}</span>
+                                        <span className="text-[10px] font-bold text-emerald-400">{order.delivery_fee} ج.م</span>
+                                    </div>
+                                    <p className="font-bold text-foreground text-base truncate">{order.customer_name}</p>
+                                    <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+                                        <MapPin className="w-3 h-3 text-violet-500" />
+                                        {order.delivery_address}
+                                    </p>
                                 </div>
                             ))}
                         </div>

@@ -212,7 +212,7 @@ export default function AllDriversPage() {
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 p-4 shadow-sm sticky top-0 z-10 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="p-2">
+                    <button onClick={() => router.back()} className="p-2" title="العودة">
                         <ArrowRight className="w-6 h-6 text-slate-600 dark:text-slate-300" />
                     </button>
                     <div className="flex-1">
@@ -285,6 +285,7 @@ export default function AllDriversPage() {
                                             type="checkbox"
                                             className="sr-only peer"
                                             checked={Boolean(driver.isAvailable)}
+                                            title="تبديل توفر المندوب"
                                             onChange={async () => {
                                                 const newStatus = !driver.isAvailable;
                                                 setDrivers(prev => prev.map(d =>
@@ -307,6 +308,7 @@ export default function AllDriversPage() {
 
                                     <button
                                         onClick={() => router.push(`/partner/tracking/${driver.id}?name=${encodeURIComponent(driver.name)}&username=${driver.username}`)}
+                                        title="تتبع الموقع"
                                         className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                                     >
                                         <MapPin className="w-5 h-5" />
@@ -315,6 +317,7 @@ export default function AllDriversPage() {
                                     {isOwner && (
                                         <button
                                             onClick={() => handleDeleteDriver(driver.id)}
+                                            title="حذف المندوب"
                                             className="w-10 h-10 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
                                         >
                                             <Trash2 className="w-5 h-5" />
@@ -363,7 +366,7 @@ export default function AllDriversPage() {
                     <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[30px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                             <h2 className="text-xl font-bold">إضافة مندوب جديد</h2>
-                            <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full">
+                            <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full" title="إغلاق">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
@@ -432,6 +435,7 @@ export default function AllDriversPage() {
                                     className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3"
                                     value={newDriver.supervisorId}
                                     onChange={(e) => setNewDriver({ ...newDriver, supervisorId: e.target.value })}
+                                    title="اختر المسؤول"
                                 >
                                     <option value="">-- بدون تعيين حالياً --</option>
                                     {managers.map(m => (

@@ -6,6 +6,7 @@ import { ArrowRight, Search, Users, Phone, MapPin, UserPlus, Trash2, X, Loader2,
 import { apiCall } from "@/lib/api";
 import StatusModal from "@/components/ui/status-modal";
 import ConfirmModal from "@/components/ui/confirm-modal";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function ManagersPage() {
     const router = useRouter();
@@ -185,7 +186,7 @@ export default function ManagersPage() {
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 p-4 shadow-sm sticky top-0 z-10 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="p-2">
+                    <button onClick={() => router.back()} className="p-2" title="العودة" aria-label="العودة">
                         <ArrowRight className="w-6 h-6 text-slate-600 dark:text-slate-300" />
                     </button>
                     <div className="flex-1">
@@ -193,15 +194,18 @@ export default function ManagersPage() {
                         <p className="text-xs text-slate-500 dark:text-slate-400">{managers.length} مسؤول</p>
                     </div>
                 </div>
-                {isOwner && (
-                    <button
-                        onClick={() => setShowAddModal(true)}
-                        className="bg-violet-600 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-                    >
-                        <UserPlus className="w-4 h-4" />
-                        إضافة مسؤول
-                    </button>
-                )}
+                <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    {isOwner && (
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="bg-violet-600 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+                        >
+                            <UserPlus className="w-4 h-4" />
+                            إضافة مسؤول
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Search */}
@@ -271,6 +275,8 @@ export default function ManagersPage() {
                                             e.stopPropagation();
                                             handleDeleteManager(manager.id);
                                         }}
+                                        title="حذف المسؤول"
+                                        aria-label="حذف المسؤول"
                                         className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                     >
                                         <Trash2 className="w-5 h-5" />
@@ -289,7 +295,7 @@ export default function ManagersPage() {
                     <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[30px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                             <h2 className="text-xl font-bold">إضافة مسؤول جديد</h2>
-                            <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full">
+                            <button onClick={() => setShowAddModal(false)} title="إغلاق" aria-label="إغلاق" className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>

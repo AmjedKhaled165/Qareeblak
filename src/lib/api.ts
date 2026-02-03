@@ -86,8 +86,23 @@ export const authApi = {
         });
     },
 
+    async updateProfile(data: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        avatar?: string;
+        oldPassword?: string;
+        newPassword?: string;
+    }) {
+        return apiCall('/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
     logout() {
         localStorage.removeItem('qareeblak_token');
+        localStorage.removeItem('halan_token'); // Clear Halan token too
     }
 };
 

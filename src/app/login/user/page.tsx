@@ -124,46 +124,49 @@ export default function UserLoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            {/* Dark Mode Glowing Orbs */}
+            <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-primary/10 rounded-full blur-[100px] z-0" />
+            <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-secondary/10 rounded-full blur-[100px] z-0" />
+
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md"
+                className="w-full max-w-md relative z-10"
             >
-                <Card className="w-full shadow-xl border-none overflow-hidden">
-                    <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-600 w-full" />
-                    <div className="p-4 pb-0">
-                        <Link href="/" className="flex items-center gap-1 text-sm text-slate-400 hover:text-primary transition-colors">
+                <Card className="w-full shadow-2xl border-border/50 bg-card rounded-[2.5rem] overflow-hidden">
+                    <div className="p-6 pb-2 flex justify-end">
+                        <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-cairo font-bold">
+                            الرجوع للرئيسية
                             <ArrowRight className="w-4 h-4" />
-                            رجوع للرئيسية
                         </Link>
                     </div>
 
-                    <CardHeader className="text-center space-y-2 pb-6">
-                        <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 tracking-tight">
+                    <CardHeader className="text-center space-y-2 pb-6 pt-0">
+                        <div className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-400 tracking-tight font-cairo">
                             قريبلك
                         </div>
-                        <CardDescription className="text-base">
+                        <CardDescription className="text-muted-foreground font-cairo font-medium">
                             بوابتك لكل خدمات أسيوط الجديدة
                         </CardDescription>
                     </CardHeader>
 
                     {/* Custom Tabs Header */}
-                    <div className="flex border-b mb-6 mx-8">
+                    <div className="flex border-b border-border/50 mb-6 mx-8">
                         <button
-                            onClick={() => setActiveTab("login")}
-                            className={`flex-1 pb-3 text-sm font-bold transition-all border-b-2 ${activeTab === "login"
-                                ? "border-blue-600 text-blue-600"
-                                : "border-transparent text-slate-400 hover:text-slate-600"
+                            onClick={() => { setActiveTab("login"); setError(null); }}
+                            className={`flex-1 pb-3 text-sm font-bold transition-all border-b-2 font-cairo ${activeTab === "login"
+                                ? "border-primary text-primary"
+                                : "border-transparent text-muted-foreground hover:text-foreground"
                                 }`}
                         >
                             تسجيل الدخول
                         </button>
                         <button
-                            onClick={() => setActiveTab("register")}
-                            className={`flex-1 pb-3 text-sm font-bold transition-all border-b-2 ${activeTab === "register"
-                                ? "border-blue-600 text-blue-600"
-                                : "border-transparent text-slate-400 hover:text-slate-600"
+                            onClick={() => { setActiveTab("register"); setError(null); }}
+                            className={`flex-1 pb-3 text-sm font-bold transition-all border-b-2 font-cairo ${activeTab === "register"
+                                ? "border-primary text-primary"
+                                : "border-transparent text-muted-foreground hover:text-foreground"
                                 }`}
                         >
                             إنشاء حساب جديد
@@ -187,22 +190,24 @@ export default function UserLoginPage() {
                                             initial={{ opacity: 0, height: 0 }}
                                             animate={{ opacity: 1, height: "auto" }}
                                             exit={{ opacity: 0, height: 0 }}
-                                            className={`rounded-lg p-3 text-sm flex items-start gap-2 ${errorType === "NOT_FOUND" ? "bg-blue-50 text-blue-700 border border-blue-100" : "bg-red-50 text-red-700 border border-red-100"
+                                            className={`rounded-xl p-4 text-sm flex items-start gap-3 border font-cairo ${errorType === "NOT_FOUND" 
+                                                ? "bg-primary/10 text-primary border-primary/20" 
+                                                : "bg-destructive/10 text-destructive border-destructive/20"
                                                 }`}
                                         >
                                             {errorType === "NOT_FOUND" ? (
-                                                <div className="flex flex-col gap-1 w-full">
-                                                    <span className="font-bold">الحساب غير موجود</span>
+                                                <div className="flex flex-col gap-2 w-full">
+                                                    <span className="font-bold text-base">الحساب غير موجود</span>
                                                     <span className="text-xs opacity-90">يبدو أنك لم تقم بالتسجيل معنا بعد.</span>
-                                                    <button
+                                                    <Button
                                                         onClick={() => { setActiveTab("register"); setError(null); }}
-                                                        className="text-xs bg-blue-600 text-white w-fit px-3 py-1 rounded-md mt-1 hover:bg-blue-700 transition"
+                                                        className="text-xs h-8 bg-primary text-white w-fit px-4 rounded-lg mt-1 hover:bg-primary/90 transition shadow-lg shadow-primary/20"
                                                     >
                                                         إنشاء حساب جديد
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             ) : (
-                                                <span>{error}</span>
+                                                <span className="font-bold">{error}</span>
                                             )}
                                         </motion.div>
                                     )}
@@ -210,12 +215,12 @@ export default function UserLoginPage() {
 
                                 {/* Common Inputs */}
                                 {activeTab === "register" && (
-                                    <div className="space-y-2">
-                                        <Label>الاسم بالكامل</Label>
+                                    <div className="space-y-2 text-right">
+                                        <Label className="text-sm font-bold text-foreground/80 mr-1">الاسم بالكامل</Label>
                                         <div className="relative">
-                                            <User className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
+                                            <User className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
                                             <Input
-                                                className="pr-9"
+                                                className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground"
                                                 placeholder="أحمد محمد"
                                                 value={name}
                                                 onChange={(e) => { setName(e.target.value); setError(null); }}
@@ -224,12 +229,12 @@ export default function UserLoginPage() {
                                     </div>
                                 )}
 
-                                <div className="space-y-2">
-                                    <Label>البريد الإلكتروني</Label>
+                                <div className="space-y-2 text-right">
+                                    <Label className="text-sm font-bold text-foreground/80 mr-1">البريد الإلكتروني</Label>
                                     <div className="relative">
-                                        <Mail className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
+                                        <Mail className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            className="pr-9"
+                                            className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground"
                                             placeholder="name@example.com"
                                             value={email}
                                             onChange={(e) => { setEmail(e.target.value); setError(null); }}
@@ -237,12 +242,12 @@ export default function UserLoginPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label>كلمة المرور</Label>
+                                <div className="space-y-2 text-right">
+                                    <Label className="text-sm font-bold text-foreground/80 mr-1">كلمة المرور</Label>
                                     <div className="relative">
-                                        <Lock className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
+                                        <Lock className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            className="pr-9"
+                                            className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground"
                                             type="password"
                                             placeholder="••••••••"
                                             value={password}
@@ -253,7 +258,7 @@ export default function UserLoginPage() {
 
                                 {/* Action Button */}
                                 <Button
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-lg h-11 shadow-md hover:shadow-lg transition-all"
+                                    className="w-full bg-primary hover:bg-primary/90 text-white text-lg h-14 rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95 font-bold font-cairo mt-2"
                                     onClick={activeTab === "login" ? handleLogin : handleRegister}
                                     disabled={isLoading}
                                 >
@@ -263,13 +268,18 @@ export default function UserLoginPage() {
                                 </Button>
 
                                 {/* Divider */}
-                                <div className="relative py-2">
-                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-muted-foreground">أو</span></div>
+                                <div className="relative py-4">
+                                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/50" /></div>
+                                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-4 text-muted-foreground font-bold">أو</span></div>
                                 </div>
 
                                 {/* Google Button */}
-                                <Button variant="outline" className="w-full gap-2 h-11" onClick={handleGoogle} disabled={isLoading}>
+                                <Button 
+                                    variant="outline" 
+                                    className="w-full gap-3 h-14 rounded-2xl border-border/50 hover:bg-muted/50 transition-all font-bold font-cairo" 
+                                    onClick={handleGoogle} 
+                                    disabled={isLoading}
+                                >
                                     <svg className="h-5 w-5" viewBox="0 0 24 24">
                                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                                         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -283,8 +293,8 @@ export default function UserLoginPage() {
                     </CardContent>
                 </Card>
 
-                <div className="text-center mt-6 text-sm text-slate-500">
-                    محمي بواسطة <Link href="#" className="underline hover:text-blue-600">سياسة الخصوصية</Link> و <Link href="#" className="underline hover:text-blue-600">شروط الخدمة</Link>
+                <div className="text-center mt-8 text-sm text-muted-foreground font-cairo">
+                    محمي بواسطة <Link href="#" className="underline hover:text-primary transition-colors">سياسة الخصوصية</Link> و <Link href="#" className="underline hover:text-primary transition-colors">شروط الخدمة</Link>
                 </div>
             </motion.div>
         </div>

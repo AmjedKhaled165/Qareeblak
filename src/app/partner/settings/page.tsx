@@ -164,14 +164,14 @@ export default function SettingsPage() {
             {/* Elegant Header */}
             <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 flex items-center justify-between shadow-sm sticky top-0 z-30 transition-all border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all active:scale-95">
+                    <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all active:scale-95" title="العودة">
                         <ArrowLeft className="w-6 h-6 text-slate-600 dark:text-slate-300" />
                     </button>
                     <h1 className="text-xl font-black bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">الإعدادات</h1>
                 </div>
                 {isEditing && (
                     <div className="flex gap-2">
-                        <button onClick={handleCancel} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                        <button onClick={handleCancel} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="إلغاء">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
@@ -223,7 +223,7 @@ export default function SettingsPage() {
                                     <Camera className="w-5 h-5 text-violet-600" />
                                 </div>
                             )}
-                            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} title="تحميل صورة الملف الشخصي" />
                         </div>
                         <div className="text-center mt-6">
                             <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-1 uppercase tracking-tight">{user.name_ar || user.name}</h2>
@@ -238,6 +238,7 @@ export default function SettingsPage() {
                         <div className="absolute top-6 left-6">
                             <button
                                 onClick={() => setIsEditing(true)}
+                                title="تعديل البيانات"
                                 className="w-12 h-12 bg-slate-50 dark:bg-slate-800 hover:bg-violet-600 hover:text-white text-slate-400 rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-90"
                             >
                                 <Edit3 className="w-5 h-5" />
