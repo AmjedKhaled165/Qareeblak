@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { apiCall } from "@/lib/api";
 import StatusModal from "@/components/ui/status-modal";
-import { useCourierTracking } from "@/providers/courier-tracking-provider";
+import { useCourierTracking } from "@/components/providers/CourierTrackingProvider";
 import dynamic from "next/dynamic";
 import { Socket } from "socket.io-client";
 
@@ -49,6 +49,7 @@ interface Order {
     status: string;
     delivery_fee: number;
     items?: any;
+    courier_id?: number | null;
 }
 
 const MAP_CENTER = { lat: 27.269, lng: 31.307 }; // New Assiut Center
@@ -109,18 +110,156 @@ export default function DriverDashboard() {
 
     const fetchActiveOrders = async () => {
         try {
-            const data = await apiCall('/halan/orders/courier');
+            // Fetch ALL orders from the system - same endpoint the owner uses
+            // This is more reliable for finding available orders
+            const response = await apiCall('/halan/orders');
 
-            if (data.success && Array.isArray(data.data)) {
-                const active = data.data.filter((o: any) =>
-                    ['pending', 'assigned', 'picked_up', 'in_transit'].includes(o.status)
-                );
+            if (response.success && Array.isArray(response.data)) {
+                // Use ref to get current user without closure staleness
+                const currentUser = userRef.current;
+
+                const active = response.data.filter((o: any) => {
+                    const isSelf = currentUser && o.courier_id === currentUser.id;
+                    const isUnassigned = !o.courier_id;
+
+                    // Driver should see:
+                    // 1. Orders assigned to them that are not yet delivered
+                    // 2. Unassigned orders that are waiting for a driver (pending or ready_for_pickup)
+                    const isBroadcastStatus = ['pending', 'ready_for_pickup'].includes(o.status);
+                    const isOngoingStatus = ['assigned', 'picked_up', 'in_transit'].includes(o.status);
+
+                    return (isSelf && o.status !== 'delivered' && o.status !== 'cancelled') ||
+                        (isUnassigned && isBroadcastStatus);
+                }).map((o: any) => {
+                    // Parse items safely
+                    let items = o.items;
+                    if (typeof items === 'string') {
+                        try {
+                            items = JSON.parse(items);
+                        } catch {
+                            items = [];
+                        }
+                    }
+                    return { ...o, items: Array.isArray(items) ? items : [] };
+                });
+
+                // Sort by creation date descending
+                active.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
                 setActiveOrders(active);
             }
         } catch (error) {
             console.error('Error fetching orders:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+
+    const handleAcceptOrder = async (orderId: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!user?.id) return;
+
+        try {
+            // Find current status to avoid status regression (Stage 3 -> Stage 2)
+            const currentOrder = activeOrders.find(o => o.id === orderId);
+            const newStatus = currentOrder?.status === 'ready_for_pickup' ? 'ready_for_pickup' : 'assigned';
+
+            const result = await apiCall(`/halan/orders/${orderId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    status: newStatus,
+                    courier_id: user.id,
+                    courier_name: user.name_ar || user.name
+                })
+            });
+
+            if (result.success) {
+                setModalState({
+                    isOpen: true,
+                    title: 'تم قبول الطلب',
+                    message: 'لقد قمت باستلام الطلب بنجاح. يرجى التوجه لمقر المتجر.',
+                    type: 'success'
+                });
+                setTimeout(fetchActiveOrders, 500);
+            }
+        } catch (error: any) {
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: error.message || 'فشل قبول الطلب',
+                type: 'error'
+            });
+        }
+    };
+
+    const handlePickupOrder = async (orderId: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const result = await apiCall(`/halan/orders/${orderId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'picked_up' })
+            });
+
+            if (result.success) {
+                setModalState({
+                    isOpen: true,
+                    title: 'تم الاستلام',
+                    message: 'تم تحديث حالة الطلب بنجاح. بدأت عملية التوصيل.',
+                    type: 'success'
+                });
+                // Refresh orders after a short delay
+                setTimeout(fetchActiveOrders, 500);
+            } else {
+                setModalState({
+                    isOpen: true,
+                    title: 'خطأ',
+                    message: result.error || 'حدث خطأ أثناء تحديث الطلب',
+                    type: 'error'
+                });
+            }
+        } catch (error: any) {
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: error.message || 'حدث خطأ أثناء تحديث الطلب',
+                type: 'error'
+            });
+        }
+    };
+
+    const handleDeliverOrder = async (orderId: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const result = await apiCall(`/halan/orders/${orderId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'delivered' })
+            });
+
+            if (result.success) {
+                setModalState({
+                    isOpen: true,
+                    title: 'تم التوصيل',
+                    message: 'تم تسليم الطلب بنجاح. شكراً لخدمتك!',
+                    type: 'success'
+                });
+                // Refresh orders after a short delay
+                setTimeout(fetchActiveOrders, 500);
+            } else {
+                setModalState({
+                    isOpen: true,
+                    title: 'خطأ',
+                    message: result.error || 'حدث خطأ أثناء تحديث الطلب',
+                    type: 'error'
+                });
+            }
+        } catch (error: any) {
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: error.message || 'حدث خطأ أثناء تحديث الطلب',
+                type: 'error'
+            });
         }
     };
 
@@ -362,7 +501,24 @@ export default function DriverDashboard() {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center justify-between pt-5 border-t border-white/5">
+                                        {/* Live Items List */}
+                                        {order.items && order.items.length > 0 && (
+                                            <div className="bg-white/5 rounded-2xl p-4 mb-6 border border-white/5">
+                                                <p className="text-[10px] text-slate-500 font-black mb-2 flex items-center gap-2">
+                                                    <ClipboardList className="w-3 h-3" /> المنتجات ({order.items.length})
+                                                </p>
+                                                <div className="space-y-2">
+                                                    {order.items.map((item: any, i: number) => (
+                                                        <div key={i} className="flex justify-between items-center text-xs font-bold">
+                                                            <span className="text-slate-300">x{item.quantity} {item.name || item.product_name}</span>
+                                                            <span className="text-violet-400">{item.price || item.unit_price} ج.م</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center justify-between pt-5 border-t border-white/5 mb-4">
                                             <div className="text-right">
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">صافي الربح المتوقع</p>
                                                 <p className="text-2xl font-black text-emerald-400 leading-none">{parseFloat(order.delivery_fee?.toString() || '0').toFixed(0)} <span className="text-xs font-bold text-emerald-500/60 mr-1">ج.م</span></p>
@@ -370,6 +526,40 @@ export default function DriverDashboard() {
                                             <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:bg-violet-500 group-hover:text-foreground transition-all shadow-lg">
                                                 <ArrowRight className="w-5 h-5 -rotate-180" />
                                             </div>
+                                        </div>
+
+                                        {/* Action Buttons for Courier */}
+                                        <div className="flex gap-3 pt-4 border-t border-white/5">
+                                            {(order.status === 'pending' || order.status === 'ready_for_pickup') && !order.courier_id && (
+                                                <motion.button
+                                                    onClick={(e) => handleAcceptOrder(order.id, e)}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-violet-500/30 text-sm"
+                                                >
+                                                    قبول واستلام الطلب
+                                                </motion.button>
+                                            )}
+                                            {(order.status === 'assigned' || (order.status === 'ready_for_pickup' && order.courier_id)) && (
+                                                <motion.button
+                                                    onClick={(e) => handlePickupOrder(order.id, e)}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/30 text-sm"
+                                                >
+                                                    تم الاستلام
+                                                </motion.button>
+                                            )}
+                                            {order.status === 'picked_up' && (
+                                                <motion.button
+                                                    onClick={(e) => handleDeliverOrder(order.id, e)}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/30 text-sm"
+                                                >
+                                                    تم التوصيل
+                                                </motion.button>
+                                            )}
                                         </div>
                                     </motion.div>
                                 ))}

@@ -6,7 +6,7 @@ import { ArrowRight, Search, Users, Phone, MapPin, UserPlus, Trash2, X, Loader2,
 import { apiCall } from "@/lib/api";
 import StatusModal from "@/components/ui/status-modal";
 import ConfirmModal from "@/components/ui/confirm-modal";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 export default function ManagersPage() {
     const router = useRouter();

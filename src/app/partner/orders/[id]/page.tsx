@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -69,6 +69,11 @@ export default function OrderDetailsPage({ params }: PageProps) {
     const [editableDeliveryFee, setEditableDeliveryFee] = useState<number>(0);
     const [editableNotes, setEditableNotes] = useState<string>('');
     const [hasChanges, setHasChanges] = useState(false);
+    const hasChangesRef = useRef(false);
+
+    useEffect(() => {
+        hasChangesRef.current = hasChanges;
+    }, [hasChanges]);
 
     // Status Modal State
     const [modalState, setModalState] = useState<{
@@ -100,6 +105,13 @@ export default function OrderDetailsPage({ params }: PageProps) {
         if (orderId) {
             fetchOrder();
             fetchProducts();
+
+            // Auto-refresh order details Every 20 seconds
+            const interval = setInterval(() => {
+                fetchOrder(true);
+            }, 20000);
+
+            return () => clearInterval(interval);
         }
     }, [orderId]);
 
@@ -114,7 +126,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         }
     };
 
-    const fetchOrder = async () => {
+    const fetchOrder = async (isPolling = false) => {
         try {
             const data = await apiCall(`/halan/orders/${orderId}`);
 
@@ -129,16 +141,18 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     }
                     setOrder(found);
 
-                    // Initialize editable fields
-                    const items = Array.isArray(found.items) ? found.items : [];
-                    setEditableItems(items.map((item: OrderItem) => ({
-                        name: item.name || item.product_name || 'منتج',
-                        quantity: item.quantity || 1,
-                        price: item.price || item.unit_price || 0,
-                        notes: item.notes || ''
-                    })));
-                    setEditableDeliveryFee(found.delivery_fee || 0);
-                    setEditableNotes(found.notes || '');
+                    // Initialize/Refresh editable fields ONLY if not currently editing OR it's a fresh load
+                    if (!isPolling || !hasChangesRef.current) {
+                        const items = Array.isArray(found.items) ? found.items : [];
+                        setEditableItems(items.map((item: OrderItem) => ({
+                            name: item.name || item.product_name || 'منتج',
+                            quantity: item.quantity || 1,
+                            price: item.price || item.unit_price || 0,
+                            notes: item.notes || ''
+                        })));
+                        setEditableDeliveryFee(found.delivery_fee || 0);
+                        setEditableNotes(found.notes || '');
+                    }
                 }
             } else {
                 console.error(data.error);
@@ -146,7 +160,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         } catch (error) {
             console.error('Error fetching order:', error);
         } finally {
-            setIsLoading(false);
+            if (!isPolling) setIsLoading(false);
         }
     };
 
@@ -180,32 +194,33 @@ export default function OrderDetailsPage({ params }: PageProps) {
         }
     };
 
-    // Save pricing inline
+    // Save pricing inline - Couriers can ONLY modify deliveryFee and notes
     const handleSavePricing = async () => {
         if (!order) return;
         setSaving(true);
 
         try {
+            // Couriers can only modify deliveryFee and notes - NOT items/product prices
             const data = await apiCall(`/halan/orders/${order.id}/courier-pricing`, {
                 method: 'PATCH',
                 body: JSON.stringify({
-                    items: editableItems,
-                    deliveryFee: editableDeliveryFee
+                    deliveryFee: editableDeliveryFee,
+                    notes: editableNotes // Send notes as well
                 })
             });
 
             if (data.success) {
                 setOrder({
                     ...order,
-                    status: order.status === 'pending' || order.status === 'assigned' ? 'in_transit' : order.status,
-                    items: editableItems,
-                    delivery_fee: editableDeliveryFee
+                    status: order.status === 'pending' || order.status === 'assigned' || order.status === 'ready_for_pickup' ? 'in_transit' : order.status,
+                    delivery_fee: editableDeliveryFee,
+                    notes: editableNotes
                 });
                 setHasChanges(false);
                 setModalState({
                     isOpen: true,
                     title: 'تم الحفظ! ✅',
-                    message: 'تم حفظ الأسعار بنجاح.',
+                    message: 'تم حفظ رسوم التوصيل بنجاح.',
                     type: 'success'
                 });
             } else {
@@ -221,7 +236,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
             setModalState({
                 isOpen: true,
                 title: 'خطأ',
-                message: 'فشل في حفظ الأسعار',
+                message: 'فشل في حفظ رسوم التوصيل',
                 type: 'error'
             });
         } finally {
@@ -233,6 +248,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         switch (status) {
             case 'pending': return 'قيد الانتظار';
             case 'assigned': return 'تم التعيين';
+            case 'ready_for_pickup': return 'تم التجهيز';
             case 'picked_up': return 'تم الاستلام';
             case 'in_transit': return 'جاري التوصيل';
             case 'delivered': return 'تم التوصيل';
@@ -243,8 +259,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
     const getNextStatus = (currentStatus: string) => {
         switch (currentStatus) {
-            case 'pending': return { status: 'in_transit', label: 'قبول واستلام الطلب' };
+            case 'pending': return { status: 'assigned', label: 'تقبل الطلب' };
             case 'assigned': return { status: 'in_transit', label: 'استلام وبدء التوصيل' };
+            case 'ready_for_pickup': return { status: 'in_transit', label: 'استلام وبدء التوصيل' };
             case 'picked_up': return { status: 'in_transit', label: 'بدء التوصيل' };
             case 'in_transit': return { status: 'delivered', label: 'تم التوصيل' };
             default: return null;
@@ -345,7 +362,11 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
     const nextStatus = getNextStatus(order.status);
     const isCourier = user?.role === 'courier';
-    const canEdit = isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
+    // Couriers CANNOT edit items (products, prices, quantities) - only delivery_fee and notes
+    const canEditItems = !isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
+    const canEditDeliveryFee = isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
+    // Legacy canEdit for backwards compatibility - now only for non-courier roles
+    const canEdit = canEditItems;
 
     return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col" dir="rtl">
@@ -562,7 +583,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                     type="number"
                                     value={editableDeliveryFee}
                                     onChange={(e) => setEditableDeliveryFee(parseFloat(e.target.value) || 0)}
-                                    disabled={!canEdit}
+                                    disabled={!(canEdit || canEditDeliveryFee)}
                                     className="flex-1 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white text-2xl font-bold py-3 px-4 rounded-xl border dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
                                 />
                                 <span className="text-slate-600 dark:text-slate-300 text-lg font-medium">ج.م</span>
@@ -575,7 +596,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                             <textarea
                                 value={editableNotes}
                                 onChange={(e) => setEditableNotes(e.target.value)}
-                                disabled={!canEdit}
+                                disabled={!(canEdit || canEditDeliveryFee)}
                                 placeholder="أضف ملاحظاتك هنا..."
                                 className="w-full bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 py-3 px-4 rounded-xl border border-amber-200 dark:border-amber-700 outline-none focus:ring-2 focus:ring-amber-500 resize-none disabled:opacity-50"
                                 rows={3}
@@ -630,8 +651,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
             {/* Fixed Bottom Actions */}
             <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-4 space-y-3 z-50">
-                {/* Save Changes Button */}
-                {canEdit && hasChanges && (
+                {/* Save Changes Button - Shows for couriers editing delivery fee/notes OR non-couriers editing items */}
+                {(canEdit || canEditDeliveryFee) && hasChanges && (
                     <button
                         onClick={handleSavePricing}
                         disabled={saving}

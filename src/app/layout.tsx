@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google"; // Using Cairo as requested for Arabic
-import "./globals.css";
+import "@/styles/globals.css";
 import "leaflet/dist/leaflet.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
-import { AppProvider } from "@/providers/app-provider";
-import { ToastProvider } from "@/providers/toast-provider";
-import { ConfirmProvider } from "@/providers/confirm-provider";
-import { ThemeProvider } from "@/components/theme-provider";
+import { AppProvider } from "@/components/providers/AppProvider";
+import { ToastProvider } from "@/components/providers/ToastProvider";
+import { ConfirmProvider } from "@/components/providers/ConfirmProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],

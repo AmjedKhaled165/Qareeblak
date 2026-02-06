@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppStore } from "@/hooks/use-app-store";
+import { useAppStore } from "@/components/providers/AppProvider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,10 @@ import { useEffect, useState, useRef } from "react";
 import { LayoutDashboard, ShoppingBag, Star, TrendingUp, Settings, LogOut, Utensils, Plus, Trash2, Edit, Check, X, Clock, Camera, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { useToast } from "@/providers/toast-provider";
-import { useConfirm } from "@/providers/confirm-provider";
+import { useToast } from "@/components/providers/ToastProvider";
+import { useConfirm } from "@/components/providers/ConfirmProvider";
+import { apiCall, bookingsApi } from "@/lib/api";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 // Type definitions
 interface Service {
@@ -38,6 +40,7 @@ interface Review {
 
 interface Provider {
     id: string;
+    userId?: string;
     name: string;
     email?: string; // Optional here as we might not know it for others
     services: Service[];
@@ -54,7 +57,59 @@ interface Booking {
     status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'rejected';
     date?: string;
     details?: string;
+    items?: any[];
+    price?: number;
+    halanOrderId?: number;
 }
+
+const HalanItemsList = ({ halanOrderId, bookingId, fallback }: { halanOrderId?: number, bookingId: string, fallback: React.ReactNode }) => {
+    const [items, setItems] = useState<any[] | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const idToFetch = halanOrderId || bookingId;
+        const endpoint = halanOrderId ? `/halan/orders/${halanOrderId}` : `/halan/orders/track/${bookingId}`;
+
+        const fetchItems = async () => {
+            setLoading(true);
+            try {
+                const data = await apiCall(endpoint);
+                // The track endpoint returns { success: true, order: { items: ... } }
+                // The order endpoint returns { success: true, data: { items: ... } }
+                const orderData = data.data || data.order;
+                if (data.success && orderData && orderData.items) {
+                    const parsedItems = typeof orderData.items === 'string'
+                        ? JSON.parse(orderData.items)
+                        : orderData.items;
+                    setItems(parsedItems);
+                }
+            } catch (error) {
+                console.error('Error fetching live items:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchItems();
+        const interval = setInterval(fetchItems, 5000);
+        return () => clearInterval(interval);
+    }, [halanOrderId, bookingId]);
+
+    // If we have items from live fetch, show them. Otherwise use fallback.
+    if (loading && !items) return <div className="text-[10px] text-muted-foreground animate-pulse">جاري تحديث المنتجات...</div>;
+    if (!items || items.length === 0) return <>{fallback}</>;
+
+    return (
+        <div className="space-y-1 mt-2">
+            {items.map((item, idx) => (
+                <div key={idx} className="text-xs font-black text-primary flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/30"></span>
+                    <span>{item.name || item.product_name} x{item.quantity}</span>
+                </div>
+            ))}
+        </div>
+    );
+};
 
 export default function ProviderDashboard() {
     const { currentUser, bookings, providers, logout, isInitialized, manageService, updateBookingStatus } = useAppStore();
@@ -63,6 +118,43 @@ export default function ProviderDashboard() {
     const { confirm } = useConfirm();
 
     const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'services' | 'reviews'>('overview');
+    const prevBookingsRef = useRef<Booking[]>([]);
+
+    // Real-time notifications moved to after data loading
+
+    // Calculate derived state safely allowing for null currentUser
+    const myProviderProfile = currentUser ? providers.find((p: Provider) =>
+        (p.userId && String(p.userId) === String(currentUser.id)) ||
+        (p.email && p.email === currentUser.email)
+    ) : undefined;
+
+    const providerId = myProviderProfile?.id;
+
+    const myBookings = (currentUser && bookings) ? bookings.filter((b: Booking) =>
+        (myProviderProfile && b.providerId === myProviderProfile.id) ||
+        (b.providerName === currentUser.name && !b.providerId)
+    ) : [];
+
+    const myServices = myProviderProfile?.services || [];
+    const myReviews = myProviderProfile?.reviewsList || [];
+
+    // Real-time notifications for status changes
+    useEffect(() => {
+        if (myBookings.length > 0 && prevBookingsRef.current.length > 0) {
+            myBookings.forEach(booking => {
+                const prev = prevBookingsRef.current.find(b => b.id === booking.id);
+                if (prev && prev.status !== booking.status && booking.status === 'cancelled') {
+                    toast(`تنبيه: تم إلغاء الطلب #${booking.id.substring(0, 8)} بواسطة العميل`, "error");
+
+                    try {
+                        const audio = new Audio('/notification.mp3');
+                        audio.play().catch(e => console.log('Audio play blocked'));
+                    } catch (e) { }
+                }
+            });
+        }
+        prevBookingsRef.current = myBookings;
+    }, [myBookings, toast]);
 
     // Service Form State
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
@@ -265,12 +357,7 @@ export default function ProviderDashboard() {
         );
     }
 
-    // Identifiers
-    const myProviderProfile = providers.find((p: Provider) => (p.email && p.email === currentUser.email) || p.name === currentUser.name);
-    const providerId = myProviderProfile?.id;
-    const myBookings = bookings.filter((b: Booking) => b.providerName === currentUser.name || (myProviderProfile && b.providerId === myProviderProfile.id));
-    const myServices = myProviderProfile?.services || [];
-    const myReviews = myProviderProfile?.reviewsList || [];
+
 
     // --- Actions ---
 
@@ -360,7 +447,96 @@ export default function ProviderDashboard() {
     const handleOrderStatus = async (bookingId: string, status: 'confirmed' | 'completed' | 'rejected') => {
         try {
             await updateBookingStatus(bookingId, status);
-            toast(`تم تحديث حالة الطلب إلى: ${status === 'confirmed' ? 'جاري التنفيذ' : status === 'completed' ? 'مكتمل' : 'مرفوض'}`, "success");
+
+            // When provider accepts order (confirmed), auto-assign to Halan courier and change status to 'assigned'
+            if (status === 'confirmed') {
+                try {
+                    // Create delivery order in Halan system and auto-assign to courier
+                    const booking = myBookings.find((b: Booking) => b.id === bookingId);
+                    if (booking) {
+                        // Extract actual item and price from details if generic name is found
+                        // Format: "الطلبات: طاجن مكرونة x1 | الإجمالي: 40 ج.م"
+                        const details = booking.details || "";
+                        const itemMatch = details.match(/الطلبات:\s*(.*?)\s*x\d+/);
+                        const priceMatch = details.match(/الإجمالي:\s*(\d+)/);
+
+                        const actualItemName = itemMatch ? itemMatch[1] : booking.serviceName;
+                        const actualPrice = priceMatch ? parseFloat(priceMatch[1]) : (booking.price || 0);
+
+                        const orderItems = (booking.items && booking.items.length > 0)
+                            ? booking.items.map(item => ({
+                                name: item.name,
+                                quantity: Number(item.quantity) || 1,
+                                price: Number(item.price) || 0
+                            }))
+                            : [{ name: actualItemName, quantity: 1, price: actualPrice }];
+
+                        // Create the order in Halan delivery system
+                        const orderData: any = {
+                            customerName: booking.userName || 'عميل مجهول',
+                            customerPhone: booking.details?.match(/الهاتف:\s*([^|]+)/)?.[1]?.trim() || '',
+                            pickupAddress: currentUser.name || 'المحل',
+                            deliveryAddress: booking.details?.match(/العنوان:\s*([^|]+)/)?.[1]?.trim() || 'غير محدد',
+                            notes: booking.details || '',
+                            products: orderItems,
+                            deliveryFee: 0, // Fee will be set by courier later
+                            status: 'confirmed',
+                            autoAssign: true,
+                            courierId: null,
+                            source: 'qareeblak'
+                        };
+
+                        const createResult = await apiCall('/halan/orders', {
+                            method: 'POST',
+                            body: JSON.stringify(orderData)
+                        });
+
+                        if (createResult.success && createResult.data?.id) {
+                            // 1. Save Halan internal ID FIRST
+                            await bookingsApi.update(bookingId, { halanOrderId: createResult.data.id });
+
+                            // 2. Then update status which reloads the list
+                            await updateBookingStatus(bookingId, 'confirmed');
+
+                            // Order is created in 'confirmed' status, not yet visible to couriers
+                            toast(`تم قبول الطلب! اضغط 'تم التجهيز' عند الانتهاء لإرساله للمناديب`, "success");
+                            return;
+                        }
+                    }
+                } catch (halanError) {
+                    console.error('Halan integration error:', halanError);
+                    // Continue with normal flow even if Halan fails
+                }
+                toast("تم قبول الطلب - جاري التنفيذ", "success");
+                return;
+            }
+
+            // When provider marks order ready (completed preparation)
+            if (status === 'completed') {
+                // Also update Halan order status to 'ready_for_pickup' (Stage 3)
+                const booking = myBookings.find((b: Booking) => b.id === bookingId);
+                if (booking?.halanOrderId) {
+                    try {
+                        // Update order status to ready_for_pickup
+                        await apiCall(`/halan/orders/${booking.halanOrderId}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({ status: 'ready_for_pickup' })
+                        });
+
+                        // Publish order to couriers
+                        await apiCall(`/halan/orders/${booking.halanOrderId}/publish`, {
+                            method: 'POST'
+                        }).catch(() => { });
+                    } catch (e) {
+                        console.error('Failed to update order status:', e);
+                    }
+                }
+                toast("تم إتمام الطلب - جاهز للاستلام من المندوب", "success");
+                return;
+            }
+
+            // Rejected status
+            toast("تم رفض الطلب", "info");
         } catch (error) {
             toast("حدث خطأ في تحديث الطلب", "error");
         }
@@ -465,7 +641,9 @@ export default function ProviderDashboard() {
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground font-bold font-cairo">إجمالي المبيعات</p>
-                                            <h3 className="text-4xl font-black text-foreground mt-1">{myBookings.filter((b: Booking) => b.status === 'completed').length * 150} <span className="text-base font-bold text-muted-foreground">ج.م</span></h3>
+                                            <h3 className="text-4xl font-black text-foreground mt-1">
+                                                {myBookings.filter((b: Booking) => b.status === 'completed').reduce((sum: number, b: Booking) => sum + (b.price || Number(b.details?.match(/الإجمالي:\s*(\d+)/)?.[1]) || 0), 0)} <span className="text-base font-bold text-muted-foreground">ج.م</span>
+                                            </h3>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -788,42 +966,70 @@ export default function ProviderDashboard() {
                                                         <td className="px-8 py-6 font-mono text-muted-foreground/60 text-xs">#{booking.id.substring(0, 8)}</td>
                                                         <td className="px-8 py-6 font-black text-foreground text-lg">{booking.userName}</td>
                                                         <td className="px-8 py-6 text-foreground/80 font-bold">{booking.serviceName}</td>
-                                                        <td className="px-8 py-6 text-muted-foreground max-w-xs truncate">{booking.details || "لا يوجد ملاحظات"}</td>
+                                                        <td className="px-8 py-6 text-muted-foreground max-w-xs">
+                                                            <div className="space-y-1">
+                                                                {(() => {
+                                                                    const detailsStr = booking.details || "";
+                                                                    const phoneMatch = detailsStr.match(/الهاتف:\s*(01[0-9]{9})/);
+                                                                    const addrMatch = detailsStr.match(/العنوان:\s*([^|]+)/);
+                                                                    const itemsMatch = detailsStr.match(/الطلبات:\s*(.*?)(?=\||$)/);
+
+                                                                    return (
+                                                                        <>
+                                                                            {phoneMatch && <div className="text-foreground font-black text-sm flex items-center gap-2"><span className="w-5 h-5 rounded-lg bg-emerald-500/10 flex items-center justify-center text-[10px]">📱</span> {phoneMatch[1]}</div>}
+                                                                            {addrMatch && <div className="text-xs font-bold text-muted-foreground flex items-center gap-2 leading-relaxed mt-1"><span className="w-5 h-5 rounded-lg bg-orange-500/10 flex items-center justify-center text-[10px]">📍</span> {addrMatch[1]}</div>}
+
+                                                                            <HalanItemsList
+                                                                                halanOrderId={booking.halanOrderId}
+                                                                                bookingId={booking.id}
+                                                                                fallback={
+                                                                                    itemsMatch ? (
+                                                                                        <div className="text-xs font-black text-primary mt-2 flex items-center gap-2">
+                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-primary/30"></span>
+                                                                                            {itemsMatch[1]}
+                                                                                        </div>
+                                                                                    ) : !phoneMatch && !addrMatch ? (
+                                                                                        <div className="line-clamp-2">{detailsStr}</div>
+                                                                                    ) : null
+                                                                                }
+                                                                            />
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        </td>
                                                         <td className="px-8 py-6">
                                                             <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase
                                                                 ${booking.status === 'pending' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
                                                                     booking.status === 'confirmed' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
-                                                                        booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'}`}>
+                                                                        booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                                                            booking.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                                                                'bg-destructive/10 text-destructive border border-destructive/20'}`}>
                                                                 {booking.status === 'pending' ? 'جديد' :
                                                                     booking.status === 'confirmed' ? 'جاري التنفيذ' :
-                                                                        booking.status === 'completed' ? 'مكتمل' : 'مرفوض'}
+                                                                        booking.status === 'completed' ? 'مكتمل' :
+                                                                            booking.status === 'cancelled' ? 'ملغي من العميل' : 'مرفوض'}
                                                             </span>
                                                         </td>
                                                         <td className="px-8 py-6">
                                                             <div className="flex justify-center gap-3">
                                                                 {booking.status === 'pending' && (
-                                                                    <>
-                                                                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-10 px-5 rounded-xl text-white font-black" onClick={() => handleOrderStatus(booking.id, 'confirmed')}>
-                                                                            قبول
-                                                                        </Button>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            title="رفض الطلب"
-                                                                            className="h-10 w-10 p-0 border-destructive/50 text-destructive hover:bg-destructive/10 rounded-xl"
-                                                                            onClick={() => handleOrderStatus(booking.id, 'rejected')}
-                                                                        >
-                                                                            <X className="w-5 h-5" />
-                                                                        </Button>
-                                                                    </>
-                                                                )}
-                                                                {booking.status === 'confirmed' && (
-                                                                    <Button size="sm" className="bg-foreground text-background hover:bg-foreground/90 h-11 px-6 rounded-xl gap-3 font-black" onClick={() => handleOrderStatus(booking.id, 'completed')}>
-                                                                        <Check className="w-5 h-5" /> إتمام الطلب
+                                                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-10 px-5 rounded-xl text-white font-black" onClick={() => handleOrderStatus(booking.id, 'confirmed')}>
+                                                                        قبول
                                                                     </Button>
                                                                 )}
-                                                                {(booking.status === 'completed' || booking.status === 'rejected') && (
-                                                                    <span className="text-muted-foreground/30 font-black">ARKIVED</span>
+                                                                {booking.status === 'confirmed' && (
+                                                                    <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white h-11 px-6 rounded-xl gap-3 font-black" onClick={async () => {
+                                                                        await handleOrderStatus(booking.id, 'completed');
+                                                                        toast("تم تجهيز الطلب وإسناده للمندوب", "success");
+                                                                    }}>
+                                                                        <Check className="w-5 h-5" /> تم التجهيز ✓
+                                                                    </Button>
+                                                                )}
+                                                                {(booking.status === 'completed' || booking.status === 'rejected' || booking.status === 'cancelled') && (
+                                                                    <span className={`text-muted-foreground/30 font-black ${booking.status === 'cancelled' ? 'text-red-500/40' : ''}`}>
+                                                                        {booking.status === 'cancelled' ? 'CANCELLED' : 'ARKIVED'}
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         </td>

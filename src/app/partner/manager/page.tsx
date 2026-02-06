@@ -23,11 +23,11 @@ function StatsCard({ title, value, icon: Icon, color }: { title: string; value: 
     // Determine color classes based on the hex passed (for the 4 standard colors)
     const getColorClasses = (hex: string) => {
         switch (hex.toLowerCase()) {
-            case '#10b981': return { bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400' };
-            case '#3b82f6': return { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400' };
-            case '#8b5cf6': return { bg: 'bg-violet-500/20', border: 'border-violet-500/30', text: 'text-violet-400' };
-            case '#f59e0b': return { bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400' };
-            default: return { bg: 'bg-slate-500/20', border: 'border-slate-500/30', text: 'text-slate-400' };
+            case '#10b981': return { bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-emerald-500/20 dark:border-emerald-500/30', text: 'text-emerald-600 dark:text-emerald-400' };
+            case '#3b82f6': return { bg: 'bg-blue-500/10 dark:bg-blue-500/20', border: 'border-blue-500/20 dark:border-blue-500/30', text: 'text-blue-600 dark:text-blue-400' };
+            case '#8b5cf6': return { bg: 'bg-violet-500/10 dark:bg-violet-500/20', border: 'border-violet-500/20 dark:border-violet-500/30', text: 'text-violet-600 dark:text-violet-400' };
+            case '#f59e0b': return { bg: 'bg-amber-500/10 dark:bg-amber-500/20', border: 'border-amber-500/20 dark:border-amber-500/30', text: 'text-amber-600 dark:text-amber-400' };
+            default: return { bg: 'bg-slate-500/10 dark:bg-slate-500/20', border: 'border-slate-500/20 dark:border-slate-500/30', text: 'text-slate-600 dark:text-slate-400' };
         }
     };
 
@@ -37,7 +37,7 @@ function StatsCard({ title, value, icon: Icon, color }: { title: string; value: 
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-5 shadow-xl flex-1 min-w-[150px] hover:border-violet-500/30 transition-all hover:scale-[1.02]"
+            className="bg-white dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-[2rem] p-5 shadow-xl flex-1 min-w-[150px] hover:border-violet-500/30 transition-all hover:scale-[1.02]"
         >
             <div className="flex justify-between items-start mb-3">
                 <div
@@ -46,8 +46,8 @@ function StatsCard({ title, value, icon: Icon, color }: { title: string; value: 
                     <Icon className={`w-6 h-6 ${classes.text}`} />
                 </div>
             </div>
-            <p className="text-3xl font-bold text-white mb-1">{value}</p>
-            <p className="text-sm text-slate-400 font-medium">{title}</p>
+            <p className="text-3xl font-bold text-slate-800 dark:text-white mb-1">{value}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{title}</p>
         </motion.div>
     );
 }
@@ -156,12 +156,18 @@ export default function ManagerDashboard() {
             const totalFees = deliveredOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
             const totalSales = deliveredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
 
+            // Qareeblak breakdown
+            const qareeblakOrders = deliveredOrders.filter((o: any) => o.source === 'qareeblak');
+            const qareeblakDeliveryRevenue = qareeblakOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
+
             setStats({
                 summary: {
                     total_delivery_fees: totalFees,
                     total_sales: totalSales,
                     delivered: deliveredOrders.length,
-                    total_drivers: drivers.length
+                    total_drivers: drivers.length,
+                    qareeblak_delivery_revenue: qareeblakDeliveryRevenue,
+                    qareeblak_count: qareeblakOrders.length
                 },
                 drivers: drivers.map((d: any) => ({
                     ...d,
@@ -195,7 +201,7 @@ export default function ManagerDashboard() {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-background text-foreground font-cairo transition-colors duration-500" dir="rtl">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-cairo transition-colors duration-500" dir="rtl">
             {/* Midnight Violet Header */}
             <div
                 className="p-8 pt-12 rounded-b-[3.5rem] shadow-2xl relative overflow-hidden bg-gradient-to-br from-[#1E1B4B] to-[#4338CA] border-b border-white/5"
@@ -238,15 +244,15 @@ export default function ManagerDashboard() {
                         </div>
                     </div>
 
-                    {/* Period Toggles - Dark Themed */}
-                    <div className="flex gap-2 p-1.5 bg-black/20 backdrop-blur-md rounded-2xl w-fit mx-auto border border-white/5">
+                    {/* Period Toggles - Themed */}
+                    <div className="flex gap-2 p-1.5 bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl w-fit mx-auto border border-white/10 dark:border-white/5">
                         {periods.map((p) => (
                             <button
                                 key={p.key}
                                 onClick={() => setPeriod(p.key as any)}
                                 className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${period === p.key
                                     ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                    : 'text-white/70 hover:text-white hover:bg-white/10'
                                     }`}
                             >
                                 {p.label}
@@ -276,16 +282,16 @@ export default function ManagerDashboard() {
                                     color="#10B981"
                                 />
                                 <StatsCard
-                                    title="المبيعات"
-                                    value={`${parseFloat(stats.summary.total_sales || 0).toFixed(0)} ج.م`}
-                                    icon={ShoppingCart}
-                                    color="#3B82F6"
+                                    title="قريبلك - توصيل"
+                                    value={`${parseFloat(stats.summary.qareeblak_delivery_revenue || 0).toFixed(0)} ج.م`}
+                                    icon={MapPin}
+                                    color="#8B5CF6"
                                 />
                                 <StatsCard
-                                    title="طلبات ناجحة"
-                                    value={stats.summary.delivered}
-                                    icon={CheckCircle}
-                                    color="#8B5CF6"
+                                    title="المبيعات"
+                                    value={`${parseFloat(stats.summary.total_sales || 0).toFixed(0)} ج.م (${stats.summary.delivered} طلب)`}
+                                    icon={ShoppingCart}
+                                    color="#3B82F6"
                                 />
                                 <StatsCard
                                     title="المناديب المتوفرين"
@@ -298,7 +304,7 @@ export default function ManagerDashboard() {
 
                         {/* Section Header */}
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                 <span className="w-1 h-6 bg-violet-500 rounded-full" />
                                 أداء المناديب
                             </h2>
@@ -314,7 +320,7 @@ export default function ManagerDashboard() {
                         {/* Driver List */}
                         <div className="space-y-4">
                             {stats?.drivers?.length === 0 ? (
-                                <div className="text-center py-16 bg-slate-900/20 rounded-[2.5rem] border border-dashed border-white/10">
+                                <div className="text-center py-16 bg-white dark:bg-slate-900/20 rounded-[2.5rem] border border-dashed border-slate-300 dark:border-white/10">
                                     <p className="text-slate-500 font-medium">لا يوجد مناديب نشطين حالياً</p>
                                 </div>
                             ) : (
@@ -325,7 +331,7 @@ export default function ManagerDashboard() {
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: idx * 0.1 }}
                                         onClick={() => router.push(`/partner/tracking/${driver.id}?name=${encodeURIComponent(driver.name_ar || driver.name)}&username=${driver.username}`)}
-                                        className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-5 shadow-xl hover:border-violet-500/30 transition-all cursor-pointer group"
+                                        className="bg-white dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-5 shadow-xl hover:border-violet-500/30 transition-all cursor-pointer group"
                                     >
                                         <div className="flex items-center justify-between mb-5">
                                             <div className="flex items-center gap-4">
@@ -333,30 +339,30 @@ export default function ManagerDashboard() {
                                                     <img
                                                         src={driver.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name_ar || driver.name)}&background=8b5cf6&color=fff`}
                                                         alt={driver.name_ar || driver.name}
-                                                        className="w-14 h-14 rounded-2xl object-cover border-2 border-white/10 group-hover:border-violet-500/50 transition-all shadow-lg"
+                                                        className="w-14 h-14 rounded-2xl object-cover border-2 border-slate-100 dark:border-white/10 group-hover:border-violet-500/50 transition-all shadow-lg"
                                                     />
-                                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-[#0F172A] rounded-full" />
+                                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-[#0F172A] rounded-full" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-lg text-white group-hover:text-violet-400 transition-colors">{driver.name_ar || driver.name}</p>
+                                                    <p className="font-bold text-lg text-slate-800 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">{driver.name_ar || driver.name}</p>
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-slate-400 font-medium uppercase tracking-wider">ID: {driver.id}</span>
+                                                        <span className="text-[10px] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-full text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">ID: {driver.id}</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-violet-500/20 transition-all">
-                                                <MapPin className="w-5 h-5 text-slate-500 group-hover:text-violet-400" />
+                                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center group-hover:bg-violet-100 dark:group-hover:bg-violet-500/20 transition-all">
+                                                <MapPin className="w-5 h-5 text-slate-500 group-hover:text-violet-600 dark:group-hover:text-violet-400" />
                                             </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-3">
-                                            <div className="bg-black/20 rounded-[1.5rem] p-4 border border-white/5 text-center">
+                                            <div className="bg-slate-50 dark:bg-black/20 rounded-[1.5rem] p-4 border border-slate-100 dark:border-white/5 text-center">
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5 font-bold">تم التسليم</p>
-                                                <p className="text-xl font-bold text-white leading-none">{driver.delivered || 0}</p>
+                                                <p className="text-xl font-bold text-slate-800 dark:text-white leading-none">{driver.delivered || 0}</p>
                                             </div>
-                                            <div className="bg-black/20 rounded-[1.5rem] p-4 border border-white/5 text-center">
+                                            <div className="bg-slate-50 dark:bg-black/20 rounded-[1.5rem] p-4 border border-slate-100 dark:border-white/5 text-center">
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5 font-bold">الأرباح</p>
-                                                <p className="text-xl font-bold text-emerald-400 leading-none">{parseFloat(driver.delivery_fees || 0).toFixed(0)}</p>
+                                                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 leading-none">{parseFloat(driver.delivery_fees || 0).toFixed(0)}</p>
                                             </div>
                                         </div>
                                     </motion.div>

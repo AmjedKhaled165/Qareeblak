@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import {
     ArrowRight,
     Package,
@@ -42,7 +42,7 @@ export default function OrdersPage() {
     const [user, setUser] = useState<any>(null);
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'pending' | 'in_transit' | 'delivered' | 'deleted' | 'edited'>('all');
+    const [filter, setFilter] = useState<'all' | 'pending' | 'in_transit' | 'delivered' | 'cancelled' | 'edited'>('all');
 
     // Status Modal State
     const [modalState, setModalState] = useState<{
@@ -91,7 +91,7 @@ export default function OrdersPage() {
 
             // Only send 'deleted' or 'edited' to backend filtering.
             // For status groups (pending, in_transit, delivered), fetch 'all' (active orders) and filter locally.
-            if (filter === 'deleted' || filter === 'edited') {
+            if (filter === 'cancelled' || filter === 'edited') {
                 params.append('status', filter);
             }
 
@@ -168,6 +168,7 @@ export default function OrdersPage() {
         switch (status) {
             case 'pending': return 'قيد الانتظار';
             case 'assigned': return 'تم التعيين';
+            case 'ready_for_pickup': return 'تم التجهيز';
             case 'picked_up': return 'تم الاستلام';
             case 'in_transit': return 'جاري التوصيل';
             case 'delivered': return 'تم التوصيل';
@@ -180,6 +181,7 @@ export default function OrdersPage() {
         switch (status) {
             case 'pending': return 'bg-amber-100 text-amber-700';
             case 'assigned': return 'bg-blue-100 text-blue-700';
+            case 'ready_for_pickup': return 'bg-yellow-100 text-yellow-700';
             case 'picked_up': return 'bg-indigo-100 text-indigo-700';
             case 'in_transit': return 'bg-violet-100 text-violet-700';
             case 'delivered': return 'bg-green-100 text-green-700';
@@ -206,7 +208,7 @@ export default function OrdersPage() {
         if (isCourier && order.status === 'delivered') return false;
 
         if (filter === 'all') return true;
-        if (filter === 'deleted' || filter === 'edited') return true; // Already filtered by backend
+        if (filter === 'cancelled' || filter === 'edited') return true; // Already filtered by backend
 
         // Custom groupings
         if (filter === 'pending') {
@@ -253,7 +255,7 @@ export default function OrdersPage() {
                             { key: 'in_transit', label: 'جاري التوصيل' },
                             { key: 'delivered', label: 'مكتمل' },
                             { key: 'edited', label: 'المعدلة' },
-                            { key: 'deleted', label: 'المحذوفة' },
+                            { key: 'cancelled', label: 'ملغي' },
                         ].map((s) => (
                             <button
                                 key={s.key}
@@ -303,11 +305,18 @@ export default function OrdersPage() {
 
                                     {/* Header */}
                                     <div className="flex justify-between items-center mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <StatusIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-                                            <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                {order.customer_name} #{order.id}
-                                            </span>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <StatusIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                                                <span className="font-bold text-slate-800 dark:text-slate-100">
+                                                    {order.customer_name} #{order.id}
+                                                </span>
+                                            </div>
+                                            {(order as any).source === 'qareeblak' && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-full w-fit">
+                                                    🌐 طلب من قريبلك
+                                                </span>
+                                            )}
                                         </div>
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(order.status)}`}>
                                             {getStatusLabel(order.status)}
@@ -358,30 +367,18 @@ export default function OrdersPage() {
                                         </div>
 
                                         <div className="flex items-center gap-2">
-                                            {/* Edit/Delete for Managers Only */}
-                                            {!isCourier && filter !== 'deleted' && (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => handleEdit(e, order.id)}
-                                                        title="تعديل"
-                                                        aria-label="تعديل الطلب"
-                                                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleDelete(e, order.id)}
-                                                        title="حذف"
-                                                        aria-label="حذف الطلب"
-                                                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                </>
+                                            {/* Edit Only - No Delete (Orders must be completed) */}
+                                            {!isCourier && filter !== 'cancelled' && (
+                                                <button
+                                                    onClick={(e) => handleEdit(e, order.id)}
+                                                    title="تعديل"
+                                                    aria-label="تعديل الطلب"
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
                                             )}
                                         </div>
                                     </div>

@@ -119,6 +119,7 @@ export default function JoinPage() {
                         <div className="space-y-3 text-right">
                             <label className="text-sm font-bold text-foreground/80 mr-1">نوع الخدمة</label>
                             <select
+                                title="نوع الخدمة"
                                 className="flex h-12 w-full rounded-xl border border-border/50 bg-background px-4 py-2 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                                 value={formData.category}
                                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -210,5 +211,4 @@ export default function JoinPage() {
             </div>
         </div>
     );
-    )
 }

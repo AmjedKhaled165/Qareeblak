@@ -2,6 +2,7 @@
 
 import { createContext, useState, useEffect, ReactNode, useCallback, useContext } from "react";
 import { providersApi, authApi, servicesApi, bookingsApi } from "@/lib/api";
+import { io } from "socket.io-client";
 
 // ================= TYPES =================
 interface ProviderService {
@@ -64,6 +65,9 @@ interface Booking {
     status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'rejected';
     date?: string;
     details?: string;
+    items?: any[];
+    halanOrderId?: number;
+    updatedAt?: string;
 }
 
 interface AppContextType {
@@ -172,6 +176,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
         };
         initialize();
+
+        // Real-time socket updates
+        const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
+
+        socket.on('booking-updated', (data) => {
+            console.log('Real-time booking update:', data);
+            loadBookings();
+        });
+
+        socket.on('order-status-changed', (data) => {
+            console.log('Real-time delivery status update:', data);
+            loadBookings();
+        });
+
+        // Listen for item changes/general updates from Halan side
+        socket.on('order-updated', (data) => {
+            console.log('Real-time Halan order update:', data);
+            loadBookings();
+        });
+
+        // Polling for updates (every 30 seconds)
+        // This ensures the provider sees cancellations even without a manual refresh
+        const pollInterval = setInterval(() => {
+            if (localStorage.getItem('qareeblak_token')) {
+                loadBookings();
+            }
+        }, 30000);
+
+        return () => {
+            clearInterval(pollInterval);
+            socket.disconnect();
+        };
     }, [loadProviders, loadBookings, loadCurrentUser]);
 
     // ================= AUTH ACTIONS =================
@@ -344,7 +380,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const userId = (booking.userId || currentUser?.id);
             const validUserId = (userId === 999 || userId === '999') ? undefined : userId;
 
-            await bookingsApi.create({
+            const result = await bookingsApi.create({
                 userId: validUserId,
                 providerId: booking.providerId || '',
                 serviceId: booking.serviceId,
@@ -352,10 +388,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 serviceName: booking.serviceName,
                 providerName: booking.providerName,
                 price: booking.price,
-                details: booking.details
+                details: booking.details,
+                items: booking.items
             });
             await loadBookings();
-            return true;
+            return result; // return the result which should contain the new ID
         } catch (error) {
             console.error("Booking failed:", error);
             return false;

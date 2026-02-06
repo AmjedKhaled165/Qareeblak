@@ -1,12 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, MapPin, Wrench, Utensils, ShoppingBag, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ServiceProvider } from "./service-card";
-import { useAppStore } from "@/hooks/use-app-store";
+import { useAppStore } from "@/components/providers/AppProvider";
 
 interface BookingModalProps {
     provider: ServiceProvider;
@@ -16,10 +17,16 @@ interface BookingModalProps {
 
 
 export function BookingModal({ provider, open, onOpenChange }: BookingModalProps) {
+    const router = useRouter();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [cart, setCart] = useState<{ [key: string]: number }>({});
     const [selectedServiceType, setSelectedServiceType] = useState("");
+    const [area, setArea] = useState("الحي الأول");
+    const [address, setAddress] = useState("");
+    const [phone, setPhone] = useState("");
+    const [notes, setNotes] = useState("");
+    const [newBookingId, setNewBookingId] = useState<string | null>(null);
 
     // Logic to determine if this is an "Order" (Restaurant) or "Booking" (Service)
     const isOrder = provider.category.includes("مطعم") || provider.category.includes("مطاعم") || provider.category.includes("بقالة") || provider.category.includes("صيدلية");
@@ -34,6 +41,7 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
             setStep(1);
             setCart({});
             setSelectedServiceType("");
+            setNotes("");
         }, 300);
     };
 
@@ -43,28 +51,34 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
 
     const { createBooking, currentUser } = useAppStore();
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         setLoading(true);
 
         // Prepare Booking Data
         let details = "";
         let serviceName = "";
+        let structuredItems: any[] = [];
 
         if (isOrder) {
             serviceName = "طلب طعام/منتجات";
-            const items = Object.entries(cart).map(([id, qty]) => {
+            structuredItems = Object.entries(cart).map(([id, qty]) => {
                 const item = menuItems.find(i => i.id === id);
-                return item ? `${item.name} x${qty}` : "";
-            }).join(", ");
-            details = `الطلبات: ${items} | الإجمالي: ${cartTotal} ج.م`;
+                return item ? { id, name: item.name, price: item.price, quantity: qty } : null;
+            }).filter(Boolean);
+
+            // Combine address and phone with user notes in a formatted string
+            // But skip the order items list as requested "مش تحط تفاصيل الاوردر"
+            details = `الهاتف: ${phone} | العنوان: ${area} - ${address}`;
+            if (notes) details += ` | ملاحظات: ${notes}`;
         } else {
             serviceName = selectedServiceType || "حجز خدمة صيانة";
-            // We need to capture the selected service type from step 1
-            details = `${selectedServiceType || "صيانة عامة"} (معاينة)`;
+            // For services, also include phone and address
+            details = `الهاتف: ${phone} | العنوان: ${area} - ${address}`;
+            if (notes) details += ` | ملاحظات: ${notes}`;
         }
 
-        setTimeout(() => {
-            createBooking({
+        try {
+            const result = await createBooking({
                 userName: currentUser ? currentUser.name : "زائر",
                 userId: currentUser?.id,
                 providerId: provider.id,
@@ -72,11 +86,43 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                 serviceName: serviceName,
                 price: isOrder ? cartTotal : undefined,
                 serviceId: undefined, // For general booking/multi-order
-                details: details
+                details: details,
+                items: structuredItems
             });
+
+            if (result && (result as any).id) {
+                setNewBookingId((result as any).id);
+
+                // Save to localStorage for immediate tracking access (fallback for API errors)
+                try {
+                    const orderData = {
+                        ...(typeof result === 'object' ? result : {}),
+                        id: (result as any).id,
+                        status: (result as any).status || 'pending',
+                        halanStatus: (result as any).halanStatus || 'pending',
+                        date: new Date().toISOString(),
+                        providerName: provider.name,
+                        userName: currentUser ? currentUser.name : "زائر",
+                        serviceName: serviceName,
+                        details: details,
+                        items: structuredItems
+                    };
+
+                    const cachedOrders = JSON.parse(localStorage.getItem('cached_orders') || '[]');
+                    // Add new order to top, keep last 10
+                    const updatedOrders = [orderData, ...cachedOrders.filter((o: any) => o.id !== orderData.id)].slice(0, 10);
+                    localStorage.setItem('cached_orders', JSON.stringify(updatedOrders));
+                    console.log('✅ Order cached to localStorage:', orderData.id);
+                } catch (cacheError) {
+                    console.warn('Failed to cache order:', cacheError);
+                }
+            }
             setLoading(false);
             nextStep();
-        }, 1000);
+        } catch (error) {
+            console.error("Booking error:", error);
+            setLoading(false);
+        }
     };
 
     // Cart Logic
@@ -114,15 +160,15 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="relative w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                    className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b bg-slate-50">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                         <h3 className="font-bold text-lg">
                             {step === 4 ? "تم بنجاح" : isOrder ? `قائمة ${provider.name}` : `طلب خدمة من ${provider.name}`}
                         </h3>
-                        <button onClick={handleClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                            <X className="h-5 w-5 text-slate-500" />
+                        <button onClick={handleClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors" title="إغلاق" aria-label="إغلاق">
+                            <X className="h-5 w-5 text-slate-500 dark:text-slate-400" />
                         </button>
                     </div>
 
@@ -132,9 +178,9 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                             <div className="p-6 space-y-4">
                                 <div className="text-center mb-6">
                                     {isOrder ? (
-                                        <Utensils className="h-12 w-12 text-orange-500 mx-auto mb-2 bg-orange-100 p-2 rounded-full" />
+                                        <Utensils className="h-12 w-12 text-orange-500 mx-auto mb-2 bg-orange-100 dark:bg-orange-950/40 p-2 rounded-full" />
                                     ) : (
-                                        <Wrench className="h-12 w-12 text-primary mx-auto mb-2 bg-primary/10 p-2 rounded-full" />
+                                        <Wrench className="h-12 w-12 text-primary mx-auto mb-2 bg-primary/10 dark:bg-primary/20 p-2 rounded-full" />
                                     )}
                                     <h4 className="font-semibold text-lg">{isOrder ? "اطلب وجبتك المفضلة" : "ما هي المشكلة؟"}</h4>
                                     <p className="text-sm text-muted-foreground">{isOrder ? "أشهى الأطباق توصلك لحد عندك" : "حدد نوع الخدمة التي تحتاجها"}</p>
@@ -144,7 +190,7 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                                     <div className="space-y-3">
                                         {menuItems.length > 0 ? (
                                             menuItems.map((item) => (
-                                                <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg hover:border-orange-200 hover:bg-orange-50 transition-colors">
+                                                <div key={item.id} className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-orange-400 dark:hover:border-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors">
                                                     <div>
                                                         <div className="font-bold">{item.name}</div>
                                                         <div className="text-xs text-muted-foreground">{item.description}</div>
@@ -173,12 +219,10 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                                             <button
                                                 key={type}
                                                 onClick={() => {
-                                                    // Store selected service type for submission (we might need a state for this)
-                                                    // For now, nextStep is what was there. We should ideally pass this 'type' to the next step or state.
-                                                    // But to keep it simple and consistent with previous logic:
+                                                    setSelectedServiceType(type);
                                                     nextStep();
                                                 }}
-                                                className="w-full text-right p-4 rounded-lg border hover:border-primary hover:bg-primary/5 transition-all font-medium flex justify-between group"
+                                                className="w-full text-right p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 transition-all font-medium flex justify-between group"
                                             >
                                                 {type}
                                                 <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity text-xl">←</span>
@@ -192,14 +236,20 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                         {step === 2 && (
                             <div className="p-6 space-y-4">
                                 <div className="text-center mb-6">
-                                    <MapPin className="h-12 w-12 text-primary mx-auto mb-2 bg-primary/10 p-2 rounded-full" />
+                                    <MapPin className="h-12 w-12 text-primary mx-auto mb-2 bg-primary/10 dark:bg-primary/20 p-2 rounded-full" />
                                     <h4 className="font-semibold text-lg">اين العنوان؟</h4>
                                     <p className="text-sm text-muted-foreground">سنقوم بإرسال {isOrder ? "الدليفري" : "الفني"} لهذا الموقع</p>
                                 </div>
 
                                 <div className="space-y-3">
-                                    <label className="text-sm font-medium">المنطقة</label>
-                                    <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                    <label htmlFor="area-select" className="text-sm font-medium">المنطقة</label>
+                                    <select
+                                        id="area-select"
+                                        aria-label="اختر المنطقة"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        value={area}
+                                        onChange={(e) => setArea(e.target.value)}
+                                    >
                                         <option>الحي الأول</option>
                                         <option>الحي الثاني</option>
                                         <option>ابني بيتك</option>
@@ -207,10 +257,19 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                                     </select>
 
                                     <label className="text-sm font-medium">العنوان بالتفصيل</label>
-                                    <Input placeholder="اسم الشارع، رقم العمارة..." />
+                                    <Input
+                                        placeholder="اسم الشارع، رقم العمارة..."
+                                        value={address}
+                                        onChange={(e) => setAddress(e.target.value)}
+                                    />
 
                                     <label className="text-sm font-medium">رقم الهاتف لتأكيد الطلب</label>
-                                    <Input placeholder="01xxxxxxxxx" type="tel" />
+                                    <Input
+                                        placeholder="01xxxxxxxxx"
+                                        type="tel"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -219,15 +278,32 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                             <div className="p-6 space-y-6">
                                 <h4 className="font-bold text-center text-xl">ملخص الطلب</h4>
 
-                                <div className="bg-slate-50 p-4 rounded-lg space-y-3 text-sm">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg space-y-3 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">مقدم الخدمة:</span>
                                         <span className="font-semibold">{provider.name}</span>
                                     </div>
 
+                                    {(address || phone) && (
+                                        <div className="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2 space-y-1">
+                                            {address && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">العنوان:</span>
+                                                    <span className="font-medium text-right">{area} - {address}</span>
+                                                </div>
+                                            )}
+                                            {phone && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-muted-foreground">الهاتف:</span>
+                                                    <span className="font-medium">{phone}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {isOrder ? (
                                         <>
-                                            <div className="border-t my-2 pt-2 space-y-2">
+                                            <div className="border-t border-slate-200 dark:border-slate-700 my-2 pt-2 space-y-2">
                                                 {Object.entries(cart).map(([id, qty]) => {
                                                     const item = menuItems.find(i => i.id === id);
                                                     if (!item) return null;
@@ -239,16 +315,16 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                                                     )
                                                 })}
                                             </div>
-                                            <div className="flex justify-between border-t border-slate-200 pt-2 mt-2">
+                                            <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2 mt-2">
                                                 <span className="font-bold">الإجمالي:</span>
                                                 <span className="font-bold text-green-600 text-lg">{cartTotal} ج.م</span>
                                             </div>
                                         </>
                                     ) : (
                                         <>
-                                            <div className="flex justify-between">
+                                            <div className="flex justify-between border-t border-slate-200 mt-2 pt-2">
                                                 <span className="text-muted-foreground">نوع الخدمة:</span>
-                                                <span className="font-semibold">صيانة عامة</span>
+                                                <span className="font-semibold">{selectedServiceType || "صيانة عامة"}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">رسوم المعاينة:</span>
@@ -256,6 +332,17 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                                             </div>
                                         </>
                                     )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="notes" className="text-sm font-medium">ملاحظات إضافية (اختياري)</label>
+                                    <textarea
+                                        id="notes"
+                                        placeholder="أضف أي ملاحظات أو طلبات خاصة..."
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+                                    />
                                 </div>
 
                                 {!isOrder && (
@@ -276,7 +363,7 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                                     سيقوم {provider.name} {isOrder ? "بتجهيز طلبك فوراً" : "بالتواصل معك"} خلال دقائق.
                                 </p>
                                 <div className="p-4 bg-slate-50 rounded-lg text-sm text-slate-600 mt-6">
-                                    رقم الطلب: #ORD-{Math.floor(Math.random() * 10000)}
+                                    رقم الطلب: #{newBookingId ? newBookingId.substring(0, 8) : 'PENDING'}
                                 </div>
                             </div>
                         )}
@@ -293,15 +380,27 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                             <Button
                                 className={isOrder ? "flex-1 bg-orange-500 hover:bg-orange-600" : "flex-1"}
                                 onClick={step === 1 && isOrder ? nextStep : step === 3 ? handleSubmit : nextStep}
-                                disabled={loading || (step === 1 && isOrder && cartItemsCount === 0)}
+                                disabled={
+                                    loading ||
+                                    (step === 1 && isOrder && cartItemsCount === 0) ||
+                                    (step === 2 && (!address || !phone))
+                                }
                             >
                                 {loading ? "جاري الإرسال..." : step === 3 ? (isOrder ? `تأكيد (${cartTotal} ج.م)` : "تأكيد الطلب") : "التالي"}
                             </Button>
                         </div>
                     )}
                     {step === 4 && (
-                        <div className="p-4 border-t bg-slate-50">
-                            <Button className="w-full" size="lg" onClick={handleClose}>
+                        <div className="p-4 border-t bg-slate-50 space-y-2">
+                            {newBookingId && (
+                                <Button className="w-full bg-indigo-600 hover:bg-indigo-700" size="lg" onClick={() => {
+                                    handleClose();
+                                    router.push(`/track/${newBookingId}`);
+                                }}>
+                                    تتبع الطلب الآن
+                                </Button>
+                            )}
+                            <Button className="w-full" variant="outline" size="lg" onClick={handleClose}>
                                 العودة للرئيسية
                             </Button>
                         </div>

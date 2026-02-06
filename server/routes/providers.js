@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
         // Get all approved providers
         const providersResult = await db.query(`
             SELECT 
-                p.id, p.name, p.email, p.category, p.location, p.phone,
+                p.id, p.name, p.email, p.category, p.location, p.phone, p.user_id,
                 p.rating, p.reviews_count as reviews, p.is_approved, p.joined_date
             FROM providers p
             WHERE p.is_approved = TRUE
@@ -62,8 +62,10 @@ router.get('/', async (req, res) => {
 
             // Convert id to string for frontend compatibility
             provider.id = provider.id.toString();
+            provider.userId = provider.user_id?.toString();
             provider.isApproved = provider.is_approved;
             provider.joinedDate = provider.joined_date;
+            delete provider.user_id;
             delete provider.is_approved;
             delete provider.joined_date;
         }
@@ -82,7 +84,7 @@ router.get('/:id', async (req, res) => {
 
         const providerResult = await db.query(`
             SELECT 
-                p.id, p.name, p.email, p.category, p.location, p.phone,
+                p.id, p.name, p.email, p.category, p.location, p.phone, p.user_id,
                 p.rating, p.reviews_count as reviews, p.is_approved, p.joined_date
             FROM providers p
             WHERE p.id = $1

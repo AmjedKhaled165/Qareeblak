@@ -3,6 +3,9 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/
 // Ensure we don't duplicate /api if it's already in the base URL
 const BASE_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
 
+// Check if we should use mock API for development
+const USE_MOCK_API = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_USE_MOCK_API === 'true';
+
 // Helper function for API calls
 export async function apiCall(endpoint: string, options: RequestInit = {}): Promise<any> {
     const token = typeof window !== 'undefined' ? (localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token')) : null;
@@ -38,7 +41,44 @@ export async function apiCall(endpoint: string, options: RequestInit = {}): Prom
     }
 
     if (!response.ok) {
-        throw new Error(data.error || 'حدث خطأ في الطلب');
+        console.error(`API Error (${endpoint}):`, {
+            status: response.status,
+            statusText: response.statusText,
+            url: url,
+            error: data?.error || data?.message,
+            data: data
+        });
+        
+        // Handle different error scenarios
+        if (response.status === 404) {
+            throw new Error(`الطلب غير موجود (${response.status})`);
+        } else if (response.status === 401) {
+            throw new Error(`عدم التفويض - يرجى تسجيل الدخول`);
+        } else if (response.status === 500) {
+            throw new Error(`خطأ في الخادم - حاول مرة أخرى لاحقاً`);
+        }
+        
+        throw new Error(data?.error || data?.message || `حدث خطأ في الطلب (${response.status})`);
+    }
+
+    // 🌐 Log successful order requests to verify 'source' field is included
+    if (endpoint.includes('/orders') && data.data) {
+        if (Array.isArray(data.data)) {
+            console.log('📋 Orders fetched - Source field check:', {
+                count: data.data.length,
+                sources: data.data.map((o: any) => ({
+                    id: o.id,
+                    source: o.source,
+                    customer: o.customer_name
+                }))
+            });
+        } else if (data.data.id) {
+            console.log('📦 Order fetched:', {
+                id: data.data.id,
+                source: data.data.source,
+                customer: data.data.customer_name
+            });
+        }
     }
 
     return data;
@@ -204,26 +244,66 @@ export const bookingsApi = {
         providerName: string;
         price?: number;
         details?: string;
+        items?: any[];
     }) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.create(data);
+        }
         return apiCall('/bookings', {
             method: 'POST',
             body: JSON.stringify(data)
         });
     },
 
+    async getById(id: string) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.getById(id);
+        }
+        return apiCall(`/bookings/${id}`);
+    },
+
+    async update(id: string, data: { items?: any[]; status?: string; halanOrderId?: number }) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.update(id, data);
+        }
+        return apiCall(`/bookings/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data)
+        });
+    },
+
     async getByProvider(providerId: string) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.getByProvider(providerId);
+        }
         return apiCall(`/bookings/provider/${providerId}`);
     },
 
     async getByUser(userId: string) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.getByUser(userId);
+        }
         return apiCall(`/bookings/user/${userId}`);
     },
 
     async getAll() {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.getAll();
+        }
         return apiCall('/bookings');
     },
 
     async updateStatus(id: string, status: string) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.updateStatus(id, status);
+        }
         return apiCall(`/bookings/${id}/status`, {
             method: 'PATCH',
             body: JSON.stringify({ status })

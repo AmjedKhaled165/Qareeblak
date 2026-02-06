@@ -13,7 +13,7 @@ import {
     X
 } from "lucide-react";
 import { apiCall } from "@/lib/api";
-import { useToast } from "@/providers/toast-provider";
+import { useToast } from "@/components/providers/ToastProvider";
 import StatusModal from "@/components/ui/status-modal";
 
 interface Product {
@@ -129,7 +129,7 @@ export default function ProductsManagementPage() {
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 p-4 shadow-sm sticky top-0 z-10 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                    <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors" title="الرجوع للخلف" aria-label="الرجوع للخلف">
                         <ArrowRight className="w-6 h-6 text-slate-600 dark:text-slate-300" />
                     </button>
                     <div>
@@ -211,6 +211,8 @@ export default function ProductsManagementPage() {
                                             <button
                                                 onClick={() => confirmDelete(product)}
                                                 className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                                title={`حذف ${product.name}`}
+                                                aria-label={`حذف ${product.name}`}
                                             >
                                                 <Trash2 className="w-5 h-5" />
                                             </button>
@@ -229,8 +231,6 @@ export default function ProductsManagementPage() {
                 title={modal.title}
                 message={modal.message}
                 type={modal.type}
-                confirmText="حذف"
-                onConfirm={modal.onConfirm}
             />
         </div>
     );

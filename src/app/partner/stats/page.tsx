@@ -124,7 +124,7 @@ export default function DriverStatsPage() {
                                 <DollarSign className="w-10 h-10 opacity-80" />
                                 <TrendingUp className="w-6 h-6 opacity-60" />
                             </div>
-                            <p className="text-white/80 mb-1">إجمالي الأرباح</p>
+                            <p className="text-white/80 mb-1">أرباح قريبلك</p>
                             <p className="text-4xl font-bold">{stats?.totalEarnings?.toFixed(0) || 0} ج.م</p>
                         </motion.div>
 

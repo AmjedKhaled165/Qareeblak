@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAppStore } from "@/hooks/use-app-store";
-import { useToast } from "@/providers/toast-provider";
+import { useAppStore } from "@/components/providers/AppProvider";
+import { useToast } from "@/components/providers/ToastProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
@@ -59,24 +59,16 @@ export default function UserLoginPage() {
         setError(null);
         setErrorType(null);
 
-        setTimeout(() => {
-            const result = loginUser(email, password);
+        setTimeout(async () => {
+            const result = await loginUser(email, password);
             setIsLoading(false);
 
-            if (result.success) {
+            if (result) {
                 toast("تم تسجيل الدخول بنجاح! نورتنا ❤️", "success");
                 router.push("/");
             } else {
-                if (result.error === "NOT_FOUND") {
-                    setError("هذا البريد الإلكتروني غير مسجل لدينا.");
-                    setErrorType("NOT_FOUND");
-                } else if (result.error === "WRONG_PASSWORD") {
-                    setError("كلمة المرور غير صحيحة.");
-                    setErrorType("WRONG_PASSWORD");
-                } else {
-                    setError("حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.");
-                    setErrorType("OTHER");
-                }
+                setError("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
+                setErrorType("WRONG_PASSWORD");
             }
         }, 800);
     };
@@ -109,8 +101,8 @@ export default function UserLoginPage() {
         setIsLoading(true);
         setError(null);
 
-        setTimeout(() => {
-            const success = registerUser(name, email, password);
+        setTimeout(async () => {
+            const success = await registerUser(name, email, password);
             setIsLoading(false);
 
             if (success) {

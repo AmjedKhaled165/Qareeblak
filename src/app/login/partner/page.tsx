@@ -9,7 +9,7 @@ import { ArrowLeft, Truck, Eye, EyeOff, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/providers/toast-provider";
+import { useToast } from "@/components/providers/ToastProvider";
 import { apiCall } from "@/lib/api";
 
 export default function PartnerLoginPage() {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Facebook, Twitter, Instagram, Mail, Phone, MapPin } from "lucide-react";
 
 import { usePathname } from "next/navigation";
-import { useAppStore } from "@/hooks/use-app-store";
+import { useAppStore } from "@/components/providers/AppProvider";
 
 export function Footer() {
     const pathname = usePathname();

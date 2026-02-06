@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useAppStore } from "@/hooks/use-app-store";
+import { useAppStore } from "@/components/providers/AppProvider";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { User, Mail, Save, ArrowRight, Camera, Phone, Lock, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useToast } from "@/providers/toast-provider";
+import { useToast } from "@/components/providers/ToastProvider";
 
 export default function ProfilePage() {
     const router = useRouter();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCourierTracking } from "@/providers/courier-tracking-provider";
+import { useCourierTracking } from "@/components/providers/CourierTrackingProvider";
 import { MapPin, RefreshCw } from "lucide-react";
 import { useState } from "react";
 

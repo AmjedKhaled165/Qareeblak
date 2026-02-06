@@ -3,11 +3,11 @@
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { useAppStore } from "@/hooks/use-app-store"
+import { useAppStore } from "@/components/providers/AppProvider"
 import { UserCircle, LogOut, Menu, X, Home, Search, Briefcase } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
 export function Navbar() {
     // Destructure logout directly from the hook - FIXING THE CRASH
@@ -64,7 +64,7 @@ export function Navbar() {
                     {currentUser?.type === 'provider' ? (
                         <Link href="/provider-dashboard" className="transition-colors text-primary font-bold">لوحة التحكم (Dashboard)</Link>
                     ) : (
-                        <Link href="/join" className="transition-colors hover:text-primary">انضم كمقدم خدمة</Link>
+                        <Link href="/track" className="transition-colors hover:text-primary">تتبع طلبك</Link>
                     )}
                 </nav>
 
@@ -213,9 +213,9 @@ export function Navbar() {
                                     لوحة التحكم (Dashboard)
                                 </Link>
                             ) : (
-                                <Link href="/join" className="flex items-center gap-3 text-foreground font-medium p-2 hover:bg-accent rounded-md" onClick={() => setIsMobileMenuOpen(false)}>
+                                <Link href="/track" className="flex items-center gap-3 text-foreground font-medium p-2 hover:bg-accent rounded-md" onClick={() => setIsMobileMenuOpen(false)}>
                                     <Briefcase className="w-5 h-5 text-primary" />
-                                    انضم كمقدم خدمة
+                                    تتبع طلبك
                                 </Link>
                             )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     ArrowRight,
@@ -22,7 +22,8 @@ import {
     ShoppingBag,
     ChevronDown,
     Search,
-    Trash2
+    Trash2,
+    Globe
 } from "lucide-react";
 
 import { apiCall } from "@/lib/api";
@@ -47,6 +48,7 @@ interface Order {
     notes?: string;
     is_edited?: boolean;
     edit_history?: any[];
+    source?: string; // 'qareeblak', 'manual', 'whatsapp', etc.
 }
 
 interface UserOption {
@@ -80,9 +82,16 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
                     {/* Header */}
                     <div className="sticky top-0 bg-white dark:bg-slate-900 p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center z-10">
                         <div>
-                            <h2 className="text-lg font-bold">{order.customer_name} - طلب #{order.id}</h2>
-                            {order.is_edited && (
-                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">معدل</span>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-lg font-bold">{order.customer_name} - طلب #{order.id}</h2>
+                                {order.is_edited && (
+                                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">معدل</span>
+                                )}
+                            </div>
+                            {order.source === 'qareeblak' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-full mt-1 border border-emerald-500/20">
+                                    🌐 طلب من قريبلك
+                                </span>
                             )}
                         </div>
                         <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
@@ -126,15 +135,27 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
                                     {order.courier_name || 'غير معين'}
                                 </p>
                             </div>
-                            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4">
-                                <h3 className="font-bold text-xs text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-1">
-                                    <UserCheck className="w-3 h-3" />
-                                    المسؤول
-                                </h3>
-                                <p className="text-slate-800 dark:text-slate-200 font-medium">
-                                    {order.supervisor_name || 'غير محدد'}
-                                </p>
-                            </div>
+
+                            {order.source === 'qareeblak' ? (
+                                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 border border-emerald-500/20">
+                                    <h3 className="font-bold text-xs text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                                        🌐 المصدر
+                                    </h3>
+                                    <p className="text-emerald-700 dark:text-emerald-300 font-bold">
+                                        قريبلك
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4">
+                                    <h3 className="font-bold text-xs text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-1">
+                                        <UserCheck className="w-3 h-3" />
+                                        المسؤول
+                                    </h3>
+                                    <p className="text-slate-800 dark:text-slate-200 font-medium">
+                                        {order.supervisor_name || 'غير محدد'}
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Products */}
@@ -168,7 +189,7 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
                             </div>
                             <div className="flex justify-between items-center mb-2 text-sm opacity-90">
                                 <span>رسوم التوصيل</span>
-                                <span>{(order.delivery_fee || 0).toFixed(0)} ج.م</span>
+                                <span>{(Number(order.delivery_fee) || 0).toFixed(0)} ج.م</span>
                             </div>
                             <div className="border-t border-white/30 pt-2 mt-2">
                                 <div className="flex justify-between items-center">
@@ -239,6 +260,7 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
 
 export default function OwnerAllOrdersPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [user, setUser] = useState<any>(null);
     const [orders, setOrders] = useState<Order[]>([]);
@@ -246,11 +268,12 @@ export default function OwnerAllOrdersPage() {
     const [managers, setManagers] = useState<UserOption[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Filters
-    const [statusFilter, setStatusFilter] = useState<string>('all');
-    const [driverFilter, setDriverFilter] = useState<string>('all');
-    const [managerFilter, setManagerFilter] = useState<string>('all');
-    const [searchQuery, setSearchQuery] = useState<string>('');
+    // Filters - read initial values from URL params
+    const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || 'all');
+    const [driverFilter, setDriverFilter] = useState<string>(searchParams.get('courierId') || 'all');
+    const [managerFilter, setManagerFilter] = useState<string>(searchParams.get('supervisorId') || 'all');
+    const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') || 'all'); // Qareeblak source filter
+    const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('search') || '');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     useEffect(() => {
@@ -275,7 +298,7 @@ export default function OwnerAllOrdersPage() {
             }, 400);
             return () => clearTimeout(timer);
         }
-    }, [user, statusFilter, driverFilter, managerFilter, searchQuery]);
+    }, [user, statusFilter, driverFilter, managerFilter, sourceFilter, searchQuery]);
 
     const fetchFilters = async () => {
         try {
@@ -297,6 +320,7 @@ export default function OwnerAllOrdersPage() {
             if (statusFilter !== 'all') params.append('status', statusFilter);
             if (driverFilter !== 'all') params.append('courierId', driverFilter);
             if (managerFilter !== 'all') params.append('supervisorId', managerFilter);
+            if (sourceFilter !== 'all') params.append('source', sourceFilter);
             if (searchQuery.trim()) params.append('search', searchQuery.trim());
 
             const queryString = params.toString();
@@ -304,6 +328,8 @@ export default function OwnerAllOrdersPage() {
 
             const data = await apiCall(endpoint);
             if (data.success) {
+                console.log('📦 Fetched Orders:', data.data);
+                console.log('🔍 Orders Sources:', data.data.map((o: any) => ({ id: o.id, source: o.source, status: o.status })));
                 setOrders(data.data || []);
             } else {
                 setOrders([]);
@@ -319,6 +345,7 @@ export default function OwnerAllOrdersPage() {
         switch (status) {
             case 'pending': return 'قيد الانتظار';
             case 'assigned': return 'تم التعيين';
+            case 'ready_for_pickup': return 'تم التجهيز';
             case 'picked_up': return 'تم الاستلام';
             case 'in_transit': return 'جاري التوصيل';
             case 'delivered': return 'تم التوصيل';
@@ -331,6 +358,7 @@ export default function OwnerAllOrdersPage() {
         switch (status) {
             case 'pending': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
             case 'assigned': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'ready_for_pickup': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
             case 'delivered': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
             case 'cancelled': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
             default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400';
@@ -351,7 +379,7 @@ export default function OwnerAllOrdersPage() {
             {/* Header */}
             <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-4 pt-8 pb-6">
                 <div className="flex items-center gap-3 mb-4">
-                    <button onClick={() => router.back()} className="p-2 bg-white/20 rounded-full">
+                    <button onClick={() => router.back()} className="p-2 bg-white/20 rounded-full" aria-label="رجوع">
                         <ArrowRight className="w-5 h-5 text-white" />
                     </button>
                     <div>
@@ -361,6 +389,7 @@ export default function OwnerAllOrdersPage() {
                     <button
                         onClick={fetchOrders}
                         className="mr-auto w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"
+                        aria-label="تحديث القائمة"
                     >
                         <RefreshCw className={`w-5 h-5 text-white ${isLoading ? 'animate-spin' : ''}`} />
                     </button>
@@ -383,6 +412,7 @@ export default function OwnerAllOrdersPage() {
                         <button
                             onClick={() => setSearchQuery('')}
                             className="absolute left-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
+                            aria-label="مسح البحث"
                         >
                             <X className="w-4 h-4 text-slate-500" />
                         </button>
@@ -401,14 +431,15 @@ export default function OwnerAllOrdersPage() {
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                             className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500"
+                            aria-label="تصفية حسب الحالة"
                         >
                             <option value="all">كل الحالات</option>
                             <option value="pending">قيد الانتظار</option>
+                            <option value="ready_for_pickup">تم التجهيز</option>
                             <option value="in_transit">جاري التوصيل</option>
                             <option value="delivered">مكتملة</option>
                             <option value="cancelled">ملغي</option>
                             <option value="edited">المعدلة</option>
-                            <option value="deleted">المحذوفة</option>
                         </select>
                         <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
@@ -419,6 +450,7 @@ export default function OwnerAllOrdersPage() {
                             value={driverFilter}
                             onChange={(e) => setDriverFilter(e.target.value)}
                             className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500"
+                            aria-label="تصفية حسب المندوب"
                         >
                             <option value="all">كل المناديب</option>
                             {drivers.map((d) => (
@@ -434,6 +466,7 @@ export default function OwnerAllOrdersPage() {
                             value={managerFilter}
                             onChange={(e) => setManagerFilter(e.target.value)}
                             className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500"
+                            aria-label="تصفية حسب المسؤول"
                         >
                             <option value="all">كل المسؤولين</option>
                             {managers.map((m) => (
@@ -443,9 +476,49 @@ export default function OwnerAllOrdersPage() {
                         <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
                 </div>
+
+                {/* Source Filter (Qareeblak) */}
+                <div className="flex gap-2 mt-3">
+                    <button
+                        onClick={() => setSourceFilter('all')}
+                        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${sourceFilter === 'all'
+                            ? 'bg-violet-600 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                            }`}
+                    >
+                        الكل
+                    </button>
+                    <button
+                        onClick={() => setSourceFilter('qareeblak')}
+                        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${sourceFilter === 'qareeblak'
+                            ? 'bg-emerald-600 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600'
+                            }`}
+                    >
+                        🌐 قريبلك
+                    </button>
+                    <button
+                        onClick={() => setSourceFilter('manual')}
+                        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${sourceFilter === 'manual'
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600'
+                            }`}
+                    >
+                        ✋ يدوي
+                    </button>
+                    <button
+                        onClick={() => setSourceFilter('whatsapp')}
+                        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${sourceFilter === 'whatsapp'
+                            ? 'bg-green-600 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600'
+                            }`}
+                    >
+                        📱 واتساب
+                    </button>
+                </div>
             </div>
 
-            {/* Orders List */}
+            {/* Orders List - Grouped by Source */}
             <div className="p-4 pb-8">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-20">
@@ -457,87 +530,314 @@ export default function OwnerAllOrdersPage() {
                         <p className="text-slate-500 dark:text-slate-400 text-lg">لا توجد طلبات</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        {orders.map((order, index) => {
-                            const StatusIcon = getStatusIcon(order.status);
+                    <div className="space-y-6">
+                        {/* Qareeblak Section */}
+                        {(() => {
+                            const qareeblakOrders = orders.filter(o => o.source === 'qareeblak');
+                            if (qareeblakOrders.length === 0) return null;
+
                             return (
-                                <motion.div
-                                    key={order.id}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.03 }}
-                                    onClick={() => setSelectedOrder(order)}
-                                    className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
-                                >
-                                    {/* Edited Badge */}
-                                    {order.is_edited && (
-                                        <div className="absolute top-0 left-0 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-br-lg">
-                                            معدل
-                                        </div>
-                                    )}
+                                <div key="qareeblak-section">
+                                    {/* Section Header */}
 
-                                    {/* Header */}
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <StatusIcon className="w-4 h-4 text-slate-500" />
-                                            <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                {order.customer_name} #{order.id}
-                                            </span>
-                                        </div>
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusStyle(order.status)}`}>
-                                            {getStatusLabel(order.status)}
-                                        </span>
-                                    </div>
 
-                                    {/* Customer */}
-                                    <p className="font-bold text-slate-800 dark:text-slate-100 mb-1">{order.customer_name}</p>
+                                    {/* Qareeblak Orders */}
+                                    {/* Qareeblak Orders */}
+                                    <div className="space-y-3">
+                                        {qareeblakOrders.map((order, index) => {
+                                            const StatusIcon = getStatusIcon(order.status);
+                                            return (
+                                                <motion.div
+                                                    key={order.id}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: index * 0.05 }}
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border-r-4 border-emerald-500"
+                                                >
+                                                    {/* Qareeblak Badge - Prominent */}
 
-                                    {/* Driver & Manager */}
-                                    <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2">
-                                        <span className="flex items-center gap-1">
-                                            <Truck className="w-3 h-3" />
-                                            {order.courier_name || 'غير معين'}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <UserCheck className="w-3 h-3" />
-                                            {order.supervisor_name || 'غير محدد'}
-                                        </span>
-                                    </div>
 
-                                    {/* Address */}
-                                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
-                                        <MapPin className="w-3 h-3 text-green-500" />
-                                        <span className="truncate">{order.delivery_address}</span>
-                                    </div>
+                                                    {/* Edited Badge */}
+                                                    {order.is_edited && (
+                                                        <div className="absolute top-3 left-3 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-br-lg">
+                                                            معدل
+                                                        </div>
+                                                    )}
 
-                                    {/* Footer */}
-                                    <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700">
-                                        <span className="text-xs text-slate-400">
-                                            {new Date(order.created_at).toLocaleDateString('ar-EG')}
-                                        </span>
-                                        <div className="text-left">
-                                            {(() => {
-                                                const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
-                                                const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
-                                                const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
-                                                const grandTotal = itemsTotal + deliFee;
+                                                    {/* Header */}
+                                                    <div className="flex justify-between items-start mb-3 pt-6">
+                                                        <div className="flex items-center gap-2">
+                                                            <StatusIcon className="w-4 h-4 text-slate-500" />
+                                                            <span className="font-bold text-slate-800 dark:text-slate-100">
+                                                                {order.customer_name} #{order.id}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-1.5">
+                                                            <span className="text-[10px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/20 font-bold flex items-center gap-1 shadow-sm">
+                                                                <Globe className="w-3 h-3" />
+                                                                قريبلك
+                                                            </span>
+                                                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusStyle(order.status)}`}>
+                                                                {getStatusLabel(order.status)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-                                                return (
-                                                    <div className="flex flex-col items-end">
-                                                        <span className="font-bold text-green-600 dark:text-green-400 text-lg">
-                                                            {grandTotal.toFixed(0)} ج.م
-                                                        </span>
-                                                        <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                                                            + {deliFee} توصيل
+                                                    {/* Customer Phone */}
+                                                    <p className="text-slate-600 dark:text-slate-400 text-sm mb-1 flex items-center gap-1">
+                                                        <Phone className="w-3 h-3" />
+                                                        {order.customer_phone}
+                                                    </p>
+
+                                                    {/* Driver & Manager */}
+                                                    <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                                        <span className="flex items-center gap-1">
+                                                            <Truck className="w-3 h-3" />
+                                                            {order.courier_name || 'غير معين'}
                                                         </span>
                                                     </div>
-                                                );
-                                            })()}
-                                        </div>
+
+                                                    {/* Address */}
+                                                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                                        <MapPin className="w-3 h-3 text-green-500" />
+                                                        <span className="truncate">{order.delivery_address}</span>
+                                                    </div>
+
+                                                    {/* Footer */}
+                                                    <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700">
+                                                        <span className="text-xs text-slate-400">
+                                                            {new Date(order.created_at).toLocaleDateString('ar-EG')}
+                                                        </span>
+                                                        <div className="text-left">
+                                                            {(() => {
+                                                                const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+                                                                const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+                                                                const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
+                                                                const grandTotal = itemsTotal + deliFee;
+
+                                                                return (
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="font-bold text-emerald-600 dark:text-emerald-400 text-lg">
+                                                                            {grandTotal.toFixed(0)} ج.م
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                                                                            + {deliFee} توصيل
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
                                     </div>
-                                </motion.div>
+                                </div>
                             );
-                        })}
+                        })()}
+
+                        {/* Manual Section */}
+                        {(() => {
+                            const manualOrders = orders.filter(o => o.source === 'manual' || !o.source);
+                            if (manualOrders.length === 0) return null;
+
+                            return (
+                                <div key="manual-section">
+                                    {/* Section Header */}
+
+
+                                    {/* Manual Orders */}
+                                    {/* Manual Orders */}
+                                    <div className="space-y-3">
+                                        {manualOrders.map((order, index) => {
+                                            const StatusIcon = getStatusIcon(order.status);
+                                            return (
+                                                <motion.div
+                                                    key={order.id}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: index * 0.05 }}
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border-r-4 border-blue-500"
+                                                >
+                                                    {/* Edited Badge */}
+                                                    {order.is_edited && (
+                                                        <div className="absolute top-3 left-3 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-br-lg">
+                                                            معدل
+                                                        </div>
+                                                    )}
+
+                                                    {/* Header */}
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <StatusIcon className="w-4 h-4 text-slate-500" />
+                                                            <span className="font-bold text-slate-800 dark:text-slate-100">
+                                                                {order.customer_name} #{order.id}
+                                                            </span>
+                                                        </div>
+                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusStyle(order.status)}`}>
+                                                            {getStatusLabel(order.status)}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Customer Phone */}
+                                                    <p className="text-slate-600 dark:text-slate-400 text-sm mb-1 flex items-center gap-1">
+                                                        <Phone className="w-3 h-3" />
+                                                        {order.customer_phone}
+                                                    </p>
+
+                                                    {/* Driver & Manager */}
+                                                    <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                                        <span className="flex items-center gap-1">
+                                                            <Truck className="w-3 h-3" />
+                                                            {order.courier_name || 'غير معين'}
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <UserCheck className="w-3 h-3" />
+                                                            {order.supervisor_name || 'غير محدد'}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Address */}
+                                                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                                        <MapPin className="w-3 h-3 text-green-500" />
+                                                        <span className="truncate">{order.delivery_address}</span>
+                                                    </div>
+
+                                                    {/* Footer */}
+                                                    <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700">
+                                                        <span className="text-xs text-slate-400">
+                                                            {new Date(order.created_at).toLocaleDateString('ar-EG')}
+                                                        </span>
+                                                        <div className="text-left">
+                                                            {(() => {
+                                                                const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+                                                                const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+                                                                const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
+                                                                const grandTotal = itemsTotal + deliFee;
+
+                                                                return (
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                                                                            {grandTotal.toFixed(0)} ج.م
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                                                                            + {deliFee} توصيل
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {/* WhatsApp Section */}
+                        {(() => {
+                            const whatsappOrders = orders.filter(o => o.source === 'whatsapp');
+                            if (whatsappOrders.length === 0) return null;
+
+                            return (
+                                <div key="whatsapp-section">
+                                    {/* Section Header */}
+
+
+                                    {/* WhatsApp Orders */}
+                                    {/* WhatsApp Orders */}
+                                    <div className="space-y-3">
+                                        {whatsappOrders.map((order, index) => {
+                                            const StatusIcon = getStatusIcon(order.status);
+                                            return (
+                                                <motion.div
+                                                    key={order.id}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: index * 0.05 }}
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border-r-4 border-green-500"
+                                                >
+                                                    {/* Edited Badge */}
+                                                    {order.is_edited && (
+                                                        <div className="absolute top-3 left-3 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-br-lg">
+                                                            معدل
+                                                        </div>
+                                                    )}
+
+                                                    {/* Header */}
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <StatusIcon className="w-4 h-4 text-slate-500" />
+                                                            <span className="font-bold text-slate-800 dark:text-slate-100">
+                                                                {order.customer_name} #{order.id}
+                                                            </span>
+                                                        </div>
+                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusStyle(order.status)}`}>
+                                                            {getStatusLabel(order.status)}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Customer Phone */}
+                                                    <p className="text-slate-600 dark:text-slate-400 text-sm mb-1 flex items-center gap-1">
+                                                        <Phone className="w-3 h-3" />
+                                                        {order.customer_phone}
+                                                    </p>
+
+                                                    {/* Driver & Manager */}
+                                                    <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                                        <span className="flex items-center gap-1">
+                                                            <Truck className="w-3 h-3" />
+                                                            {order.courier_name || 'غير معين'}
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <UserCheck className="w-3 h-3" />
+                                                            {order.supervisor_name || 'غير محدد'}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Address */}
+                                                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                                        <MapPin className="w-3 h-3 text-green-500" />
+                                                        <span className="truncate">{order.delivery_address}</span>
+                                                    </div>
+
+                                                    {/* Footer */}
+                                                    <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700">
+                                                        <span className="text-xs text-slate-400">
+                                                            {new Date(order.created_at).toLocaleDateString('ar-EG')}
+                                                        </span>
+                                                        <div className="text-left">
+                                                            {(() => {
+                                                                const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+                                                                const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+                                                                const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
+                                                                const grandTotal = itemsTotal + deliFee;
+
+                                                                return (
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                                                                            {grandTotal.toFixed(0)} ج.م
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                                                                            + {deliFee} توصيل
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
             </div>

@@ -1,13 +1,13 @@
 "use client";
 
-import { useAppStore } from "@/hooks/use-app-store";
+import { useAppStore } from "@/components/providers/AppProvider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Store, Search, Trash2, ShoppingBag, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/providers/toast-provider";
-import { useConfirm } from "@/providers/confirm-provider";
+import { useToast } from "@/components/providers/ToastProvider";
+import { useConfirm } from "@/components/providers/ConfirmProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { requestsApi } from "@/lib/api";
 

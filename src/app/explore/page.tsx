@@ -7,9 +7,9 @@ import { Search, SlidersHorizontal, Utensils, Wrench, Pill, Car, ShoppingBag } f
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { useAppStore } from "@/hooks/use-app-store";
+import { useAppStore } from "@/components/providers/AppProvider";
 
 const CATEGORIES = [
     { id: "all", label: "الكل", icon: null },
@@ -23,6 +23,8 @@ const CATEGORIES = [
 export default function ExplorePage() {
     const { providers, isInitialized, currentUser } = useAppStore();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const addToOrderId = searchParams.get('addToOrderId');
     const [activeCategory, setActiveCategory] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -44,6 +46,26 @@ export default function ExplorePage() {
 
     return (
         <div className="min-h-screen bg-background py-8">
+            {/* Add Item Banner */}
+            {addToOrderId && (
+                <div className="bg-green-600 text-white p-4 sticky top-0 z-[60] shadow-lg flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <ShoppingBag className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="font-bold">أنت الآن تضيف منتجات للطلب #{addToOrderId}</p>
+                            <p className="text-sm opacity-90">تصفح المحلات والخدمات واختر ما تحتاجه</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => router.push(`/track/${addToOrderId}`)}
+                        className="px-4 py-2 bg-white text-green-700 rounded-lg font-bold text-sm hover:bg-green-50 transition"
+                    >
+                        العودة للطلب
+                    </button>
+                </div>
+            )}
             <div className="container mx-auto px-4">
                 {/* Header & Filter */}
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-8">
@@ -96,7 +118,7 @@ export default function ExplorePage() {
                 >
                     {filteredProviders.length > 0 ? (
                         filteredProviders.map((provider) => (
-                            <ServiceCard key={provider.id} provider={provider} />
+                            <ServiceCard key={provider.id} provider={provider} addToOrderId={addToOrderId} />
                         ))
                     ) : (
                         <motion.div
