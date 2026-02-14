@@ -45,6 +45,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
     const [isTyping, setIsTyping] = useState(false);
     const [typingUserName, setTypingUserName] = useState("");
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [socketConnected, setSocketConnected] = useState(false);
     const [socketError, setSocketError] = useState<string | null>(null);
@@ -245,8 +246,6 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
         if (!consultationId || !socketRef.current) return;
 
         socketRef.current.emit('typing', {
-            consultationId,
-            userId: currentUser?.id,
             userName: currentUser?.name || 'عميل',
         });
 
@@ -263,15 +262,14 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
     };
 
     // Send message
-    const sendMessage = async (imageUrl?: string) => {
+    const sendMessage = async (file?: File) => {
         if (!consultationId) {
             console.error('[PharmacyChat] Cannot send - no consultation ID');
-            console.log('[PharmacyChat] Current state:', { consultationId, isLoading });
             toast("يرجى الانتظار قليلاً حتى يتم إعداد المحادثة...", "error");
             return;
         }
 
-        if (!inputMessage.trim() && !imageUrl) {
+        if (!inputMessage.trim() && !file) {
             return;
         }
 
@@ -279,7 +277,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
         console.log('[PharmacyChat] Sending message...', {
             consultationId,
             hasMessage: !!inputMessage.trim(),
-            hasImage: !!imageUrl
+            hasFile: !!file
         });
 
         try {
@@ -288,71 +286,60 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 throw new Error('غير مصرح - لم يتم العثور على جلسة');
             }
 
-            const messageUrl = `${API_BASE}/api/chat/${consultationId}/messages`;
-            console.log('[PharmacyChat] Sending to:', messageUrl);
+            let res;
 
-            const res = await fetch(messageUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    message: inputMessage.trim() || null,
-                    imageUrl: imageUrl || null,
-                    senderType: 'customer',
-                    senderId: currentUser?.id,
-                    senderName: currentUser?.name || 'عميل',
-                }),
-            });
+            if (file) {
+                // Upload Image
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('senderType', 'customer');
+                formData.append('senderId', String(currentUser?.id));
+                formData.append('senderName', currentUser?.name || 'عميل');
 
-            console.log('[PharmacyChat] Response status:', res.status);
+                res = await fetch(`${API_BASE}/api/chat/${consultationId}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+            } else {
+                // Text Message
+                res = await fetch(`${API_BASE}/api/chat/${consultationId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        message: inputMessage.trim() || null,
+                        senderType: 'customer',
+                        senderId: currentUser?.id,
+                        senderName: currentUser?.name || 'عميل',
+                    }),
+                });
+            }
 
             if (!res.ok) {
                 const errorText = await res.text();
-                console.error('[PharmacyChat] Error response:', errorText);
-                throw new Error(`خطأ في الخادم: ${res.status}`);
+                throw new Error(`خطأ في الخادم: ${res.status} - ${errorText}`);
             }
 
-            // Check content type before parsing JSON
-            const resContentType = res.headers.get('content-type');
-            if (!resContentType || !resContentType.includes('application/json')) {
-                console.error('[PharmacyChat] Non-JSON response from send');
-                throw new Error('خطأ: الخادم لم يرد بصيغة JSON صحيحة');
-            }
-
-            let data;
-            try {
-                data = await res.json();
-            } catch (parseError) {
-                console.error('[PharmacyChat] JSON parse error:', parseError);
-                throw new Error('خطأ: لا يمكن قراءة رد الخادم');
-            }
-            console.log('[PharmacyChat] Send response:', data);
+            const data = await res.json();
 
             if (data.success) {
-                // Add message to UI immediately (optimistic update)
-                const optimisticMessage = {
-                    id: data.message?.id || Date.now(),
-                    consultation_id: consultationId,
-                    sender_id: currentUser?.id || 0,
-                    sender_type: 'customer' as const,
-                    message: inputMessage.trim() || null,
-                    image_url: imageUrl || null,
-                    sender_name: currentUser?.name || 'أنا',
-                    created_at: new Date().toISOString(),
-                    is_read: false
-                };
-                setMessages(prev => {
-                    // Avoid duplicates
-                    if (prev.some(m => m.id === optimisticMessage.id)) return prev;
-                    return [...prev, optimisticMessage];
-                });
+                // Optimistic update is tricky with images unless we use the preview
+                // For now, rely on socket or the response
+                if (!messages.some(m => m.id === data.message.id)) {
+                    setMessages(prev => [...prev, data.message]);
+                }
+
                 setInputMessage("");
                 setPreviewImage(null);
+                setSelectedFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
                 console.log('[PharmacyChat] Message sent successfully');
             } else {
-                console.error('[PharmacyChat] Send failed:', data.error);
                 toast(data.error || "فشل إرسال الرسالة", "error");
             }
         } catch (error) {
@@ -374,6 +361,9 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
             return;
         }
 
+        setSelectedFile(file); // Store file for upload
+
+        // Create preview
         const reader = new FileReader();
         reader.onloadend = () => {
             setPreviewImage(reader.result as string);
@@ -383,8 +373,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
 
     // Send image
     const handleSendImage = () => {
-        if (previewImage) {
-            sendMessage(previewImage);
+        if (selectedFile) {
+            sendMessage(selectedFile);
         }
     };
 
@@ -676,7 +666,11 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                                         className="h-20 w-auto rounded-lg object-cover"
                                     />
                                     <button
-                                        onClick={() => setPreviewImage(null)}
+                                        onClick={() => {
+                                            setPreviewImage(null);
+                                            setSelectedFile(null);
+                                            if (fileInputRef.current) fileInputRef.current.value = '';
+                                        }}
                                         className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs"
                                     >
                                         ×
@@ -715,8 +709,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                         />
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={!consultationId || isLoading || isSending}
-                            className={`p-3 rounded-xl transition ${consultationId && !isLoading && !isSending
+                            disabled={!consultationId || isLoading || isSending || !socketConnected}
+                            className={`p-3 rounded-xl transition ${consultationId && !isLoading && !isSending && socketConnected
                                 ? 'text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'
                                 : 'text-slate-300 cursor-not-allowed opacity-50'
                                 }`}
@@ -739,9 +733,9 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                                         sendMessage();
                                     }
                                 }}
-                                disabled={!consultationId || isLoading}
-                                placeholder={consultationId ? "اكتب رسالتك أو أرسل صورة الروشتة..." : "جاري بدء المحادثة..."}
-                                className={`w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 max-h-32 ${consultationId && !isLoading
+                                disabled={!consultationId || isLoading || !socketConnected}
+                                placeholder={consultationId ? (socketConnected ? "اكتب رسالتك أو أرسل صورة الروشتة..." : "جاري الاتصال...") : "جاري بدء المحادثة..."}
+                                className={`w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 max-h-32 ${consultationId && !isLoading && socketConnected
                                     ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-emerald-500'
                                     : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 opacity-50'
                                     }`}
@@ -752,7 +746,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                             size="icon"
                             className="bg-emerald-600 hover:bg-emerald-700 h-11 w-11 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={() => sendMessage()}
-                            disabled={!consultationId || isLoading || isSending || (!inputMessage.trim() && !previewImage)}
+                            disabled={!consultationId || isLoading || isSending || !socketConnected || (!inputMessage.trim() && !previewImage)}
                         >
                             {isSending ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />

@@ -1,0 +1,36 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 100
+      name: "Ramp up to 100 users/sec"
+    - duration: 120
+      arrivalRate: 100
+      name: "Sustain high load"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "Guest user browsing providers"
+    flow:
+      - get:
+          url: "/api/providers"
+      - get:
+          url: "/api/providers/by-email/plumber@example.com"
+  
+  - name: "User logging in and checking bookings"
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "test@user.com"
+            password: "password123"
+          capture:
+            json: "$.token"
+            as: "authToken"
+      - get:
+          url: "/api/bookings"
+          headers:
+            Authorization: "Bearer {{ authToken }}"

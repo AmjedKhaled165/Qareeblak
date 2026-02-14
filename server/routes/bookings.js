@@ -3,9 +3,10 @@ const router = express.Router();
 const db = require('../db');
 const { syncParentOrderStatus } = require('../utils/parent-sync');
 const { createNotification } = require('./notifications');
+const { verifyToken } = require('../middleware/auth');
 
 // Consolidated Checkout Endpoint
-router.post('/checkout', async (req, res) => {
+router.post('/checkout', verifyToken, async (req, res) => {
     const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
@@ -95,7 +96,7 @@ router.post('/checkout', async (req, res) => {
 });
 
 // Legacy Create booking (Simple) - Kept for single direct actions if any
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
     try {
         const { userId, providerId, serviceId, userName, serviceName, providerName, price, details, items, bundleId, appointmentDate, appointmentType } = req.body;
 
@@ -126,7 +127,7 @@ router.post('/', async (req, res) => {
 // ... (GET /:id remains mostly checking columns, need to ensure bundle_id is returned if queried *)
 
 // Get bookings by provider (OPTIMIZED with pagination)
-router.get('/provider/:providerId', async (req, res) => {
+router.get('/provider/:providerId', verifyToken, async (req, res) => {
     try {
         const { providerId } = req.params;
         const page = parseInt(req.query.page) || 1;
@@ -185,7 +186,7 @@ router.get('/provider/:providerId', async (req, res) => {
 });
 
 // Get bookings by user
-router.get('/user/:userId', async (req, res) => {
+router.get('/user/:userId', verifyToken, async (req, res) => {
     try {
         const { userId } = req.params;
 
@@ -222,7 +223,7 @@ router.get('/user/:userId', async (req, res) => {
 });
 
 // Update booking status
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { status, price } = req.body;
@@ -359,7 +360,7 @@ router.patch('/:id/status', async (req, res) => {
 // RESCHEDULE APPOINTMENT (Negotiation Loop)
 // Supports both provider and customer rescheduling
 // ==========================================
-router.patch('/:id/reschedule', async (req, res) => {
+router.patch('/:id/reschedule', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { newDate, updatedBy } = req.body;
@@ -433,7 +434,7 @@ router.patch('/:id/reschedule', async (req, res) => {
 // ==========================================
 // ACCEPT APPOINTMENT (Either party confirms)
 // ==========================================
-router.patch('/:id/accept-appointment', async (req, res) => {
+router.patch('/:id/accept-appointment', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { acceptedBy } = req.body;
@@ -492,7 +493,7 @@ router.patch('/:id/accept-appointment', async (req, res) => {
 });
 
 // Generic booking update (e.g., set halanOrderId)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
@@ -544,7 +545,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // Get all bookings (for admin or general usage)
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
     try {
         const result = await db.query(`
             SELECT id, user_name, service_name, provider_name, provider_id, status, details, items, price, halan_order_id, booking_date, parent_order_id, appointment_date, appointment_type
@@ -577,7 +578,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get Single Booking by ID (with Provider Phone)
-router.get('/:id', async (req, res) => {
+router.get('/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
 

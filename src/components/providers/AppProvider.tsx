@@ -294,9 +294,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
 
             // Load data in parallel
+            // Only load bookings if user has a token (bookings endpoint now requires auth)
+            const hasToken = !!qareeblakToken || !!halanToken;
             await Promise.all([
                 loadProviders(),
-                loadBookings(),
+                hasToken ? loadBookings() : Promise.resolve(),
                 loadCurrentUser()
             ]);
 

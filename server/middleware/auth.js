@@ -63,8 +63,20 @@ const isProviderOrAdmin = (req, res, next) => {
     next();
 };
 
+/**
+ * Middleware to check if user is an owner OR admin (God Mode)
+ * Owner role bypasses all ownership checks
+ */
+const isOwnerOrAdmin = (req, res, next) => {
+    if (!req.user || (req.user.user_type !== 'owner' && req.user.user_type !== 'admin')) {
+        return res.status(403).json({ error: 'غير مصرح - تتطلب صلاحيات مسئول أعلى' });
+    }
+    next();
+};
+
 module.exports = {
     verifyToken,
     isAdmin,
-    isProviderOrAdmin
+    isProviderOrAdmin,
+    isOwnerOrAdmin
 };

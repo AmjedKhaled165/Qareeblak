@@ -3,11 +3,14 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { registerSchema, loginSchema, validate } = require('../middleware/validation');
+const { verifyToken, isAdmin } = require('../middleware/auth');
+const auditLogger = require('../middleware/audit');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'halan-secret-key-2026';
 
 // Register new user
-router.post('/register', async (req, res) => {
+router.post('/register', validate(registerSchema), async (req, res) => {
     try {
         const { name, email, password, userType = 'customer' } = req.body;
 
@@ -56,7 +59,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login user
-router.post('/login', async (req, res) => {
+router.post('/login', validate(loginSchema), async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -76,6 +79,11 @@ router.post('/login', async (req, res) => {
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
             return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
+        }
+
+        // Check if user is banned (Moderation)
+        if (user.is_banned) {
+            return res.status(403).json({ error: 'تم حظر حسابك لمخالفة القوانين، يرجى التواصل مع الإدارة' });
         }
 
         // Generate token
@@ -142,38 +150,9 @@ router.post('/guest-login', async (req, res) => {
 });
 
 // Get current user (requires token)
-router.get('/me', async (req, res) => {
+router.get('/me', verifyToken, async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        console.log('[Auth] /me request headers:', req.headers.authorization ? 'Present' : 'Missing');
-
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            console.log('[Auth] /me failed: No Bearer token');
-            return res.status(401).json({ error: 'غير مصرح' });
-        }
-
-        const token = authHeader.split(' ')[1];
-        // console.log('[Auth] Verifying token:', token.substring(0, 20) + '...');
-
-        try {
-            const decoded = jwt.verify(token, JWT_SECRET);
-            console.log('[Auth] Token verified for user:', decoded.id);
-
-            const result = await db.query(
-                'SELECT id, name, email, user_type FROM users WHERE id = $1',
-                [decoded.id]
-            );
-
-            if (result.rows.length === 0) {
-                console.log('[Auth] User not found in DB:', decoded.id);
-                return res.status(404).json({ error: 'المستخدم غير موجود' });
-            }
-
-            res.json(result.rows[0]);
-        } catch (verifyError) {
-            console.error('[Auth] Token verification failed:', verifyError.message);
-            return res.status(401).json({ error: 'جلسة غير صالحة' });
-        }
+        res.json(req.user);
     } catch (error) {
         console.error('Auth check error:', error);
         res.status(500).json({ error: 'خطأ في التحقق من المصادقة' });
@@ -239,8 +218,8 @@ router.post('/provider-request', async (req, res) => {
     }
 });
 
-// Get all pending requests (Admin)
-router.get('/requests', async (req, res) => {
+// Get all pending requests (Admin Only)
+router.get('/requests', verifyToken, isAdmin, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT id, name, email, phone, category, location, status, submitted_at as date 
@@ -254,8 +233,8 @@ router.get('/requests', async (req, res) => {
     }
 });
 
-// Approve provider request (Admin)
-router.post('/requests/:id/approve', async (req, res) => {
+// Approve provider request (Admin Only)
+router.post('/requests/:id/approve', verifyToken, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -297,8 +276,8 @@ router.post('/requests/:id/approve', async (req, res) => {
     }
 });
 
-// Reject provider request (Admin)
-router.post('/requests/:id/reject', async (req, res) => {
+// Reject provider request (Admin Only)
+router.post('/requests/:id/reject', verifyToken, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -321,16 +300,9 @@ router.post('/requests/:id/reject', async (req, res) => {
 });
 
 // Update profile
-router.put('/profile', async (req, res) => {
+router.put('/profile', verifyToken, async (req, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ error: 'غير مصرح' });
-        }
-
-        const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const userId = decoded.id;
+        const userId = req.user.id;
 
         const { name, email, phone, avatar, oldPassword, newPassword } = req.body;
 

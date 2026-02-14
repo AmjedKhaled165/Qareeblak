@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { verifyToken, isProviderOrAdmin } = require('../middleware/auth');
 
 // Add service to provider
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, isProviderOrAdmin, async (req, res) => {
     try {
         const { providerId, name, description, price, image, offer } = req.body;
 
@@ -46,7 +47,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update service
-router.put('/:id', async (req, res) => {
+router.put('/:id', verifyToken, isProviderOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { name, description, price, image, offer } = req.body;
@@ -84,7 +85,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete service
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', verifyToken, isProviderOrAdmin, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -97,7 +98,7 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Get services by provider
+// Get services by provider (PUBLIC - anonymous users need to browse services)
 router.get('/provider/:providerId', async (req, res) => {
     try {
         const { providerId } = req.params;

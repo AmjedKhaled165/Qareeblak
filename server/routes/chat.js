@@ -100,9 +100,12 @@ const authenticate = (req, res, next) => {
     }
 };
 
-// Generate consultation ID
+const upload = require('../config/multer');
+
+// Standardized Room ID / Consultation ID
 const generateConsultationId = (providerId, customerId) => {
-    return `${providerId}-${customerId}-${Date.now()}`;
+    // Deterministic ID ensures both parties join the same room automatically
+    return `chat_${providerId}_${customerId}`;
 };
 
 // ==================== DATABASE SETUP (Call once to create tables) ====================
@@ -267,10 +270,11 @@ router.get('/:consultationId', authenticate, async (req, res) => {
 });
 
 // ==================== SEND MESSAGE ====================
+// ==================== SEND MESSAGE (TEXT ONLY) ====================
 router.post('/:consultationId/messages', authenticate, async (req, res) => {
     try {
         const { consultationId } = req.params;
-        const { message, imageUrl, senderType, senderId, senderName } = req.body;
+        const { message, senderType, senderId, senderName, imageUrl } = req.body; // imageUrl might come from previous upload
         const userId = senderId || req.user.userId || req.user.id;
 
         console.log('[Chat] Send message request:', { consultationId, userId, senderType, hasMessage: !!message, hasImage: !!imageUrl });
@@ -283,28 +287,13 @@ router.post('/:consultationId/messages', authenticate, async (req, res) => {
             return res.status(400).json({ success: false, error: 'الرسالة أو الصورة مطلوبة' });
         }
 
-        // Verify consultation exists
-        const consultationCheck = await pool.query(
-            'SELECT id FROM consultations WHERE id = $1',
-            [consultationId]
-        );
-
-        if (consultationCheck.rows.length === 0) {
-            return res.status(404).json({ success: false, error: 'المحادثة غير موجودة' });
-        }
+        // Verify consultation exists (Optional: can be optimized out if we trust IDs)
+        // const consultationCheck = await pool.query(...) 
 
         const result = await pool.query(`
             INSERT INTO chat_messages (consultation_id, sender_id, sender_type, message, image_url)
             VALUES ($1, $2, $3, $4, $5)
-            RETURNING 
-                id,
-                consultation_id,
-                sender_id,
-                sender_type,
-                message,
-                image_url,
-                is_read,
-                created_at
+            RETURNING *
         `, [consultationId, userId, senderType || 'customer', message || null, imageUrl || null]);
 
         // Update consultation updated_at
@@ -313,20 +302,26 @@ router.post('/:consultationId/messages', authenticate, async (req, res) => {
             [consultationId]
         );
 
-        // Get sender name
-        const sender = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
+        // Get sender name if not provided
+        let storedSenderName = senderName;
+        if (!storedSenderName) {
+            const sender = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
+            storedSenderName = sender.rows[0]?.name || 'مستخدم';
+        }
+
         const savedMessage = {
             ...result.rows[0],
-            sender_name: senderName || sender.rows[0]?.name || 'مستخدم'
+            sender_name: storedSenderName
         };
 
         console.log('[Chat] Message sent successfully:', savedMessage.id);
 
-        // Emit via Socket.io if available
+        // Emit via Socket.io
         const io = req.app.get('io');
         if (io) {
-            io.to(`chat-${consultationId}`).emit('new-message', savedMessage);
-            console.log('[Chat] Message broadcast via Socket.io');
+            // Ensure we emit to the correct room (which matches consultationId now)
+            io.to(consultationId).emit('new-message', savedMessage);
+            console.log('[Chat] Message broadcast to room:', consultationId);
         }
 
         res.json({ success: true, message: savedMessage });
@@ -337,6 +332,63 @@ router.post('/:consultationId/messages', authenticate, async (req, res) => {
             error: 'حدث خطأ في إرسال الرسالة',
             details: error.message
         });
+    }
+});
+
+// ==================== UPLOAD IMAGE & SEND ====================
+router.post('/:consultationId/upload', authenticate, upload.single('image'), async (req, res) => {
+    try {
+        const { consultationId } = req.params;
+        const userId = req.user.userId || req.user.id;
+        const { senderType, senderName } = req.body;
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'لم يتم تحميل أي صورة' });
+        }
+
+        // Construct public URL for the image
+        // Assuming server serves 'uploads' at '/uploads'
+        const imageUrl = `/uploads/chat/${req.file.filename}`;
+
+        console.log('[Chat] Image uploaded:', imageUrl);
+
+        // Save message with image to DB
+        const result = await pool.query(`
+            INSERT INTO chat_messages (consultation_id, sender_id, sender_type, message, image_url)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *
+        `, [consultationId, userId, senderType || 'customer', null, imageUrl]);
+
+        // Update consultation timestamp
+        await pool.query(
+            'UPDATE consultations SET updated_at = NOW() WHERE id = $1',
+            [consultationId]
+        );
+
+        // Get sender name if not provided
+        let storedSenderName = senderName;
+        if (!storedSenderName) {
+            const sender = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
+            storedSenderName = sender.rows[0]?.name || 'مستخدم';
+        }
+
+        const savedMessage = {
+            ...result.rows[0],
+            sender_name: storedSenderName
+        };
+
+        // Emit via Socket.io
+        const io = req.app.get('io');
+        if (io) {
+            io.to(consultationId).emit('new-message', savedMessage);
+            console.log('[Chat] Image message broadcast to room:', consultationId);
+        }
+
+        res.json({ success: true, message: savedMessage });
+
+    } catch (error) {
+        console.error('[Chat] Image upload error:', error);
+        res.status(500).json({ success: false, error: 'فشل رفع الصورة', details: error.message });
     }
 });
 

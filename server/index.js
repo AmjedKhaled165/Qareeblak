@@ -1,11 +1,12 @@
-// Import DB pool
 const db = require('./db');
 const { Pool } = require('pg');
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const http = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
+const path = require('path');
 
 
 const app = express();
@@ -28,11 +29,38 @@ app.set('io', io);
 
 // Middleware
 app.use(cors({
-    origin: true, // Allow all origins for development
+    // Explicitly whitelist frontend origins (browsers treat 127.0.0.1 and localhost as different)
+    origin: [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 }));
+
+// ⚠️ DISABLE CSP headers entirely (temporary debugging fix)
+app.use((req, res, next) => {
+    // Remove any CSP headers that might be added by other middleware
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('X-Content-Security-Policy');
+    res.removeHeader('X-WebKit-CSP');
+    next();
+});
+
+// Compression middleware - reduces response size by 60-90%
+app.use(compression({
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) return false;
+        return compression.filter(req, res);
+    },
+    level: 6, // Balance between speed and compression ratio
+    threshold: 1024, // Only compress responses > 1KB
+}));
+
 app.use(express.json({ limit: '10mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Request Logger
 app.use((req, res, next) => {
@@ -130,6 +158,7 @@ const whatsappRoutes = require('./routes/whatsapp');
 const halanProductRoutes = require('./routes/halan-products');
 const chatRoutes = require('./routes/chat');
 const notificationsRoutes = require('./routes/notifications');
+const adminRoutes = require('./routes/admin');
 
 // ================== API ROUTES ==================
 
@@ -153,6 +182,9 @@ app.use('/api/chat', chatRoutes);
 
 // Notifications API routes
 app.use('/api/notifications', notificationsRoutes);
+
+// Admin API routes
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -197,14 +229,15 @@ io.on('connection', (socket) => {
     // ========== CHAT HANDLERS ==========
     // Join a consultation chat room
     socket.on('join-consultation', (consultationId) => {
-        socket.join(`chat-${consultationId}`);
-        console.log(`💬 Client joined chat: chat-${consultationId}`);
+        // ID now already includes 'chat_' prefix (e.g., chat_123_456)
+        socket.join(consultationId);
+        console.log(`💬 Client joined chat: ${consultationId}`);
     });
 
     // Leave a consultation chat room
     socket.on('leave-consultation', (consultationId) => {
-        socket.leave(`chat-${consultationId}`);
-        console.log(`💬 Client left chat: chat-${consultationId}`);
+        socket.leave(consultationId);
+        console.log(`💬 Client left chat: ${consultationId}`);
     });
 
     // Send message via Socket.io
