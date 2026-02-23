@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Qareeblak-main (1)\\Qareeblak-main\\server\\logs\\.8dd6ed08493e230c0c0c69297736b109e5bfcb78-audit.json",
+    "files": [
+        {
+            "date": 1771808925032,
+            "name": "C:\\Qareeblak-main (1)\\Qareeblak-main\\server\\logs\\rejections-2026-02-23.log",
+            "hash": "d35c0300fecd3d2d159ae9b0688a6515a604ad00020ae13d89e22006e218df60"
+        }
+    ],
+    "hashType": "sha256"
+}
