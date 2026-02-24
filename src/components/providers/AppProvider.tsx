@@ -3,6 +3,9 @@
 import { createContext, useState, useEffect, ReactNode, useCallback, useContext } from "react";
 import { providersApi, authApi, servicesApi, bookingsApi, apiCall } from "@/lib/api";
 import { io } from "socket.io-client";
+import { auth, googleProvider } from "@/lib/firebase";
+import { signInWithPopup } from "firebase/auth";
+
 
 // ================= TYPES =================
 interface ProviderService {
@@ -114,6 +117,9 @@ interface AppContextType {
     addReview: (providerId: string, rating: number, comment: string) => Promise<boolean>;
 
     // User actions
+    // Optimistic UI Actions
+    optimisticUpdate: (id: string, updates: Partial<Booking>) => void;
+    // User actions
     updateUser: (data: {
         name?: string;
         email?: string;
@@ -135,7 +141,7 @@ interface AppContextType {
     removeFromGlobalCart: (providerId: string, itemId: string) => void;
     updateGlobalCartQuantity: (providerId: string, itemId: string, quantity: number) => void;
     clearGlobalCart: () => void;
-    checkoutGlobalCart: (addressInfo?: { area: string, details: string, phone: string }) => Promise<string[] | false>;
+    checkoutGlobalCart: (addressInfo?: { area: string, details: string, phone: string }, userPrizeId?: number) => Promise<string[] | false>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -308,7 +314,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
 
             // Real-time socket updates
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
             const socketUrl = apiUrl.replace(/\/api$/, '');
             socket = io(socketUrl);
 
@@ -328,12 +334,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 loadBookings();
             });
 
-            // Polling for updates (every 30 seconds)
+            // Store socket wrapper for other effects
+            (window as any).__qareeblak_socket = socket;
+
+            // Polling for updates (fallback, reduced frequency to 2 mins)
             pollInterval = setInterval(() => {
-                if (localStorage.getItem('qareeblak_token')) {
+                if (localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token')) {
                     loadBookings();
                 }
-            }, 30000);
+            }, 120000);
         };
 
         initialize();
@@ -341,8 +350,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return () => {
             if (pollInterval) clearInterval(pollInterval);
             if (socket) socket.disconnect();
+            (window as any).__qareeblak_socket = null;
         };
     }, [loadProviders, loadBookings, loadCurrentUser]);
+
+    // ================= CONNECT USER TO PRIVATE SOCKET ROOM =================
+    useEffect(() => {
+        const socket = (window as any).__qareeblak_socket;
+        if (socket && currentUser?.id) {
+            socket.emit('user-join', { userId: currentUser.id, userType: currentUser.type });
+            console.log(`[AppProvider] Linked socket to user room: user-${currentUser.id}`);
+        }
+    }, [currentUser]);
 
     // ================= AUTH ACTIONS =================
     const loginUser = async (email: string, password: string): Promise<boolean> => {
@@ -429,26 +448,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const googleLogin = async () => {
         setIsLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // 🚀 This opens the "Real Sites" popup for Gmail selection
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
 
-            const mockUser: User = {
-                id: 999,
-                name: "مستخدم جوجل",
-                email: "google@example.com",
-                type: "customer"
+            console.log("[AppProvider] Google Sign-In Success:", user.displayName);
+
+            const adaptedUser: User = {
+                id: 999, // Backend should ideally handle sync
+                name: user.displayName || "مستخدم جوجل",
+                email: user.email || "",
+                type: 'customer',
+                avatar: user.photoURL || undefined
             };
 
-            setCurrentUser(mockUser);
-            // Set mock token to persist session
-            localStorage.setItem('qareeblak_token', 'mock_google_token');
-            // Save user data primarily for rehydration if offline
-            localStorage.setItem('qareeblak_user', JSON.stringify(mockUser));
+            setCurrentUser(adaptedUser);
 
-            console.log("Simulated Google Login Success");
+            // Persist locally for the session
+            localStorage.setItem('qareeblak_token', 'firebase_active_session'); // Placeholder token
+            localStorage.setItem('qareeblak_user', JSON.stringify(adaptedUser));
+
+            // Optional: You can send 'user.accessToken' to your backend here to create a real user record
+            // await apiCall('/auth/google-sync', { method: 'POST', body: JSON.stringify({ token: user.accessToken }) });
+
+        } catch (error: any) {
+            console.error("[AppProvider] Google Sign-In Error:", error);
+            // Handle common Firebase errors
+            if (error.code === 'auth/popup-closed-by-user') {
+                console.warn("User closed the login popup");
+            } else if (error.code === 'auth/cancelled-popup-request') {
+                console.warn("Popup request cancelled");
+            } else {
+                throw error;
+            }
         } finally {
             setIsLoading(false);
         }
     };
+
 
     // ================= CART ACTIONS (FOR ORDER UPDATES) =================
     const addToInfoCart = (orderId: string, item: any) => {
@@ -552,7 +589,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setGlobalCart([]);
     };
 
-    const checkoutGlobalCart = async (addressInfo?: { area: string, details: string, phone: string }): Promise<string[] | false> => {
+    const checkoutGlobalCart = async (addressInfo?: { area: string, details: string, phone: string }, userPrizeId?: number): Promise<string[] | false> => {
         if (!currentUser) return false;
         if (globalCart.length === 0) return false;
 
@@ -563,7 +600,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const result = await bookingsApi.checkout({
                 userId: currentUser.id === 999 ? '999' : currentUser.id || '', // Handle mock user
                 items: globalCart,
-                addressInfo: addressInfo
+                addressInfo: addressInfo,
+                userPrizeId: userPrizeId
             });
 
             if (result && result.success) {
@@ -708,6 +746,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    // Optimistic Update Helper
+    const optimisticUpdate = useCallback((id: string, updates: Partial<Booking>) => {
+        setBookings(prev => prev.map(booking =>
+            String(booking.id) === String(id) ? { ...booking, ...updates } : booking
+        ));
+    }, []);
+
     // ================= CONTEXT VALUE =================
     const value: AppContextType = {
         currentUser,
@@ -739,7 +784,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         removeFromGlobalCart,
         updateGlobalCartQuantity,
         clearGlobalCart,
-        checkoutGlobalCart
+        checkoutGlobalCart,
+        optimisticUpdate  // Add to context
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -749,7 +795,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 export function useAppStore(): AppContextType {
     const context = useContext(AppContext);
     if (!context) {
-        throw new Error("useAppStore must be used within AppProvider");
+        throw new Error("useAppStore must be used within an AppProvider");
     }
     return context;
 }

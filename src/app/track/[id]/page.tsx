@@ -73,7 +73,7 @@ interface SubOrder {
 }
 
 // API base URL
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/api$/, '').replace(/\/$/, '');
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api$/, '').replace(/\/$/, '');
 
 export default function TrackOrderPage() {
     const params = useParams();
@@ -126,7 +126,7 @@ export default function TrackOrderPage() {
         fetchOrder();
 
         // 🟢 Real-time Socket Listener
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const socketUrl = apiUrl.replace(/\/api$/, '');
         const socket = io(socketUrl);
 

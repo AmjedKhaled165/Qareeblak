@@ -1,15 +1,23 @@
-// WhatsApp Integration via Evolution API
+﻿// WhatsApp Integration via Evolution API
 // Handles webhook events and sends order invoices
 
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 // ============ CONFIGURATION ============
 // Update these values with your Evolution API settings
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://4.251.193.65:8081';
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '00CC1696EC08-42A0-ADDF-68626D1C6955';
+// Update these values via your .env file
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'whatsappbot';
+
+if (!EVOLUTION_API_KEY && process.env.NODE_ENV === 'production') {
+    logger.error('âš ï¸ CRITICAL: EVOLUTION_API_KEY is missing in production!');
+}
+
+const { verifyToken, isAdmin } = require('../middleware/auth');
 
 // ============ HELPER FUNCTIONS ============
 
@@ -55,7 +63,7 @@ function generateInvoiceMessage(order, courier, items) {
         const price = Number(item.price || item.unit_price || 0);
         const qty = Number(item.quantity || 1);
         const total = (price * qty).toFixed(2);
-        return `- ${item.name || item.product_name || 'منتج'} (x${qty}): ${total} ج.م`;
+        return `- ${item.name || item.product_name || 'Ù…Ù†ØªØ¬'} (x${qty}): ${total} Ø¬.Ù…`;
     }).join('\n');
 
     const itemsTotal = items.reduce((sum, item) => {
@@ -65,24 +73,24 @@ function generateInvoiceMessage(order, courier, items) {
     const deliveryFee = Number(order.delivery_fee || 0);
     const grandTotal = itemsTotal + deliveryFee;
 
-    const message = `🧾 *فاتورة طلب - اطلب حالا*
+    const message = `ðŸ§¾ *ÙØ§ØªÙˆØ±Ø© Ø·Ù„Ø¨ - Ø§Ø·Ù„Ø¨ Ø­Ø§Ù„Ø§*
 ------------------------------
-👤 *العميل:* ${order.customer_name}
-📱 *رقم الهاتف:* ${order.customer_phone}
-📍 *العنوان:* ${order.delivery_address}
+ðŸ‘¤ *Ø§Ù„Ø¹Ù…ÙŠÙ„:* ${order.customer_name}
+ðŸ“± *Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ:* ${order.customer_phone}
+ðŸ“ *Ø§Ù„Ø¹Ù†ÙˆØ§Ù†:* ${order.delivery_address}
 ------------------------------
-🛒 *الأصناف:*
+ðŸ›’ *Ø§Ù„Ø£ØµÙ†Ø§Ù:*
 ${itemsList}
 
-🚚 *خدمة التوصيل:* ${deliveryFee.toFixed(2)} EGP
+ðŸšš *Ø®Ø¯Ù…Ø© Ø§Ù„ØªÙˆØµÙŠÙ„:* ${deliveryFee.toFixed(2)} EGP
 ------------------------------
-💰 *الإجمالي:* ${grandTotal.toFixed(2)} EGP
+ðŸ’° *Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ:* ${grandTotal.toFixed(2)} EGP
 ------------------------------
-🏍️ *المندوب:* ${courier?.name || 'غير معروف'}
-📱 *رقم المندوب:* ${courier?.phone || 'غير متوفر'}
-⏰ *وقت التوصيل:* ${formatArabicDate(new Date())}
+ðŸï¸ *Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨:* ${courier?.name || 'ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ'}
+ðŸ“± *Ø±Ù‚Ù… Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨:* ${courier?.phone || 'ØºÙŠØ± Ù…ØªÙˆÙØ±'}
+â° *ÙˆÙ‚Øª Ø§Ù„ØªÙˆØµÙŠÙ„:* ${formatArabicDate(new Date())}
 ------------------------------
-        شكراً لاستخدامكم تطبيق اطلب حالا! 🌹`;
+        Ø´ÙƒØ±Ø§Ù‹ Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù…ÙƒÙ… ØªØ·Ø¨ÙŠÙ‚ Ø§Ø·Ù„Ø¨ Ø­Ø§Ù„Ø§! ðŸŒ¹`;
 
     return message;
 }
@@ -93,13 +101,13 @@ ${itemsList}
 async function sendWhatsAppMessage(phone, message) {
     const formattedPhone = formatWhatsAppNumber(phone);
     if (!formattedPhone) {
-        console.error('Invalid phone number:', phone);
+        logger.error('Invalid phone number:', phone);
         return { success: false, error: 'Invalid phone number' };
     }
 
     try {
         const targetUrl = `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`;
-        console.log('🔗 Attempting to connect to WhatsApp API at:', targetUrl);
+        logger.info('ðŸ”— Attempting to connect to WhatsApp API at:', targetUrl);
         const response = await fetch(targetUrl, {
             method: 'POST',
             headers: {
@@ -115,14 +123,14 @@ async function sendWhatsAppMessage(phone, message) {
         const data = await response.json();
 
         if (response.ok) {
-            console.log('✅ WhatsApp message sent successfully to:', formattedPhone);
+            logger.info('âœ… WhatsApp message sent successfully to:', formattedPhone);
             return { success: true, data };
         } else {
-            console.error('❌ Failed to send WhatsApp message:', data);
+            logger.error('âŒ Failed to send WhatsApp message:', data);
             return { success: false, error: data };
         }
     } catch (error) {
-        console.error('❌ WhatsApp API error:', error.message);
+        logger.error('âŒ WhatsApp API error:', error.message);
         return { success: false, error: error.message };
     }
 }
@@ -143,7 +151,7 @@ async function sendOrderInvoice(orderId) {
         `, [orderId]);
 
         if (orderResult.rows.length === 0) {
-            console.error('Order not found:', orderId);
+            logger.error('Order not found:', orderId);
             return { success: false, error: 'Order not found' };
         }
 
@@ -174,12 +182,12 @@ async function sendOrderInvoice(orderId) {
 
         // Log the invoice sending
         if (result.success) {
-            console.log(`📧 Invoice sent for order #${orderId} to ${order.customer_phone}`);
+            logger.info(`ðŸ“§ Invoice sent for order #${orderId} to ${order.customer_phone}`);
         }
 
         return result;
     } catch (error) {
-        console.error('Error sending invoice:', error);
+        logger.error('Error sending invoice:', error);
         return { success: false, error: error.message };
     }
 }
@@ -191,47 +199,47 @@ router.post('/webhook', async (req, res) => {
     try {
         const event = req.body;
 
-        console.log('📥 Received Evolution API webhook:', event.event);
+        logger.info('ðŸ“¥ Received Evolution API webhook:', event.event);
 
         // Handle different event types
         switch (event.event) {
             case 'messages.upsert':
                 // Handle incoming messages if needed
-                console.log('New message received:', event.data?.message?.conversation);
+                logger.info('New message received:', event.data?.message?.conversation);
                 break;
 
             case 'connection.update':
-                console.log('Connection status:', event.data?.state);
+                logger.info('Connection status:', event.data?.state);
                 break;
 
             default:
-                console.log('Unhandled event:', event.event);
+                logger.info('Unhandled event:', event.event);
         }
 
         res.json({ success: true, received: true });
     } catch (error) {
-        console.error('Webhook error:', error);
+        logger.error('Webhook error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
 // ============ MANUAL TEST ENDPOINT ============
-// Test sending an invoice manually
+// Test sending an invoice manually (Admin Only)
 
-router.post('/send-invoice/:orderId', async (req, res) => {
+router.post('/send-invoice/:orderId', verifyToken, isAdmin, async (req, res) => {
     try {
         const { orderId } = req.params;
         const result = await sendOrderInvoice(orderId);
         res.json(result);
     } catch (error) {
-        console.error('Send invoice error:', error);
+        logger.error('Send invoice error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
 // ============ CHECK CONNECTION STATUS ============
 
-router.get('/status', async (req, res) => {
+router.get('/status', verifyToken, isAdmin, async (req, res) => {
     try {
         const response = await fetch(`${EVOLUTION_API_URL}/instance/connectionState/${EVOLUTION_INSTANCE}`, {
             headers: {

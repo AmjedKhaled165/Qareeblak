@@ -4,11 +4,12 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useToast } from "@/components/providers/ToastProvider";
-import { X, ShoppingCart, Trash2, Plus, Minus, Loader2, ArrowLeft, Package, MapPin, Phone, CheckCircle2 } from "lucide-react";
+import { X, ShoppingCart, Trash2, Plus, Minus, Loader2, ArrowLeft, Package, MapPin, Phone, CheckCircle2, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { wheelApi } from "@/lib/api";
 
 interface CartModalProps {
     isOpen: boolean;
@@ -21,6 +22,8 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     const router = useRouter();
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [step, setStep] = useState(1); // 1: review, 2: address
+    const [prizes, setPrizes] = useState<any[]>([]);
+    const [selectedPrize, setSelectedPrize] = useState<any>(null);
     const [addressForm, setAddressForm] = useState({
         area: "الحي الأول",
         details: "",
@@ -30,9 +33,55 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
     useEffect(() => {
         setMounted(true);
-    }, []);
+        if (isOpen && currentUser) {
+            loadPrizes();
+        }
+    }, [isOpen, currentUser]);
+
+    const loadPrizes = async () => {
+        try {
+            const data = await wheelApi.getMyPrizes();
+            if (data && data.length > 0) setPrizes(data);
+        } catch (e) {
+            console.error("Failed to load prizes", e);
+        }
+    };
 
     const totalAmount = globalCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cartProviderIds = new Set(globalCart.map(item => String(item.providerId)));
+
+    const applicablePrizes = prizes.filter(prize => {
+        if (!prize.provider_id) return true; // Global prize
+        return cartProviderIds.has(String(prize.provider_id));
+    });
+
+    // Auto-remove selected prize if it's no longer applicable
+    useEffect(() => {
+        if (selectedPrize && selectedPrize.provider_id && !cartProviderIds.has(String(selectedPrize.provider_id))) {
+            setSelectedPrize(null);
+        }
+    }, [globalCart, selectedPrize]);
+
+    // Calculate applied discount nicely for UI
+    let displayDiscount = 0;
+    if (selectedPrize) {
+        const isStillApplicable = !selectedPrize.provider_id || cartProviderIds.has(String(selectedPrize.provider_id));
+
+        if (isStillApplicable) {
+            const baseForDiscount = selectedPrize.provider_id
+                ? globalCart.filter(i => String(i.providerId) === String(selectedPrize.provider_id)).reduce((s, i) => s + (i.price * i.quantity), 0)
+                : totalAmount;
+
+            if (selectedPrize.prize_type === 'discount_percent') {
+                displayDiscount = baseForDiscount * (selectedPrize.prize_value / 100);
+            } else if (selectedPrize.prize_type === 'discount_flat') {
+                displayDiscount = Math.min(baseForDiscount, selectedPrize.prize_value);
+            } else if (selectedPrize.prize_type === 'free_delivery') {
+                displayDiscount = 0; // Handled differently
+            }
+        }
+    }
+    const finalAmountAfterDiscount = Math.max(0, totalAmount - displayDiscount);
 
     const handleCheckout = async () => {
         if (!currentUser) {
@@ -48,7 +97,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
         }
 
         setIsCheckingOut(true);
-        const result = await checkoutGlobalCart(addressForm);
+        const result = await checkoutGlobalCart(addressForm, selectedPrize?.user_prize_id);
         setIsCheckingOut(false);
 
         if (result) {
@@ -63,6 +112,12 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
         } else {
             toast("حدث خطأ أثناء إتمام الطلب، يرجى المحاولة مرة أخرى", "error");
         }
+    };
+
+    const handleClose = () => {
+        setStep(1);
+        setSelectedPrize(null);
+        onClose();
     };
 
     // Group items by provider for display
@@ -93,7 +148,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[9998]"
                         style={{ position: 'fixed', inset: 0 }}
                     />
@@ -138,7 +193,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                                 </div>
                             </div>
                             <button
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                             >
                                 <X className="w-6 h-6 text-slate-400" />
@@ -157,7 +212,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                                     </div>
                                     <h4 className="text-lg font-bold text-slate-900 dark:text-white">السلة فارغة</h4>
                                     <p className="text-slate-500 text-sm mb-6">لم تقم بإضافة أي منتجات للسلة بعد.</p>
-                                    <Button onClick={onClose} className="rounded-xl px-8">تصفح الخدمات</Button>
+                                    <Button onClick={handleClose} className="rounded-xl px-8">تصفح الخدمات</Button>
                                 </div>
                             ) : step === 1 ? (
                                 Object.entries(groupedItems).map(([providerId, data]) => (
@@ -272,6 +327,45 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Display Available Prizes */}
+                                    {applicablePrizes.length > 0 && (
+                                        <div className="space-y-2 mt-4">
+                                            <label className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                                                <Gift className="w-4 h-4" />
+                                                لديك جوائز متوافقة مع طلبك!
+                                            </label>
+                                            <div className="grid gap-2 max-h-40 overflow-y-auto">
+                                                {applicablePrizes.map((prize, idx) => {
+                                                    const isSelected = selectedPrize?.user_prize_id === prize.user_prize_id;
+                                                    return (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => setSelectedPrize(isSelected ? null : prize)}
+                                                            className={`text-right w-full flex items-center justify-between p-3 rounded-xl border ${isSelected ? 'border-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'} transition-all`}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div
+                                                                    className="w-8 h-8 rounded-full flex items-center justify-center text-white"
+                                                                    style={{ backgroundColor: prize.color || '#f44336' }}
+                                                                >
+                                                                    <Gift className="w-4 h-4" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className={`font-bold text-sm ${isSelected ? 'text-orange-700 dark:text-orange-400' : ''}`}>{prize.name}</p>
+                                                                    {prize.provider_id && <p className="text-[10px] text-slate-500">خاص بمتجر محدد</p>}
+                                                                </div>
+                                                            </div>
+                                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-orange-500 bg-orange-500' : 'border-slate-300'}`}>
+                                                                {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
                                 </motion.div>
                             )}
                         </div>
@@ -279,9 +373,19 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                         {/* Footer */}
                         {globalCart.length > 0 && (
                             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-black/20 shrink-0">
+                                {selectedPrize && (
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-orange-500 font-medium text-sm flex items-center gap-1">
+                                            <Gift className="w-4 h-4" /> خصم الجائزة
+                                        </span>
+                                        <span className="text-orange-500 font-bold text-sm">
+                                            {selectedPrize.prize_type === 'free_delivery' ? 'توصيل مجاني' : `- ${displayDiscount.toFixed(2)} ج.م`}
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center mb-6">
-                                    <span className="text-slate-500 font-medium">إجمالي السلة</span>
-                                    <span className="text-2xl font-black text-primary">{totalAmount} ج.م</span>
+                                    <span className="text-slate-500 font-medium">الإجمالي النهائي</span>
+                                    <span className="text-2xl font-black text-primary">{finalAmountAfterDiscount.toFixed(2)} ج.م</span>
                                 </div>
 
                                 <div className="flex gap-3">

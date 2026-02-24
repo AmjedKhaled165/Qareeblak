@@ -21,7 +21,7 @@ interface Order {
     is_parent?: boolean;
 }
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/api$/, '').replace(/\/$/, '');
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api$/, '').replace(/\/$/, '');
 
 export default function TrackSearchPage() {
     const router = useRouter();

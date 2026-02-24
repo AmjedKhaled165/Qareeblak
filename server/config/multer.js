@@ -20,12 +20,14 @@ const storage = multer.diskStorage({
     }
 });
 
-// File filter (images only)
+// File filter (strictly safe images only against XSS)
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Only image files are allowed!'), false);
+        cb(new Error('هذا النوع من الملفات غير مسموح به. مسموح فقط بـ JPG, PNG, WEBP.'), false);
     }
 };
 

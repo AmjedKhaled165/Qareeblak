@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   description: "دليلك الشامل لجميع الخدمات في مدينة أسيوط الجديدة",
 };
 
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -40,7 +42,9 @@ export default function RootLayout({
               <ConfirmProvider>
                 <Navbar />
                 <main className="flex-1">
-                  {children}
+                  <ErrorBoundary>
+                    {children}
+                  </ErrorBoundary>
                 </main>
                 <Footer />
                 {/* <MobileBottomNav /> */}

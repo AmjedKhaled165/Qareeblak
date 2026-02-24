@@ -2,13 +2,19 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+const { verifyToken } = require('../middleware/auth');
+const AppError = require('../utils/appError');
+
+// All notification routes require authentication
+router.use(verifyToken);
+
 // ==========================================
-// GET /api/notifications/user/:userId
-// Fetch notifications for a user
+// GET /api/notifications
+// Fetch notifications for the logged-in user
 // ==========================================
-router.get('/user/:userId', async (req, res) => {
+router.get('/', async (req, res, next) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user.id;
         const { unread } = req.query;
 
         let query = 'SELECT * FROM notifications WHERE user_id = $1';
@@ -23,62 +29,65 @@ router.get('/user/:userId', async (req, res) => {
         const result = await db.query(query, params);
         res.json(result.rows);
     } catch (error) {
-        console.error('Get notifications error:', error);
-        res.status(500).json({ error: 'Failed to fetch notifications' });
+        next(error);
     }
 });
 
 // ==========================================
-// GET /api/notifications/user/:userId/unread-count
-// Get unread notification count for badge
+// GET /api/notifications/unread-count
+// Get unread notification count for the logged-in user
 // ==========================================
-router.get('/user/:userId/unread-count', async (req, res) => {
+router.get('/unread-count', async (req, res, next) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user.id;
         const result = await db.query(
             'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = FALSE',
             [userId]
         );
         res.json({ count: parseInt(result.rows[0].count) });
     } catch (error) {
-        console.error('Get unread count error:', error);
-        res.status(500).json({ error: 'Failed to get unread count' });
+        next(error);
     }
 });
 
 // ==========================================
 // PATCH /api/notifications/:id/read
-// Mark a single notification as read
+// Mark a single notification as read (Verify ownership)
 // ==========================================
-router.patch('/:id/read', async (req, res) => {
+router.patch('/:id/read', async (req, res, next) => {
     try {
         const { id } = req.params;
-        await db.query(
-            'UPDATE notifications SET is_read = TRUE WHERE id = $1',
-            [id]
+        const userId = req.user.id;
+
+        const result = await db.query(
+            'UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2 RETURNING id',
+            [id, userId]
         );
-        res.json({ message: 'Notification marked as read' });
+
+        if (result.rows.length === 0) {
+            return next(new AppError('التنبيه غير موجود أو غير تابع لك', 404));
+        }
+
+        res.json({ success: true, message: 'Notification marked as read' });
     } catch (error) {
-        console.error('Mark read error:', error);
-        res.status(500).json({ error: 'Failed to mark notification as read' });
+        next(error);
     }
 });
 
 // ==========================================
-// PATCH /api/notifications/user/:userId/read-all
-// Mark all notifications as read for a user
+// PATCH /api/notifications/read-all
+// Mark all notifications as read for the logged-in user
 // ==========================================
-router.patch('/user/:userId/read-all', async (req, res) => {
+router.patch('/read-all', async (req, res, next) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user.id;
         await db.query(
             'UPDATE notifications SET is_read = TRUE WHERE user_id = $1 AND is_read = FALSE',
             [userId]
         );
-        res.json({ message: 'All notifications marked as read' });
+        res.json({ success: true, message: 'All notifications marked as read' });
     } catch (error) {
-        console.error('Mark all read error:', error);
-        res.status(500).json({ error: 'Failed to mark all as read' });
+        next(error);
     }
 });
 

@@ -48,13 +48,16 @@ export default function UserLoginPage() {
     const isPasswordStrong = (pass: string) => pass.length >= 8;
     const isNameValid = (name: string) => name.trim().split(" ").length >= 2 && /^[\u0600-\u06FFa-zA-Z\s]+$/.test(name);
 
-    const handleGoogle = () => {
-        setIsLoading(true);
-        setTimeout(() => {
-            googleLogin();
+    const handleGoogle = async () => {
+        try {
+            await googleLogin();
             toast("تم تسجيل الدخول باستخدام Google بنجاح", "success");
             router.push("/");
-        }, 1500);
+        } catch (e: any) {
+            if (e?.code !== 'auth/popup-closed-by-user') {
+                toast("حدث خطأ أثناء تسجيل الدخول", "error");
+            }
+        }
     };
 
     const handleLogin = () => {
@@ -197,8 +200,8 @@ export default function UserLoginPage() {
                                             initial={{ opacity: 0, height: 0 }}
                                             animate={{ opacity: 1, height: "auto" }}
                                             exit={{ opacity: 0, height: 0 }}
-                                            className={`rounded-xl p-4 text-sm flex items-start gap-3 border font-cairo ${errorType === "NOT_FOUND" 
-                                                ? "bg-primary/10 text-primary border-primary/20" 
+                                            className={`rounded-xl p-4 text-sm flex items-start gap-3 border font-cairo ${errorType === "NOT_FOUND"
+                                                ? "bg-primary/10 text-primary border-primary/20"
                                                 : "bg-destructive/10 text-destructive border-destructive/20"
                                                 }`}
                                         >
@@ -281,10 +284,10 @@ export default function UserLoginPage() {
                                 </div>
 
                                 {/* Google Button */}
-                                <Button 
-                                    variant="outline" 
-                                    className="w-full gap-3 h-14 rounded-2xl border-border/50 hover:bg-muted/50 transition-all font-bold font-cairo" 
-                                    onClick={handleGoogle} 
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-3 h-14 rounded-2xl border-border/50 hover:bg-muted/50 transition-all font-bold font-cairo"
+                                    onClick={handleGoogle}
                                     disabled={isLoading}
                                 >
                                     <svg className="h-5 w-5" viewBox="0 0 24 24">

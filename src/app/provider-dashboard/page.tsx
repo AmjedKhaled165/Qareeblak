@@ -22,7 +22,7 @@ import { io } from "socket.io-client";
 import { PriceEstimationModal } from "@/components/providers/MaintenanceModals";
 import { OrderDetailModal } from "@/components/providers/OrderDetailModal";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const API_BASE = API_URL.replace(/\/api$/, ''); // Ensure no trailing /api
 
 // Type definitions
@@ -157,7 +157,7 @@ export default function ProviderDashboard() {
         if (!selectedBookingId) return;
         // Proceed to confirm with the estimated price
         await handleOrderStatus(selectedBookingId, 'confirmed', price);
-        
+
         // Send notification to customer
         const booking = myBookings.find((b: Booking) => b.id === selectedBookingId);
         if (booking) {
@@ -166,7 +166,7 @@ export default function ProviderDashboard() {
                     method: 'POST',
                     body: JSON.stringify({
                         userId: booking.userId,
-                        message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${myProviderProfile?.phone || currentUser?.phone || 'غير متوفر'}`,
+                        message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}`,
                         type: 'order_confirmed',
                         relatedId: booking.id
                     })
@@ -175,7 +175,7 @@ export default function ProviderDashboard() {
                 console.error('Failed to send notification:', error);
             }
         }
-        
+
         // Force reload to immediately show phone numbers
         window.location.reload();
     };
@@ -186,7 +186,7 @@ export default function ProviderDashboard() {
                 method: 'PATCH',
                 body: JSON.stringify({ acceptedBy: 'provider' })
             });
-            
+
             // Send notification to customer
             const booking = myBookings.find((b: Booking) => b.id === bookingId);
             if (booking) {
@@ -195,7 +195,7 @@ export default function ProviderDashboard() {
                         method: 'POST',
                         body: JSON.stringify({
                             userId: booking.userId,
-                            message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${myProviderProfile?.phone || currentUser?.phone || 'غير متوفر'}`,
+                            message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}`,
                             type: 'order_confirmed',
                             relatedId: booking.id
                         })
@@ -204,7 +204,7 @@ export default function ProviderDashboard() {
                     console.error('Failed to send notification:', error);
                 }
             }
-            
+
             toast('تم تأكيد الموعد بنجاح! يمكنك الآن التواصل مع العميل 📞', 'success');
             // Optimistically update local state or reload
             window.location.reload();
@@ -225,14 +225,14 @@ export default function ProviderDashboard() {
         } else {
             // Accept the order and IMMEDIATELY reload to reveal phone
             await handleOrderStatus(booking.id, 'confirmed');
-            
+
             // Send notification to customer
             try {
                 await apiCall(`/notifications`, {
                     method: 'POST',
                     body: JSON.stringify({
                         userId: booking.userId,
-                        message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${myProviderProfile?.phone || currentUser?.phone || 'غير متوفر'}`,
+                        message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}`,
                         type: 'order_confirmed',
                         relatedId: booking.id
                     })
@@ -240,7 +240,7 @@ export default function ProviderDashboard() {
             } catch (error) {
                 console.error('Failed to send notification:', error);
             }
-            
+
             // Force reload to immediately show phone numbers
             window.location.reload();
         }
@@ -280,13 +280,13 @@ export default function ProviderDashboard() {
     // Server-side paginated bookings fetch
     const fetchPaginatedBookings = useCallback(async () => {
         if (!providerId) return;
-        
+
         setBookingsLoading(true);
         setBookingsError(null);
-        
+
         try {
             const response = await bookingsApi.getByProvider(providerId, currentPage, ordersPerPage);
-            
+
             if (response && response.bookings) {
                 // Backend returns { bookings: [...], pagination: {...} }
                 setPaginatedBookings(response.bookings);
@@ -319,12 +319,12 @@ export default function ProviderDashboard() {
     }, [isInitialized, providerId, currentPage, activeTab, fetchPaginatedBookings]);
 
     // Use server-paginated bookings for orders tab, fallback to client-side for other tabs
-    const displayBookings = activeTab === 'orders' && paginatedBookings.length > 0 
-        ? paginatedBookings 
+    const displayBookings = activeTab === 'orders' && paginatedBookings.length > 0
+        ? paginatedBookings
         : myBookings.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
 
-    const displayTotalPages = activeTab === 'orders' && totalPages > 0 
-        ? totalPages 
+    const displayTotalPages = activeTab === 'orders' && totalPages > 0
+        ? totalPages
         : Math.ceil(myBookings.length / ordersPerPage);
 
     // Memoized price calculator
@@ -353,7 +353,7 @@ export default function ProviderDashboard() {
 
     // Helper to get display count for pagination UI
     const getDisplayCount = () => {
-        if (activeTab === ' orders' && !bookingsLoading) {
+        if (activeTab === 'orders' && !bookingsLoading) {
             const start = (currentPage - 1) * ordersPerPage + 1;
             const end = Math.min(currentPage * ordersPerPage, totalBookings || displayBookings.length);
             const total = totalBookings || myBookings.length;
@@ -458,8 +458,8 @@ export default function ProviderDashboard() {
         // 3. Socket.io for real-time updates
         let socket: any = null;
         try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-            const SOCKET_URL = API_URL.replace(/\/api$/, '') || 'http://localhost:5000';
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+            const SOCKET_URL = API_URL.replace(/\/api$/, '') || '';
 
             socket = io(SOCKET_URL, {
                 transports: ['websocket', 'polling'],
@@ -1166,15 +1166,15 @@ export default function ProviderDashboard() {
                                                             <span className={`px-4 py-1.5 rounded-full text-xs font-black
                                                                     ${booking.status === 'pending' || booking.status === 'pending_appointment' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
                                                                     booking.status === 'confirmed' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
-                                                                    booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                                                    booking.status === 'cancelled' || booking.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                                                                        'bg-muted/50 text-muted-foreground border border-border/50'}`}>
+                                                                        booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                                                            booking.status === 'cancelled' || booking.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                                                                'bg-muted/50 text-muted-foreground border border-border/50'}`}>
                                                                 {booking.status === 'pending' ? 'جديد' :
                                                                     booking.status === 'pending_appointment' ? 'بانتظار الموعد' :
-                                                                    booking.status === 'confirmed' ? 'جاري التنفيذ' :
-                                                                    booking.status === 'completed' ? 'مكتمل' :
-                                                                    booking.status === 'cancelled' ? 'ملغي من العميل' :
-                                                                    booking.status === 'rejected' ? 'مرفوض' : booking.status}
+                                                                        booking.status === 'confirmed' ? 'جاري التنفيذ' :
+                                                                            booking.status === 'completed' ? 'مكتمل' :
+                                                                                booking.status === 'cancelled' ? 'ملغي من العميل' :
+                                                                                    booking.status === 'rejected' ? 'مرفوض' : booking.status}
                                                             </span>
                                                         </td>
                                                     </tr>
@@ -1531,7 +1531,7 @@ export default function ProviderDashboard() {
                                             </tbody>
                                         </table>
                                     </div>
-                                    
+
                                     {/* Pagination Controls */}
                                     {displayTotalPages > 1 && !bookingsLoading && (
                                         <div className="flex items-center justify-between px-8 py-6 border-t border-border/50 bg-muted/20">
@@ -1558,11 +1558,10 @@ export default function ProviderDashboard() {
                                                                 key={pageNum}
                                                                 onClick={() => setCurrentPage(pageNum)}
                                                                 disabled={bookingsLoading}
-                                                                className={`w-10 h-10 rounded-xl font-bold text-sm transition-all disabled:cursor-not-allowed ${
-                                                                    currentPage === pageNum
-                                                                        ? 'bg-primary text-white shadow-lg'
-                                                                        : 'bg-background border border-border hover:bg-accent'
-                                                                }`}
+                                                                className={`w-10 h-10 rounded-xl font-bold text-sm transition-all disabled:cursor-not-allowed ${currentPage === pageNum
+                                                                    ? 'bg-primary text-white shadow-lg'
+                                                                    : 'bg-background border border-border hover:bg-accent'
+                                                                    }`}
                                                             >
                                                                 {pageNum}
                                                             </button>

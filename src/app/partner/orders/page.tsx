@@ -77,7 +77,29 @@ export default function OrdersPage() {
             router.push('/login/partner');
             return;
         }
-        setUser(JSON.parse(storedUser));
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+
+        // Real-time updates
+        const socket = (window as any).__qareeblak_socket;
+        if (socket) {
+            console.log('[OrdersPage] 📡 Attaching real-time listeners');
+
+            const handleUpdate = () => {
+                console.log('[OrdersPage] 🔄 Triggering refresh from socket event');
+                fetchOrders();
+            };
+
+            socket.on('booking-updated', handleUpdate);
+            socket.on('order-status-changed', handleUpdate);
+            socket.on('order-updated', handleUpdate);
+
+            return () => {
+                socket.off('booking-updated', handleUpdate);
+                socket.off('order-status-changed', handleUpdate);
+                socket.off('order-updated', handleUpdate);
+            };
+        }
     }, []);
 
     useEffect(() => {

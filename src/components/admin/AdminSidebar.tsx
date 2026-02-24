@@ -15,8 +15,8 @@ import {
     UserCog,
     ShoppingBag,
     FileText,
-
     Activity,
+    Gift,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -82,6 +82,12 @@ const navSections: { title: string; items: NavItem[] }[] = [
             { label: "🌍 التحكم الجغرافي", icon: MapPin, path: "/admin/zones" },
             { label: "👁️ سجل المراقبة", icon: ScrollText, path: "/admin/audit-log" },
             { label: "طلبات الانضمام", icon: FileText, path: "/admin/requests", badge: 3, badgeColor: "bg-red-500" },
+        ],
+    },
+    {
+        title: "التسويق",
+        items: [
+            { label: "عجلة الحظ", icon: Gift, path: "/admin/wheel" },
         ],
     },
     {

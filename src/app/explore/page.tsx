@@ -12,6 +12,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { CartModal } from "@/components/features/cart-modal";
 
+import { SkeletonCard } from "@/components/features/skeleton-card";
+import { useMemo } from "react";
+
+import { useDebounce } from "@/hooks/use-debounce";
+
 const CATEGORIES = [
     { id: "all", label: "الكل", icon: null },
     { id: "مطاعم", label: "مطاعم وكافيهات", icon: Utensils },
@@ -22,13 +27,17 @@ const CATEGORIES = [
 ];
 
 export default function ExplorePage() {
-    const { providers, isInitialized, currentUser, globalCart } = useAppStore();
+    const { providers, isInitialized, isLoading, currentUser, globalCart } = useAppStore();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isCartOpen, setIsCartOpen] = useState(false);
     const addToOrderId = searchParams.get('addToOrderId');
     const [activeCategory, setActiveCategory] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
+    const [visibleCount, setVisibleCount] = useState(12);
+
+    // Debounce the search term to prevent lag
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
     useEffect(() => {
         if (currentUser?.type === 'provider') {
@@ -36,15 +45,28 @@ export default function ExplorePage() {
         }
     }, [currentUser, router]);
 
+    // Reset visible count when filters change
+    useEffect(() => {
+        setVisibleCount(12);
+    }, [activeCategory, debouncedSearchQuery]);
+
     if (!isInitialized || currentUser?.type === 'provider') return null; // Avoid hydration mismatch or provider flash
 
-    const filteredProviders = providers.filter(provider => {
-        const matchesCategory = activeCategory === "all" || provider.category === activeCategory;
-        const matchesSearch = provider.name.includes(searchQuery) ||
-            provider.location.includes(searchQuery) ||
-            provider.services?.some(s => s.name.includes(searchQuery));
-        return matchesCategory && matchesSearch;
-    });
+    const filteredProviders = useMemo(() => {
+        return providers.filter(provider => {
+            const matchesCategory = activeCategory === "all" || provider.category === activeCategory;
+            const matchesSearch = provider.name.includes(debouncedSearchQuery) ||
+                provider.location.includes(debouncedSearchQuery) ||
+                (provider.services && provider.services.some(s => s.name.includes(debouncedSearchQuery)));
+            return matchesCategory && matchesSearch;
+        });
+    }, [providers, activeCategory, debouncedSearchQuery]);
+
+    const displayedProviders = filteredProviders.slice(0, visibleCount);
+
+    const handleLoadMore = () => {
+        setVisibleCount(prev => prev + 12);
+    };
 
     return (
         <div className="min-h-screen bg-background py-8">
@@ -118,8 +140,12 @@ export default function ExplorePage() {
                     transition={{ staggerChildren: 0.1 }}
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
-                    {filteredProviders.length > 0 ? (
-                        filteredProviders.map((provider) => (
+                    {isLoading ? (
+                        Array.from({ length: 6 }).map((_, i) => (
+                            <SkeletonCard key={`skeleton-${i}`} />
+                        ))
+                    ) : displayedProviders.length > 0 ? (
+                        displayedProviders.map((provider) => (
                             <ServiceCard key={provider.id} provider={provider} addToOrderId={addToOrderId} />
                         ))
                     ) : (
@@ -139,9 +165,9 @@ export default function ExplorePage() {
                 </motion.div>
 
                 {/* Load More */}
-                {filteredProviders.length > 0 && (
+                {!isLoading && visibleCount < filteredProviders.length && (
                     <div className="mt-12 text-center">
-                        <Button variant="ghost">عرض المزيد</Button>
+                        <Button onClick={handleLoadMore} variant="outline" className="px-8 py-6 rounded-full font-bold shadow-sm hover:shadow-md transition-shadow">عرض المزيد</Button>
                     </div>
                 )}
             </div>

@@ -1,14 +1,12 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 
+// 🚨 CRITICAL: Crash on missing secret (Security Hardening)
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-    console.error('FATAL: JWT_SECRET is not defined in production environment');
+if (!JWT_SECRET) {
+    console.error('🔥 FATAL ERROR: JWT_SECRET IS MISSING. SERVER REFUSES TO START.');
     process.exit(1);
 }
-
-const fallbackSecret = 'halan-secret-key-2026'; // Match existing fallback for now but warn
-const secret = JWT_SECRET || fallbackSecret;
 
 /**
  * Middleware to verify JWT token and attach user to request
@@ -23,11 +21,11 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     try {
-        const decoded = jwt.verify(token, secret);
-        
+        const decoded = jwt.verify(token, JWT_SECRET);
+
         // Fetch fresh user data to ensure account hasn't been banned/deleted
         const result = await db.query(
-            'SELECT id, name, email, user_type FROM users WHERE id = $1',
+            'SELECT id, name, email, user_type, role, phone, avatar, is_banned FROM users WHERE id = $1',
             [decoded.id]
         );
 
@@ -35,7 +33,14 @@ const verifyToken = async (req, res, next) => {
             return res.status(401).json({ error: 'المستخدم غير موجود أو تم حذفه' });
         }
 
-        req.user = result.rows[0];
+        const user = result.rows[0];
+
+        // Security: Instantly kick out banned users without waiting for token expiry
+        if (user.is_banned) {
+            return res.status(403).json({ error: 'لقد تم حظر حسابك لمخالفة القوانين' });
+        }
+
+        req.user = user;
         next();
     } catch (error) {
         console.error('[Auth] Token verification failed:', error.message);
@@ -58,25 +63,55 @@ const isAdmin = (req, res, next) => {
  */
 const isProviderOrAdmin = (req, res, next) => {
     if (!req.user || (req.user.user_type !== 'provider' && req.user.user_type !== 'admin')) {
-        return res.status(403).json({ error: 'غير مصرح - تتطلب صلاحيات مقدم خدمة' });
+        return res.status(403).json({ error: 'غير مصرح - للمقدمين فقط' });
     }
     next();
 };
 
 /**
- * Middleware to check if user is an owner OR admin (God Mode)
- * Owner role bypasses all ownership checks
+ * Middleware to check if user is a Halan Partner, Courier, or Admin
  */
-const isOwnerOrAdmin = (req, res, next) => {
-    if (!req.user || (req.user.user_type !== 'owner' && req.user.user_type !== 'admin')) {
-        return res.status(403).json({ error: 'غير مصرح - تتطلب صلاحيات مسئول أعلى' });
+const isPartnerOrAdmin = (req, res, next) => {
+    const type = req.user.user_type;
+    const partnerTypes = ['partner_owner', 'partner_supervisor', 'partner_courier', 'courier', 'admin'];
+
+    if (!req.user || !partnerTypes.includes(type)) {
+        return res.status(403).json({ error: 'غير مصرح - خاص بشركاء التوصيل' });
     }
     next();
+};
+
+/**
+ * Enterprise Socket.io Authentication Middleware
+ * Prevents unauthenticated sniffing and impersonation on the WebSocket Transport Layer.
+ */
+const verifySocketToken = async (socket, next) => {
+    try {
+        const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+        if (!token) return next(new Error('Authentication error: Token missing'));
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        const result = await db.query(
+            'SELECT id, name, user_type, is_banned FROM users WHERE id = $1',
+            [decoded.id]
+        );
+
+        if (result.rows.length === 0 || result.rows[0].is_banned) {
+            return next(new Error('Authentication error: Invalid or banned user'));
+        }
+
+        socket.user = result.rows[0];
+        next();
+    } catch (error) {
+        next(new Error('Authentication error: Invalid Token'));
+    }
 };
 
 module.exports = {
     verifyToken,
     isAdmin,
     isProviderOrAdmin,
-    isOwnerOrAdmin
+    isPartnerOrAdmin,
+    verifySocketToken
 };

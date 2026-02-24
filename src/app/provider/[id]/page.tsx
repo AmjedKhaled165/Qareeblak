@@ -68,7 +68,7 @@ export default function ProviderProfile() {
     const [selectedMaintenanceService, setSelectedMaintenanceService] = useState<string | undefined>(undefined);
 
     const addToOrderId = searchParams.get('addToOrderId');
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
     const provider = providers.find((p: Provider) => p.id === params.id);
 

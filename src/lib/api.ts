@@ -1,5 +1,4 @@
-// API Client for Qareeblak Backend
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000').replace(/\/$/, '');
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 // Ensure we don't duplicate /api if it's already in the base URL
 const BASE_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
 
@@ -25,17 +24,34 @@ function fetchWithTimeout(url: string, options: RequestInit = {}, timeout: numbe
     });
 }
 
-// Helper function for API calls
-export async function apiCall(endpoint: string, options: RequestInit = {}): Promise<any> {
-    let token = null;
-    if (typeof window !== 'undefined') {
-        // Prioritize halan_token for partner/admin endpoints
-        if (endpoint.includes('/halan') || endpoint.includes('/providers') || endpoint.includes('/auth/provider')) {
-            token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
-        } else {
-            token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
-        }
+// Types for API Responses
+export interface ApiResponse<T = any> {
+    success: boolean;
+    data?: T;
+    error?: string;
+    message?: string;
+    token?: string;
+}
+
+// Helper to get the correct auth token from storage
+function getAuthToken(endpoint: string): string | null {
+    if (typeof window === 'undefined') return null;
+
+    // Prioritize halan_token for partner/admin endpoints
+    const isHalanEndpoint = endpoint.includes('/halan') ||
+        endpoint.includes('/providers') ||
+        endpoint.includes('/auth/provider');
+
+    if (isHalanEndpoint) {
+        return localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
     }
+
+    return localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+}
+
+// Helper function for API calls
+export async function apiCall<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = getAuthToken(endpoint);
 
     // Clean up endpoint: remove leading / and leading api/ if present to avoid duplication
     const cleanEndpoint = endpoint.replace(/^\/+/, '').replace(/^api\//, '');
@@ -53,7 +69,7 @@ export async function apiCall(endpoint: string, options: RequestInit = {}): Prom
     }
 
     // ⏱️ Determine timeout based on endpoint (longer for order creation)
-    const timeout = endpoint.includes('/orders') && options.method === 'POST' 
+    const timeout = endpoint.includes('/orders') && options.method === 'POST'
         ? 30000  // 30 seconds for order creation
         : 15000; // 15 seconds for other requests
 
@@ -327,6 +343,7 @@ export const bookingsApi = {
         userId: string | number;
         items: any[];
         addressInfo?: any;
+        userPrizeId?: number;
     }) {
         if (USE_MOCK_API) {
             // No mock implementation for checkout yet, fallback to single calls or error
@@ -395,7 +412,6 @@ export const bookingsApi = {
         });
     }
 };
-
 // ==================== USERS API (Partner Profile) ====================
 export const usersApi = {
     async updateUser(userId: number, data: {
@@ -413,10 +429,53 @@ export const usersApi = {
     }
 };
 
+// ==================== WHEEL API ====================
+export const wheelApi = {
+    async getPrizes() {
+        return apiCall('/wheel/prizes');
+    },
+
+    async spin() {
+        return apiCall('/wheel/spin', {
+            method: 'POST'
+        });
+    },
+
+    async getMyPrizes() {
+        return apiCall('/wheel/my-prizes');
+    },
+
+    // Admin
+    async adminGetPrizes() {
+        return apiCall('/wheel/admin/prizes');
+    },
+
+    async adminAddPrize(data: any) {
+        return apiCall('/wheel/admin/prizes', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async adminUpdatePrize(id: number, data: any) {
+        return apiCall(`/wheel/admin/prizes/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async adminDeletePrize(id: number) {
+        return apiCall(`/wheel/admin/prizes/${id}`, {
+            method: 'DELETE'
+        });
+    }
+};
+
 export default {
     auth: authApi,
     providers: providersApi,
     services: servicesApi,
     bookings: bookingsApi,
-    users: usersApi
+    users: usersApi,
+    wheel: wheelApi
 };

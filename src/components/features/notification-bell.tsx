@@ -7,7 +7,7 @@ import { useAppStore } from "@/components/providers/AppProvider";
 import { apiCall } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const API_BASE = API_URL.replace(/\/api$/, '');
 
 interface Notification {

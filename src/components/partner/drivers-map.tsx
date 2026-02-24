@@ -50,7 +50,7 @@ export default function DriversMap({ user }: DriversMapProps) {
         const fetchAvailableDrivers = async () => {
             try {
                 const token = localStorage.getItem('halan_token');
-                let url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/halan/users?role=courier`;
+                let url = `${process.env.NEXT_PUBLIC_API_URL || ''}/halan/users?role=courier`;
 
                 if (user?.role === 'supervisor') {
                     url += `&supervisorId=${user.id}`;
@@ -81,7 +81,7 @@ export default function DriversMap({ user }: DriversMapProps) {
 
     useEffect(() => {
         // Connect to socket
-        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
 
         socketRef.current = io(SOCKET_URL, {
             transports: ['websocket', 'polling']

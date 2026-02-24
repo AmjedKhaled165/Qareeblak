@@ -38,7 +38,7 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
                 userRef.current = user;
 
                 // Initialize Socket
-                const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+                const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
                 socketRef.current = io(SOCKET_URL, {
                     transports: ['websocket', 'polling'],
                     reconnection: true,

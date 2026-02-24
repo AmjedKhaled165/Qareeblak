@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Qareeblak-main (1)\\Qareeblak-main\\server\\logs\\.5b708e06df1c7a23c5b50d5cf2e8705fcac4bd7c-audit.json",
+    "files": [
+        {
+            "date": 1771808925029,
+            "name": "C:\\Qareeblak-main (1)\\Qareeblak-main\\server\\logs\\exceptions-2026-02-23.log",
+            "hash": "f28916d9d43016b36b7b335cabfe3163929d6e29689060e601330bdca034677b"
+        },
+        {
+            "date": 1771824444234,
+            "name": "C:\\Qareeblak-main (1)\\Qareeblak-main\\server\\logs\\exceptions-2026-02-23.log.1",
+            "hash": "6bf8c92422fd4c81b145d0685213b3a89d3863db7edcefa69e5f237690781384"
+        }
+    ],
+    "hashType": "sha256"
+}

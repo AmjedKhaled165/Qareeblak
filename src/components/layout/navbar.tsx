@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/components/providers/AppProvider"
-import { UserCircle, LogOut, Menu, X, Home, Search, Briefcase, ShoppingCart } from "lucide-react"
+import { UserCircle, LogOut, Menu, X, Home, Search, Briefcase, ShoppingCart, Gift } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
@@ -62,6 +62,9 @@ export function Navbar() {
                         <>
                             <Link href="/" className="transition-colors hover:text-primary">الرئيسية</Link>
                             <Link href="/explore" className="transition-colors hover:text-primary">تصفح الخدمات</Link>
+                            <Link href="/wheel" className="transition-colors hover:text-primary text-orange-500 font-bold flex items-center gap-1">
+                                <Gift className="w-4 h-4" /> عجلة الحظ
+                            </Link>
                         </>
                     )}
                     {currentUser?.type === 'provider' ? (
@@ -225,6 +228,10 @@ export function Navbar() {
                                     <Link href="/explore" className="flex items-center gap-3 text-foreground font-medium p-2 hover:bg-accent rounded-md" onClick={() => setIsMobileMenuOpen(false)}>
                                         <Search className="w-5 h-5 text-primary" />
                                         تصفح الخدمات
+                                    </Link>
+                                    <Link href="/wheel" className="flex items-center gap-3 text-orange-500 font-bold p-2 hover:bg-accent rounded-md" onClick={() => setIsMobileMenuOpen(false)}>
+                                        <Gift className="w-5 h-5" />
+                                        عجلة الحظ
                                     </Link>
                                 </>
                             )}

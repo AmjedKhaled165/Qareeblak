@@ -10,8 +10,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
-// @ts-expect-error dynamic import type resolution
 import OrderDetailsModal from "@/components/admin/OrderDetailsModal";
 import { adminOrdersApi } from "@/lib/admin-api";
 
@@ -229,9 +227,8 @@ export default function OrdersPage() {
                     <button
                         key={s.key}
                         onClick={() => setStatusFilter(statusFilter === s.key ? "" : s.key)}
-                        className={`p-3 rounded-xl border transition-all text-right ${s.bg} ${
-                            statusFilter === s.key ? "ring-2 ring-indigo-500 scale-[1.02]" : "hover:scale-[1.01]"
-                        }`}
+                        className={`p-3 rounded-xl border transition-all text-right ${s.bg} ${statusFilter === s.key ? "ring-2 ring-indigo-500 scale-[1.02]" : "hover:scale-[1.01]"
+                            }`}
                     >
                         <p className="text-2xl font-bold font-cairo">{statusCounts[s.key] || 0}</p>
                         <p className="text-xs text-slate-600 dark:text-slate-400">{s.label}</p>

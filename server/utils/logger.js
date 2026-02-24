@@ -1,42 +1,34 @@
-const winston = require('winston');
-const path = require('path');
+const pino = require('pino');
 
-const logFormat = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.errors({ stack: true }),
-    winston.format.splat(),
-    winston.format.json()
-);
-
-const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
-    format: logFormat,
-    defaultMeta: { service: 'qareeblak-api' },
-    transports: [
-        // Write all logs with level 'error' and below to 'error.log'
-        new winston.transports.File({
-            filename: path.join(__dirname, '../../logs/error.log'),
-            level: 'error',
-            maxsize: 5242880, // 5MB
-            maxFiles: 5,
-        }),
-        // Write all logs with level 'info' and below to 'combined.log'
-        new winston.transports.File({
-            filename: path.join(__dirname, '../../logs/combined.log'),
-            maxsize: 5242880, // 5MB
-            maxFiles: 5,
-        }),
+// Enterprise logging strategy using Pino (3x faster than Winston, 6x faster than Bunyan)
+// Designed for PM2 & Docker environments where stdout/stderr aggregation is preferred
+const logger = pino({
+    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+    // Do not log PII (Personally Identifiable Information) or Passwords
+    redact: [
+        'req.headers.authorization',
+        'req.body.password',
+        'req.body.oldPassword',
+        'req.body.newPassword',
+        'res.body.token',
+        'password'
     ],
+    // Time formatting for readability and ISO parsing
+    timestamp: pino.stdTimeFunctions.isoTime,
+    formatters: {
+        level: (label) => {
+            return { level: label.toUpperCase() };
+        },
+    },
+    // Only use pretty print in development, production should be JSON
+    transport: process.env.NODE_ENV !== 'production' ? {
+        target: 'pino-pretty',
+        options: {
+            colorize: true,
+            translateTime: 'SYS:standard',
+            ignore: 'pid,hostname'
+        }
+    } : undefined
 });
-
-// If not in production, log to the console with colors
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: winston.format.combine(
-            winston.format.colorize(),
-            winston.format.simple()
-        ),
-    }));
-}
 
 module.exports = logger;

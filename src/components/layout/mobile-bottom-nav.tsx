@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Search, User, UserCircle } from "lucide-react";
+import { Home, Search, User, UserCircle, Gift } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/components/providers/AppProvider";
@@ -28,6 +28,11 @@ export function MobileBottomNav() {
             label: "حسابي",
             icon: currentUser ? UserCircle : User,
             href: currentUser ? "/profile" : "/login",
+        },
+        {
+            label: "عجلة الحظ",
+            icon: Gift,
+            href: "/wheel",
         },
     ];
 

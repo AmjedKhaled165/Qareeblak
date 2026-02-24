@@ -294,7 +294,28 @@ export default function OwnerAllOrdersPage() {
         }
         setUser(userData);
         fetchFilters();
-    }, []);
+
+        // Real-time updates
+        const socket = (window as any).__qareeblak_socket;
+        if (socket) {
+            console.log('[OwnerDashboard] 📡 Attaching real-time listeners');
+
+            const handleUpdate = () => {
+                console.log('[OwnerDashboard] 🔄 Triggering refresh from socket event');
+                fetchOrders();
+            };
+
+            socket.on('booking-updated', handleUpdate);
+            socket.on('order-status-changed', handleUpdate);
+            socket.on('order-updated', handleUpdate);
+
+            return () => {
+                socket.off('booking-updated', handleUpdate);
+                socket.off('order-status-changed', handleUpdate);
+                socket.off('order-updated', handleUpdate);
+            };
+        }
+    }, [user]); // Add user as dependency for fetchOrders context if needed
 
     useEffect(() => {
         if (user) {

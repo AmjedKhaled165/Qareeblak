@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // ⚡ PERFORMANCE OPTIMIZATIONS
-  
+
   // Compiler optimizations
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? {
@@ -30,17 +30,11 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Enable SWC minification (faster than Terser)
-  swcMinify: true,
-
   // Compression
   compress: true,
 
   // Production source maps (disable for faster builds)
   productionBrowserSourceMaps: false,
-
-  // Optimize font loading
-  optimizeFonts: true,
 
   // React strict mode for catching bugs
   reactStrictMode: true,
