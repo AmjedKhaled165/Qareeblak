@@ -1,5 +1,4 @@
 const { Pool } = require('pg');
-amjed=13
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://app_user:halan2026@localhost:5432/qareeblak'
 });
