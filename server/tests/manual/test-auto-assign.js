@@ -1,6 +1,6 @@
 // Script to test auto-assignment logic
 /* eslint-disable @typescript-eslint/no-require-imports */
-const axios = require('axios');
+// Native fetch() is available in Node.js v25+ — no external HTTP library needed
 const pool = require('./db');
 
 async function testAutoAssign() {

@@ -33,7 +33,7 @@ node migrations/add-performance-indexes.js
 ## 📁 هيكل المشروع (Project Structure)
 
 ```
-new-assiut-services/
+Qareeblak/
 ├── src/                          # Next.js Frontend
 │   ├── components/
 │   │   ├── features/             # Chat, Bookings

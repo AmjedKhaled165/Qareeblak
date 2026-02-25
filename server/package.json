@@ -3,8 +3,11 @@
     "version": "1.0.0",
     "description": "Backend API for Qareeblak Service Marketplace",
     "main": "index.js",
+    "engines": {
+        "node": ">=25.7.0"
+    },
     "scripts": {
-        "start": "node index.js",
+        "start": "node --max-old-space-size=4096 index.js",
         "dev": "nodemon index.js"
     },
     "dependencies": {
@@ -14,7 +17,7 @@
         "bullmq": "^5.67.3",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
-        "dotenv": "^16.3.1",
+        "dotenv": "^16.5.0",
         "express": "^4.18.2",
         "express-rate-limit": "^8.2.1",
         "express-validator": "^7.3.1",
@@ -35,6 +38,7 @@
         "winston-daily-rotate-file": "^5.0.0",
         "xss": "^1.0.15",
         "xss-clean": "^0.1.4",
+        "node-abort-controller": ">=3.1.1",
         "zod": "^4.3.6"
     },
     "devDependencies": {

@@ -1,5 +1,5 @@
-# Install Node.js standard Alpine image
-FROM node:20-alpine AS builder
+# Install Node.js standard Alpine image (Node 25 LTS)
+FROM node:25-alpine AS builder
 
 # Set working directory inside container
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN npm ci --only=production
 COPY . .
 
 # Multi-stage build for a smaller production image
-FROM node:20-alpine
+FROM node:25-alpine
 
 # Set non-root user for security
 RUN addgroup -S nodeapp && adduser -S nodeuser -G nodeapp

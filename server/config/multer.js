@@ -1,12 +1,15 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const fs = require('node:fs');
+const { mkdir } = require('node:fs/promises');
 
-// Ensure upload directory exists
+// Ensure upload directory exists (async IIFE to avoid blocking event loop)
 const uploadDir = path.join(__dirname, '../uploads/chat');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+(async () => {
+    try {
+        await mkdir(uploadDir, { recursive: true });
+    } catch { /* directory already exists */ }
+})();
 
 // Multer storage configuration
 const storage = multer.diskStorage({

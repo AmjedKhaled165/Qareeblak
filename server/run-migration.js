@@ -1,6 +1,6 @@
 // Run database migration to add missing columns
 const { Pool } = require('pg');
-const fs = require('fs');
+const { readFile } = require('node:fs/promises');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
@@ -14,7 +14,7 @@ async function runMigration() {
         console.log('📊 Database:', process.env.DATABASE_URL?.split('@')[1]?.split('/')[1] || 'Unknown');
         
         const migrationPath = path.join(__dirname, 'migrations', '001_add_booking_columns.sql');
-        const sql = fs.readFileSync(migrationPath, 'utf8');
+        const sql = await readFile(migrationPath, 'utf8');
         
         console.log('📝 Executing migration SQL...\n');
         await pool.query(sql);

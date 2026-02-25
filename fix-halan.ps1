@@ -1,4 +1,4 @@
-$filePath = "C:\Users\Eng.Amjed\Desktop\new-assiut-services\server\routes\halan-orders.js"
+$filePath = "C:\Users\Eng.Amjed\Desktop\Qareeblak\server\routes\halan-orders.js"
 $content = Get-Content $filePath -Raw
 $lines = $content -split "`n"
 
