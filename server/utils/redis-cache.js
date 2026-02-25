@@ -1,7 +1,7 @@
 // Redis Caching Utility for Performance Optimization
 // Reduces database load by 80%+ for frequent GET requests
 
-const redis = require('./redis'); // Your existing redis connection
+const { client: redis } = require('./redis'); // Your existing redis connection
 
 /**
  * Get cached value

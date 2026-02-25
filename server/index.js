@@ -16,9 +16,14 @@ const healthRoutes = require('./routes/health');
 const { initializeWorkers } = require('./utils/queues');
 const { connectRedis } = require('./utils/redis');
 
-// Initialize Redis & Background Workers
-connectRedis();
-initializeWorkers();
+// Initialize Redis first; only start background workers if Redis is available
+connectRedis().then((redisAvailable) => {
+    if (redisAvailable) {
+        initializeWorkers();
+    } else {
+        logger.warn('Background job workers disabled (Redis unavailable).');
+    }
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -45,17 +50,18 @@ const io = new Server(server, {
 });
 
 // Redis Adapter for Socket.io (Scaling to multi-node)
-if (process.env.REDIS_URL || process.env.NODE_ENV === 'production') {
+// Set up AFTER Redis connects to avoid duplicate client error-spam
+const { client: redisPublishClient } = require('./utils/redis');
+redisPublishClient.on('ready', () => {
     try {
         const { createAdapter } = require('@socket.io/redis-adapter');
-        const { client: pubClient } = require('./utils/redis');
-        const subClient = pubClient.duplicate();
-        io.adapter(createAdapter(pubClient, subClient));
+        const subClient = redisPublishClient.duplicate();
+        io.adapter(createAdapter(redisPublishClient, subClient));
         logger.info('🚀 Socket.io Redis Adapter enabled');
     } catch (err) {
         logger.warn('⚠️ Redis Adapter failed to initialize, falling back to local adapter');
     }
-}
+});
 
 // Make io accessible to routes
 app.set('io', io);

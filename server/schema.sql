@@ -38,6 +38,7 @@ CREATE TABLE providers (
     rating DECIMAL(2,1) DEFAULT 0.0,
     reviews_count INTEGER DEFAULT 0,
     is_approved BOOLEAN DEFAULT TRUE,
+    is_banned BOOLEAN NOT NULL DEFAULT FALSE,
     joined_date DATE DEFAULT CURRENT_DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
