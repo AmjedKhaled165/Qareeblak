@@ -10,6 +10,11 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "YOUR_APP_ID"
 };
 
+export function isFirebaseConfigured(): boolean {
+    // We consider it "not configured" if any placeholder is still present.
+    return !Object.values(firebaseConfig).some((v) => typeof v === 'string' && v.startsWith('YOUR_'));
+}
+
 // Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);

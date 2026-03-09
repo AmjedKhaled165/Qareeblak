@@ -28,6 +28,12 @@ export default function WheelOfFortunePage() {
         loadData();
     }, []);
 
+    useEffect(() => {
+        // When user logs in/out while the wheel page is open, refresh "my prizes"
+        loadData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.id]);
+
     const loadData = async () => {
         setIsLoading(true);
         try {
@@ -104,11 +110,8 @@ export default function WheelOfFortunePage() {
         } catch (error: any) {
             console.error("Spin error:", error);
             setIsSpinning(false);
-            if (error.response?.data?.error) {
-                toast(error.response.data.error, "error");
-            } else {
-                toast("حدث خطأ أثناء المحاولة. يرجى إعادة المحاولة لاحقاً.", "error");
-            }
+            const message = error?.message || "حدث خطأ أثناء المحاولة. يرجى إعادة المحاولة لاحقاً.";
+            toast(message, "error");
         }
     };
 

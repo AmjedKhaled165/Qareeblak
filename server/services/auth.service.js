@@ -1,18 +1,37 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const db = require('../db');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'halan-secret-key-2026';
+// SECURITY: Use separate secrets for access vs refresh tokens
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+
+if (!JWT_ACCESS_SECRET) {
+    logger.error('🔥 FATAL ERROR: JWT_ACCESS_SECRET IS MISSING. SERVER REFUSES TO START.');
+    process.exit(1);
+}
 
 class AuthService {
-    generateToken(user, isGuest = false) {
-        return jwt.sign(
-            { id: user.id, email: user.email, type: user.user_type, isGuest },
-            JWT_SECRET,
-            { expiresIn: isGuest ? '30d' : '7d' }
+    generateTokens(user, isGuest = false) {
+        // Access Token: 15 minutes (signed with ACCESS secret)
+        const accessToken = jwt.sign(
+            { id: user.id, email: user.email, type: user.user_type, isGuest, v: user.token_version || 1 },
+            JWT_ACCESS_SECRET,
+            { expiresIn: isGuest ? '30d' : '15m' }
         );
+
+        // Refresh Token: 30 Days (signed with REFRESH secret)
+        // Includes version so that invalidating sessions kills refresh tokens too
+        const refreshToken = jwt.sign(
+            { id: user.id, email: user.email, type: 'refresh', v: user.token_version || 1 },
+            JWT_REFRESH_SECRET,
+            { expiresIn: '30d' }
+        );
+
+        return { accessToken, refreshToken, token: accessToken };
     }
 
     async registerUser({ name, email, password }) {
@@ -29,9 +48,9 @@ class AuthService {
         );
 
         const user = result.rows[0];
-        const token = this.generateToken(user);
+        const tokens = this.generateTokens(user);
 
-        return { user, token };
+        return { user, ...tokens };
     }
 
     async loginUser(email, password) {
@@ -53,7 +72,7 @@ class AuthService {
             throw new AppError('بيانات الدخول غير صحيحة', 401);
         }
 
-        const token = this.generateToken(user);
+        const tokens = this.generateTokens(user);
 
         return {
             user: {
@@ -64,17 +83,17 @@ class AuthService {
                 phone: user.phone,
                 avatar: user.avatar
             },
-            token
+            ...tokens
         };
     }
 
     async guestLogin() {
-        // Limitation: Guest users can accumulate. In production, consider pruning old guests.
-        const guestId = Math.floor(100000 + Math.random() * 900000);
-        const email = `guest_${Date.now()}_${guestId}@qareeblak.com`;
-        const tempPassword = `pwd_${guestId}_${Math.random()}`;
-        const hashedPassword = await bcrypt.hash(tempPassword, 12);
-        const name = `زائر ${guestId}`;
+        // Use cryptographically secure random ID to prevent collision under load
+        const guestUuid = crypto.randomUUID();
+        const email = `guest_${guestUuid.replace(/-/g, '')}@qareeblak.com`;
+        const tempPassword = crypto.randomBytes(24).toString('hex'); // Secure & unguessable
+        const hashedPassword = await bcrypt.hash(tempPassword, 10); // 10 rounds OK for temp guest
+        const name = `زائر ${guestUuid.slice(0, 6)}`;
 
         const result = await db.query(
             'INSERT INTO users (name, email, password, user_type) VALUES ($1, $2, $3, $4) RETURNING id, name, email, user_type',
@@ -82,9 +101,9 @@ class AuthService {
         );
 
         const user = result.rows[0];
-        const token = this.generateToken(user, true);
+        const tokens = this.generateTokens(user, true);
 
-        return { user: { id: user.id, name: user.name, email: user.email, type: user.user_type, isGuest: true }, token };
+        return { user: { id: user.id, name: user.name, email: user.email, type: user.user_type, isGuest: true }, ...tokens };
     }
 
     async forgotPassword(email) {
@@ -95,8 +114,8 @@ class AuthService {
         }
 
         const userId = userRes.rows[0].id;
-        // Generate a 6-digit OTP OR a long token. For mobile, OTP is better.
-        const token = Math.floor(100000 + Math.random() * 900000).toString();
+        // SECURITY: Use crypto.randomInt for OTP — Math.random() is NOT cryptographically secure
+        const token = crypto.randomInt(100000, 999999).toString();
         const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
         // Clean old tokens
@@ -107,8 +126,9 @@ class AuthService {
             [userId, token, expiresAt]
         );
 
-        // In production: Send email here.
-        logger.info(`Password reset token for ${email}: ${token}`);
+        // SECURITY: NEVER log OTP tokens. Send via SMS/Email ONLY.
+        // TODO: Integrate Twilio/SendGrid here.
+        logger.info(`Password reset OTP issued for user #${userId}`);
         return true;
     }
 
@@ -282,6 +302,100 @@ class AuthService {
         }
 
         await db.query("UPDATE requests SET status = 'rejected' WHERE id = $1", [id]);
+    }
+
+    /**
+     * Google OAuth Sync — Idempotent upsert.
+     * If a user with this email exists, return them.
+     * If not, create a new customer account.
+     * Never changes password of existing accounts (safe).
+     */
+    async googleSync({ name, email, googleUid, avatar }) {
+        // SECURITY NOTE: In production, you MUST verify the Firebase ID Token from the client
+        // using 'firebase-admin' to ensure this email actually belongs to the user.
+        // Currently, we add a safeguard: NEVER allow syncing with 'admin' accounts via this route.
+
+        try {
+            // First, check if there's an existing admin account with this email
+            const checkAdmin = await db.query('SELECT user_type FROM users WHERE email = $1', [email]);
+            if (checkAdmin.rows.length > 0 && checkAdmin.rows[0].user_type === 'admin') {
+                throw new AppError('لا يمكن تسجيل الدخول بهذا الحساب عبر جوجل للأمان. يرجى استخدام كلمة المرور.', 403);
+            }
+
+            const bcrypt = require('bcryptjs');
+            const placeholder = await bcrypt.hash(`google_${googleUid || Date.now()}_${Math.random()}`, 10);
+
+            // Atomic Upsert: Safe under high concurrency pressure.
+            // Only updates name/avatar if they were null, and FORCES user_type to 'customer' for new entries.
+            const query = `
+                INSERT INTO users (name, email, password, user_type, avatar)
+                VALUES ($1, $2, $3, 'customer', $4)
+                ON CONFLICT (email) 
+                DO UPDATE SET 
+                    avatar = COALESCE(users.avatar, EXCLUDED.avatar),
+                    name = COALESCE(users.name, EXCLUDED.name)
+                RETURNING id, name, email, user_type, phone, avatar;
+            `;
+            const result = await db.query(query, [
+                name || 'مستخدم جوجل',
+                email,
+                placeholder,
+                avatar || null
+            ]);
+
+            const user = result.rows[0];
+            const tokens = this.generateTokens(user);
+            //... returns user & token as before
+
+            return {
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    type: user.user_type,
+                    phone: user.phone,
+                    avatar: user.avatar,
+                },
+                ...tokens
+            };
+        } catch (error) {
+            console.error('Google Sync Error:', error);
+            throw new AppError('فشل تسجيل الدخول باستخدام جوجل، حاول لاحقاً', 500);
+        }
+    }
+
+    async refreshToken(refreshTokenString) {
+        try {
+            // [SECURITY FIX] Use REFRESH secret for verification, not ACCESS secret
+            const decoded = jwt.verify(refreshTokenString, JWT_REFRESH_SECRET);
+            if (decoded.type !== 'refresh') throw new AppError('Invalid token type', 401);
+
+            const userResult = await db.query('SELECT id, email, user_type, is_banned, token_version FROM users WHERE id = $1', [decoded.id]);
+            if (userResult.rows.length === 0) throw new AppError('المستخدم غير موجود', 404);
+
+            const user = userResult.rows[0];
+            if (user.is_banned) throw new AppError('تم حظر حسابك لمخالفة القوانين', 403);
+
+            // [SECURITY FIX] Check against token_version in DB to allow immediate revocation
+            if (decoded.v !== undefined && decoded.v !== user.token_version) {
+                throw new AppError('لقد انتهت صلاحية هذه الجلسة. يرجى تسجيل الدخول مجدداً.', 401);
+            }
+
+            // Issue new short-lived access token and a new refresh token (rotation)
+            return this.generateTokens(user);
+        } catch (err) {
+            if (err instanceof AppError) throw err;
+            throw new AppError('جلسة منتهية أو توكن غير صالح. يرجى تسجيل الدخول.', 401);
+        }
+    }
+
+    /**
+     * Invalidate all existing JWTs by incrementing the user's token_version.
+     * Effectively logs out user from all devices instantly.
+     */
+    async logoutAllDevices(userId) {
+        await db.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [userId]);
+        return true;
     }
 }
 

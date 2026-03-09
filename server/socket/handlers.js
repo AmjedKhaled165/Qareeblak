@@ -63,7 +63,20 @@ module.exports = function registerSocketHandlers(io) {
 
                 if (!message && !imageUrl) {
                     logger.error('[Chat] No message or image in send_message');
-                    socket.emit('message_error', { error: 'Ø§Ù„Ø±Ø³Ø§Ù„Ø© Ø£Ùˆ Ø§Ù„ØµÙˆØ±Ø© Ù…Ø·Ù„ÙˆØ¨Ø©' });
+                    socket.emit('message_error', { error: 'الرسالة أو الصورة مطلوبة' });
+                    return;
+                }
+
+                // 🛡️ [Security] Disintermediation Protection (Direct Deal Prevention)
+                // Filter Egyptian phone numbers (01x xxxx xxxx) and Arabic numerals
+                const phoneRegex = /(01[0125][0-9]{8})|(\+201[0125][0-9]{8})|(٠١[٠١٢٥][٠-٩]{٨})/g;
+                const cleanMsg = message ? message.replace(/[\s-]/g, '') : '';
+
+                if (message && phoneRegex.test(cleanMsg)) {
+                    logger.warn(`🚫 [Chat] Blocked potential disintermediation attempt from User ${senderId}`);
+                    socket.emit('message_error', {
+                        error: 'ممنوع إرسال أرقام الهواتف حفاظاً على حقوق المنصة وسلامة تعاملك. يمكنك الاتفاق على السعر فقط.'
+                    });
                     return;
                 }
 

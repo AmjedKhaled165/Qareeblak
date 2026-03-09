@@ -12,15 +12,17 @@ class AdminService {
     }
 
     async getOrdersWithPagination(query) {
-        const { page = 1, limit = 25, status, type, search, sort = 'created_at', order = 'DESC' } = query;
-        const offset = (parseInt(page) - 1) * parseInt(limit);
+        const { lastId, limit = 25, status, type, search, sort = 'created_at', order = 'DESC' } = query;
+        const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 25, 1), 100);
 
         const allowedSorts = ['created_at', 'price', 'id', 'status'];
         const sortCol = allowedSorts.includes(sort) ? `b.${sort}` : 'b.created_at';
         const sortOrder = order === 'ASC' ? 'ASC' : 'DESC';
 
         return await adminRepo.getOrders({
-            status, type, search, sortCol, sortOrder, limit: parseInt(limit), offset
+            status, type, search, sortCol, sortOrder,
+            limit: safeLimit,
+            lastId: lastId ? parseInt(lastId, 10) : null
         });
     }
 

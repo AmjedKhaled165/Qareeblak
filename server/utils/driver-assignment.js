@@ -1,5 +1,6 @@
 const pool = require('../db');
 const { syncParentOrderStatus } = require('./parent-sync');
+const logger = require('./logger');
 
 /**
  * Automatically assigns an order to an available courier.
@@ -15,7 +16,7 @@ const { syncParentOrderStatus } = require('./parent-sync');
  * @returns {Promise<object|null>} The assigned courier object or null if failed
  */
 const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigned') => {
-    console.log(`[Auto-Assign] 🔍 بدء البحث عن مندوب للطلب #${orderId}...`);
+    logger.info(`[Auto-Assign] 🔍 بدء البحث عن مندوب للطلب #${orderId}...`);
 
     try {
         // GUARD: Check if this is a manual order — skip auto-assign entirely
@@ -23,10 +24,10 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
         if (orderCheck.rows.length > 0) {
             const order = orderCheck.rows[0];
             const isManual = order.order_type === 'manual' || (order.source && !order.source.includes('qareeblak'));
-            
+
             // If manual AND already has a courier, skip completely
             if (isManual && order.courier_id) {
-                console.log(`[Auto-Assign] ⏭️ Manual order #${orderId} already has courier #${order.courier_id}. Skipping.`);
+                logger.info(`[Auto-Assign] ⏭️ Manual order #${orderId} already has courier #${order.courier_id}. Skipping.`);
                 // Just update status if needed
                 await pool.query(
                     'UPDATE delivery_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
@@ -53,11 +54,11 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
             WHERE sub.active_orders < COALESCE(sub.max_active_orders, 10)
         `);
 
-        console.log(`[Auto-Assign] وجدنا ${couriersResult.rows.length} مندوب متاح ونشط`);
+        logger.info(`[Auto-Assign] وجدنا ${couriersResult.rows.length} مندوب متاح ونشط`);
 
         // 2. FALLBACK: If no online couriers with capacity, try any available courier
         if (couriersResult.rows.length === 0) {
-            console.log(`[Auto-Assign] ⚠️ لا يوجد مناديب نشطين، جاري البحث عن أي مندوب متاح...`);
+            logger.warn(`[Auto-Assign] ⚠️ لا يوجد مناديب نشطين، جاري البحث عن أي مندوب متاح...`);
             couriersResult = await pool.query(`
                 SELECT id, name, username FROM users 
                 WHERE (role IN ('courier', 'partner_courier') OR user_type IN ('courier', 'partner_courier')) 
@@ -67,57 +68,83 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
 
         // 3. LAST RESORT: Any courier in the system
         if (couriersResult.rows.length === 0) {
-            console.log(`[Auto-Assign] ⚠️ لا يوجد مناديب متاحين، سنختار من جميع المناديب...`);
+            logger.warn(`[Auto-Assign] ⚠️ لا يوجد مناديب متاحين، سنختار من جميع المناديب...`);
             couriersResult = await pool.query(`
                 SELECT id, name, username FROM users 
                 WHERE (role IN ('courier', 'partner_courier') OR user_type IN ('courier', 'partner_courier'))
             `);
-            console.log(`[Auto-Assign] إجمالي المناديب في النظام: ${couriersResult.rows.length}`);
+            logger.info(`[Auto-Assign] إجمالي المناديب في النظام: ${couriersResult.rows.length}`);
         }
 
         if (couriersResult.rows.length === 0) {
-            console.error(`[Auto-Assign] ❌ لا يوجد أي مناديب في النظام!`);
+            logger.error(`[Auto-Assign] ❌ لا يوجد أي مناديب في النظام!`);
             return null;
         }
 
-        // 4. Select courier: Random from available pool (weighted by lowest workload)
-        let selectedCourier;
-        
-        if (couriersResult.rows[0].active_orders !== undefined) {
-            // We have workload data from the priority query — pick random from lowest workload tier
-            const minWorkload = Math.min(...couriersResult.rows.map(c => parseInt(c.active_orders) || 0));
-            const bestCouriers = couriersResult.rows.filter(c => (parseInt(c.active_orders) || 0) === minWorkload);
-            selectedCourier = bestCouriers[Math.floor(Math.random() * bestCouriers.length)];
-        } else {
-            // Fallback: Calculate workload manually
-            const workloads = await Promise.all(
-                couriersResult.rows.map(async (courier) => {
-                    const countResult = await pool.query(`
-                        SELECT COUNT(*) as active_orders 
-                        FROM delivery_orders 
-                        WHERE courier_id = $1 
-                        AND status IN ('pending', 'assigned', 'ready_for_pickup', 'picked_up', 'in_transit')
-                        AND is_deleted = false
-                    `, [courier.id]);
-                    return { ...courier, workload: parseInt(countResult.rows[0].active_orders) || 0 };
-                })
-            );
-            const minWorkload = Math.min(...workloads.map(c => c.workload));
-            const bestCouriers = workloads.filter(c => c.workload === minWorkload);
-            selectedCourier = bestCouriers[Math.floor(Math.random() * bestCouriers.length)];
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const courierIds = couriersResult.rows.map(c => c.id);
+            // [ENTERPRISE HARDENING] Sort to prevent deadlocks and lock ALL candidate couriers or just the one we select?
+            // Locking the entire pool of candidates is safer for load balancing.
+            const lockRes = await client.query(`
+                SELECT id, name, max_active_orders FROM users 
+                WHERE id = ANY($1::int[]) 
+                FOR UPDATE
+            `, [courierIds]);
+
+            // Re-calculate workload for locked couriers to get the TRUE state
+            const workloadResult = await client.query(`
+                SELECT courier_id, COUNT(*) as active_orders
+                FROM delivery_orders
+                WHERE courier_id = ANY($1::int[])
+                AND status IN ('pending', 'assigned', 'ready_for_pickup', 'picked_up', 'in_transit')
+                AND is_deleted = false
+                GROUP BY courier_id
+            `, [courierIds]);
+
+            const workloadMap = workloadResult.rows.reduce((map, row) => {
+                map[row.courier_id] = parseInt(row.active_orders) || 0;
+                return map;
+            }, {});
+
+            const candidates = lockRes.rows.map(c => ({
+                ...c,
+                active_orders: workloadMap[c.id] || 0
+            })).filter(c => c.active_orders < (c.max_active_orders || 10));
+
+            if (candidates.length === 0) {
+                await client.query('ROLLBACK');
+                logger.error(`[Auto-Assign] ❌ All candidates are at full capacity!`);
+                return null;
+            }
+
+            // Pick candidate with lowest workload
+            const minWorkload = Math.min(...candidates.map(c => c.active_orders));
+            const bestCouriers = candidates.filter(c => c.active_orders === minWorkload);
+            const selectedCourier = bestCouriers[Math.floor(Math.random() * bestCouriers.length)];
+
+            logger.info(`[Auto-Assign] 🎯 تم اختيار المندوب: ${selectedCourier.name} (الحمل الحالي: ${selectedCourier.active_orders} طلبات)`);
+
+            // 4. Assign order to selected courier
+            await client.query(`
+                UPDATE delivery_orders 
+                SET courier_id = $1, 
+                    status = $3,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $2
+            `, [selectedCourier.id, orderId, targetStatus]);
+
+            await client.query('COMMIT');
+            return selectedCourier;
+
+        } catch (txnError) {
+            await client.query('ROLLBACK');
+            throw txnError;
+        } finally {
+            client.release();
         }
-
-        const courierLoad = selectedCourier.active_orders ?? selectedCourier.workload ?? '?';
-        console.log(`[Auto-Assign] 🎯 تم اختيار المندوب: ${selectedCourier.name} (الحمل الحالي: ${courierLoad} طلبات)`);
-
-        // 4. Assign order to selected courier
-        await pool.query(`
-            UPDATE delivery_orders 
-            SET courier_id = $1, 
-                status = $3,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = $2
-        `, [selectedCourier.id, orderId, targetStatus]);
 
         // 5. Add to order history
         await pool.query(`
@@ -140,13 +167,13 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
                 await syncParentOrderStatus(parentCheck.rows[0].parent_order_id, appIo);
             }
         } catch (e) {
-            console.error('[Auto-Assign] Failed to sync parent status:', e.message);
+            logger.error(`[Auto-Assign] Failed to sync parent status: ${e.message}`);
         }
 
         return selectedCourier;
 
     } catch (error) {
-        console.error(`[Auto-Assign] ❌ Critical Error:`, error);
+        logger.error(`[Auto-Assign] ❌ Critical Error: ${error.message}`);
         return null;
     }
 };

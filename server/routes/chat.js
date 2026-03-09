@@ -5,7 +5,7 @@ const router = express.Router();
 // Middleware
 const { verifyToken } = require('../middleware/auth');
 const upload = require('../config/multer');
-const { globalLimiter } = require('../middleware/security');
+const { globalLimiter, chatLimiter } = require('../middleware/security');
 
 // Controllers
 const chatController = require('../controllers/chat.controller');
@@ -34,18 +34,18 @@ router.get('/dashboard/:providerId', chatController.getProviderConsultations);
 router.get('/:consultationId', validate(validateParams, 'params'), chatController.getMessages);
 
 // Send Standard Message
-router.post('/:consultationId/messages', validate(validateParams, 'params'), validate(sendMessageSchema), chatController.sendMessage);
+router.post('/:consultationId/messages', chatLimiter, validate(validateParams, 'params'), validate(sendMessageSchema), chatController.sendMessage);
 
 // Upload Image Message (Validations done via multer config directly)
-router.post('/:consultationId/upload', validate(validateParams, 'params'), upload.single('image'), chatController.uploadImage);
+router.post('/:consultationId/upload', chatLimiter, validate(validateParams, 'params'), upload.single('image'), chatController.uploadImage);
 
 // Mark Messages As Read
 router.put('/:consultationId/read', validate(validateParams, 'params'), chatController.markAsRead);
 
 // Order Quote Feature (Pharmacist to Customer)
-router.post('/:consultationId/quote', validate(validateParams, 'params'), validate(sendQuoteSchema), chatController.sendQuote);
+router.post('/:consultationId/quote', chatLimiter, validate(validateParams, 'params'), validate(sendQuoteSchema), chatController.sendQuote);
 
 // Accept Order Quote (Customer)
-router.post('/:consultationId/accept-quote', validate(validateParams, 'params'), validate(acceptQuoteSchema), chatController.acceptQuote);
+router.post('/:consultationId/accept-quote', chatLimiter, validate(validateParams, 'params'), validate(acceptQuoteSchema), chatController.acceptQuote);
 
 module.exports = router;

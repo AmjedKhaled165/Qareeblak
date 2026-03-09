@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/components/providers/AppProvider"
+import { useCartStore } from "@/components/providers/CartProvider"
 import { UserCircle, LogOut, Menu, X, Home, Search, Briefcase, ShoppingCart, Gift } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { usePathname } from "next/navigation";
@@ -13,7 +14,8 @@ import { NotificationBell } from "@/components/features/notification-bell";
 
 export function Navbar() {
     // Destructure logout directly from the hook - FIXING THE CRASH
-    const { currentUser, logout, globalCart } = useAppStore();
+    const { currentUser, logout } = useAppStore();
+    const { globalCart } = useCartStore();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);

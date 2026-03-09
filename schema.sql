@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS users (
     supervisor_id INTEGER REFERENCES users(id) ON DELETE SET NULL, -- Self-referencing (nullable, so safe)
     is_online BOOLEAN DEFAULT FALSE, -- Real-time online status
     max_active_orders INTEGER DEFAULT 10, -- Courier workload limit
+    token_version INTEGER DEFAULT 1, -- [SECURITY] Incremented to invalidate all existing JWTs (Logout all devices)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -145,7 +146,7 @@ CREATE TABLE IF NOT EXISTS delivery_orders (
     status VARCHAR(50) DEFAULT 'pending', -- pending, assigned, picked_up, in_transit, delivered, cancelled
     notes TEXT,
     delivery_fee DECIMAL(10,2),
-    items TEXT, -- JSON string of order items
+    items JSONB, -- [MIGRATED] Native JSONB for indexing and scaling
     source VARCHAR(50), -- Order source tracking
     order_type VARCHAR(20) DEFAULT 'manual', -- manual, automated
     is_deleted BOOLEAN DEFAULT FALSE,
@@ -323,6 +324,32 @@ CREATE TABLE IF NOT EXISTS halan_order_history (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Persistent Idempotency Keys (Financial/Transaction Integrity)
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    id SERIAL PRIMARY KEY,
+    key_hash VARCHAR(64) UNIQUE NOT NULL, -- SHA256 of the key
+    user_id INTEGER REFERENCES users(id),
+    request_path VARCHAR(255),
+    response_body JSONB,
+    status_code INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL
+);
+
+-- Enterprise Audit Logging (Persistent Action Tracking)
+CREATE TABLE IF NOT EXISTS audit_actions (
+    id SERIAL PRIMARY KEY,
+    admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(100) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id VARCHAR(100),
+    details TEXT,
+    old_value JSONB,
+    new_value JSONB,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ==========================================
 -- LEVEL 5: FINAL DEPENDENCIES
 -- ==========================================
@@ -344,7 +371,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     -- Appointment features
     appointment_date TIMESTAMP,
     appointment_type VARCHAR(50), -- in_person, video_call, phone_call
-    items TEXT, -- JSON string of booked items
+    items JSONB, -- [MIGRATED] Native JSONB for indexing and scaling
     halan_order_id INTEGER, -- Link to delivery_orders
     last_updated_by VARCHAR(20), -- Tracks who last modified (customer/provider)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -378,6 +405,8 @@ CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_halan_order ON bookings(halan_order_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_appointment_date ON bookings(appointment_date);
 CREATE INDEX IF NOT EXISTS idx_bookings_parent_order ON bookings(parent_order_id);
+-- [NEW] Composite Index to fix parent sync full table scans 
+CREATE INDEX IF NOT EXISTS idx_bookings_active ON bookings(parent_order_id) WHERE status NOT IN ('cancelled', 'rejected', 'ملغي', 'مرفوض');
 
 -- Reviews indexes
 CREATE INDEX IF NOT EXISTS idx_reviews_provider_id ON reviews(provider_id);
@@ -386,6 +415,8 @@ CREATE INDEX IF NOT EXISTS idx_reviews_provider_id ON reviews(provider_id);
 CREATE INDEX IF NOT EXISTS idx_delivery_orders_courier ON delivery_orders(courier_id);
 CREATE INDEX IF NOT EXISTS idx_delivery_orders_status ON delivery_orders(status);
 CREATE INDEX IF NOT EXISTS idx_delivery_orders_supervisor ON delivery_orders(supervisor_id);
+-- [NEW] Composite Index to fix Full Table Scans during courier auto-assignment
+CREATE INDEX IF NOT EXISTS idx_delivery_orders_active ON delivery_orders(courier_id) WHERE is_deleted = false AND status IN ('pending', 'assigned', 'ready_for_pickup', 'picked_up', 'in_transit');
 
 -- Order History indexes
 CREATE INDEX IF NOT EXISTS idx_order_history_order_id ON order_history(order_id);
@@ -425,6 +456,13 @@ CREATE INDEX IF NOT EXISTS idx_halan_courier_locations_recorded ON halan_courier
 
 -- Halan Order History indexes
 CREATE INDEX IF NOT EXISTS idx_halan_order_history_order ON halan_order_history(order_id);
+
+-- Audit Action indexes
+CREATE INDEX IF NOT EXISTS idx_audit_actions_created ON audit_actions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_actions_admin ON audit_actions(admin_id);
+
+-- Provider composite indexes for fast listings
+CREATE INDEX IF NOT EXISTS idx_providers_list_active ON providers(rating DESC, is_approved) WHERE is_approved = TRUE;
 
 -- ==========================================
 -- TRIGGERS AND FUNCTIONS

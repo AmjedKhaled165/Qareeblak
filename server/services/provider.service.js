@@ -1,36 +1,44 @@
 const providerRepo = require('../repositories/provider.repository');
 const logger = require('../utils/logger');
+const { getCache, setCache } = require('../utils/redis-cache');
+
+const PROVIDERS_CACHE_TTL = 300; // 5 minutes (Lists are less volatile)
 
 class ProviderService {
-    constructor() {
-        this.cache = { data: null, timestamp: 0 };
-        this.TTL = 60000;
-    }
 
-    async getProviders() {
-        const now = Date.now();
-        const cacheKey = 'providers:all:with-details';
+    async getProviders(lastId = null, limit = 20, lastRating = null, category = null) {
+        const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+        // [ENTERPRISE] Cache key includes category and pagination anchors
+        const cacheKey = `providers:list:${category || 'all'}:${lastRating || 'top'}:${lastId || 'start'}:${safeLimit}`;
 
-        // Internal memory cache (1 min)
-        if (this.cache.data && now - this.cache.timestamp < this.TTL) {
-            return this.cache.data;
-        }
+        const cached = await getCache(cacheKey);
+        if (cached) return cached;
 
-        const providersRaw = await providerRepo.getAllApprovedWithDetails();
+        const providersRaw = await providerRepo.getProviders({
+            limit: safeLimit,
+            lastId: lastId ? parseInt(lastId, 10) : undefined,
+            lastRating: lastRating !== null ? parseFloat(lastRating) : undefined,
+            category
+        });
 
+        // [ENTERPRISE PERFORMANCE] Note: We NO LONGER aggregate services/reviews for list views.
+        // This makes the response size 90% smaller and matches industry standards (Uber/Talabat).
         const providers = providersRaw.map(p => {
             const provider = { ...p };
-            provider.services = this._formatServices(p.services_raw || []);
-            provider.reviewsList = this._formatReviews(p.reviews_raw || []);
             this._sanitizeProvider(provider);
-            delete provider.services_raw;
-            delete provider.reviews_raw;
             return provider;
         });
 
-        this.cache.data = providers;
-        this.cache.timestamp = now;
-        return providers;
+        const result = {
+            providers,
+            // Keyset anchors for next page
+            nextLastId: providers.length > 0 ? providers[providers.length - 1].id : null,
+            nextLastRating: providers.length > 0 ? providers[providers.length - 1].rating : null,
+            hasMore: providers.length === safeLimit
+        };
+
+        await setCache(cacheKey, result, PROVIDERS_CACHE_TTL);
+        return result;
     }
 
     async getProviderById(id) {

@@ -62,13 +62,13 @@ export function Footer() {
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">قانوني</h3>
                     <ul className="space-y-2 text-sm">
-                        <li><Link href="#" className="hover:text-primary">سياسة الخصوصية</Link></li>
-                        <li><Link href="#" className="hover:text-primary">شروط الاستخدام</Link></li>
+                        <li><Link href="/privacy" className="hover:text-primary">سياسة الخصوصية</Link></li>
+                        <li><Link href="/terms" className="hover:text-primary">شروط الاستخدام</Link></li>
                     </ul>
                     <div className="flex gap-4 pt-4">
-                        <a href="#" aria-label="فيسبوك" className="hover:text-primary transition-colors"><Facebook className="h-5 w-5" /></a>
-                        <a href="#" aria-label="تويتر" className="hover:text-primary transition-colors"><Twitter className="h-5 w-5" /></a>
-                        <a href="#" aria-label="إنستغرام" className="hover:text-primary transition-colors"><Instagram className="h-5 w-5" /></a>
+                        <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="فيسبوك" className="hover:text-primary transition-colors"><Facebook className="h-5 w-5" /></a>
+                        <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="تويتر" className="hover:text-primary transition-colors"><Twitter className="h-5 w-5" /></a>
+                        <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="إنستغرام" className="hover:text-primary transition-colors"><Instagram className="h-5 w-5" /></a>
                     </div>
                 </div>
             </div>

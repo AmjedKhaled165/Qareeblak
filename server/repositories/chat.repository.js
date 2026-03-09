@@ -40,8 +40,25 @@ class ChatRepository {
         );
     }
 
-    async getProviderConsultations(providerId, status, limit, offset) {
-        let query = `
+    async getProviderConsultations(providerId, status, limit, lastId) {
+        // Cursor-based pagination: مفيش OFFSET — بيستخدم index على updated_at
+        const conditions = ['c.provider_id = $1'];
+        const params = [providerId];
+        let paramIdx = 2;
+
+        if (status) {
+            conditions.push(`c.status = $${paramIdx++}`);
+            params.push(status);
+        }
+        if (lastId) {
+            conditions.push(`c.updated_at < (SELECT updated_at FROM consultations WHERE id = $${paramIdx++})`);
+            params.push(lastId);
+        }
+
+        params.push(Math.min(limit, 50), ...[]);
+        const limitParam = `$${paramIdx}`;
+
+        const query = `
             SELECT 
                 c.id, c.customer_id, c.provider_id, c.status, c.updated_at,
                 u.name as customer_name,
@@ -60,31 +77,53 @@ class ChatRepository {
                 WHERE consultation_id = c.id 
                 ORDER BY created_at DESC LIMIT 1
             ) cm_last ON true
-            WHERE c.provider_id = $1 ${status ? 'AND c.status = $2' : ''}
+            WHERE ${conditions.join(' AND ')}
             GROUP BY c.id, u.id, cm_last.message, cm_last.created_at
             ORDER BY c.updated_at DESC
-            LIMIT $${status ? 3 : 2} OFFSET $${status ? 4 : 3}
+            LIMIT ${limitParam}
         `;
 
-        const params = status ? [providerId, status, limit, offset] : [providerId, limit, offset];
+        params.push(Math.min(limit, 50));
         const result = await pool.query(query, params);
         return result.rows;
     }
 
-    async getMessages(consultationId, limit, offset) {
-        const result = await pool.query(`
-            SELECT 
-                cm.id, cm.consultation_id, cm.sender_id, cm.sender_type,
-                cm.message, cm.message_type, cm.image_url, cm.is_read, cm.created_at,
-                COALESCE(u.name, 'مستخدم') as sender_name
-            FROM chat_messages cm
-            LEFT JOIN users u ON cm.sender_id = u.id
-            WHERE cm.consultation_id = $1
-            ORDER BY cm.created_at DESC
-            LIMIT $2 OFFSET $3
-        `, [consultationId, limit, offset]);
+    async getMessages(consultationId, limit, lastId) {
+        // Cursor-based pagination: بدلاً من OFFSET، بنستخدم WHERE id < lastId
+        // هذا يضمن O(log N) بدلاً من O(N) عند وجود آلاف الرسائل
+        let query;
+        let params;
 
-        // Reverse to return ascending chronological order for UI
+        if (lastId) {
+            query = `
+                SELECT 
+                    cm.id, cm.consultation_id, cm.sender_id, cm.sender_type,
+                    cm.message, cm.message_type, cm.image_url, cm.is_read, cm.created_at,
+                    COALESCE(u.name, 'مستخدم') as sender_name
+                FROM chat_messages cm
+                LEFT JOIN users u ON cm.sender_id = u.id
+                WHERE cm.consultation_id = $1 AND cm.id < $2
+                ORDER BY cm.id DESC
+                LIMIT $3
+            `;
+            params = [consultationId, lastId, Math.min(limit, 100)];
+        } else {
+            query = `
+                SELECT 
+                    cm.id, cm.consultation_id, cm.sender_id, cm.sender_type,
+                    cm.message, cm.message_type, cm.image_url, cm.is_read, cm.created_at,
+                    COALESCE(u.name, 'مستخدم') as sender_name
+                FROM chat_messages cm
+                LEFT JOIN users u ON cm.sender_id = u.id
+                WHERE cm.consultation_id = $1
+                ORDER BY cm.id DESC
+                LIMIT $2
+            `;
+            params = [consultationId, Math.min(limit, 100)];
+        }
+
+        const result = await pool.query(query, params);
+        // Reverse: نرجعهم تصاعدياً للـ UI (newest last)
         return result.rows.reverse();
     }
 

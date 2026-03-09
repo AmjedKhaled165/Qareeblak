@@ -17,21 +17,25 @@ class FCMService {
     }
 
     async sendPushToUser(userId, payload) {
-        try {
-            logger.info(`[FCM] Attempting to send push to User ${userId}: ${payload.notification.title}`);
+        const breakerManager = require('../utils/circuit-breaker');
 
+        const pushAction = async () => {
             if (!this.initialized) {
                 logger.warn('[FCM] Firebase not initialized. Logging notification instead.');
                 return { success: true, messageId: 'mock-id-' + Date.now() };
             }
-
-            // Real implementation:
-            // 1. Get user tokens from DB
-            // 2. admin.messaging().sendToDevice(tokens, payload)
-
+            // Logic for real Firebase Admin SDK would go here
+            // return admin.messaging().send(message);
             return { success: true };
+        };
+
+        const breaker = breakerManager.getBreaker('FCM_PUSH', pushAction);
+
+        try {
+            logger.info(`[FCM] Sending push to User ${userId}`);
+            return await breaker.fire();
         } catch (error) {
-            Monitoring.captureException(error, { userId, payload });
+            logger.error(`[FCM] Push Failure: ${error.message}`);
             return { success: false, error: error.message };
         }
     }

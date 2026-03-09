@@ -87,3 +87,25 @@ body {
 .dark .glass {
   @apply bg-black/70 border-white/10;
 }
+
+/* Custom Animations */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+}
+
+dotlottie-player {
+  pointer-events: none;
+}

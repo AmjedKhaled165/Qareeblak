@@ -141,26 +141,6 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
         throw new Error(data?.error || data?.message || `حدث خطأ في الطلب (${response.status})`);
     }
 
-    // 🌐 Log successful order requests to verify 'source' field is included
-    if (endpoint.includes('/orders') && data.data) {
-        if (Array.isArray(data.data)) {
-            console.log('📋 Orders fetched - Source field check:', {
-                count: data.data.length,
-                sources: data.data.map((o: any) => ({
-                    id: o.id,
-                    source: o.source,
-                    customer: o.customer_name
-                }))
-            });
-        } else if (data.data.id) {
-            console.log('📦 Order fetched:', {
-                id: data.data.id,
-                source: data.data.source,
-                customer: data.data.customer_name
-            });
-        }
-    }
-
     return data;
 }
 
@@ -182,6 +162,17 @@ export const authApi = {
         const result = await apiCall('/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password })
+        });
+        if (result.token) {
+            localStorage.setItem('qareeblak_token', result.token);
+            localStorage.removeItem('halan_token');
+        }
+        return result;
+    },
+
+    async guestLogin() {
+        const result = await apiCall('/auth/guest-login', {
+            method: 'POST'
         });
         if (result.token) {
             localStorage.setItem('qareeblak_token', result.token);

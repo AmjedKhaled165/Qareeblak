@@ -30,10 +30,11 @@ class ChatService {
         return { consultationId: newId, isExisting: false };
     }
 
-    async getMessages(consultationId, userId, limit = 50, offset = 0) {
+    async getMessages(consultationId, userId, limit = 50, lastId = null) {
         const consultation = await this._verifyOwnership(consultationId, userId);
-        const messages = await chatRepo.getMessages(consultationId, limit, offset);
-        return { messages, consultation };
+        const messages = await chatRepo.getMessages(consultationId, limit, lastId);
+        const nextLastId = messages.length > 0 ? messages[0].id : null; // lowest id in the current batch
+        return { messages, consultation, nextLastId, hasMore: messages.length === limit };
     }
 
     async sendMessage(consultationId, userId, { senderType, message, imageUrl }) {
@@ -101,35 +102,34 @@ class ChatService {
             throw new AppError('فقط العميل يمكنه قبول عرض السعر', 403);
         }
 
-        const quoteMsg = await chatRepo.getMessageById(messageId, consultationId, 'order_quote');
-        if (!quoteMsg) throw new AppError('العرض غير موجود', 404);
-
-        let quoteData;
-        try {
-            quoteData = JSON.parse(quoteMsg.message);
-        } catch (e) {
-            throw new AppError('بيانات العرض غير صالحة', 400);
-        }
-
-        if (quoteData.status === 'accepted') {
-            throw new AppError('تم قبول هذا العرض مسبقاً', 400);
-        }
-
-        const customerInfo = await chatRepo.getUserInfo(userId) || {};
-        const providerInfo = await chatRepo.getProviderInfo(consult.provider_id) || {};
-
-        const totalPrice = quoteData.items.reduce((sum, item) => sum + Number(item.price), 0);
-        const orderItems = quoteData.items.map(item => ({ name: item.name, quantity: 1, price: item.price }));
-
-        const detailParts = [
-            `الطلبات: ${orderItems.map(i => `${i.name} x${i.quantity}`).join(' | ')}`,
-            `الإجمالي: ${totalPrice} ج.م`,
-            addressArea ? `العنوان: ${addressArea} ${addressDetails ? '- ' + addressDetails : ''}` : '',
-            `الهاتف: ${phone || customerInfo.phone || 'غير محدد'}`
-        ].filter(Boolean);
-
         const client = await chatRepo.beginTransaction();
         try {
+            // [ENTERPRISE HARDENING] Atomic lock: Lock the message row to prevent parallel acceptance race conditions
+            const lockRes = await client.query(
+                'SELECT message FROM chat_messages WHERE id = $1 AND consultation_id = $2 FOR UPDATE',
+                [messageId, consultationId]
+            );
+
+            if (lockRes.rows.length === 0) throw new AppError('العرض غير موجود', 404);
+
+            const quoteData = JSON.parse(lockRes.rows[0].message);
+            if (quoteData.status === 'accepted') {
+                throw new AppError('تم قبول هذا العرض مسبقاً', 400);
+            }
+
+            const customerInfo = await chatRepo.getUserInfo(userId) || {};
+            const providerInfo = await chatRepo.getProviderInfo(consult.provider_id) || {};
+
+            const totalPrice = quoteData.items.reduce((sum, item) => sum + Number(item.price), 0);
+            const orderItems = quoteData.items.map(item => ({ name: item.name, quantity: 1, price: item.price }));
+
+            const detailParts = [
+                `الطلبات: ${orderItems.map(i => `${i.name} x${i.quantity}`).join(' | ')}`,
+                `الإجمالي: ${totalPrice} ج.م`,
+                addressArea ? `العنوان: ${addressArea} ${addressDetails ? '- ' + addressDetails : ''}` : '',
+                `الهاتف: ${phone || customerInfo.phone || 'غير محدد'}`
+            ].filter(Boolean);
+
             const booking = await chatRepo.createBooking({
                 customerId: userId,
                 providerId: consult.provider_id,
@@ -156,10 +156,12 @@ class ChatService {
 
             await chatRepo.commitTransaction(client);
             return { booking, sysMsg };
+
         } catch (error) {
             await chatRepo.rollbackTransaction(client);
             logger.error('[ChatService] acceptQuote transaction failed:', error);
-            throw error;
+            if (error instanceof AppError) throw error;
+            throw new AppError('فشل قبول عرض السعر، يرجى المحاولة مرة أخرى', 500);
         }
     }
 }

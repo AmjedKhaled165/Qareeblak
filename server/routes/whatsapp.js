@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const logger = require('../utils/logger');
+const crypto = require('crypto');
 
 // ============ CONFIGURATION ============
 // Update these values with your Evolution API settings
@@ -12,6 +13,27 @@ const logger = require('../utils/logger');
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'whatsappbot';
+const EVOLUTION_WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
+
+// CRIT-03: SSRF Prevention — Validate Evolution API URL at startup
+if (EVOLUTION_API_URL) {
+    try {
+        const parsed = new URL(EVOLUTION_API_URL);
+        const BLOCKED_HOSTS = ['169.254.169.254', '::1', 'localhost', '127.0.0.1', '0.0.0.0', '10.', '172.16.', '192.168.'];
+        const isBlocked = BLOCKED_HOSTS.some(b => parsed.hostname === b || parsed.hostname.startsWith(b));
+        if (isBlocked && process.env.NODE_ENV === 'production') {
+            logger.error(`FATAL: EVOLUTION_API_URL points to blocked internal host: ${parsed.hostname}`);
+            process.exit(1);
+        }
+        if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+            logger.error('FATAL: EVOLUTION_API_URL must use HTTPS in production');
+            process.exit(1);
+        }
+    } catch (e) {
+        logger.error(`FATAL: Invalid EVOLUTION_API_URL: ${e.message}`);
+        process.exit(1);
+    }
+}
 
 if (!EVOLUTION_API_KEY && process.env.NODE_ENV === 'production') {
     logger.error('âš ï¸ CRITICAL: EVOLUTION_API_KEY is missing in production!');
@@ -195,7 +217,38 @@ async function sendOrderInvoice(orderId) {
 // ============ WEBHOOK ENDPOINT ============
 // This is the URL you'll put in Evolution API webhook settings
 
+// CRIT-01: Webhook HMAC Signature Verification
+// Evolution API must be configured to sign webhooks with EVOLUTION_WEBHOOK_SECRET
+function verifyEvolutionWebhook(req) {
+    if (!EVOLUTION_WEBHOOK_SECRET) {
+        // In dev mode without secret, allow through but warn
+        if (process.env.NODE_ENV === 'production') {
+            logger.error('FATAL: EVOLUTION_WEBHOOK_SECRET not set in production. Rejecting all webhooks.');
+            return false;
+        }
+        logger.warn('[Webhook] No EVOLUTION_WEBHOOK_SECRET set — skipping signature check (dev only)');
+        return true;
+    }
+    const signature = req.headers['x-evolution-hmac-sha256'] || req.headers['x-hub-signature-256'];
+    if (!signature) return false;
+    const rawBody = JSON.stringify(req.body);
+    const computed = 'sha256=' + crypto.createHmac('sha256', EVOLUTION_WEBHOOK_SECRET)
+        .update(rawBody)
+        .digest('hex');
+    try {
+        return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(computed));
+    } catch {
+        return false;
+    }
+}
+
 router.post('/webhook', async (req, res) => {
+    // CRIT-01: Always validate webhook origin before processing
+    if (!verifyEvolutionWebhook(req)) {
+        logger.warn(`[Webhook] Rejected forged webhook from IP: ${req.ip}`);
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
     try {
         const event = req.body;
 

@@ -4,8 +4,9 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.getAll = catchAsync(async (req, res) => {
-    const providers = await providerService.getProviders();
-    res.json(providers);
+    const { lastId, limit = 20 } = req.query;
+    const result = await providerService.getProviders(lastId || null, limit);
+    res.json(result);
 });
 
 exports.search = catchAsync(async (req, res) => {

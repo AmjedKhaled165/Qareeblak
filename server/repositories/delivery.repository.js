@@ -17,15 +17,10 @@ class DeliveryRepository {
         client.release();
     }
 
-    async getOrders({ role, userId, status, courierId, supervisorId, search, source, limit, offset }) {
-        let query = `
-            SELECT o.*, 
-                   c.name as courier_name,
-                   s.name as supervisor_name
-            FROM delivery_orders o
-            LEFT JOIN users c ON o.courier_id = c.id
-            LEFT JOIN users s ON o.supervisor_id = s.id
-        `;
+    /**
+     * @param {{role: string, userId: number, status: string, courierId: number, supervisorId: number, search: string, source: string, limit: number, lastId: number}} options
+     */
+    async getOrders({ role, userId, status, courierId, supervisorId, search, source, limit = 20, lastId }) {
         const params = [];
         const conditions = [];
 
@@ -40,9 +35,14 @@ class DeliveryRepository {
                 params.push(userId);
                 conditions.push(`o.supervisor_id = $${params.length}`);
             } else {
-                // Return nothing for unauthorized or guest roles
                 conditions.push('1=0');
             }
+        }
+
+        // Keyset Pagination: O(log N)
+        if (lastId) {
+            params.push(lastId);
+            conditions.push(`o.id < $${params.length}`);
         }
 
         if (status === 'deleted') {
@@ -86,18 +86,29 @@ class DeliveryRepository {
             )`);
         }
 
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
-        }
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
-        const countQuery = `SELECT COUNT(*) FROM delivery_orders o ${conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''}`;
-        const totalResult = await pool.query(countQuery, params);
-
-        query += ` ORDER BY o.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(limit, offset);
+        params.push(Math.min(limit, 50));
+        const query = `
+            SELECT o.*, 
+                   c.name as courier_name,
+                   s.name as supervisor_name
+            FROM delivery_orders o
+            LEFT JOIN users c ON o.courier_id = c.id
+            LEFT JOIN users s ON o.supervisor_id = s.id
+            ${whereClause}
+            ORDER BY o.id DESC
+            LIMIT $${params.length}
+        `;
 
         const result = await pool.query(query, params);
-        return { records: result.rows, total: parseInt(totalResult.rows[0].count) };
+        const rows = result.rows;
+
+        return {
+            records: rows,
+            nextLastId: rows.length > 0 ? rows[rows.length - 1].id : null,
+            hasMore: rows.length === limit
+        };
     }
 
     async getOrderById(id) {
@@ -115,48 +126,26 @@ class DeliveryRepository {
         return result.rows[0];
     }
 
-    async getOrderByIdSecure(id, { userId, role }) {
-        let query = `
-            SELECT o.*, 
-                   c.name as courier_name,
-                   c.phone as courier_phone,
-                   s.name as supervisor_name
-            FROM delivery_orders o
-            LEFT JOIN users c ON o.courier_id = c.id
-            LEFT JOIN users s ON o.supervisor_id = s.id
-            WHERE o.id = $1
-        `;
-        const params = [id];
+    async updateOrderAtomic(id, expectedStatus, updates, client = pool) {
+        // [ENTERPRISE] Atomic Compare-and-Swap
+        const fields = Object.keys(updates);
+        const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+        const params = [...Object.values(updates), id];
 
-        // Security: Mandatory filtering for non-admins
-        const isAdmin = role === 'admin' || role === 'owner';
-
-        if (!isAdmin) {
-            if (role === 'courier' || role === 'partner_courier') {
-                params.push(userId);
-                query += ` AND o.courier_id = $${params.length}`;
-            } else if (role === 'supervisor' || role === 'partner_supervisor' || role === 'partner_owner') {
-                params.push(userId);
-                query += ` AND o.supervisor_id = $${params.length}`;
-            } else {
-                // Deny access for unauthorized roles
-                query += ` AND 1=0`;
-            }
+        // If expectedStatus is provided, enforce it in the WHERE clause
+        let query = `UPDATE delivery_orders SET ${setClause}, updated_at = NOW() WHERE id = $${params.length}`;
+        if (expectedStatus) {
+            params.push(expectedStatus);
+            query += ` AND status = $${params.length}`;
         }
-        // System Admins/Owners get full access without extra AND clauses
 
-        const result = await pool.query(query, params);
+        query += ` RETURNING *`;
+
+        const result = await client.query(query, params);
+        if (result.rowCount === 0) {
+            throw new Error('ORDER_STATUS_MISMATCH_OR_NOT_FOUND');
+        }
         return result.rows[0];
-    }
-
-    async getLinkedBookings(orderId) {
-        const query = `
-            SELECT id, provider_id, provider_name, status, items, price, parent_order_id
-            FROM bookings b
-            WHERE b.halan_order_id = $1
-        `;
-        const result = await pool.query(query, [orderId]);
-        return result.rows;
     }
 
     async createDeliveryOrder(data, client = pool) {
@@ -178,32 +167,6 @@ class DeliveryRepository {
         return result.rows[0];
     }
 
-    async createParentOrder(data, client = pool) {
-        const query = `
-            INSERT INTO parent_orders (user_id, total_price, status, details, address_info)
-            VALUES ($1, $2, 'pending', $3, $4)
-            RETURNING id
-        `;
-        const result = await client.query(query, [data.userId, data.totalPrice, data.details, data.addressInfo]);
-        return result.rows[0].id;
-    }
-
-    async createSubBooking(data, client = pool) {
-        const query = `
-            INSERT INTO bookings 
-            (user_id, provider_id, service_id, user_name, service_name, provider_name, 
-             price, details, items, status, parent_order_id, halan_order_id)
-            VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, 'pending', $9, $10)
-            RETURNING id
-        `;
-        const params = [
-            data.userId, data.providerId, data.userName, data.serviceName, data.providerName,
-            data.price, data.details, JSON.stringify(data.items), data.parentId, data.deliveryOrderId
-        ];
-        const result = await client.query(query, params);
-        return result.rows[0].id;
-    }
-
     async updateOrder(id, data) {
         const fields = Object.keys(data);
         const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
@@ -215,21 +178,12 @@ class DeliveryRepository {
         return result.rows[0];
     }
 
-    async addHistory(orderId, status, userId, notes, latitude = null, longitude = null) {
+    async addHistory(orderId, status, userId, notes, latitude = null, longitude = null, client = pool) {
         const query = `
             INSERT INTO order_history (order_id, status, changed_by, notes, latitude, longitude)
             VALUES ($1, $2, $3, $4, $5, $6)
         `;
-        await pool.query(query, [orderId, status, userId, notes, latitude, longitude]);
-    }
-
-    async softDelete(id) {
-        await pool.query('UPDATE delivery_orders SET is_deleted = true, updated_at = NOW() WHERE id = $1', [id]);
-    }
-
-    async getUserInfo(id) {
-        const result = await pool.query('SELECT name, phone, user_type FROM users WHERE id = $1', [id]);
-        return result.rows[0];
+        await client.query(query, [orderId, status, userId, notes, latitude, longitude]);
     }
 }
 

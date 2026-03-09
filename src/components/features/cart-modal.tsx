@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/components/providers/AppProvider";
+import { useCartStore } from "@/components/providers/CartProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { X, ShoppingCart, Trash2, Plus, Minus, Loader2, ArrowLeft, Package, MapPin, Phone, CheckCircle2, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,10 +18,12 @@ interface CartModalProps {
 }
 
 export function CartModal({ isOpen, onClose }: CartModalProps) {
-    const { globalCart, removeFromGlobalCart, updateGlobalCartQuantity, checkoutGlobalCart, isLoading, currentUser } = useAppStore();
+    const { currentUser, isLoading } = useAppStore();
+    const { globalCart, removeFromGlobalCart, updateGlobalCartQuantity, checkoutGlobalCart } = useCartStore();
     const { toast } = useToast();
     const router = useRouter();
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
     const [step, setStep] = useState(1); // 1: review, 2: address
     const [prizes, setPrizes] = useState<any[]>([]);
     const [selectedPrize, setSelectedPrize] = useState<any>(null);
@@ -97,18 +100,27 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
         }
 
         setIsCheckingOut(true);
-        const result = await checkoutGlobalCart(addressForm, selectedPrize?.user_prize_id);
+        const result = await checkoutGlobalCart(currentUser.id || '999', addressForm, selectedPrize?.user_prize_id);
         setIsCheckingOut(false);
 
         if (result) {
-            toast("تم إرسال طلباتك بنجاح لمقدمي الخدمة!", "success");
-            onClose();
+            setIsSuccess(true);
+            const confetti = (await import('canvas-confetti')).default;
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#6366F1', '#8B5CF6', '#FED330']
+            });
 
-            if (Array.isArray(result) && result.length === 1) {
-                router.push(`/track/${result[0]}`);
-            } else {
-                router.push("/track");
-            }
+            setTimeout(() => {
+                handleClose();
+                if (Array.isArray(result) && result.length === 1) {
+                    router.push(`/track/${result[0]}`);
+                } else {
+                    router.push("/track");
+                }
+            }, 3000);
         } else {
             toast("حدث خطأ أثناء إتمام الطلب، يرجى المحاولة مرة أخرى", "error");
         }
@@ -117,6 +129,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     const handleClose = () => {
         setStep(1);
         setSelectedPrize(null);
+        setIsSuccess(false);
         onClose();
     };
 
@@ -370,6 +383,31 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                             )}
                         </div>
 
+                        {/* Success View Overlay */}
+                        <AnimatePresence>
+                            {isSuccess && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="absolute inset-0 z-[100] bg-white dark:bg-slate-900 flex flex-col items-center justify-center p-8 text-center"
+                                >
+                                    <div className="w-64 h-64 mb-6">
+                                        <dotlottie-player
+                                            src="https://lottie.host/8e202970-d86b-4e8c-8b8a-8533fc321cfd/F6N8HnUP5W.json"
+                                            background="transparent"
+                                            speed="1"
+                                            style={{ width: '100%', height: '100%' }}
+                                            direction="1"
+                                            play
+                                            autoplay
+                                        ></dotlottie-player>
+                                    </div>
+                                    <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-4">مبروك! تم طلبك بنجاح 🎉</h2>
+                                    <p className="text-slate-500 text-lg">جاري تحويلك لصفحة التتبع الآن...</p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {/* Footer */}
                         {globalCart.length > 0 && (
                             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-black/20 shrink-0">
@@ -385,7 +423,30 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                                 )}
                                 <div className="flex justify-between items-center mb-6">
                                     <span className="text-slate-500 font-medium">الإجمالي النهائي</span>
-                                    <span className="text-2xl font-black text-primary">{finalAmountAfterDiscount.toFixed(2)} ج.م</span>
+                                    <div className="flex flex-col items-end">
+                                        <AnimatePresence mode="wait">
+                                            {displayDiscount > 0 && (
+                                                <motion.span
+                                                    key="old-price"
+                                                    initial={{ opacity: 1, y: 0 }}
+                                                    animate={{ opacity: 0.5, y: -10 }}
+                                                    exit={{ opacity: 0, y: -20 }}
+                                                    className="text-sm text-slate-400 line-through font-bold"
+                                                >
+                                                    {totalAmount.toFixed(2)} ج.م
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                        <motion.span
+                                            key={finalAmountAfterDiscount}
+                                            initial={{ scale: 0.8, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                            className={`text-2xl font-black ${displayDiscount > 0 ? 'text-green-500' : 'text-primary'}`}
+                                        >
+                                            {finalAmountAfterDiscount.toFixed(2)} ج.م
+                                        </motion.span>
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3">
