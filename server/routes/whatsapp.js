@@ -19,13 +19,15 @@ const EVOLUTION_WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
 if (EVOLUTION_API_URL) {
     try {
         const parsed = new URL(EVOLUTION_API_URL);
-        const BLOCKED_HOSTS = ['169.254.169.254', '::1', 'localhost', '127.0.0.1', '0.0.0.0', '10.', '172.16.', '192.168.'];
+        const BLOCKED_HOSTS = ['169.254.169.254', '::1', 'localhost', '127.0.0.1', '0.0.0.0'];
         const isBlocked = BLOCKED_HOSTS.some(b => parsed.hostname === b || parsed.hostname.startsWith(b));
         if (isBlocked && process.env.NODE_ENV === 'production') {
             logger.error(`FATAL: EVOLUTION_API_URL points to blocked internal host: ${parsed.hostname}`);
             process.exit(1);
         }
-        if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+        // Allow HTTP for internal Docker container names (no dots = container hostname, not public URL)
+        const isInternalDockerHost = !parsed.hostname.includes('.');
+        if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:' && !isInternalDockerHost) {
             logger.error('FATAL: EVOLUTION_API_URL must use HTTPS in production');
             process.exit(1);
         }
