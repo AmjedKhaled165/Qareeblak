@@ -31,8 +31,12 @@ const totalCpus = os.cpus().length || 4;
 const MAX_POSTGRES_CONNECTIONS = process.env.DB_MAX_CONNECTIONS || 90;
 const poolMaxPerInstance = isProduction ? Math.floor(MAX_POSTGRES_CONNECTIONS / totalCpus) : 20;
 
+// Strip sslmode from connection string to avoid conflict with pool ssl config
+// In pg v9+, sslmode=require is treated as verify-full which ignores rejectUnauthorized
+const cleanDatabaseUrl = databaseUrl.replace(/[?&]sslmode=[^&]*/g, '').replace(/[?&]uselibpqcompat=[^&]*/g, '');
+
 const pool = new Pool({
-    connectionString: databaseUrl,
+    connectionString: cleanDatabaseUrl,
     max: Math.max(poolMaxPerInstance, 5), // Ensure at least 5 connections per instance even on huge machines
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
