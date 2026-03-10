@@ -40,6 +40,7 @@ const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10, // 10 attempts per IP
     keyGenerator: (req) => `rl_auth_${req.ip}`,
+    validate: { keyGeneratorIpFallback: false },
     message: { error: '❌ تم حظر هاتفك لكثرة محاولات الدخول الفاشلة. انتظر 15 دقيقة.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -52,6 +53,7 @@ const checkoutLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 2, // Max 2 checkouts per minute (Very strict)
     keyGenerator: (req) => `rl_checkout_${req.user?.id || req.ip}`,
+    validate: { keyGeneratorIpFallback: false },
     message: { error: '🔔 أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -63,6 +65,7 @@ const chatLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 15,
     keyGenerator: (req) => `rl_chat_${req.user?.id || req.ip}`,
+    validate: { keyGeneratorIpFallback: false },
     message: { error: '💬 أنت ترسل رسائل بسرعة كبيرة جداً.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -75,6 +78,7 @@ const orderLimiter = rateLimit({
     windowMs: 1 * 60 * 1000,
     max: 5, // Allow slightly more for order creation
     keyGenerator: (req) => `rl_order_${req.user?.id || req.ip}`,
+    validate: { keyGeneratorIpFallback: false },
     message: { error: '⚠️ أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
     standardHeaders: true,
     legacyHeaders: false,
