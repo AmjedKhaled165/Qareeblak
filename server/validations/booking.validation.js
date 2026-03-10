@@ -13,7 +13,9 @@ const checkoutSchema = z.object({
         details: z.string().max(500).optional(),
         phone: z.string().min(10, 'رقم الهاتف يجب أن يكون 10 أرقام على الأقل').max(20)
     }).optional(),
-    userPrizeId: z.number().int().positive().optional()
+    userPrizeId: z.number().int().positive().optional(),
+    promoCode: z.string().max(50).optional(),
+    useWallet: z.boolean().optional().default(false)
 });
 
 const createBookingSchema = z.object({

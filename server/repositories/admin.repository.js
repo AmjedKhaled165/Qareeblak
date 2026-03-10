@@ -10,14 +10,83 @@ class AdminRepository {
                 (SELECT SUM(price) FROM bookings WHERE status = 'completed') as total_revenue,
                 (SELECT COUNT(*) FROM complaints WHERE status = 'pending') as pending_complaints
         `);
+
+        // [BI] Orders Per Hour (Last 24h)
+        const hourlyOrders = await pool.query(`
+            SELECT 
+                TO_CHAR(created_at, 'YYYY-MM-DD HH24:00') as hour,
+                COUNT(*) as count
+            FROM bookings
+            WHERE created_at > NOW() - INTERVAL '24 hours'
+            GROUP BY hour
+            ORDER BY hour ASC
+        `);
+
+        // [BI] Top 5 Providers by Revenue (Last 30 Days)
+        const topProviders = await pool.query(`
+            SELECT 
+                p.id, p.name,
+                COUNT(b.id) as total_orders,
+                SUM(b.price) as total_revenue
+            FROM providers p
+            JOIN bookings b ON p.id = b.provider_id
+            WHERE b.status = 'completed' AND b.created_at > NOW() - INTERVAL '30 days'
+            GROUP BY p.id, p.name
+            ORDER BY total_revenue DESC
+            LIMIT 5
+        `);
+
+        // [BI] User Retention (Quick Cohort: Did users return?)
+        const retention = await pool.query(`
+            WITH first_orders AS (
+                SELECT user_id, MIN(created_at) as first_order_date
+                FROM bookings
+                GROUP BY user_id
+            ),
+            returning_users AS (
+                SELECT DISTINCT b.user_id
+                FROM bookings b
+                JOIN first_orders fo ON b.user_id = fo.user_id
+                WHERE b.created_at > fo.first_order_date
+            )
+            SELECT 
+                (SELECT COUNT(*) FROM first_orders) as total_customers,
+                (SELECT COUNT(*) FROM returning_users) as total_returning
+        `);
+
+        // [BI] Heatmap Data (Orders per Area)
+        const heatmap = await pool.query(`
+            SELECT 
+                SUBSTRING(details FROM 'Area: (.*)') as area,
+                COUNT(*) as weight
+            FROM bookings
+            WHERE details LIKE '%Area:%'
+            GROUP BY area
+            ORDER BY weight DESC
+            LIMIT 10
+        `);
+
         const statusResult = await pool.query(`SELECT status, COUNT(*) as count FROM bookings GROUP BY status`);
-        return { summary: stats.rows[0], bookingStats: statusResult.rows };
+
+        return {
+            summary: stats.rows[0],
+            bookingStats: statusResult.rows,
+            hourlyOrders: hourlyOrders.rows,
+            topProviders: topProviders.rows,
+            retention: retention.rows[0],
+            heatmap: heatmap.rows
+        };
     }
 
-    async getOrders({ status, type, search, sortCol, sortOrder, limit, offset }) {
+    async getOrders({ status, type, search, limit, lastId }) {
         const params = [];
         const conditions = [];
 
+        // Keyset Pagination: O(log N)
+        if (lastId) {
+            params.push(lastId);
+            conditions.push(`b.id < $${params.length}`);
+        }
         if (status) {
             params.push(status);
             conditions.push(`b.status = $${params.length}`);
@@ -34,72 +103,43 @@ class AdminRepository {
 
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
-        const countQ = await pool.query(`SELECT COUNT(*) FROM bookings b LEFT JOIN users cu ON b.user_id = cu.id ${whereClause}`, params);
-
-        const queryParams = [...params, limit, offset];
+        params.push(Math.min(limit, 100));
         const result = await pool.query(`
-            SELECT b.*,
-                cu.name as customer_name, cu.phone as customer_phone, cu.email as customer_email,
-                pu.name as provider_name, pu.phone as provider_phone,
-                cou.name as courier_name, cou.phone as courier_phone
+            SELECT b.id, b.status, b.price, b.created_at, b.order_type,
+                cu.name as customer_name, cu.phone as customer_phone,
+                pu.name as provider_name
             FROM bookings b
             LEFT JOIN users cu ON b.user_id = cu.id
-            LEFT JOIN users pu ON b.provider_id = pu.id
-            LEFT JOIN users cou ON b.courier_id = cou.id
+            LEFT JOIN providers pu ON b.provider_id = pu.id
             ${whereClause}
-            ORDER BY ${sortCol} ${sortOrder}
-            LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}
-        `, queryParams);
+            ORDER BY b.id DESC
+            LIMIT $${params.length}
+        `, params);
 
-        return { records: result.rows, total: parseInt(countQ.rows[0].count) };
+        const rows = result.rows;
+        return {
+            records: rows,
+            nextLastId: rows.length > 0 ? rows[rows.length - 1].id : null,
+            hasMore: rows.length === limit
+        };
     }
 
-    async getOrderWithDetails(id) {
-        const result = await pool.query(`
-            SELECT b.*,
-                cu.name as customer_name, cu.phone as customer_phone, cu.email as customer_email,
-                pu.name as provider_name, pu.phone as provider_phone,
-                cou.name as courier_name, cou.phone as courier_phone
-            FROM bookings b
-            LEFT JOIN users cu ON b.user_id = cu.id
-            LEFT JOIN users pu ON b.provider_id = pu.id
-            LEFT JOIN users cou ON b.courier_id = cou.id
-            WHERE b.id = $1
-        `, [id]);
-        return result.rows[0];
-    }
-
-    async getBookingItems(id) {
-        try {
-            const result = await pool.query('SELECT * FROM booking_items WHERE booking_id = $1', [id]);
-            return result.rows;
-        } catch (e) { return []; }
-    }
-
-    async updateBooking(id, data) {
-        const fields = Object.keys(data);
-        const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
-        const params = [...Object.values(data), id];
-        await pool.query(`UPDATE bookings SET ${setClause}, updated_at = NOW() WHERE id = $${params.length}`, params);
-    }
-
-    async replaceBookingItems(id, items) {
-        try {
-            await pool.query('DELETE FROM booking_items WHERE booking_id = $1', [id]);
-            for (const item of items) {
-                await pool.query(
-                    'INSERT INTO booking_items (booking_id, name, quantity, price) VALUES ($1, $2, $3, $4)',
-                    [id, item.name, item.quantity, item.price]
-                );
-            }
-        } catch (e) { /* Table fallback */ }
-    }
-
-    async getUsers({ type, search, banned, limit, offset }) {
+    async getUsers({ type, search, banned, limit, lastId }) {
         const params = [];
         const conditions = [];
-        if (type) { params.push(type); conditions.push(`u.user_type = $${params.length}`); }
-        if (banned === 'true') conditions.push('u.is_banned = true');
+
+        // [ENTERPRISE] Keyset pagination replacing inefficient OFFSET
+        if (lastId) {
+            params.push(lastId);
+            conditions.push(`u.id < $${params.length}`);
+        }
+        if (type) {
+            params.push(type);
+            conditions.push(`u.user_type = $${params.length}`);
+        }
+        if (banned === 'true') {
+            conditions.push('u.is_banned = true');
+        }
         if (search) {
             params.push(`%${search}%`);
             const idx = params.length;
@@ -107,51 +147,27 @@ class AdminRepository {
         }
 
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
-        const countQ = await pool.query(`SELECT COUNT(*) FROM users u ${whereClause}`, params);
 
-        const queryParams = [...params, limit, offset];
+        params.push(Math.min(limit, 100));
         const result = await pool.query(`
-            SELECT u.id, u.name, u.name_ar, u.email, u.phone, u.user_type, u.is_banned, u.is_online, u.created_at,
+            SELECT u.id, u.name, u.email, u.phone, u.user_type, u.is_banned, u.created_at,
                    (SELECT COUNT(*) FROM bookings WHERE user_id = u.id) as total_bookings
             FROM users u
             ${whereClause}
-            ORDER BY u.created_at DESC
-            LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}
-        `, queryParams);
+            ORDER BY u.id DESC
+            LIMIT $${params.length}
+        `, params);
 
-        return { records: result.rows, total: parseInt(countQ.rows[0].count) };
-    }
-
-    async getUserDetailed(id) {
-        const result = await pool.query(`
-            SELECT u.*, 
-                   (SELECT COUNT(*) FROM bookings WHERE user_id = u.id) as total_bookings
-            FROM users u WHERE u.id = $1
-        `, [id]);
-        return result.rows[0];
+        return {
+            records: result.rows,
+            nextLastId: result.rows.length > 0 ? result.rows[result.rows.length - 1].id : null,
+            hasMore: result.rows.length === limit
+        };
     }
 
     async banUser(id, isBanned) {
+        // [AUDIT] In production, this should be wrapped in an audit log call in the service layer
         await pool.query('UPDATE users SET is_banned = $1 WHERE id = $2', [isBanned, id]);
-    }
-
-    async updateUser(id, data) {
-        const fields = Object.keys(data);
-        const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
-        const params = [...Object.values(data), id];
-        await pool.query(`UPDATE users SET ${setClause} WHERE id = $${params.length}`, params);
-    }
-
-    async getAvailableCouriers() {
-        const result = await pool.query(`
-            SELECT u.id, u.name, u.phone, u.is_online,
-                   (SELECT COUNT(*) FROM bookings WHERE courier_id = u.id AND status IN ('accepted', 'delivering', 'picked_up')) as active_orders
-            FROM users u
-            WHERE u.user_type = 'partner_courier'
-              AND u.is_banned = false
-            ORDER BY u.is_online DESC, u.name ASC
-        `);
-        return result.rows;
     }
 
     async logAction(data) {
@@ -164,28 +180,109 @@ class AdminRepository {
         );
     }
 
-    async getAuditLogs({ action, userId, dateFrom, limit, offset }) {
+    async getAuditLogs({ action, userId, limit, lastId }) {
         const params = [];
         const conditions = [];
-        if (action) { params.push(action); conditions.push(`a.action = $${params.length}`); }
-        if (userId) { params.push(userId); conditions.push(`a.admin_id = $${params.length}`); }
-        if (dateFrom) { params.push(dateFrom); conditions.push(`a.created_at >= $${params.length}::date`); }
+
+        // [ENTERPRISE] Keyset pagination for audit logs
+        if (lastId) {
+            params.push(lastId);
+            conditions.push(`a.id < $${params.length}`);
+        }
+        if (action) {
+            params.push(action);
+            conditions.push(`a.action = $${params.length}`);
+        }
+        if (userId) {
+            params.push(userId);
+            conditions.push(`a.admin_id = $${params.length}`);
+        }
 
         const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
-        const countQ = await pool.query(`SELECT COUNT(*) FROM audit_actions a ${whereClause}`, params);
 
-        const queryParams = [...params, limit, offset];
+        params.push(Math.min(limit, 100));
         const result = await pool.query(`
             SELECT a.*, u.name as admin_name
             FROM audit_actions a
             LEFT JOIN users u ON a.admin_id = u.id
             ${whereClause}
-            ORDER BY a.created_at DESC
-            LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}
-        `, queryParams);
+            ORDER BY a.id DESC
+            LIMIT $${params.length}
+        `, params);
 
-        return { records: result.rows, total: parseInt(countQ.rows[0].count) };
+        return {
+            records: result.rows,
+            nextLastId: result.rows.length > 0 ? result.rows[result.rows.length - 1].id : null,
+            hasMore: result.rows.length === limit
+        };
+    }
+
+    async getProvidersPerformance({ limit = 50, lastId }) {
+        const params = [limit];
+        let where = '';
+        if (lastId) {
+            params.push(lastId);
+            where = 'WHERE p.id < $2';
+        }
+
+        const result = await pool.query(`
+            SELECT 
+                p.id, p.name, p.category, p.phone,
+                COUNT(b.id) as order_count,
+                COALESCE(SUM(b.price), 0) as total_revenue,
+                MAX(b.created_at) as last_order_at
+            FROM providers p
+            LEFT JOIN bookings b ON p.id = b.provider_id
+            ${where}
+            GROUP BY p.id, p.name, p.category, p.phone
+            ORDER BY p.id DESC
+            LIMIT $1
+        `, params);
+
+        return {
+            records: result.rows,
+            nextLastId: result.rows.length > 0 ? result.rows[result.rows.length - 1].id : null,
+            hasMore: result.rows.length === limit
+        };
+    }
+
+    async getProviderDetailedOrders(providerId, { limit = 50, lastId }) {
+        const params = [providerId, limit];
+        let where = 'WHERE b.provider_id = $1';
+
+        if (lastId) {
+            params.push(lastId);
+            where += ' AND b.id < $3';
+        }
+
+        const result = await pool.query(`
+            SELECT 
+                b.id, 
+                b.user_name as "customerName", 
+                u.phone as "customerPhone",
+                b.service_name as "orderTitle",
+                b.items, 
+                b.price, 
+                b.discount_amount,
+                b.status, 
+                b.booking_date as "date",
+                b.parent_order_id as "parentOrderId"
+            FROM bookings b
+            LEFT JOIN users u ON b.user_id = u.id
+            ${where}
+            ORDER BY b.id DESC
+            LIMIT $2
+        `, params);
+
+        return {
+            records: result.rows,
+            pagination: {
+                nextLastId: result.rows.length > 0 ? result.rows[result.rows.length - 1].id : null,
+                hasMore: result.rows.length === limit
+            }
+        };
     }
 }
 
 module.exports = new AdminRepository();
+

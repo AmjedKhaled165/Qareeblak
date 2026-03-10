@@ -8,170 +8,153 @@ const { performAutoAssign } = require('../utils/driver-assignment');
 const { client: redisClient } = require('../utils/redis');
 
 class BookingService {
-    async checkoutTransaction(userId, items, addressInfo, userPrizeId, idempotencyKey = null) {
-        let idempotencyLockAcquired = false;
+    async checkoutTransaction(userId, items, addressInfo, options = {}) {
+        const { userPrizeId, promoCode, useWallet, idempotencyKey } = options;
 
-        // 🛡️ True Atomic Enterprise Idempotency Check (Prevents parallel double requests from bypassing cache)
+        const lockValue = await redisClient.set(`lock:checkout:user:${userId}`, 'LOCKED', {
+            NX: true,
+            PX: 30000
+        });
+
+        if (!lockValue && !idempotencyKey) {
+            throw new AppError('Process in progress. Please wait.', 429);
+        }
+
+        let idempotencyLockAcquired = false;
         if (idempotencyKey && redisClient && redisClient.isOpen) {
             const redisKey = `idempotency:checkout:${idempotencyKey}`;
-
-            // Atomically set a PROCESSING lock if the key doesn't exist
-            const isNew = await redisClient.setNX(redisKey, 'PROCESSING');
-
+            const isNew = await redisClient.set(redisKey, 'PROCESSING', { NX: true, EX: 30 });
             if (!isNew) {
-                // It already exists. Determine if it's still processing or finished.
                 const existingVal = await redisClient.get(redisKey);
-                if (existingVal === 'PROCESSING') {
-                    throw new AppError('طلبك قيد المعالجة بالفعل. يرجى الانتظار لثوانٍ.', 429);
-                } else if (existingVal) {
-                    logger.info(`♻️ [Idempotency] Returned cached checkout for key: ${idempotencyKey}`);
-                    return JSON.parse(existingVal);
-                }
+                if (existingVal === 'PROCESSING') throw new AppError('Processing...', 429);
+                if (existingVal) return JSON.parse(existingVal);
             }
-
-            // Lock successfully acquired
             idempotencyLockAcquired = true;
-            await redisClient.expire(redisKey, 30); // Prevent deadlock in case of total crash (30s max processing time)
         }
 
         const client = await bookingRepo.beginTransaction();
+        const vault = require('../utils/vault');
+        const { WalletService, PromoService } = require('./loyalty.service');
+
         try {
             let totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             let totalDiscount = 0;
-            let validatedPrize = null;
+            let validatedPrizeId = null;
 
+            // 1. Handle Spinner Prize
             if (userPrizeId) {
                 const prize = await bookingRepo.getUnusedUserPrize(userPrizeId, userId, client);
-                if (!prize) {
-                    throw new AppError('عذراً، هذه الجائزة أو الخصم مستخدمة بالفعل أو غير متوفرة.', 400);
-                }
-
-                let isApplicable = true;
-                if (prize.provider_id) {
-                    const hasProviderItems = items.some(item => String(item.providerId) === String(prize.provider_id));
-                    if (!hasProviderItems) {
-                        isApplicable = false;
-                    }
-                }
-
-                if (!isApplicable) {
-                    throw new AppError('الخصم غير قابل للتطبيق على محتويات السلة الحالية.', 400);
-                }
-
-                validatedPrize = prize;
+                if (!prize) throw new AppError('Prize already used', 400);
+                validatedPrizeId = prize.id;
                 if (prize.prize_type === 'discount_percent') {
-                    const baseForDiscount = prize.provider_id
-                        ? items.filter(i => String(i.providerId) === String(prize.provider_id)).reduce((s, i) => s + (i.price * i.quantity), 0)
-                        : totalPrice;
-                    totalDiscount = baseForDiscount * (prize.prize_value / 100);
+                    totalDiscount += totalPrice * (prize.prize_value / 100);
                 } else if (prize.prize_type === 'discount_flat') {
-                    totalDiscount = Math.min(totalPrice, prize.prize_value);
-                } else if (prize.prize_type === 'free_delivery') {
-                    totalDiscount = 0; // Handled separately in delivery
+                    totalDiscount += prize.prize_value;
                 }
             }
 
-            const finalPrice = Math.max(0, totalPrice - totalDiscount);
+            // 2. Handle Promo Code
+            if (promoCode) {
+                const promoResult = await PromoService.validateCode(promoCode, totalPrice, client);
+                totalDiscount += promoResult.discount;
+                await PromoService.incrementUsage(promoResult.promoId, client);
+            }
+
+            let finalPrice = Math.max(0, totalPrice - totalDiscount);
+
+            // 3. Handle Wallet Deduction
+            let walletDeduction = 0;
+            if (useWallet) {
+                const wallet = await WalletService.getOrCreateWallet(userId, client);
+                walletDeduction = Math.min(wallet.balance, finalPrice);
+                if (walletDeduction > 0) {
+                    await WalletService.updateBalance(userId, -walletDeduction, 'debit', 'order_payment', 'PENDING', client);
+                    finalPrice -= walletDeduction;
+                }
+            }
+
+            const encryptedAddress = addressInfo ? vault.encrypt(JSON.stringify(addressInfo)) : null;
+            const summaryStr = addressInfo ? `Phone: ${addressInfo.phone} | Wallet: ${walletDeduction} EGP` : 'No Address';
+
             const parentId = await bookingRepo.createParentOrder(
-                userId, finalPrice, totalDiscount,
-                validatedPrize ? validatedPrize.id : null,
-                addressInfo ? `Phone: ${addressInfo.phone} | Addr: ${addressInfo.area}` : 'No Address',
-                JSON.stringify(addressInfo),
-                client
+                userId, finalPrice, totalDiscount, validatedPrizeId,
+                summaryStr, encryptedAddress, client
             );
 
+            // Create bookings grouped by provider
             const grouped = {};
             items.forEach(item => {
-                if (!grouped[item.providerId]) {
-                    grouped[item.providerId] = { providerName: item.providerName, items: [] };
-                }
+                if (!grouped[item.providerId]) grouped[item.providerId] = { providerName: item.providerName, items: [] };
                 grouped[item.providerId].items.push(item);
             });
 
             const bookingIds = [];
-            // Simplified userName retrieval (could be passed in req initially)
-            const userName = 'عملينا العزيز';
-
             for (const [pId, group] of Object.entries(grouped)) {
-                let providerTotal = group.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                // [FIX] Calculate subtotal for THIS provider only, not the parent total
+                const providerSubtotal = group.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                // Apply proportional discount if prize was global, or full discount if provider-specific
                 let providerDiscount = 0;
-
-                if (validatedPrize) {
-                    if (!validatedPrize.provider_id || String(validatedPrize.provider_id) === String(pId)) {
-                        providerDiscount = validatedPrize.provider_id ? totalDiscount : (providerTotal / totalPrice) * totalDiscount;
-                    }
+                if (totalDiscount > 0) {
+                    providerDiscount = (providerSubtotal / totalPrice) * totalDiscount;
                 }
-
-                const finalProviderPrice = Math.max(0, providerTotal - providerDiscount);
-                const detailsStr = addressInfo
-                    ? `الهاتف: ${addressInfo.phone} | العنوان: ${addressInfo.area} - ${addressInfo.details}`
-                    : "تم الطلب من السلة";
+                const providerFinalPrice = Math.max(0, providerSubtotal - providerDiscount);
 
                 const bId = await bookingRepo.createBookingItem([
-                    userId, pId, userName, `طلب منتجات (${group.items.length} أصناف)`,
-                    group.providerName, finalProviderPrice, providerDiscount, detailsStr,
+                    userId, pId, 'User', `Order #${parentId}`,
+                    group.providerName, providerFinalPrice, providerDiscount, summaryStr,
                     JSON.stringify(group.items), parentId, `BUNDLE-${parentId}`
                 ], client);
-
                 bookingIds.push(bId);
             }
 
-            if (validatedPrize) {
-                await bookingRepo.markPrizeAsUsed(bookingIds[0], validatedPrize.id, client);
-            }
+            if (validatedPrizeId) await bookingRepo.markPrizeAsUsed(bookingIds[0], validatedPrizeId, client);
 
-            await bookingRepo.commitTransaction(client);
-            const responseData = { parentId, bookingIds, discount: totalDiscount, finalPrice };
+            await client.query('COMMIT');
+            client.release();
 
-            if (idempotencyLockAcquired && redisClient && redisClient.isOpen) {
-                await redisClient.setEx(`idempotency:checkout:${idempotencyKey}`, 86400, JSON.stringify(responseData));
-            }
+            const resData = { parentId, bookingIds, finalPrice, walletUsed: walletDeduction };
+            if (idempotencyLockAcquired) await redisClient.setEx(`idempotency:checkout:${idempotencyKey}`, 86400, JSON.stringify(resData));
 
-            return responseData;
-
+            return resData;
         } catch (error) {
-            await bookingRepo.rollbackTransaction(client);
-            if (idempotencyLockAcquired && redisClient && redisClient.isOpen) {
-                await redisClient.del(`idempotency:checkout:${idempotencyKey}`);
-            }
-            logger.error(`Checkout failed for user ${userId}`, error);
-            if (error instanceof AppError) throw error;
-            throw new AppError('فشل اتمام عملية الدفع', 500);
+            await client.query('ROLLBACK');
+            client.release();
+            if (idempotencyLockAcquired) await redisClient.del(`idempotency:checkout:${idempotencyKey}`);
+            throw error;
+        } finally {
+            await redisClient.del(`lock:checkout:user:${userId}`);
         }
     }
 
     async updateBookingStatus(id, status, price, io) {
-        const bookingInfo = await bookingRepo.getBookingToUpdate(id);
-        if (!bookingInfo) throw new AppError('الحجز غير متوفر', 404);
-
-        // 🛡️ Strict Enterprise State Machine Transition Validation
-        const currentStatus = bookingInfo.status;
-        const targetStatus = status;
-
+        // [ENTERPRISE HARDENING] Single-step Atomic Transition
         const validTransitions = {
             'pending': ['confirmed', 'rejected', 'cancelled'],
             'pending_appointment': ['confirmed', 'rejected', 'provider_rescheduled', 'customer_rescheduled', 'cancelled'],
             'confirmed': ['completed', 'cancelled'],
-            'completed': [], // Terminal State
-            'cancelled': [], // Terminal State
-            'rejected': [], // Terminal State
+            'completed': [], // Terminal
+            'cancelled': [], // Terminal
+            'rejected': [], // Terminal
             'provider_rescheduled': ['confirmed', 'cancelled'],
             'customer_rescheduled': ['confirmed', 'cancelled']
         };
 
-        if (validTransitions[currentStatus] && !validTransitions[currentStatus].includes(targetStatus)) {
-            throw new AppError(`انتقال الحالة غير مسموح به. لا يمكن التغيير من '${currentStatus}' إلى '${targetStatus}'`, 403);
+        // We need to know current status to find valid expected predecessors
+        const currentBooking = await bookingRepo.getBookingToUpdate(id);
+        if (!currentBooking) throw new AppError('الحجز غير متوفر', 404);
+
+        const predecessors = Object.keys(validTransitions).filter(src =>
+            validTransitions[src].includes(status)
+        );
+
+        const result = await bookingRepo.updateBookingStatusAtomic(id, predecessors, status, price);
+
+        if (!result) {
+            // If update failed, it's either an invalid transition or someone else changed it first
+            throw new AppError(`عذراً، فشلت عملية تغيير الحالة. قد يكون الطلب قد تغيرت حالته بالفعل أو الانتقال غير مسموح به من الحالة الحالية.`, 400);
         }
 
-        if (targetStatus === 'rejected') {
-            const svcName = bookingInfo.service_name || '';
-            const hasHalanOrder = !!bookingInfo.halan_order_id;
-            if (svcName.includes('طلب يدوي') || hasHalanOrder) {
-                throw new AppError('لا يمكن رفض الطلبات المكتملة يدوياً او بالتوصيل. تواصل مع الإدارة.', 403);
-            }
-        }
-
-        const result = await bookingRepo.updateBookingStatusAndPrice(id, targetStatus, price);
+        const bookingInfo = result; // Use the freshly updated row data
 
         const customerId = bookingInfo.user_id;
         const providerUserId = await bookingRepo.getUserIdByProviderId(bookingInfo.provider_id);

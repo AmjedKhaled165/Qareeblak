@@ -45,8 +45,10 @@ export default function UserLoginPage() {
 
     // Validation Helpers
     const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const isPasswordStrong = (pass: string) => pass.length >= 8;
-    const isNameValid = (name: string) => name.trim().split(" ").length >= 2 && /^[\u0600-\u06FFa-zA-Z\s]+$/.test(name);
+    const isPasswordStrong = (pass: string) =>
+        pass.length >= 8 && /[A-Z]/.test(pass) && /[a-z]/.test(pass) && /[0-9]/.test(pass);
+    const isNameValid = (name: string) =>
+        name.trim().split(" ").length >= 2 && /^[\u0600-\u06FFa-zA-Z\s]+$/.test(name);
 
     const handleGoogle = async () => {
         try {
@@ -111,7 +113,7 @@ export default function UserLoginPage() {
         }
 
         if (!isPasswordStrong(password)) {
-            setError("كلمة المرور يجب أن تكون 8 أحرف على الأقل.");
+            setError("كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف كابيتال وصغير ورقم.");
             setErrorType("OTHER");
             return;
         }
@@ -304,7 +306,7 @@ export default function UserLoginPage() {
                 </Card>
 
                 <div className="text-center mt-8 text-sm text-muted-foreground font-cairo">
-                    محمي بواسطة <Link href="#" className="underline hover:text-primary transition-colors">سياسة الخصوصية</Link> و <Link href="#" className="underline hover:text-primary transition-colors">شروط الخدمة</Link>
+                    محمي بواسطة <Link href="/privacy" className="underline hover:text-primary transition-colors">سياسة الخصوصية</Link> و <Link href="/terms" className="underline hover:text-primary transition-colors">شروط الخدمة</Link>
                 </div>
             </motion.div>
         </div>

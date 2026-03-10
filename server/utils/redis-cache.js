@@ -2,6 +2,7 @@
 // Reduces database load by 80%+ for frequent GET requests
 
 const { client: redis } = require('./redis'); // Your existing redis connection
+const logger = require('./logger');
 
 /**
  * Get cached value
@@ -11,7 +12,7 @@ const { client: redis } = require('./redis'); // Your existing redis connection
 async function getCache(key) {
     try {
         if (!redis || !redis.isOpen) {
-            console.warn('[Cache] Redis not available, skipping cache');
+            logger.warn('[Cache] Redis not available, skipping cache');
             return null;
         }
 
@@ -20,7 +21,7 @@ async function getCache(key) {
 
         return JSON.parse(cached);
     } catch (error) {
-        console.error(`[Cache] Error getting key "${key}":`, error.message);
+        logger.error(`[Cache] Error getting key "${key}": ${error.message}`);
         return null; // Fail gracefully - don't break the app
     }
 }
@@ -35,7 +36,7 @@ async function getCache(key) {
 async function setCache(key, value, ttl = 300) {
     try {
         if (!redis || !redis.isOpen) {
-            console.warn('[Cache] Redis not available, skipping cache set');
+            logger.warn('[Cache] Redis not available, skipping cache set');
             return false;
         }
 
@@ -48,7 +49,7 @@ async function setCache(key, value, ttl = 300) {
         await redis.setEx(key, ttl, JSON.stringify(value));
         return true;
     } catch (error) {
-        console.error(`[Cache] Error setting key "${key}":`, error.message);
+        logger.error(`[Cache] Error setting key "${key}": ${error.message}`);
         return false; // Fail gracefully
     }
 }
@@ -68,10 +69,10 @@ async function invalidatePattern(pattern) {
         if (keys.length === 0) return 0;
 
         await redis.del(...keys);
-        console.log(`[Cache] Invalidated ${keys.length} keys matching "${pattern}"`);
+        logger.info(`[Cache] Invalidated ${keys.length} keys matching "${pattern}"`);
         return keys.length;
     } catch (error) {
-        console.error(`[Cache] Error invalidating pattern "${pattern}":`, error.message);
+        logger.error(`[Cache] Error invalidating pattern "${pattern}": ${error.message}`);
         return 0;
     }
 }
@@ -89,23 +90,42 @@ function cacheMiddleware(ttl = 300) {
             return next();
         }
 
-        // Build cache key from full URL
-        const cacheKey = `route:${req.originalUrl}`;
+        // Normalize URL to prevent Cache Exhaustion (Cache Poisoning) Attacks
+        // Attackers could send ?rand=1, ?rand=2 to fill Redis RAM. We must filter them.
+        const urlObj = new URL(req.originalUrl, `http://${req.headers.host}`);
+
+        // Allowed query parameters for caching
+        const allowedParams = ['page', 'limit', 'sort', 'category', 'status', 'providerId', 'userId', 'search', 'date'];
+
+        const filteredParams = new URLSearchParams();
+        urlObj.searchParams.forEach((value, key) => {
+            if (allowedParams.includes(key)) {
+                filteredParams.append(key, value);
+            }
+        });
+
+        // Reconstruct safe URL path + sorted query parameters
+        filteredParams.sort(); // Ensure ?a=1&b=2 is the same as ?b=2&a=1
+        const safeQueryString = filteredParams.toString();
+        const normalizedUrl = safeQueryString ? `${urlObj.pathname}?${safeQueryString}` : urlObj.pathname;
+
+        // Build cache key from normalized URL
+        const cacheKey = `route:${normalizedUrl}`;
 
         try {
             const cached = await getCache(cacheKey);
             if (cached) {
-                console.log(`[Cache HIT] ${req.originalUrl}`);
+                logger.info(`[Cache HIT] ${req.originalUrl}`);
                 return res.json(cached);
             }
 
             // Override res.json to cache response
             const originalJson = res.json.bind(res);
-            res.json = function(body) {
+            res.json = function (body) {
                 // Only cache successful responses
                 if (res.statusCode === 200) {
-                    setCache(cacheKey, body, ttl).catch(err => 
-                        console.error('[Cache] Failed to cache response:', err.message)
+                    setCache(cacheKey, body, ttl).catch(err =>
+                        logger.error(`[Cache] Failed to cache response: ${err.message}`)
                     );
                 }
                 return originalJson(body);
@@ -113,7 +133,7 @@ function cacheMiddleware(ttl = 300) {
 
             next();
         } catch (error) {
-            console.error('[Cache Middleware] Error:', error.message);
+            logger.error(`[Cache Middleware] Error: ${error.message}`);
             next(); // Continue without cache on error
         }
     };

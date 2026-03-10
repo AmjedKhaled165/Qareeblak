@@ -1,16 +1,17 @@
 const db = require('../db');
+const logger = require('../utils/logger');
 
 /**
  * Run idempotent startup migrations
  */
 async function runStartupMigrations() {
-    console.log('🚀 Starting database migrations...');
+    logger.info('🚀 Starting database migrations...');
 
     try {
         // 1. Migration: Ensure default ratings are 0.0 for providers with no reviews
         const ratingRes = await db.query("UPDATE providers SET rating = 0.0 WHERE reviews_count = 0");
         if (ratingRes.rowCount > 0) {
-            console.log(`✅ Rating Migration: Updated ${ratingRes.rowCount} providers to 0.0 rating`);
+            logger.info(`✅ Rating Migration: Updated ${ratingRes.rowCount} providers to 0.0 rating`);
         }
 
         // 2. Migration: Safe column and index checks for bookings
@@ -21,13 +22,13 @@ async function runStartupMigrations() {
         `);
 
         if (colCheck.rows.length === 0) {
-            console.log('🔄 Attempting to add appointment columns...');
+            logger.info('🔄 Attempting to add appointment columns...');
             await db.query(`
                 ALTER TABLE bookings 
                 ADD COLUMN IF NOT EXISTS appointment_date TIMESTAMP,
                 ADD COLUMN IF NOT EXISTS appointment_type VARCHAR(50)
             `);
-            console.log(`✅ Bookings Migration: Added appointment columns`);
+            logger.info(`✅ Bookings Migration: Added appointment columns`);
         }
 
         // 3. Check for appointment index
@@ -38,12 +39,12 @@ async function runStartupMigrations() {
         `);
 
         if (indexCheck.rows.length === 0) {
-            console.log('🔄 Attempting to create appointment index...');
+            logger.info('🔄 Attempting to create appointment index...');
             await db.query(`
                 CREATE INDEX IF NOT EXISTS idx_bookings_appointment_date 
                 ON bookings(appointment_date)
             `);
-            console.log(`✅ Index Migration: Created appointment_date index`);
+            logger.info(`✅ Index Migration: Created appointment_date index`);
         }
 
         // 4. Migration: Add order_type column to delivery_orders
@@ -55,7 +56,7 @@ async function runStartupMigrations() {
             AND (order_type IS NULL OR order_type = 'manual')
         `);
         if (orderRes.rowCount > 0) {
-            console.log(`✅ Order Type Migration: Backfilled ${orderRes.rowCount} app orders`);
+            logger.info(`✅ Order Type Migration: Backfilled ${orderRes.rowCount} app orders`);
         }
 
         // 5. Migration: Add is_online and max_active_orders columns for courier capacity
@@ -96,7 +97,7 @@ async function runStartupMigrations() {
         await db.query("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
 
         // 8. Migration: Add Critical Performance Indexes for Halan Orders & Tracking
-        console.log('🔄 Attempting to create critical tracking indexes...');
+        logger.info('🔄 Attempting to create critical tracking indexes...');
         await db.query(`
             CREATE INDEX IF NOT EXISTS idx_delivery_customer_phone ON delivery_orders(customer_phone);
             CREATE INDEX IF NOT EXISTS idx_delivery_customer_id ON delivery_orders(customer_id);
@@ -118,15 +119,55 @@ async function runStartupMigrations() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
-        console.log(`✅ Auth Migration: Enabled Password Reset system`);
+        logger.info(`✅ Auth Migration: Enabled Password Reset system`);
 
-        console.log('✨ All migrations completed successfully');
+        // 10. Migration: Wallet System (Retention & Fintech)
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS wallets (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                balance DECIMAL(15, 2) DEFAULT 0.00,
+                currency VARCHAR(10) DEFAULT 'EGP',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS wallet_transactions (
+                id SERIAL PRIMARY KEY,
+                wallet_id INTEGER REFERENCES wallets(id) ON DELETE CASCADE,
+                amount DECIMAL(15, 2) NOT NULL,
+                type VARCHAR(20) NOT NULL, -- 'credit', 'debit'
+                purpose VARCHAR(50), -- 'order_payment', 'refund', 'referral_bonus'
+                reference_id VARCHAR(100), -- order_id or other ref
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 11. Migration: Promo Code Engine
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS promo_codes (
+                id SERIAL PRIMARY KEY,
+                code VARCHAR(50) UNIQUE NOT NULL,
+                discount_type VARCHAR(20) NOT NULL, -- 'percentage', 'fixed'
+                discount_value DECIMAL(10, 2) NOT NULL,
+                min_order_value DECIMAL(10, 2) DEFAULT 0,
+                max_discount DECIMAL(10, 2),
+                usage_limit INTEGER DEFAULT NULL,
+                usage_count INTEGER DEFAULT 0,
+                expires_at TIMESTAMP,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        logger.info(`✅ BI Migration: Wallets and Promo Engine initialized`);
+
+        logger.info('✨ All migrations completed successfully');
     } catch (err) {
         // Log error but don't crash - if columns already exist or permission issues, we might be fine
         if (err.message.includes('permission denied') || err.message.includes('must be owner')) {
             console.warn('⚠️ Migration Warning: Insufficient permissions to modify schema. If columns already exist, this can be ignored.');
         } else {
-            console.error('❌ Migration Error:', err.message);
+            logger.error('❌ Migration Error:', err.message);
         }
     }
 }

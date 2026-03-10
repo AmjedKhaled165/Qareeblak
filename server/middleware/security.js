@@ -1,25 +1,81 @@
 const rateLimit = require('express-rate-limit');
+const RedisStore = require('rate-limit-redis').default;
 const xss = require('xss-clean');
 const helmet = require('helmet');
+const logger = require('../utils/logger');
+const { client: redisClient } = require('../utils/redis');
 
-// ==========================================
 // 1. DYNAMIC RATE LIMITERS
 // ==========================================
 
-// Global Limiter - General API Protection
-const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 1000, // Limit each IP to 1000 requests per window
-    message: { error: 'تم تجاوز الحد المسموح به من الطلبات. يرجى الانتظار قليلاً والمحاولة مرة أخرى.' },
+// ==========================================
+// 1. ELITE TIERED RATE LIMITERS (Sliding Window)
+// ==========================================
+
+// Helper to create a store only if Redis is available, otherwise fallback to memory
+const createStore = () => {
+    if (redisClient.isOpen) {
+        return new RedisStore({
+            sendCommand: (...args) => redisClient.sendCommand(args)
+        });
+    }
+    logger.warn('⚠️ Redis not ready, using memory store for rate limiting');
+    return undefined; // express-rate-limit will use memory store
+};
+
+// A. Low-Trust / Public Rate Limiter (IP Based)
+// Prevents high-velocity scanning/probing
+const publicLimiter = rateLimit({
+    store: createStore(),
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 300,
+    message: { error: '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// Strict Auth Limiter - Prevent Brute Force & Credential Stuffing
+// B. Strict Auth Limiter (Prevents Brute Force)
 const authLimiter = rateLimit({
+    store: createStore(),
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 login attempts only
-    message: { error: '❌ تم حظر IP الخاص بك لكثرة المحاولات الخاطئة. انتظر 15 دقيقة.' },
+    max: 10, // 10 attempts per IP
+    keyGenerator: (req) => `rl_auth_${req.ip}`,
+    message: { error: '❌ تم حظر هاتفك لكثرة محاولات الدخول الفاشلة. انتظر 15 دقيقة.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// C. Checkout & Payment Limiter (User + IP Based)
+// Prevents high-concurrency race condition attempts & carding bots
+const checkoutLimiter = rateLimit({
+    store: createStore(),
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 2, // Max 2 checkouts per minute (Very strict)
+    keyGenerator: (req) => `rl_checkout_${req.user?.id || req.ip}`,
+    message: { error: '🔔 أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// D. Chat/Message Limiter (User Based)
+const chatLimiter = rateLimit({
+    store: createStore(),
+    windowMs: 60 * 1000,
+    max: 15,
+    keyGenerator: (req) => `rl_chat_${req.user?.id || req.ip}`,
+    message: { error: '💬 أنت ترسل رسائل بسرعة كبيرة جداً.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === 'GET',
+});
+
+// E. Order/Booking Limiter
+const orderLimiter = rateLimit({
+    store: createStore(),
+    windowMs: 1 * 60 * 1000,
+    max: 5, // Allow slightly more for order creation
+    keyGenerator: (req) => `rl_order_${req.user?.id || req.ip}`,
+    message: { error: '⚠️ أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -58,8 +114,12 @@ const securityHeaders = helmet({
 const xssSanitizer = xss();
 
 module.exports = {
-    globalLimiter,
+    globalLimiter: publicLimiter, // Alias for routes calling it global
+    publicLimiter,
     authLimiter,
+    chatLimiter,
+    checkoutLimiter,
+    orderLimiter,
     securityHeaders,
     xssSanitizer
 };

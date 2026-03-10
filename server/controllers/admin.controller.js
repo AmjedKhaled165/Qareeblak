@@ -2,8 +2,7 @@ const adminService = require('../services/admin.service');
 const adminRepo = require('../repositories/admin.repository');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
-const fs = require('fs').promises;
-const path = require('path');
+const logger = require('../utils/logger');
 
 exports.getStats = catchAsync(async (req, res) => {
     const stats = await adminRepo.getDashboardStats();
@@ -15,10 +14,9 @@ exports.getOrders = catchAsync(async (req, res) => {
     res.json({
         orders: result.records,
         pagination: {
-            page: parseInt(req.query.page) || 1,
+            nextLastId: result.nextLastId,
             limit: parseInt(req.query.limit) || 25,
-            total: result.total,
-            totalPages: Math.ceil(result.total / (parseInt(req.query.limit) || 25))
+            hasMore: result.hasMore
         }
     });
 });
@@ -113,10 +111,43 @@ exports.getAuditLogs = catchAsync(async (req, res) => {
             pagination: { page: parseInt(page), limit: parseInt(limit), total: result.total, totalPages: Math.ceil(result.total / parseInt(limit)) }
         });
     } catch (error) {
-        // Fallback to file mapping if table fails
-        const logPath = path.join(__dirname, '../../logs/combined.log');
-        const data = await fs.readFile(logPath, 'utf8');
-        const logs = data.split('\n').filter(l => l.trim()).map(l => JSON.parse(l)).reverse().slice(0, 100);
-        res.json({ logs, pagination: { page: 1, limit: 100, total: logs.length, totalPages: 1 } });
+        // HIGH-01: Do NOT read raw log files through the API — path traversal risk + JSON parse crash
+        // Return empty result gracefully; ops team should fix the DB audit table separately
+        logger.error(`[Admin] Audit log DB query failed: ${error.message}`);
+        res.json({ logs: [], pagination: { page: 1, limit: parseInt(limit), total: 0, totalPages: 0 } });
     }
+});
+
+exports.getProvidersPerformance = catchAsync(async (req, res) => {
+    const { limit = '50', lastId } = req.query;
+    const result = await adminRepo.getProvidersPerformance({
+        limit: parseInt(limit, 10),
+        lastId: lastId ? parseInt(lastId, 10) : null
+    });
+
+    res.json({
+        success: true,
+        data: result.records,
+        pagination: {
+            nextLastId: result.nextLastId,
+            hasMore: result.hasMore
+        }
+    });
+});
+
+exports.getProviderDetailedReport = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { limit = '50', lastId } = req.query;
+
+    const result = await adminRepo.getProviderDetailedOrders(id, {
+        limit: parseInt(limit, 10),
+        lastId: lastId ? parseInt(lastId, 10) : null
+    });
+
+    res.json({
+        success: true,
+        providerId: id,
+        orders: result.records,
+        pagination: result.pagination
+    });
 });

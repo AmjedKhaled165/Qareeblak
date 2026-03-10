@@ -18,10 +18,13 @@ dist/
 .DS_Store
 *.pem
 *.log
+logs/
 .cache/
 .vercel/
 *.tsbuildinfo
 next-env.d.ts
+nul
+tmp_not_saved.js
 
 # env files (NEVER COMMIT THESE)
 .env
@@ -31,3 +34,9 @@ next-env.d.ts
 .env.production.local
 *.env
 .env*
+
+# Uploaded files (local dev disk storage — never commit)
+server/uploads/
+
+# Temp files from Claude sessions
+tmpclaude-*

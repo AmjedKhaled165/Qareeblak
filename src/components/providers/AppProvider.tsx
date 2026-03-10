@@ -1,11 +1,11 @@
 "use client";
 
-import { createContext, useState, useEffect, ReactNode, useCallback, useContext } from "react";
+import { createContext, useState, useEffect, ReactNode, useCallback, useContext, useRef } from "react";
 import { providersApi, authApi, servicesApi, bookingsApi, apiCall } from "@/lib/api";
 import { io } from "socket.io-client";
-import { auth, googleProvider } from "@/lib/firebase";
+import { auth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
 import { signInWithPopup } from "firebase/auth";
-
+import { useToast } from "./ToastProvider";
 
 // ================= TYPES =================
 interface ProviderService {
@@ -52,7 +52,8 @@ interface User {
     name: string;
     email: string;
     password?: string;
-    type?: "customer" | "provider";
+    type?: "customer" | "provider" | "admin";
+    user_type?: string;
     phone?: string;
     avatar?: string;
 }
@@ -76,16 +77,6 @@ interface Booking {
     appointmentDate?: string;
     appointmentType?: string;
     lastUpdatedBy?: 'provider' | 'customer';
-}
-
-interface CartItem {
-    id: string;
-    name: string;
-    price: number;
-    quantity: number;
-    providerId: string;
-    providerName: string;
-    image?: string;
 }
 
 interface AppContextType {
@@ -116,9 +107,9 @@ interface AppContextType {
     // Review actions
     addReview: (providerId: string, rating: number, comment: string) => Promise<boolean>;
 
-    // User actions
-    // Optimistic UI Actions
+    // Optimistic UI
     optimisticUpdate: (id: string, updates: Partial<Booking>) => void;
+
     // User actions
     updateUser: (data: {
         name?: string;
@@ -128,59 +119,27 @@ interface AppContextType {
         oldPassword?: string;
         newPassword?: string;
     }) => Promise<boolean>;
-    // Cart Actions for Order Updates
-    addToInfoCart: (orderId: string, item: any) => void;
-    removeFromInfoCart: (orderId: string, itemIndex: number) => void;
-    clearInfoCart: (orderId: string) => void;
-    submitInfoCart: (orderId: string, providerId?: string) => Promise<boolean>;
-    pendingCartItems: Record<string, any[]>;
-
-    // Global Cart Actions
-    globalCart: CartItem[];
-    addToGlobalCart: (item: CartItem) => void;
-    removeFromGlobalCart: (providerId: string, itemId: string) => void;
-    updateGlobalCartQuantity: (providerId: string, itemId: string, quantity: number) => void;
-    clearGlobalCart: () => void;
-    checkoutGlobalCart: (addressInfo?: { area: string, details: string, phone: string }, userPrizeId?: number) => Promise<string[] | false>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
 // ================= PROVIDER COMPONENT =================
 export function AppProvider({ children }: { children: ReactNode }) {
+    const { toast } = useToast();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [providers, setProviders] = useState<Provider[]>([]);
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [pendingCartItems, setPendingCartItems] = useState<Record<string, any[]>>({});
-    const [globalCart, setGlobalCart] = useState<CartItem[]>([]);
 
-    // Load global cart from localStorage on init
-    useEffect(() => {
-        const savedCart = localStorage.getItem('qareeblak_cart');
-        if (savedCart) {
-            try {
-                const parsed = JSON.parse(savedCart);
-                if (Array.isArray(parsed)) {
-                    // Clean up and ensure all items have necessary fields
-                    const validItems = parsed.filter(i => i.id && i.providerId).map(i => ({
-                        ...i,
-                        id: String(i.id),
-                        providerId: String(i.providerId)
-                    }));
-                    setGlobalCart(validItems);
-                }
-            } catch (e) {
-                console.error("Failed to parse saved cart");
-            }
-        }
-    }, []);
+    // useRef to track current user in closures (intervals, socket callbacks)
+    // without causing re-renders or stale closures
+    const currentUserRef = useRef<User | null>(null);
 
-    // Save global cart to localStorage on change
+    // Keep ref in sync with state (no dependency on currentUser for interval closures)
     useEffect(() => {
-        localStorage.setItem('qareeblak_cart', JSON.stringify(globalCart));
-    }, [globalCart]);
+        currentUserRef.current = currentUser;
+    }, [currentUser]);
 
     // ================= LOAD DATA =================
     const loadProviders = useCallback(async () => {
@@ -189,93 +148,105 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setProviders(data);
         } catch (error) {
             console.error("Failed to load providers:", error);
-            // Fallback to empty array
             setProviders([]);
         }
     }, []);
 
-    const loadBookings = useCallback(async () => {
+    /**
+     * Load bookings for a specific user (smart routing by user type).
+     * - Admin: fetches all bookings via GET /bookings
+     * - Customer: fetches only their bookings via GET /bookings/user/:id
+     * - Provider: skips (providers load from their own dashboard)
+     * - Mock/unauthenticated: skips
+     */
+    const loadUserBookings = useCallback(async (user: User | null) => {
         try {
-            const data = await bookingsApi.getAll();
-            setBookings(data);
+            if (!user?.id || user.id === 999) {
+                // Skip mock Google users (id=999) — they have no real server-side bookings
+                return;
+            }
+
+            const userType = user.user_type || user.type;
+
+            if (userType === 'admin') {
+                // Admin: get all recent bookings (paginated, newest first)
+                const result = await apiCall('/bookings?limit=50');
+                setBookings(result?.bookings || []);
+            } else if (userType === 'customer' || !userType) {
+                // Customer: only their own bookings
+                const result = await bookingsApi.getByUser(String(user.id));
+                setBookings(result?.bookings || []);
+            }
+            // Providers: skip — their bookings are loaded per-page in the dashboard
+
         } catch (error) {
-            console.error("Failed to load bookings:", error);
+            console.error("Failed to load user bookings:", error);
             setBookings([]);
         }
     }, []);
 
-    const loadCurrentUser = useCallback(async () => {
+    /**
+     * Load and return the current user.
+     * Returns the user object so callers can chain behavior.
+     */
+    const loadCurrentUser = useCallback(async (): Promise<User | null> => {
         try {
-            console.log('[AppProvider] 📝 Loading current user...');
-
-            // 1. Check for Qareeblak Token
+            // 1. Qareeblak Token (real JWT)
             const qareeblakToken = localStorage.getItem('qareeblak_token');
             if (qareeblakToken) {
                 if (qareeblakToken === 'mock_google_token') {
+                    // Google user with offline mock — restore from localStorage
                     const savedUser = localStorage.getItem('qareeblak_user');
                     if (savedUser) {
-                        setCurrentUser(JSON.parse(savedUser));
-                        console.log('[AppProvider] ✅ Mock user loaded');
+                        const parsed = JSON.parse(savedUser);
+                        setCurrentUser(parsed);
+                        localStorage.setItem('user', JSON.stringify(parsed));
+                        return parsed;
                     }
-                    return;
+                    return null;
                 }
 
-                console.log('[AppProvider] 🌐 Fetching Qareeblak user profile...');
                 const user = await authApi.getCurrentUser();
                 setCurrentUser(user);
-                console.log('[AppProvider] ✅ User loaded successfully:', user.name);
-                return;
+                localStorage.setItem('user', JSON.stringify(user));
+                return user;
             }
 
-            // 2. Check for Halan Token if no Qareeblak Token
+            // 2. Halan Token (partner/courier)
             const halanToken = localStorage.getItem('halan_token');
             const halanUserStr = localStorage.getItem('halan_user');
 
             if (halanToken && halanUserStr) {
-                console.log('[AppProvider] 💼 Hydrating Halan user from local storage...');
                 try {
                     const halanUser = JSON.parse(halanUserStr);
-                    // Adapt Halan user to User interface
                     const adaptedUser: User = {
                         id: halanUser.id,
                         name: halanUser.name,
                         email: halanUser.email,
-                        type: 'provider', // Explicitly set as provider
-                        phone: halanUser.phone
+                        type: 'provider',
+                        phone: halanUser.phone,
                     };
                     setCurrentUser(adaptedUser);
-                    console.log('[AppProvider] ✅ Halan user hydrated:', adaptedUser.name);
+                    return adaptedUser;
                 } catch (e) {
-                    console.error('[AppProvider] ❌ Failed to parse halan_user', e);
-                    // Don't clear token here, might be valid just bad user data
+                    console.error('[AppProvider] Failed to parse halan_user', e);
                 }
-                return;
             }
 
-            console.log('[AppProvider] ℹ️ No valid session found.');
-
+            return null;
         } catch (error: any) {
-            console.error("[AppProvider] ❌ Failed to load user:", error);
+            console.error("[AppProvider] Failed to load user:", error);
 
-            // CRITICAL FIX: Only clear token if it's explicitly an auth error (401/403)
-            // Do NOT clear on 500, 404, or network errors
-            const errorMessage = error.message || "";
-            const isAuthError = errorMessage.includes("401") ||
-                errorMessage.includes("403") ||
-                errorMessage.includes("غير مصرح") ||
-                errorMessage.includes("عدم التفويض") ||
-                errorMessage.includes("session expired");
+            // Only clear token on explicit auth errors — not on server/network errors
+            const msg = error.message || "";
+            const isAuthError = msg.includes("401") || msg.includes("403") ||
+                msg.includes("غير مصرح") || msg.includes("عدم التفويض");
 
             if (isAuthError) {
-                console.log("[AppProvider] 🔐 Auth error detected, clearing qareeblak session");
                 localStorage.removeItem('qareeblak_token');
-                // Do NOT clear halan_token here, as we didn't verify it.
-                // Keep provider session alive even if user session is expired.
                 setCurrentUser(null);
-            } else {
-                console.warn("[AppProvider] ⚠️ Non-auth error during user load. Keeping token for retry.");
             }
-            // Otherwise, keep the token! The server might just be down momentarily.
+            return null;
         }
     }, []);
 
@@ -285,64 +256,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
         let socket: any;
 
         const initialize = async () => {
-            console.log('[AppProvider] 🚀 Starting initialization...');
-            console.log('[AppProvider] 🔑 Checking for existing tokens...');
-
-            // CRITICAL: Check for tokens BEFORE setting any state
-            const qareeblakToken = localStorage.getItem('qareeblak_token');
-            const halanToken = localStorage.getItem('halan_token');
-
-            console.log('[AppProvider] Token status:', {
-                qareeblak: qareeblakToken ? '✓ Present' : '✗ Missing',
-                halan: halanToken ? '✓ Present' : '✗ Missing'
-            });
-
             setIsLoading(true);
 
-            // Load data in parallel
-            // Only load bookings if user has a token (bookings endpoint now requires auth)
-            const hasToken = !!qareeblakToken || !!halanToken;
-            await Promise.all([
+            // Load providers AND user in parallel (they're independent)
+            const [, user] = await Promise.all([
                 loadProviders(),
-                hasToken ? loadBookings() : Promise.resolve(),
-                loadCurrentUser()
+                loadCurrentUser(),
             ]);
 
-            console.log('[AppProvider] ✅ Initialization complete');
+            // Load bookings AFTER we know who the user is (sequential by design)
+            await loadUserBookings(user);
 
             setIsInitialized(true);
             setIsLoading(false);
 
-            // Real-time socket updates
+            // ✅ FIXED: Socket.io with Auth Token
+            // Backend requires token via verifySocketToken middleware
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
             const socketUrl = apiUrl.replace(/\/api$/, '');
-            socket = io(socketUrl);
+            const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
 
-            socket.on('booking-updated', (data: any) => {
-                console.log('Real-time booking update:', data);
-                loadBookings();
+            socket = io(socketUrl, {
+                auth: { token: token || undefined },
+                reconnectionAttempts: 3,
+                reconnectionDelay: 5000,
+                // Don't spam reconnects if auth fails
+                reconnectionDelayMax: 15000,
             });
 
-            socket.on('order-status-changed', (data: any) => {
-                console.log('Real-time delivery status update:', data);
-                loadBookings();
+            socket.on('connect_error', (err: Error) => {
+                if (err.message.includes('Authentication') || err.message.includes('Token')) {
+                    // Auth failed — don't keep retrying (token is invalid or missing)
+                    socket.disconnect();
+                }
             });
 
-            // Listen for item changes/general updates from Halan side
-            socket.on('order-updated', (data: any) => {
-                console.log('Real-time Halan order update:', data);
-                loadBookings();
-            });
+            // Real-time booking updates — use ref to avoid stale closures
+            const refreshBookings = () => {
+                const u = currentUserRef.current;
+                if (u?.id) loadUserBookings(u);
+            };
 
-            // Store socket wrapper for other effects
+            socket.on('booking-updated', refreshBookings);
+            socket.on('order-status-changed', refreshBookings);
+            socket.on('order-updated', refreshBookings);
+
+            // Store globally so other effects can emit to it
             (window as any).__qareeblak_socket = socket;
 
-            // Polling for updates (fallback, reduced frequency to 2 mins)
-            pollInterval = setInterval(() => {
-                if (localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token')) {
-                    loadBookings();
-                }
-            }, 120000);
+            // Polling fallback (2-min interval, uses ref for fresh user data)
+            pollInterval = setInterval(refreshBookings, 120000);
         };
 
         initialize();
@@ -352,14 +315,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (socket) socket.disconnect();
             (window as any).__qareeblak_socket = null;
         };
-    }, [loadProviders, loadBookings, loadCurrentUser]);
+    }, [loadProviders, loadCurrentUser, loadUserBookings]); // Only run once on mount
 
-    // ================= CONNECT USER TO PRIVATE SOCKET ROOM =================
+    // Join user-specific socket room when user identity is confirmed
     useEffect(() => {
         const socket = (window as any).__qareeblak_socket;
-        if (socket && currentUser?.id) {
+        if (socket?.connected && currentUser?.id) {
             socket.emit('user-join', { userId: currentUser.id, userType: currentUser.type });
-            console.log(`[AppProvider] Linked socket to user room: user-${currentUser.id}`);
         }
     }, [currentUser]);
 
@@ -368,11 +330,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
             setIsLoading(true);
             const result = await authApi.login(email, password);
-            setCurrentUser(result.user);
-            await loadProviders(); // Refresh providers after login
+            const user = result.user;
+            setCurrentUser(user);
+            currentUserRef.current = user;
+
+            // Reconnect socket with new token
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+            const socketUrl = apiUrl.replace(/\/api$/, '');
+            const prevSocket = (window as any).__qareeblak_socket;
+            if (prevSocket) prevSocket.disconnect();
+            const newSocket = io(socketUrl, {
+                auth: { token: result.token },
+                reconnectionAttempts: 3,
+            });
+            (window as any).__qareeblak_socket = newSocket;
+            newSocket.on('connect', () => {
+                newSocket.emit('user-join', { userId: user.id, userType: user.type || user.user_type });
+            });
+
+            await Promise.all([loadProviders(), loadUserBookings(user)]);
             return true;
         } catch (error) {
             console.error("Login failed:", error);
+            toast("البريد الإلكتروني أو كلمة المرور غير صحيحة", "error");
             return false;
         } finally {
             setIsLoading(false);
@@ -381,22 +361,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const logout = () => {
         authApi.logout();
-        // Clear mock data if any
         localStorage.removeItem('qareeblak_user');
+        localStorage.removeItem('user');
         if (localStorage.getItem('qareeblak_token') === 'mock_google_token') {
             localStorage.removeItem('qareeblak_token');
         }
         setCurrentUser(null);
+        currentUserRef.current = null;
+        setBookings([]);
+
+        // Disconnect socket on logout
+        const socket = (window as any).__qareeblak_socket;
+        if (socket) socket.disconnect();
     };
 
     const registerUser = async (name: string, email: string, password: string): Promise<boolean> => {
         try {
             setIsLoading(true);
             const result = await authApi.register(name, email, password);
-            setCurrentUser(result.user);
+            const user = result.user;
+            setCurrentUser(user);
+            currentUserRef.current = user;
             return true;
         } catch (error) {
             console.error("Registration failed:", error);
+            toast("فشل إنشاء الحساب. قد يكون البريد مستخدماً بالفعل", "error");
             return false;
         } finally {
             setIsLoading(false);
@@ -416,6 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const result = await authApi.updateProfile(data);
             if (result.success) {
                 setCurrentUser(result.user);
+                currentUserRef.current = result.user;
                 return true;
             }
             return false;
@@ -431,10 +421,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
             setIsLoading(true);
             await authApi.submitProviderRequest(data);
-            // Auto-login after provider request (since it auto-approves)
             await authApi.login(data.email, data.password);
             const user = await authApi.getCurrentUser();
             setCurrentUser(user);
+            currentUserRef.current = user;
             await loadProviders();
             return true;
         } catch (error) {
@@ -448,36 +438,66 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const googleLogin = async () => {
         setIsLoading(true);
         try {
-            // 🚀 This opens the "Real Sites" popup for Gmail selection
+            if (!isFirebaseConfigured()) {
+                // Firebase not configured — fallback to guest JWT session
+                const result = await authApi.guestLogin();
+                if (result?.user) {
+                    setCurrentUser(result.user);
+                    currentUserRef.current = result.user;
+                    localStorage.setItem('user', JSON.stringify(result.user));
+                }
+                return;
+            }
+
             const result = await signInWithPopup(auth, googleProvider);
-            const user = result.user;
+            const firebaseUser = result.user;
 
-            console.log("[AppProvider] Google Sign-In Success:", user.displayName);
+            // ✅ FIXED: Instead of hardcoded id=999, sync with backend to get real user ID
+            // Try to register/fetch the user via their Google email
+            try {
+                // Attempt to auto-register via backend Google sync
+                const syncResult = await apiCall('/auth/google-sync', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: firebaseUser.displayName || 'مستخدم جوجل',
+                        email: firebaseUser.email,
+                        googleUid: firebaseUser.uid,
+                        avatar: firebaseUser.photoURL,
+                    })
+                });
+                if (syncResult?.user && syncResult?.token) {
+                    localStorage.setItem('qareeblak_token', syncResult.token);
+                    localStorage.removeItem('halan_token');
+                    setCurrentUser(syncResult.user);
+                    currentUserRef.current = syncResult.user;
+                    localStorage.setItem('user', JSON.stringify(syncResult.user));
+                    return;
+                }
+            } catch {
+                // Backend sync not available — fall back to local session until implemented
+            }
 
+            // Offline fallback (use mock session until google-sync backend endpoint is ready)
             const adaptedUser: User = {
-                id: 999, // Backend should ideally handle sync
-                name: user.displayName || "مستخدم جوجل",
-                email: user.email || "",
+                id: undefined, // Don't set a fake ID
+                name: firebaseUser.displayName || 'مستخدم جوجل',
+                email: firebaseUser.email || '',
                 type: 'customer',
-                avatar: user.photoURL || undefined
+                avatar: firebaseUser.photoURL || undefined,
             };
 
             setCurrentUser(adaptedUser);
-
-            // Persist locally for the session
-            localStorage.setItem('qareeblak_token', 'firebase_active_session'); // Placeholder token
+            currentUserRef.current = adaptedUser;
+            localStorage.setItem('qareeblak_token', 'mock_google_token');
             localStorage.setItem('qareeblak_user', JSON.stringify(adaptedUser));
-
-            // Optional: You can send 'user.accessToken' to your backend here to create a real user record
-            // await apiCall('/auth/google-sync', { method: 'POST', body: JSON.stringify({ token: user.accessToken }) });
+            localStorage.setItem('user', JSON.stringify(adaptedUser));
 
         } catch (error: any) {
             console.error("[AppProvider] Google Sign-In Error:", error);
-            // Handle common Firebase errors
-            if (error.code === 'auth/popup-closed-by-user') {
-                console.warn("User closed the login popup");
-            } else if (error.code === 'auth/cancelled-popup-request') {
-                console.warn("Popup request cancelled");
+            if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+                // User-initiated — not an error
+            } else if (error.code === 'auth/unauthorized-domain') {
+                throw new Error('الدومين غير مسموح به في Firebase. أضف الدومين من Firebase Console > Authentication > Settings > Authorized domains.');
             } else {
                 throw error;
             }
@@ -485,142 +505,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
         }
     };
-
-
-    // ================= CART ACTIONS (FOR ORDER UPDATES) =================
-    const addToInfoCart = (orderId: string, item: any) => {
-        setPendingCartItems(prev => {
-            const currentItems = prev[orderId] || [];
-            return {
-                ...prev,
-                [orderId]: [...currentItems, item]
-            };
-        });
-    };
-
-    const removeFromInfoCart = (orderId: string, itemIndex: number) => {
-        setPendingCartItems(prev => {
-            const currentItems = prev[orderId] || [];
-            const newItems = [...currentItems];
-            newItems.splice(itemIndex, 1);
-            return {
-                ...prev,
-                [orderId]: newItems
-            };
-        });
-    };
-
-    const clearInfoCart = (orderId: string) => {
-        setPendingCartItems(prev => {
-            const { [orderId]: removed, ...rest } = prev;
-            return rest;
-        });
-    };
-
-    const submitInfoCart = async (orderId: string, providerId?: string): Promise<boolean> => {
-        const items = pendingCartItems[orderId];
-        if (!items || items.length === 0) return false;
-
-        setIsLoading(true);
-        try {
-            console.log(`[AppStore] Submitting bulk items for Order #${orderId}:`, items);
-
-            // Use apiCall which correctly handles the BASE_URL and /api prefix
-            const response = await apiCall(`/halan/orders/${orderId}/customer-add-items-bulk`, {
-                method: 'POST',
-                body: JSON.stringify({ items, providerId })
-            });
-
-            if (!response.success && !response.items) {
-                throw new Error(response.error || "Failed to add items in bulk");
-            }
-
-            console.log(`[AppStore] Bulk addition successful for #${orderId}`);
-            clearInfoCart(orderId);
-            await loadBookings(); // Refresh bookings to see changes
-            return true;
-        } catch (error) {
-            console.error("Failed to submit cart items:", error);
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // ================= GLOBAL CART ACTIONS =================
-    const addToGlobalCart = (item: CartItem) => {
-        console.log(`[AppStore] Adding to global cart:`, item);
-        const normalizedItem = {
-            ...item,
-            id: String(item.id),
-            providerId: String(item.providerId)
-        };
-        setGlobalCart(prev => {
-            const existing = prev.find(i => String(i.id) === normalizedItem.id && String(i.providerId) === normalizedItem.providerId);
-            if (existing) {
-                return prev.map(i =>
-                    (String(i.id) === normalizedItem.id && String(i.providerId) === normalizedItem.providerId)
-                        ? { ...i, quantity: i.quantity + normalizedItem.quantity }
-                        : i
-                );
-            }
-            return [...prev, normalizedItem];
-        });
-    };
-
-    const removeFromGlobalCart = (providerId: string, itemId: string) => {
-        console.log(`[AppStore] Removing from global cart: providerId=${providerId}, itemId=${itemId}`);
-        setGlobalCart(prev => prev.filter(i => !(String(i.id) === String(itemId) && String(i.providerId) === String(providerId))));
-    };
-
-    const updateGlobalCartQuantity = (providerId: string, itemId: string, quantity: number) => {
-        if (quantity <= 0) {
-            removeFromGlobalCart(providerId, itemId);
-            return;
-        }
-        setGlobalCart(prev => prev.map(i =>
-            (i.id === itemId && i.providerId === providerId)
-                ? { ...i, quantity }
-                : i
-        ));
-    };
-
-    const clearGlobalCart = () => {
-        setGlobalCart([]);
-    };
-
-    const checkoutGlobalCart = async (addressInfo?: { area: string, details: string, phone: string }, userPrizeId?: number): Promise<string[] | false> => {
-        if (!currentUser) return false;
-        if (globalCart.length === 0) return false;
-
-        setIsLoading(true);
-        try {
-            console.log(`[AppStore] Checkout initiated for user ${currentUser.id} with items:`, globalCart);
-
-            const result = await bookingsApi.checkout({
-                userId: currentUser.id === 999 ? '999' : currentUser.id || '', // Handle mock user
-                items: globalCart,
-                addressInfo: addressInfo,
-                userPrizeId: userPrizeId
-            });
-
-            if (result && result.success) {
-                console.log(`[AppStore] Checkout success. ParentID: ${result.parentId}, BookingIDs: ${result.bookingIds}`);
-                clearGlobalCart();
-                await loadBookings(); // Refresh bookings immediately
-                return result.parentId ? [`P${result.parentId}`] : (result.bookingIds || []);
-            } else {
-                console.error(`[AppStore] Checkout failed:`, result);
-                return false;
-            }
-        } catch (error) {
-            console.error("Checkout exception:", error);
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
 
     // ================= PROVIDER ACTIONS =================
     const refreshProviders = async () => {
@@ -647,27 +531,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
 
             if (action === 'add') {
-                await servicesApi.add({
-                    providerId,
-                    name: data.name,
-                    description: data.description,
-                    price: data.price,
-                    image: data.image,
-                    offer: data.offer
-                });
+                await servicesApi.add({ providerId, name: data.name, description: data.description, price: data.price, image: data.image, offer: data.offer });
             } else if (action === 'update') {
-                await servicesApi.update(data.id, {
-                    name: data.name,
-                    description: data.description,
-                    price: data.price,
-                    image: data.image,
-                    offer: data.offer
-                });
+                await servicesApi.update(data.id, { name: data.name, description: data.description, price: data.price, image: data.image, offer: data.offer });
             } else if (action === 'delete') {
                 await servicesApi.delete(data.id);
             }
 
-            // Refresh providers to get updated services
             await loadProviders();
             return true;
         } catch (error) {
@@ -682,9 +552,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const createBooking = async (booking: Omit<Booking, 'id' | 'status'>): Promise<string | false> => {
         try {
             setIsLoading(true);
-            // Handle mock user ID (999) - don't send it to backend to avoid FK violation
             const userId = (booking.userId || currentUser?.id);
-            const validUserId = (userId === 999 || userId === '999') ? undefined : userId;
+            // Never send mock/undefined userId to backend to avoid FK violations
+            const validUserId = (!userId || userId === 999 || userId === '999') ? undefined : userId;
 
             const result = await bookingsApi.create({
                 userId: validUserId,
@@ -696,14 +566,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 price: booking.price,
                 details: booking.details,
                 items: booking.items,
-                bundleId: booking.bundleId
+                bundleId: booking.bundleId,
             });
-            await loadBookings();
 
-            // Check if result has ID directly or inside data
-            if (result && result.id) {
-                return String(result.id);
-            }
+            // Refresh bookings for this user
+            const u = currentUserRef.current;
+            if (u?.id) await loadUserBookings(u);
+
+            if (result?.id) return String(result.id);
             return false;
         } catch (error) {
             console.error("Booking failed:", error);
@@ -717,7 +587,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
             setIsLoading(true);
             await bookingsApi.updateStatus(id, status, price);
-            await loadBookings();
+            const u = currentUserRef.current;
+            if (u?.id) await loadUserBookings(u);
             return true;
         } catch (error) {
             console.error("Booking status update failed:", error);
@@ -734,7 +605,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             await providersApi.addReview(providerId, {
                 userName: currentUser?.name || 'مجهول',
                 rating,
-                comment
+                comment,
             });
             await loadProviders();
             return true;
@@ -746,7 +617,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    // Optimistic Update Helper
+    // Optimistic Update Helper (immediate UI feedback before server confirms)
     const optimisticUpdate = useCallback((id: string, updates: Partial<Booking>) => {
         setBookings(prev => prev.map(booking =>
             String(booking.id) === String(id) ? { ...booking, ...updates } : booking
@@ -772,20 +643,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createBooking,
         updateBookingStatus,
         addReview,
-        // Cart
-        addToInfoCart,
-        removeFromInfoCart,
-        clearInfoCart,
-        submitInfoCart,
-        pendingCartItems,
-        // Global Cart
-        globalCart,
-        addToGlobalCart,
-        removeFromGlobalCart,
-        updateGlobalCartQuantity,
-        clearGlobalCart,
-        checkoutGlobalCart,
-        optimisticUpdate  // Add to context
+        optimisticUpdate,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

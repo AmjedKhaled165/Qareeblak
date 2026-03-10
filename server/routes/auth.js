@@ -24,6 +24,14 @@ router.post('/provider-request', authLimiter, validate(providerRequestSchema), a
 router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);
 router.post('/reset-password', authLimiter, validate(resetPasswordSchema), authController.resetPassword);
 
+// Google OAuth Sync — creates or fetches a user based on their Google account
+// Rate-limited like login to prevent abuse
+router.post('/google-sync', authLimiter, authController.googleSync);
+
+// Refresh Token
+router.post('/refresh', authLimiter, authController.refreshToken);
+
+
 // Protected routes (require valid JWT token)
 router.use(verifyToken);
 router.get('/me', authController.getMe);

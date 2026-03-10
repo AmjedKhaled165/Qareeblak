@@ -2,11 +2,13 @@ const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
 const logger = require('./logger');
 const fcmService = require('../services/fcm.service');
+const db = require('../db');
 
 // All ioredis/BullMQ construction is deferred — no connection is created at
 // module load time. This prevents ECONNREFUSED errors being printed to stderr
 // when Redis is unavailable. initializeWorkers() is the gated entry point.
 let _notificationQueue = null;
+let _maintenanceQueue = null;
 
 // Safe no-op helper — works whether workers are initialized or not
 const addNotificationJob = async (data) => {
@@ -20,7 +22,7 @@ const addNotificationJob = async (data) => {
 };
 
 // Called from index.js ONLY after connectRedis() succeeds
-const initializeWorkers = () => {
+const initializeWorkers = async () => {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
     const connection = new IORedis(redisUrl, {
@@ -72,6 +74,47 @@ const initializeWorkers = () => {
 
     worker.on('completed', (job) => logger.debug(`Job ${job.id} completed`));
     worker.on('failed', (job, err) => logger.error(`Job ${job.id} failed: ${err.message}`));
+    // ==========================================
+    // MAINTENANCE QUEUE: Scheduled cleanup jobs
+    // ==========================================
+    _maintenanceQueue = new Queue('maintenance', {
+        connection,
+        defaultJobOptions: {
+            attempts: 2,
+            backoff: { type: 'fixed', delay: 60000 },
+            removeOnComplete: true,
+            removeOnFail: 100,
+        }
+    });
+
+    // Worker: Guest account pruning + general DB maintenance
+    const maintenanceWorker = new Worker('maintenance', async (job) => {
+        if (job.name === 'cleanup-guest-accounts') {
+            const result = await db.query(`
+                DELETE FROM users
+                WHERE user_type = 'customer'
+                AND email LIKE 'guest_%@qareeblak.com'
+                AND created_at < NOW() - INTERVAL '7 days'
+                AND id NOT IN (
+                    SELECT DISTINCT user_id FROM bookings
+                    WHERE user_id IS NOT NULL
+                )
+            `);
+            logger.info(`[Maintenance] Guest cleanup: removed ${result.rowCount} stale guest accounts`);
+        }
+    }, { connection });
+
+    maintenanceWorker.on('failed', (job, err) => logger.error(`[Maintenance] Job ${job?.id} failed: ${err.message}`));
+
+    // Schedule daily guest cleanup at 3AM (cron: 0 3 * * *)
+    // BullMQ repeat pattern uses cron syntax
+    await _maintenanceQueue.add(
+        'cleanup-guest-accounts',
+        {},
+        { repeat: { pattern: '0 3 * * *' } }
+    );
+    logger.info('✅ BullMQ maintenance worker started (Guest cleanup scheduled at 3AM daily)');
+
     logger.info('✅ BullMQ notification worker started');
 };
 

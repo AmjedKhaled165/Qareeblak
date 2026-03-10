@@ -1,0 +1,186 @@
+name: Qareeblak CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, production ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '20.x'
+  DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/qareeblak-api
+
+jobs:
+  # ============================================================
+  # JOB 1: Lint + Security Audit
+  # ============================================================
+  lint-and-audit:
+    name: 🔍 Lint & Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run ESLint
+        run: npx eslint server/ --ext .js --max-warnings 0
+        continue-on-error: false
+
+      - name: Security audit (fail on HIGH/CRITICAL only)
+        run: npm audit --audit-level=high
+        continue-on-error: false
+
+  # ============================================================
+  # JOB 2: Build & Test
+  # ============================================================
+  test:
+    name: 🧪 Test Suite
+    runs-on: ubuntu-latest
+    needs: lint-and-audit
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: qareeblak_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/qareeblak_test
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci_test_access_secret_not_for_production
+      JWT_REFRESH_SECRET: ci_test_refresh_secret_not_for_production
+      PORT: 5000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Apply database schema
+        run: psql $DATABASE_URL -f schema.sql
+        env:
+          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/qareeblak_test
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Syntax check all server files
+        run: find server/ -name "*.js" -exec node -c {} \;
+
+  # ============================================================
+  # JOB 3: Docker Build & Push (production branch only)
+  # ============================================================
+  docker-build:
+    name: 🐳 Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # JOB 4: Deploy to Production (production branch only)
+  # ============================================================
+  deploy:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/production'
+    environment:
+      name: production
+      url: https://qareeblak.com
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /srv/qareeblak
+
+            # Pull latest image
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ${{ env.DOCKER_IMAGE }}:latest
+
+            # Zero-downtime rolling restart
+            docker compose pull api
+            docker compose up -d --no-deps --scale api=2 api
+            sleep 15
+            docker compose up -d --no-deps --scale api=1 api
+
+            # Cleanup old images
+            docker image prune -f
+
+            echo "✅ Deployment complete: $(date)"

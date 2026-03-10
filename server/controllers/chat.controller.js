@@ -1,6 +1,7 @@
 const chatService = require('../services/chat.service');
 const chatRepo = require('../repositories/chat.repository');
 const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 
 exports.startConsultation = catchAsync(async (req, res, next) => {
@@ -15,17 +16,17 @@ exports.startConsultation = catchAsync(async (req, res, next) => {
 
 exports.getMessages = catchAsync(async (req, res, next) => {
     const { consultationId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit = 50, lastId = null } = req.query; // lastId بدل offset
     const userId = req.user.id;
 
-    const { messages, consultation } = await chatService.getMessages(
+    const { messages, consultation, nextLastId, hasMore } = await chatService.getMessages(
         consultationId,
         userId,
         parseInt(limit),
-        parseInt(offset)
+        lastId ? parseInt(lastId) : null
     );
 
-    res.status(200).json({ success: true, messages, consultation });
+    res.status(200).json({ success: true, messages, consultation, nextLastId, hasMore });
 });
 
 exports.sendMessage = catchAsync(async (req, res, next) => {
@@ -51,7 +52,12 @@ exports.uploadImage = catchAsync(async (req, res, next) => {
         return res.status(400).json({ success: false, error: 'لم يتم تحميل أي صورة' });
     }
 
-    const imageUrl = `/uploads/chat/${req.file.filename}`;
+    // Cloudinary (memoryStorage path), S3 (multerS3 path), or local disk fallback (dev)
+    const imageUrl = req.file.cloudinaryUrl
+        ? req.file.cloudinaryUrl
+        : req.file.location
+        ? req.file.location
+        : `/uploads/chat/${req.file.filename}`;
 
     const savedMessage = await chatService.sendMessage(consultationId, userId, {
         senderType: senderType || 'customer',
@@ -115,28 +121,22 @@ exports.acceptQuote = catchAsync(async (req, res, next) => {
 
 exports.getProviderConsultations = catchAsync(async (req, res, next) => {
     const { providerId } = req.params;
-    const { status, limit = 50, offset = 0 } = req.query;
+    const { status, limit = 20, lastId = null } = req.query; // cursor-based
 
-    // Security check: Is this user the owner/staff of this provider?
-    const pUserId = await chatRepo.getUserIdByProviderId ? await chatRepo.getUserIdByProviderId(providerId) : null;
-    // Fallback if the repo method doesn't exist yet, we'll add it or check manually
-    // Actually let's just do a direct query or check if chatRepo has it.
-
-    // Better: We already have providerId. Let's check if the user is the provider.
-    // In chatRepo, we can add a check. For now, let's use a repository check.
-    const consultations = await chatRepo.getProviderConsultations(providerId, status, parseInt(limit), parseInt(offset));
-
-    // Security: Filter results or verify provider ownership. 
-    // Usually, the providerId is linked to a user. Let's check that link.
-    const result = await chatRepo.getProviderInfo(providerId);
-    if (!result) throw new AppError('المزود غير موجود', 404);
-
-    // We need to verify if the current user is authorized for this providerId
-    // For simplicity, let's add the check here.
+    // Security check: only the owner of this provider can view their consultations
     const check = await chatRepo.pool.query('SELECT user_id FROM providers WHERE id = $1', [providerId]);
-    if (check.rows.length === 0 || (String(check.rows[0].user_id) !== String(req.user.id) && req.user.role !== 'admin')) {
+    if (!check.rows.length || (String(check.rows[0].user_id) !== String(req.user.id) && req.user.user_type !== 'admin')) {
         throw new AppError('غير مصرح لك بالوصول لقائمة محادثات هذا المزود', 403);
     }
 
-    res.status(200).json({ success: true, consultations });
+    const consultations = await chatRepo.getProviderConsultations(
+        providerId, status, parseInt(limit), lastId ? parseInt(lastId) : null
+    );
+
+    res.status(200).json({
+        success: true,
+        consultations,
+        nextLastId: consultations.length > 0 ? consultations[consultations.length - 1].id : null,
+        hasMore: consultations.length === parseInt(limit)
+    });
 });

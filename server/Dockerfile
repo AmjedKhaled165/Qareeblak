@@ -4,6 +4,9 @@ FROM node:25-alpine AS builder
 # Set working directory inside container
 WORKDIR /app
 
+# Alpine dependencies needed for native modules (sharp, canvas, etc.)
+RUN apk add --no-cache libc6-compat python3 make g++
+
 # Copy package dependencies first to leverage Docker layer caching
 COPY package*.json ./
 
@@ -25,6 +28,9 @@ RUN npm install -g pm2
 
 # Copy stripped dependencies and src code from builder
 COPY --from=builder /app ./
+
+# Create logs directory for PM2 (must exist before chown)
+RUN mkdir -p /app/logs
 
 # Change ownership
 RUN chown -R nodeuser:nodeapp /app

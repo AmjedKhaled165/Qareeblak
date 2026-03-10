@@ -1,24 +1,78 @@
 const bookingService = require('../services/booking.service');
 const bookingRepo = require('../repositories/booking.repository');
+const db = require('../db');
 const catchAsync = require('../utils/catchAsync');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
 
-exports.checkout = catchAsync(async (req, res, next) => {
-    // Schema validates items array and contents
-    const { userId, items, addressInfo, userPrizeId } = req.body;
+/**
+ * GET /bookings — Admin-only: Retrieve all platform bookings with cursor pagination
+ * Uses cursor-based (keyset) pagination for O(log N) performance at scale
+ */
+exports.getAllBookings = catchAsync(async (req, res, next) => {
+    const { lastId, limit = '50' } = req.query;
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
 
-    // Safety check - force match the token executing user to the request body to prevent IDOR locally or remove relying on body
+    let query, params;
+    if (lastId) {
+        query = `
+            SELECT b.id, b.user_name AS "userName", b.service_name AS "serviceName",
+                   b.provider_name AS "providerName", b.provider_id AS "providerId",
+                   b.user_id AS "userId", b.status, b.price, b.discount_amount AS "discountAmount",
+                   b.booking_date AS date, b.parent_order_id AS "parentOrderId",
+                   b.halan_order_id AS "halanOrderId"
+            FROM bookings b
+            WHERE b.id < $1
+            ORDER BY b.id DESC
+            LIMIT $2
+        `;
+        params = [lastId, safeLimit];
+    } else {
+        query = `
+            SELECT b.id, b.user_name AS "userName", b.service_name AS "serviceName",
+                   b.provider_name AS "providerName", b.provider_id AS "providerId",
+                   b.user_id AS "userId", b.status, b.price, b.discount_amount AS "discountAmount",
+                   b.booking_date AS date, b.parent_order_id AS "parentOrderId",
+                   b.halan_order_id AS "halanOrderId"
+            FROM bookings b
+            ORDER BY b.id DESC
+            LIMIT $1
+        `;
+        params = [safeLimit];
+    }
+
+    const result = await db.query(query, params);
+    const rows = result.rows;
+
+    res.status(200).json({
+        bookings: rows,
+        pagination: {
+            nextLastId: rows.length > 0 ? rows[rows.length - 1].id : null,
+            limit: safeLimit,
+            hasMore: rows.length === safeLimit
+        }
+    });
+});
+
+
+exports.checkout = catchAsync(async (req, res, next) => {
+    const { userId, items, addressInfo, userPrizeId, promoCode, useWallet } = req.body;
+
     const authenticatedUser = req.user.id;
     if (String(userId) !== String(authenticatedUser)) {
-        throw new AppError('لا تملك الصلاحية لإتمام هذا الطلب', 403);
+        throw new AppError('Unauthorized checkout attempt', 403);
     }
 
     const idempotencyKey = req.headers['idempotency-key'] || null;
 
-    const checkoutResult = await bookingService.checkoutTransaction(authenticatedUser, items, addressInfo, userPrizeId, idempotencyKey);
+    const checkoutResult = await bookingService.checkoutTransaction(authenticatedUser, items, addressInfo, {
+        userPrizeId,
+        promoCode,
+        useWallet,
+        idempotencyKey
+    });
 
-    logger.info(`Checkout completed Parent: ${checkoutResult.parentId}`);
+    logger.info(`✅ [Elite] Checkout completed Parent: ${checkoutResult.parentId} for User: ${authenticatedUser}`);
     res.status(201).json({ success: true, message: 'Order placed successfully', ...checkoutResult });
 });
 
@@ -133,4 +187,23 @@ exports.acceptAppointment = catchAsync(async (req, res, next) => {
 
     const booking = await bookingService.confirmAppointment(id, acceptedBy, req.app.get('io'));
     res.status(200).json({ success: true, message: 'تم تأكيد الموعد بنجاح', booking });
+});
+
+exports.reorder = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const booking = await bookingRepo.getBookingInfoById(id);
+    if (!booking) throw new AppError('Booking not found', 404);
+
+    if (String(booking.user_id) !== String(req.user.id)) {
+        throw new AppError('Unauthorized reorder attempt', 403);
+    }
+
+    const items = typeof booking.items === 'string' ? JSON.parse(booking.items) : (booking.items || []);
+    if (items.length === 0) throw new AppError('No items found in previous booking', 400);
+
+    const reorderResult = await bookingService.checkoutTransaction(req.user.id, items, booking.address_info, {
+        useWallet: false
+    });
+
+    res.status(201).json({ success: true, message: 'Reordered successfully', ...reorderResult });
 });

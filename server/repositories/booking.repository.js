@@ -2,7 +2,8 @@ const pool = require('../db');
 
 class BookingRepository {
     async beginTransaction() {
-        const client = await pool.pool.connect();
+        // pool is the Pool instance directly (db.js exports pool, not { pool })
+        const client = await pool.connect();
         await client.query('BEGIN');
         return client;
     }
@@ -149,18 +150,31 @@ class BookingRepository {
         return result.rows[0];
     }
 
-    async updateBookingStatusAndPrice(id, status, price) {
+    async updateBookingStatusAtomic(id, expectedStatuses, targetStatus, price, client = pool) {
+        // [ENTERPRISE] Compare-and-Swap Atomic Update
+        const params = [targetStatus, id];
         let query = 'UPDATE bookings SET status = $1';
-        const params = [status];
 
         if (price !== undefined) {
-            query += ', price = $2';
             params.push(price);
+            query += `, price = $${params.length}`;
         }
-        query += ` WHERE id = $${params.length + 1} RETURNING *`;
-        params.push(id);
 
-        return (await pool.query(query, params)).rows[0];
+        query += `, updated_at = NOW() WHERE id = $2`;
+
+        if (expectedStatuses) {
+            const statusArray = Array.isArray(expectedStatuses) ? expectedStatuses : [expectedStatuses];
+            params.push(statusArray);
+            query += ` AND status = ANY($${params.length})`;
+        }
+
+        query += ' RETURNING *';
+        const result = await client.query(query, params);
+        return result.rows[0];
+    }
+
+    async updateBookingStatusAndPrice(id, status, price) {
+        return this.updateBookingStatusAtomic(id, null, status, price);
     }
 
     async updateDeliveryOrderStatus(deliveryOrderId, status) {

@@ -1,29 +1,44 @@
 const pool = require('../db');
 
 class ProviderRepository {
-    async getAllApprovedWithDetails() {
-        const result = await pool.query(`
+    /**
+     * @param {{limit: number, lastId: number, lastRating: number, category: string}} options
+     */
+    async getProviders({ limit = 20, lastId, lastRating, category }) {
+        // [ENTERPRISE PERFORMANCE] Cursor-based pagination using composite (rating, id)
+        // This avoids O(N) OFFSET penalty and JSON_AGG memory exhaustion
+        const params = [limit];
+        const conditions = ['p.is_approved = TRUE', 'p.is_banned = FALSE'];
+
+        if (category) {
+            params.push(category);
+            conditions.push(`p.category = $${params.length}`);
+        }
+
+        if (lastRating !== undefined && lastId !== undefined) {
+            params.push(lastRating, lastId);
+            const rIdx = params.length - 1;
+            const iIdx = params.length;
+            // Keyset pagination for composite ordering (ordered by rating DESC, then id ASC)
+            conditions.push(`(p.rating < $${rIdx} OR (p.rating = $${rIdx} AND p.id > $${iIdx}))`);
+        }
+
+        const query = `
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone, p.user_id,
-                p.rating, p.reviews_count as reviews, p.is_approved, p.joined_date,
-                COALESCE(
-                    (SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id),
-                    '[]'::json
-                ) as services_raw,
-                COALESCE(
-                    (SELECT json_agg(rev.*) FROM (
-                        SELECT id, user_name, rating, comment, review_date FROM reviews WHERE provider_id = p.id ORDER BY review_date DESC LIMIT 20
-                    ) rev),
-                    '[]'::json
-                ) as reviews_raw
+                p.rating, p.reviews_count as reviews, p.joined_date
             FROM providers p
-            WHERE p.is_approved = TRUE AND p.is_banned = FALSE
+            WHERE ${conditions.join(' AND ')}
             ORDER BY p.rating DESC, p.id ASC
-        `);
+            LIMIT $1
+        `;
+
+        const result = await pool.query(query, params);
         return result.rows;
     }
 
     async getByIdWithDetails(id) {
+        // Single provider details with limited aggregation is acceptable
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone, p.user_id,
@@ -42,18 +57,6 @@ class ProviderRepository {
             WHERE p.id = $1
         `, [id]);
         return result.rows[0];
-    }
-
-    async getAllApproved() {
-        const result = await pool.query(`
-            SELECT 
-                p.id, p.name, p.email, p.category, p.location, p.phone, p.user_id,
-                p.rating, p.reviews_count as reviews, p.is_approved, p.joined_date
-            FROM providers p
-            WHERE p.is_approved = TRUE
-            ORDER BY p.id ASC
-        `);
-        return result.rows;
     }
 
     async getServices(providerId) {

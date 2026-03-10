@@ -1,3 +1,6 @@
+// 🛰️ [Big Tech Step] Initialize Tracing FIRST (Before any other imports)
+require('./tracing');
+
 const db = require('./db');
 const express = require('express');
 const http = require('http');
@@ -15,25 +18,44 @@ const globalErrorHandler = require('./middleware/errorHandler');
 const healthRoutes = require('./routes/health');
 const { initializeWorkers } = require('./utils/queues');
 const { connectRedis } = require('./utils/redis');
+const watchdog = require('./utils/watchdog');
+
+// 🛡️ Activate System Guardian
+watchdog.start();
 
 // Initialize Redis first; only start background workers if Redis is available
-connectRedis().then((redisAvailable) => {
+connectRedis().then(async (redisAvailable) => {
     if (redisAvailable) {
-        initializeWorkers();
+        try {
+            await initializeWorkers();
+        } catch (err) {
+            logger.error('💥 Failed to initialize BullMQ workers:', err);
+        }
     } else {
         logger.warn('Background job workers disabled (Redis unavailable).');
     }
+}).catch(err => {
+    logger.error('💥 Critical error during Redis/Worker initialization:', err);
 });
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
-// Sentry Integration Placeholder
+// Sentry Integration (v10 API)
+let Sentry = null;
 if (process.env.SENTRY_DSN) {
-    const Sentry = require('@sentry/node');
-    Sentry.init({ dsn: process.env.SENTRY_DSN });
-    app.use(Sentry.Handlers.requestHandler());
+    try {
+        Sentry = require('@sentry/node');
+        Sentry.init({
+            dsn: process.env.SENTRY_DSN,
+            environment: process.env.NODE_ENV || 'development',
+            tracesSampleRate: 0.2,
+        });
+    } catch (err) {
+        logger.warn('Sentry failed to initialize:', err.message);
+        Sentry = null;
+    }
 }
 
 // Socket.io setup for real-time tracking
@@ -70,7 +92,9 @@ app.set('io', io);
 configureMiddleware(app, express);
 
 // Run Startup Migrations
-runStartupMigrations();
+runStartupMigrations().catch(err => {
+    console.error('💥 Migration Rejection:', err);
+});
 
 // Apply Enterprise WebSocket Auth 
 io.use(verifySocketToken);
@@ -109,6 +133,18 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wheel', wheelRoutes);
 
+// 📊 Prometheus Metrics Scraper Endpoint (Big Tech Tier Observability)
+const { register } = require('./utils/metrics');
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', register.contentType);
+        res.end(await register.metrics());
+    } catch (ex) {
+        logger.error('Metrics scrape failed', ex);
+        res.status(500).end(ex);
+    }
+});
+
 // Secured User List (Admin Only)
 app.get('/api/debug/users', verifyToken, isAdmin, async (req, res) => {
     try {
@@ -134,40 +170,65 @@ app.get('/api/debug/users', verifyToken, isAdmin, async (req, res) => {
 });
 
 // Error handling
-if (process.env.SENTRY_DSN) {
-    const Sentry = require('@sentry/node');
-    app.use(Sentry.Handlers.errorHandler());
-}
+if (Sentry) { Sentry.setupExpressErrorHandler(app); }
 app.use(globalErrorHandler);
 
-// Start Server
+// ================== ELITE PRODUCTION HARDENING ==================
+// 1. Force Request Timeouts (Prevent Slowloris and connection leaks)
+const SERVER_TIMEOUT = 30000; // 30 seconds
+server.timeout = SERVER_TIMEOUT;
+server.headersTimeout = SERVER_TIMEOUT;
+server.keepAliveTimeout = 65000; // Slightly higher than load balancer (Nginx)
+
+// 2. Start Server
 server.listen(PORT, '0.0.0.0', () => {
-    logger.info(`✅ Server is running on port ${PORT}`);
+    logger.info(`✅ [Ready] Qareeblak Elite Backend listening on port ${PORT}`);
 });
 
-// ================== GRACEFUL SHUTDOWN ==================
-const shutDown = async () => {
-    logger.info('🛑 Received shutdown signal. Closing gracefully...');
+// 3. Graceful Shutdown (Elite Protocol)
+const shutDown = async (signal) => {
+    logger.info(`🛑 Received ${signal}. Orchestrating graceful exit...`);
+
+    // Set a maximum time for graceful shutdown (10s)
+    const forceExitTimeout = setTimeout(() => {
+        logger.error('🔥 Graceful shutdown timed out. Forcing exit.');
+        process.exit(1);
+    }, 10000);
+
     server.close(async () => {
+        logger.info('🛰️ HTTP server closed.');
         try {
             await db.end();
+            logger.info('🐘 Database pool drained.');
+
             const { client: redisClient } = require('./utils/redis');
-            if (redisClient.isOpen) await redisClient.quit();
+            if (redisClient.isOpen) {
+                await redisClient.quit();
+                logger.info('🎈 Redis connection terminated.');
+            }
+
+            clearTimeout(forceExitTimeout);
             process.exit(0);
         } catch (err) {
-            logger.error('Error during shutdown:', err);
+            logger.error('💥 Shutdown error:', err);
             process.exit(1);
         }
     });
 };
 
-process.on('SIGTERM', shutDown);
-process.on('SIGINT', shutDown);
+process.on('SIGTERM', () => shutDown('SIGTERM'));
+process.on('SIGINT', () => shutDown('SIGINT'));
+process.on('SIGUSR2', () => shutDown('SIGUSR2')); // For nodemon
 
 process.on('uncaughtException', (err) => {
-    logger.error('💥 Uncaught Exception:', err);
+    console.error('💥 FATAL: Uncaught Exception:', err);
+    if (err && err.stack) console.error('Stack:', err.stack);
+    process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    logger.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+    console.error('💥 FATAL: Unhandled Rejection at promise:', promise);
+    console.error('Reason:', reason);
+    if (reason && reason.stack) console.error('Stack:', reason.stack);
+    process.exit(1);
 });

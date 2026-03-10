@@ -17,8 +17,10 @@ const {
 router.use(verifyToken);
 router.use(isAdmin);
 
-// Dashboard
+// Dashboard & BI
 router.get('/stats', adminController.getStats);
+router.get('/providers-performance', adminController.getProvidersPerformance);
+router.get('/providers-performance/:id/orders', adminController.getProviderDetailedReport);
 
 // Orders Management
 router.get('/orders', adminController.getOrders);
@@ -37,7 +39,21 @@ router.post('/users/:id/reset-password', validate(resetPasswordSchema), adminCon
 // Logistics
 router.get('/couriers/available', adminController.getAvailableCouriers);
 
-// System Audit
+// System Audit & Chaos (Elite SRE)
 router.get('/audit-logs', adminController.getAuditLogs);
+
+// 🛠️ [Chaos Engineering] Fault Injection Control
+const chaos = require('../utils/resilience');
+router.post('/chaos/db-failure', (req, res) => {
+    const { status } = req.body;
+    chaos.setDBFailure(status);
+    res.json({ success: true, db_failure: status });
+});
+
+router.post('/chaos/latency', (req, res) => {
+    const { ms } = req.body;
+    chaos.setLatency(ms);
+    res.json({ success: true, latency_injection: ms });
+});
 
 module.exports = router;

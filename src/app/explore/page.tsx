@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAppStore } from "@/components/providers/AppProvider";
+import { useCartStore } from "@/components/providers/CartProvider";
 import { CartModal } from "@/components/features/cart-modal";
 
 import { SkeletonCard } from "@/components/features/skeleton-card";
@@ -26,12 +27,16 @@ const CATEGORIES = [
     { id: "بقالة", label: "سوبر ماركت", icon: ShoppingBag },
 ];
 
-export default function ExplorePage() {
-    const { providers, isInitialized, isLoading, currentUser, globalCart } = useAppStore();
+import { Suspense } from 'react';
+
+function ExploreContent() {
+    const { providers, isInitialized, isLoading, currentUser } = useAppStore();
+    const { globalCart } = useCartStore();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isCartOpen, setIsCartOpen] = useState(false);
     const addToOrderId = searchParams.get('addToOrderId');
+    const queryFromHome = searchParams.get('q') || "";
     const [activeCategory, setActiveCategory] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [visibleCount, setVisibleCount] = useState(12);
@@ -39,21 +44,8 @@ export default function ExplorePage() {
     // Debounce the search term to prevent lag
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-    useEffect(() => {
-        if (currentUser?.type === 'provider') {
-            router.replace('/provider-dashboard');
-        }
-    }, [currentUser, router]);
-
-    // Reset visible count when filters change
-    useEffect(() => {
-        setVisibleCount(12);
-    }, [activeCategory, debouncedSearchQuery]);
-
-    if (!isInitialized || currentUser?.type === 'provider') return null; // Avoid hydration mismatch or provider flash
-
     const filteredProviders = useMemo(() => {
-        return providers.filter(provider => {
+        return (providers || []).filter(provider => {
             const matchesCategory = activeCategory === "all" || provider.category === activeCategory;
             const matchesSearch = provider.name.includes(debouncedSearchQuery) ||
                 provider.location.includes(debouncedSearchQuery) ||
@@ -61,6 +53,25 @@ export default function ExplorePage() {
             return matchesCategory && matchesSearch;
         });
     }, [providers, activeCategory, debouncedSearchQuery]);
+
+    useEffect(() => {
+        if (currentUser?.type === 'provider') {
+            router.replace('/provider-dashboard');
+        }
+    }, [currentUser, router]);
+
+    useEffect(() => {
+        if (queryFromHome) {
+            setSearchQuery(queryFromHome);
+        }
+    }, [queryFromHome]);
+
+    // Reset visible count when filters change
+    useEffect(() => {
+        setVisibleCount(12);
+    }, [activeCategory, debouncedSearchQuery]);
+
+    if (!isInitialized || currentUser?.type === 'provider') return null;
 
     const displayedProviders = filteredProviders.slice(0, visibleCount);
 
@@ -108,7 +119,15 @@ export default function ExplorePage() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <Button variant="outline" size="icon">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                                setActiveCategory('all');
+                                setSearchQuery('');
+                            }}
+                            title="إعادة ضبط الفلاتر"
+                        >
                             <SlidersHorizontal className="h-4 w-4" />
                         </Button>
                     </div>
@@ -198,5 +217,13 @@ export default function ExplorePage() {
                 onClose={() => setIsCartOpen(false)}
             />
         </div>
-    )
+    );
+}
+
+export default function ExplorePage() {
+    return (
+        <Suspense fallback={<div className="container mx-auto p-8"><div className="h-10 w-48 bg-slate-200 animate-pulse rounded mb-8" /></div>}>
+            <ExploreContent />
+        </Suspense>
+    );
 }

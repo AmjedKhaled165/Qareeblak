@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppStore } from "@/components/providers/AppProvider";
+import { useCartStore } from "@/components/providers/CartProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { PharmacyChat } from "@/components/features/PharmacyChat";
 import { CartModal } from "@/components/features/cart-modal";
@@ -64,7 +65,8 @@ interface PharmacyProviderLayoutProps {
 
 export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps) {
     const router = useRouter();
-    const { currentUser, globalCart, addToGlobalCart, removeFromGlobalCart, updateGlobalCartQuantity } = useAppStore();
+    const { currentUser } = useAppStore();
+    const { globalCart, addToGlobalCart, removeFromGlobalCart, updateGlobalCartQuantity } = useCartStore();
     const { toast } = useToast();
 
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -114,7 +116,7 @@ export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps
             providerId: providerIdStr,
             providerName: provider.name,
         });
-        toast("تمت الإضافة للسلة", "success");
+        // Note: CartProvider already shows a toast for addToGlobalCart
     };
 
     // Handle quantity change

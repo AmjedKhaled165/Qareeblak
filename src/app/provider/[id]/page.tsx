@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAppStore } from "@/components/providers/AppProvider";
+import { useCartStore } from "@/components/providers/CartProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +57,8 @@ export default function ProviderProfile() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { providers, addReview, createBooking, isInitialized, currentUser, loginUser, submitProviderRequest, refreshProviders, bookings, addToInfoCart, pendingCartItems, submitInfoCart, addToGlobalCart, globalCart } = useAppStore();
+    const { providers, addReview, createBooking, isInitialized, currentUser, loginUser, submitProviderRequest, refreshProviders, bookings } = useAppStore();
+    const { addToInfoCart, pendingCartItems, submitInfoCart, addToGlobalCart, globalCart } = useCartStore();
     const { toast } = useToast();
     const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,13 +107,7 @@ export default function ProviderProfile() {
     // Now conditional logic AFTER all hooks
     if (!isInitialized) return null;
 
-    // Debugging logs
-    console.log("Provider Param ID:", params.id);
-    console.log("Total Providers:", providers.length);
-    if (providers.length > 0) {
-        console.log("First Provider ID:", providers[0].id, "Type:", typeof providers[0].id);
-    }
-    console.log("Found Provider:", provider);
+
 
     if (!provider) {
         return (

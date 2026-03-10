@@ -1,6 +1,9 @@
 const { Pool } = require('pg');
 const path = require('path');
+const os = require('os');
 const logger = require('./utils/logger');
+const { dbQueryDurationSeconds } = require('./utils/metrics');
+const chaos = require('./utils/resilience');
 
 // Force load env
 const envPath = path.join(__dirname, '..', '.env.local');
@@ -18,14 +21,39 @@ if (process.env.DATABASE_URL) {
 
 const databaseUrl = process.env.DATABASE_URL;
 
-// Enterprise pool management settings
+// Detect remote/cloud DB — Neon.tech, Supabase, or any production env requires SSL
+const isProduction = process.env.NODE_ENV === 'production';
+const isRemoteDb = databaseUrl.includes('neon.tech') || databaseUrl.includes('supabase') || isProduction;
+
+// Safety mechanism for multi-core scaling (PM2 Cluster)
+const totalCpus = os.cpus().length || 4;
+// Limit PM2 instances to not exceed max DB connection limit (default 100 on standard PostgreSQL)
+const MAX_POSTGRES_CONNECTIONS = process.env.DB_MAX_CONNECTIONS || 90;
+const poolMaxPerInstance = isProduction ? Math.floor(MAX_POSTGRES_CONNECTIONS / totalCpus) : 20;
+
 const pool = new Pool({
     connectionString: databaseUrl,
-    max: process.env.NODE_ENV === 'production' ? 100 : 20, // Max clients per instance
+    max: Math.max(poolMaxPerInstance, 5), // Ensure at least 5 connections per instance even on huge machines
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
-    maxUses: 7500 // Close idle connections after usage to prevent memory leaks
+    maxUses: 7500, // Close idle connections after usage to prevent memory leaks
+    ...(isRemoteDb && { ssl: { rejectUnauthorized: false } })
 });
+
+// 📊 [Big Tech Tier] Database Instrumentation
+const originalQuery = pool.query;
+pool.query = async function (text, params) {
+    await chaos.inject(); // Simulation point
+    const start = Date.now();
+    try {
+        const result = await originalQuery.call(this, text, params);
+        const duration = (Date.now() - start) / 1000;
+        dbQueryDurationSeconds.observe({ query_type: 'pool_query' }, duration);
+        return result;
+    } catch (err) {
+        throw err;
+    }
+};
 
 // Immediately test connection and fail fast if down in production
 pool.connect()

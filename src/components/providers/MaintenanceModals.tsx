@@ -67,7 +67,7 @@ export function RescheduleModal({ isOpen, onClose, onConfirm, currentDate }: Res
                                     row: "flex w-full mt-2 justify-between",
                                 }}
                                 locale={arEG}
-                                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                disabled={(date: Date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                             />
                         </div>
                     </div>

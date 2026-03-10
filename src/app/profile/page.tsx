@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { User, Mail, Save, ArrowRight, Camera, Phone, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Save, ArrowRight, Camera, Phone, Lock, Eye, EyeOff, ShoppingBag, Gift } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -161,6 +161,24 @@ export default function ProfilePage() {
                         </CardHeader>
 
                         <CardContent className="space-y-8 p-8 border-t border-border/50">
+                            {/* Stats/Quick Actions Grid */}
+                            {!isEditing && (
+                                <div className="grid grid-cols-2 gap-4 pb-6">
+                                    <Link href="/orders" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-all group">
+                                        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                            <ShoppingBag className="w-6 h-6" />
+                                        </div>
+                                        <span className="mt-2 font-bold text-sm text-foreground">طلباتي</span>
+                                    </Link>
+                                    <Link href="/wheel" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-orange-500/5 hover:bg-orange-500/10 border border-orange-500/10 transition-all group">
+                                        <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+                                            <Gift className="w-6 h-6" />
+                                        </div>
+                                        <span className="mt-2 font-bold text-sm text-foreground">عجلة الحظ</span>
+                                    </Link>
+                                </div>
+                            )}
+
                             <div className="space-y-5">
                                 {/* Name */}
                                 <div className="grid gap-2 text-right">
@@ -176,6 +194,8 @@ export default function ProfilePage() {
                                         />
                                     </div>
                                 </div>
+                                {/* ... rest of the form ... */}
+
 
                                 {/* Email */}
                                 <div className="grid gap-2 text-right">
