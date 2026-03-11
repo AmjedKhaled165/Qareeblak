@@ -16,13 +16,19 @@ const { client: redisClient } = require('../utils/redis');
 // This avoids the "Redis not ready" fallback to memory on initial app boot
 const createStore = () => {
     return new RedisStore({
-        sendCommand: (...args) => {
-            // Check if client is connected or connecting
-            if (redisClient.status === 'ready' || redisClient.status === 'connecting') {
-                return redisClient.call(...args);
+        sendCommand: async (...args) => {
+            try {
+                // Check if client is connected or connecting
+                if (redisClient.status === 'ready' || redisClient.status === 'connecting') {
+                    return await redisClient.call(...args);
+                }
+                // Log and fallback silently to avoid crashing the server
+                logger.warn('[RateLimiter] Redis not ready yet, request skipped from Redis store');
+                throw new Error('Redis not ready');
+            } catch (err) {
+                // Return a rejected promise instead of crashing, express-rate-limit will handle it
+                return Promise.reject(err);
             }
-            // Fallback for extreme cases when Redis is actually offline
-            throw new Error('Redis connection down');
         }
     });
 };
