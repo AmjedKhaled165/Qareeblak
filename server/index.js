@@ -91,10 +91,16 @@ app.set('io', io);
 // Configure Middleware (CORS, CSP, Compression, Body Parsing, Static, Logger)
 configureMiddleware(app, express);
 
-// Run Startup Migrations
-runStartupMigrations().catch(err => {
-    console.error('💥 Migration Rejection:', err);
-});
+// Run Startup Migrations (only if enabled)
+// التأكد إن القيمة هي النص 'true' حرفياً قبل التشغيل
+if (process.env.RUN_MIGRATIONS === 'true') {
+    console.log('🚀 Running database migrations...');
+    runStartupMigrations().catch(err => {
+        console.error('💥 Migration Rejection:', err);
+    });
+} else {
+    console.log('⏭️ Skipping migrations as per environment configuration.');
+}
 
 // Apply Enterprise WebSocket Auth 
 io.use(verifySocketToken);
