@@ -7,7 +7,7 @@ import { X, CheckCircle2, MapPin, Wrench, Utensils, ShoppingBag, Plus, Minus } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ServiceProvider } from "./service-card";
-import { useAppStore } from "@/components/providers/AppProvider";
+import { useCartStore } from "@/components/providers/CartProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 
 interface BookingModalProps {
@@ -51,7 +51,7 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
     const nextStep = () => setStep((s) => s + 1);
     const prevStep = () => setStep((s) => s - 1);
 
-    const { createBooking, currentUser, addToGlobalCart } = useAppStore();
+    const { addToGlobalCart } = useCartStore();
 
     const handleSubmit = async () => {
         // Instead of immediate booking, add to global cart
