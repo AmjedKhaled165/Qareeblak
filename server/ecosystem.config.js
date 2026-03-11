@@ -7,9 +7,9 @@ module.exports = {
             exec_mode: 'fork', // وضع fork بدل cluster للحفاظ على الموارد
             autorestart: true,
             watch: false,
-            max_memory_restart: '1G', // Gracefully restarts if memory leaks hit 1024MB
+            max_memory_restart: '2G', // زيادة الحد إلى 2GB للتعامل مع BullMQ Workers
             // Node V8 max space (Must ALWAYS be lower than max_memory_restart to allow clean GC before PM2 SIGKILL)
-            node_args: "--max-old-space-size=800",
+            node_args: "--max-old-space-size=1536", // 1.5GB - إعطاء مساحة أكبر للتطبيق
             env: {
                 NODE_ENV: 'development',
                 PORT: 5000

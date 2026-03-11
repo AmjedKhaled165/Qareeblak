@@ -9,7 +9,7 @@ class GuardianWatchdog {
     constructor() {
         this.status = 'healthy';
         this.thresholds = {
-            memory: 0.90, // 90% of heap
+            memory: 0.95, // 95% of heap - رفع الحد لتقليل الـ healing المتكرر
             eventLoopLag: 200, // 200ms
             maxActiveCheckouts: 500
         };
@@ -19,7 +19,7 @@ class GuardianWatchdog {
         logger.info('🛡️ Guardian Watchdog activated. Monitoring system health...');
 
         // 1. Health Monitoring Loop
-        setInterval(() => this.checkHealth(), 10000); // Every 10s
+        setInterval(() => this.checkHealth(), 30000); // Every 30s - تقليل التكرار
     }
 
     checkHealth() {
