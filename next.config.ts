@@ -53,7 +53,6 @@ const nextConfig: NextConfig = {
   // Experimental features for better performance
   experimental: {
     optimizePackageImports: ['lucide-react', 'date-fns', 'framer-motion'],
-    optimizeCss: true,
   },
 
   // API rewrites — uses INTERNAL_API_URL in Docker (container-to-container), falls back to localhost for dev
