@@ -31,9 +31,15 @@ const totalCpus = os.cpus().length || 4;
 const MAX_POSTGRES_CONNECTIONS = process.env.DB_MAX_CONNECTIONS || 90;
 const poolMaxPerInstance = isProduction ? Math.floor(MAX_POSTGRES_CONNECTIONS / totalCpus) : 20;
 
-// Strip sslmode from connection string to avoid conflict with pool ssl config
-// In pg v9+, sslmode=require is treated as verify-full which ignores rejectUnauthorized
-const cleanDatabaseUrl = databaseUrl.replace(/[?&]sslmode=[^&]*/g, '').replace(/[?&]uselibpqcompat=[^&]*/g, '');
+// Strip unsupported params from connection string to avoid conflicts with pool ssl config
+// pg doesn't support: sslmode, channel_binding, uselibpqcompat — strip them all
+const cleanDatabaseUrl = databaseUrl
+    .replace(/[?&]sslmode=[^&]*/g, '')
+    .replace(/[?&]channel_binding=[^&]*/g, '')
+    .replace(/[?&]uselibpqcompat=[^&]*/g, '')
+    // Clean up any dangling ? or & left after stripping
+    .replace(/\?&/, '?')
+    .replace(/[?&]$/, '');
 
 const pool = new Pool({
     connectionString: cleanDatabaseUrl,
