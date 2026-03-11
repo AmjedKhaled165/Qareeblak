@@ -39,6 +39,8 @@ connectRedis().then(async (redisAvailable) => {
 });
 
 const app = express();
+// Trust first proxy (Coolify / reverse proxy) for correct IP/protocol handling
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 

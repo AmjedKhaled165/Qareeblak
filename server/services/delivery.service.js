@@ -3,6 +3,7 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { performAutoAssign } = require('../utils/driver-assignment');
 const { syncParentOrderStatus } = require('../utils/parent-sync');
+const whatsappRoutes = require('../routes/whatsapp');
 
 class DeliveryService {
     async getOrders(reqUser, query) {
@@ -148,6 +149,17 @@ class DeliveryService {
             for (const b of bookings) {
                 io.emit('booking-updated', { id: b.id, status });
                 if (b.parent_order_id) await syncParentOrderStatus(b.parent_order_id, io);
+            }
+        }
+
+        // Auto-send WhatsApp invoice once courier marks order as delivered
+        const normalizedStatus = String(status || '').trim().toLowerCase();
+        const isDelivered = ['delivered', 'تم التوصيل'].includes(normalizedStatus);
+        if (isDelivered && typeof whatsappRoutes.sendOrderInvoice === 'function') {
+            try {
+                await whatsappRoutes.sendOrderInvoice(id);
+            } catch (err) {
+                logger.error(`Failed to send WhatsApp invoice for delivered order #${id}:`, err.message || err);
             }
         }
 
