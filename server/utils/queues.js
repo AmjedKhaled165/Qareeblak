@@ -25,14 +25,27 @@ const addNotificationJob = async (data) => {
 const initializeWorkers = async () => {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
+    // إنشاء اتصال ريديس مخصص للـ BullMQ بمواصفات Upstash
     const connection = new IORedis(redisUrl, {
-        maxRetriesPerRequest: null,
-        // Single reconnect attempt — if Redis dies after startup, fail fast
-        retryStrategy: (times) => (times < 3 ? Math.min(times * 500, 2000) : null)
+        tls: { 
+            rejectUnauthorized: false // عشان يقبل الـ SSL بتاع Upstash
+        },
+        connectTimeout: 20000, // 20 ثانية للاتصال
+        maxRetriesPerRequest: null, // ⚠️ ده أهم سطر! بدونه BullMQ هيعمل Crash
+        retryStrategy: (times) => {
+            // محاولة إعادة الاتصال بشكل تدريجي
+            if (times > 3) return null; // إيقاف بعد 3 محاولات
+            return Math.min(times * 500, 2000);
+        },
+        enableOfflineQueue: true // الاحتفاظ بالطلبات أثناء انقطاع الاتصال
     });
 
     connection.on('error', (err) => {
         logger.warn('BullMQ Redis error:', err.message);
+    });
+    
+    connection.on('ready', () => {
+        logger.info('✅ BullMQ Redis connection established');
     });
 
     _notificationQueue = new Queue('notifications', {
@@ -72,6 +85,10 @@ const initializeWorkers = async () => {
         }
     }, { connection });
 
+    // عشان نمسك أي Errors وميقفلش التطبيق
+    worker.on('error', err => {
+        logger.error('BullMQ Worker Error:', err);
+    });
     worker.on('completed', (job) => logger.debug(`Job ${job.id} completed`));
     worker.on('failed', (job, err) => logger.error(`Job ${job.id} failed: ${err.message}`));
     // ==========================================
@@ -104,6 +121,9 @@ const initializeWorkers = async () => {
         }
     }, { connection });
 
+    maintenanceWorker.on('error', err => {
+        logger.error('BullMQ Maintenance Worker Error:', err);
+    });
     maintenanceWorker.on('failed', (job, err) => logger.error(`[Maintenance] Job ${job?.id} failed: ${err.message}`));
 
     // Schedule daily guest cleanup at 3AM (cron: 0 3 * * *)
