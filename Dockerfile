@@ -9,7 +9,8 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-engines
+# استخدام npm install بدلاً من npm ci للمرونة أكثر مع تضاربات النسخ
+RUN npm install --legacy-peer-deps --ignore-engines || npm install --force
 
 # Stage 2: Build the application
 FROM node:22-alpine AS builder
