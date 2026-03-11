@@ -21,7 +21,7 @@ class BookingService {
         }
 
         let idempotencyLockAcquired = false;
-        if (idempotencyKey && redisClient && redisClient.isOpen) {
+        if (idempotencyKey && redisClient && redisClient.status === 'ready') {
             const redisKey = `idempotency:checkout:${idempotencyKey}`;
             const isNew = await redisClient.set(redisKey, 'PROCESSING', { NX: true, EX: 30 });
             if (!isNew) {

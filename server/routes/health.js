@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
 
         // 2. Check Redis
         const redisStart = Date.now();
-        if (redisClient.isOpen) {
+        if (redisClient.status === 'ready') {
             await redisClient.ping();
             healthcheck.checks.redis = `healthy (${Date.now() - redisStart}ms)`;
         } else {

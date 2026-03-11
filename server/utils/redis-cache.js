@@ -11,7 +11,7 @@ const logger = require('./logger');
  */
 async function getCache(key) {
     try {
-        if (!redis || !redis.isOpen) {
+        if (!redis || redis.status !== 'ready') {
             logger.warn('[Cache] Redis not available, skipping cache');
             return null;
         }
@@ -35,7 +35,7 @@ async function getCache(key) {
  */
 async function setCache(key, value, ttl = 300) {
     try {
-        if (!redis || !redis.isOpen) {
+        if (!redis || redis.status !== 'ready') {
             logger.warn('[Cache] Redis not available, skipping cache set');
             return false;
         }
@@ -61,7 +61,7 @@ async function setCache(key, value, ttl = 300) {
  */
 async function invalidatePattern(pattern) {
     try {
-        if (!redis || !redis.isOpen) {
+        if (!redis || redis.status !== 'ready') {
             return 0;
         }
 

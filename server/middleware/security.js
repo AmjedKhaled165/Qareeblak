@@ -14,9 +14,9 @@ const { client: redisClient } = require('../utils/redis');
 
 // Helper to create a store only if Redis is available, otherwise fallback to memory
 const createStore = () => {
-    if (redisClient.isOpen) {
+    if (redisClient.status === 'ready') {
         return new RedisStore({
-            sendCommand: (...args) => redisClient.sendCommand(args)
+            sendCommand: (...args) => redisClient.call(...args)
         });
     }
     logger.warn('⚠️ Redis not ready, using memory store for rate limiting');

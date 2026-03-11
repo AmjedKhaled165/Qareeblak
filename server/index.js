@@ -202,7 +202,7 @@ const shutDown = async (signal) => {
             logger.info('🐘 Database pool drained.');
 
             const { client: redisClient } = require('./utils/redis');
-            if (redisClient.isOpen) {
+            if (redisClient.status === 'ready') {
                 await redisClient.quit();
                 logger.info('🎈 Redis connection terminated.');
             }

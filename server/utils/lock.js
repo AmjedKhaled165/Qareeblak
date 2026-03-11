@@ -12,7 +12,7 @@ class DistributedLock {
      * @returns {Promise<string|null>} Lock token if successful, null otherwise
      */
     async acquire(resource, ttlMs = 10000) {
-        if (!redis.isOpen) return null;
+        if (redis.status !== 'ready') return null;
 
         const token = Math.random().toString(36).substring(2);
         const lockKey = `lock:${resource}`;
@@ -40,7 +40,7 @@ class DistributedLock {
      * @param {string} token - Original token received on acquire
      */
     async release(resource, token) {
-        if (!redis.isOpen) return;
+        if (redis.status !== 'ready') return;
 
         const lockKey = `lock:${resource}`;
 

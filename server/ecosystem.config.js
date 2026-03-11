@@ -3,8 +3,8 @@ module.exports = {
         {
             name: 'qareeblak-api',
             script: './index.js',
-            instances: 'max', // Utilizes all available CPU cores automatically
-            exec_mode: 'cluster',
+            instances: 1, // مهم: استخدام instance واحد فقط لتقليل استهلاك الرامات
+            exec_mode: 'fork', // وضع fork بدل cluster للحفاظ على الموارد
             autorestart: true,
             watch: false,
             max_memory_restart: '1G', // Gracefully restarts if memory leaks hit 1024MB

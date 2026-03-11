@@ -1,26 +1,45 @@
-const { createClient } = require('redis');
+const Redis = require('ioredis');
 const logger = require('./logger');
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
-const client = createClient({
-    url: redisUrl,
-    socket: {
-        // Return false immediately: attempt once, if it fails, stop. No retry spam.
-        reconnectStrategy: () => false
-    }
+// تكوين Redis مع دعم SSL و Timeout للـ Upstash أو أي Redis سحابي
+const client = new Redis(redisUrl, {
+    tls: { 
+        // تخطي مشاكل شهادات SSL في البيئات السحابية
+        rejectUnauthorized: false 
+    },
+    connectTimeout: 20000, // 20 ثانية للاتصال
+    maxRetriesPerRequest: null, // مهم لـ BullMQ
+    retryStrategy(times) {
+        // محاولة إعادة الاتصال بشكل تدريجي
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+    },
+    // إيقاف إعادة المحاولة التلقائية بعد عدد معين من المرات
+    lazyConnect: true, // الاتصال يدوياً عند الحاجة
+    enableOfflineQueue: true, // الاحتفاظ بالطلبات أثناء انقطاع الاتصال
 });
 
 client.on('error', (err) => {
-    // Only log on the FIRST error to avoid spam
+    // تسجيل الخطأ مرة واحدة فقط لتجنب الازعاج
     if (!client._warnedOnce) {
         client._warnedOnce = true;
         logger.warn(`Redis unavailable (${err.message}) - caching and real-time adapter disabled.`);
     }
 });
+
 client.on('ready', () => {
     client._warnedOnce = false;
-    logger.info('\u2705 Connected to Redis');
+    logger.info('✅ Connected to Redis');
+});
+
+client.on('connect', () => {
+    logger.info('🔌 Redis connection established');
+});
+
+client.on('reconnecting', () => {
+    logger.info('🔄 Reconnecting to Redis...');
 });
 
 /**

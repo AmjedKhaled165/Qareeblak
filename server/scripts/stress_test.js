@@ -139,7 +139,7 @@ async function runStressTest() {
     console.log('\n🧹 جاري تنظيف داتا الاختبار و إغلاق الاتصالات...');
     await db.query(`DELETE FROM users WHERE email LIKE 'test_stress_%'`);
     await db.end();
-    if (redisClient.isOpen) await redisClient.quit();
+    if (redisClient.status === 'ready') await redisClient.quit();
     console.log('👋 انتهاء فحص المهندسين!');
 }
 

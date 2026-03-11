@@ -78,7 +78,7 @@ async function getUserWithCache(userId) {
     const cacheKey = `user_session:${userId}`;
 
     // 1. Try Redis cache first
-    if (redisClient && redisClient.isOpen) {
+    if (redisClient && redisClient.status === 'ready') {
         try {
             const cached = await redisClient.get(cacheKey);
             if (cached) {
@@ -105,7 +105,7 @@ async function getUserWithCache(userId) {
     const user = result.rows[0];
 
     // 3. Store in cache (non-fatal if Redis is down)
-    if (redisClient && redisClient.isOpen) {
+    if (redisClient && redisClient.status === 'ready') {
         try {
             await redisClient.setEx(cacheKey, USER_CACHE_TTL, JSON.stringify(user));
         } catch (cacheErr) {
@@ -121,7 +121,7 @@ async function getUserWithCache(userId) {
  * @param {number} userId
  */
 async function invalidateUserCache(userId) {
-    if (redisClient && redisClient.isOpen) {
+    if (redisClient && redisClient.status === 'ready') {
         try {
             await redisClient.del(`user_session:${userId}`);
         } catch (err) { /* non-fatal */ }
