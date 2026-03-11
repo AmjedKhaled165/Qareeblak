@@ -219,9 +219,19 @@ async function sendOrderInvoice(orderId) {
 // ============ WEBHOOK ENDPOINT ============
 // This is the URL you'll put in Evolution API webhook settings
 
+// TRUSTED_SERVER_IP: requests from the same server (wa.qareeblak.com co-hosted) bypass HMAC
+const TRUSTED_SERVER_IP = '4.251.193.65';
+
 // CRIT-01: Webhook HMAC Signature Verification
 // Evolution API must be configured to sign webhooks with EVOLUTION_WEBHOOK_SECRET
 function verifyEvolutionWebhook(req) {
+    // Allow requests originating from our own server IP without HMAC check
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    if (clientIp.includes(TRUSTED_SERVER_IP)) {
+        logger.debug(`[Webhook] Trusted server IP bypass: ${clientIp}`);
+        return true;
+    }
+
     if (!EVOLUTION_WEBHOOK_SECRET) {
         // In dev mode without secret, allow through but warn
         if (process.env.NODE_ENV === 'production') {
