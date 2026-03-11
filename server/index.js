@@ -18,10 +18,14 @@ const globalErrorHandler = require('./middleware/errorHandler');
 const healthRoutes = require('./routes/health');
 const { initializeWorkers } = require('./utils/queues');
 const { connectRedis } = require('./utils/redis');
+const { initializeFirebase } = require('./utils/firebase');
 const watchdog = require('./utils/watchdog');
 
 // 🛡️ Activate System Guardian
 watchdog.start();
+
+// Initialize Firebase SDK early
+initializeFirebase();
 
 // Initialize Redis first; only start background workers if Redis is available
 connectRedis().then(async (redisAvailable) => {

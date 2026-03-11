@@ -121,27 +121,17 @@ exports.googleSync = catchAsync(async (req, res, next) => {
     }
 
     try {
-        const admin = require('firebase-admin');
+        const { admin } = require('../utils/firebase');
 
-        // Check if firebase app is initialized, if not try to initialize (depends on env vars)
-        if (!admin.apps.length) {
-            // In a real prod setup, this should be initialized in index.js with serviceAccount setup.
-            // For now, if NEXT_PUBLIC_FIREBASE_PROJECT_ID is present, we try default init.
-            if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
-                admin.initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID });
-            } else {
-                // Development bypass if Firebase admin not configured yet, skip verification
-                logger.warn('Firebase Admin not initialized. Bypassing token verification for Google Sync. FIX IN PROD!');
-            }
-        }
-
-        // Only verify if initialized
-        if (admin.apps.length) {
+        // Verify Firebase identity
+        if (admin && admin.apps.length) {
             const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
             if (decodedToken.email !== email) {
                 logger.warn(`Firebase Token email mismatch. Token: ${decodedToken.email}, Body: ${email}`);
                 return res.status(401).json({ success: false, error: 'غير مصرح لك. بريد إلكتروني غير متطابق.' });
             }
+        } else {
+            logger.warn('Firebase Admin not fully initialized. Syncing without backend token verification.');
         }
     } catch (error) {
         logger.error(`Firebase token verification failed: ${error.message}`);
