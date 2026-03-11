@@ -13,24 +13,23 @@ const { client: redisClient } = require('../utils/redis');
 // ==========================================
 
 // Helper to create a store that handles Redis reconnection/state automatically 
-// This avoids the "Redis not ready" fallback to memory on initial app boot
+// The store will fallback to memory if Redis is not yet connected to avoid crashing the server
 const createStore = () => {
-    return new RedisStore({
-        sendCommand: async (...args) => {
-            try {
-                // Check if client is connected or connecting
-                if (redisClient.status === 'ready' || redisClient.status === 'connecting') {
-                    return await redisClient.call(...args);
-                }
-                // Log and fallback silently to avoid crashing the server
-                logger.warn('[RateLimiter] Redis not ready yet, request skipped from Redis store');
-                throw new Error('Redis not ready');
-            } catch (err) {
-                // Return a rejected promise instead of crashing, express-rate-limit will handle it
-                return Promise.reject(err);
-            }
-        }
-    });
+    // If Redis is already connected, use it
+    if (redisClient.status === 'ready') {
+        return new RedisStore({
+            sendCommand: (...args) => redisClient.call(...args)
+        });
+    }
+
+    // If Redis is not ready, we return an object that mimics the store 
+    // but flags the library to use memory fallback until we are ready.
+    // However, the cleanest way with express-rate-limit is to return undefined 
+    // to trigger the internal MemoryStore, but we want to avoid the "Error: Redis not ready" 
+    // thrown by the RedisStore constructor itself when it tries to load scripts.
+    
+    logger.warn('[RateLimiter] Redis not ready, using memory store fallback to prevent crash');
+    return undefined; // Falls back to memory store
 };
 
 // A. Low-Trust / Public Rate Limiter (IP Based)
