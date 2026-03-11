@@ -12,12 +12,12 @@ const {
 } = require('../validations/auth.validation');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 const authController = require('../controllers/auth.controller');
-const { authLimiter, globalLimiter } = require('../middleware/security');
+const { authLimiter, globalLimiter, guestLoginLimiter } = require('../middleware/security');
 
 // Public routes with stricter rate limiting and validation
 router.post('/register', authLimiter, validate(registerSchema), authController.register);
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
-router.post('/guest-login', authLimiter, authController.guestLogin);
+router.post('/guest-login', guestLoginLimiter, authController.guestLogin);
 router.post('/provider-request', authLimiter, validate(providerRequestSchema), authController.submitProviderRequest);
 
 // Password Recovery

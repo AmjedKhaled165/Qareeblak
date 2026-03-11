@@ -141,41 +141,30 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wheel', wheelRoutes);
 
-// 📊 Prometheus Metrics Scraper Endpoint (Big Tech Tier Observability)
+// 📊 Prometheus Metrics Scraper Endpoint (Protected — localhost scraper only)
 const { register } = require('./utils/metrics');
+const METRICS_TOKEN = process.env.METRICS_SCRAPE_TOKEN;
 app.get('/metrics', async (req, res) => {
+    // Security: Only allow localhost or a secret token (prevents public metric exposure)
+    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    const hasToken = METRICS_TOKEN && req.headers['x-metrics-token'] === METRICS_TOKEN;
+
+    if (!isLocalhost && !hasToken) {
+        // Return 404 to avoid revealing metrics endpoint existence to scanners
+        return res.status(404).end();
+    }
+
     try {
         res.set('Content-Type', register.contentType);
         res.end(await register.metrics());
     } catch (ex) {
         logger.error('Metrics scrape failed', ex);
-        res.status(500).end(ex);
+        res.status(500).end();
     }
 });
 
-// Secured User List (Admin Only)
-app.get('/api/debug/users', verifyToken, isAdmin, async (req, res) => {
-    try {
-        const query = `
-            SELECT 
-                u.id, u.name, u.username, u.phone, u.email,
-                u.role, u.user_type, u.is_available,
-                to_char(u.created_at, 'YYYY-MM-DD HH24:MI') as created_at,
-                p.name as brand_name,
-                p.category as provider_category,
-                s.name as supervisor_name
-            FROM users u
-            LEFT JOIN providers p ON u.id = p.user_id
-            LEFT JOIN courier_supervisors cs ON u.id = cs.courier_id
-            LEFT JOIN users s ON cs.supervisor_id = s.id
-            ORDER BY u.id ASC
-        `;
-        const result = await db.query(query);
-        res.json(result.rows);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
+// NOTE: /api/debug/users route has been REMOVED for production security.
+// Use the /api/admin routes for user management instead.
 
 // Error handling
 if (Sentry) { Sentry.setupExpressErrorHandler(app); }

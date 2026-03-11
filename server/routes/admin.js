@@ -42,18 +42,21 @@ router.get('/couriers/available', adminController.getAvailableCouriers);
 // System Audit & Chaos (Elite SRE)
 router.get('/audit-logs', adminController.getAuditLogs);
 
-// 🛠️ [Chaos Engineering] Fault Injection Control
-const chaos = require('../utils/resilience');
-router.post('/chaos/db-failure', (req, res) => {
-    const { status } = req.body;
-    chaos.setDBFailure(status);
-    res.json({ success: true, db_failure: status });
-});
+// 🛠️ [Chaos Engineering] Fault Injection — DEV/STAGING ONLY
+// These endpoints are DISABLED in production to prevent accidental or malicious disruption
+if (process.env.NODE_ENV !== 'production') {
+    const chaos = require('../utils/resilience');
+    router.post('/chaos/db-failure', (req, res) => {
+        const { status } = req.body;
+        chaos.setDBFailure(status);
+        res.json({ success: true, db_failure: status });
+    });
 
-router.post('/chaos/latency', (req, res) => {
-    const { ms } = req.body;
-    chaos.setLatency(ms);
-    res.json({ success: true, latency_injection: ms });
-});
+    router.post('/chaos/latency', (req, res) => {
+        const { ms } = req.body;
+        chaos.setLatency(ms);
+        res.json({ success: true, latency_injection: ms });
+    });
+}
 
 module.exports = router;

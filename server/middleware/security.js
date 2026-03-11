@@ -84,6 +84,17 @@ const orderLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+// F. Guest Login Limiter (Very Strict — prevents DB flooding with fake guest accounts)
+const guestLoginLimiter = rateLimit({
+    store: createStore(),
+    windowMs: 60 * 60 * 1000, // 1 hour window
+    max: 3, // Max 3 guest accounts per IP per hour
+    keyGenerator: (req) => `rl_guest_${req.ip}`,
+    message: { error: 'تم الوصول إلى الحد الأقصى لتسجيل الدخول كزائر. يرجى المحاولة لاحقاً أو إنشاء حساب حقيقي.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // ==========================================
 // 2. HELMET CSP CONFIGURATION (Enterprise strict)
 // ==========================================
@@ -124,6 +135,7 @@ module.exports = {
     chatLimiter,
     checkoutLimiter,
     orderLimiter,
+    guestLoginLimiter,
     securityHeaders,
     xssSanitizer
 };

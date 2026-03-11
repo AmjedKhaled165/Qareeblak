@@ -113,7 +113,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
  * Returns a real JWT so real-time features and bookings work correctly.
  */
 exports.googleSync = catchAsync(async (req, res, next) => {
-    // SECURITY PATCH: Verify the Firebase token to prove identity
+    // SECURITY: Verify the Firebase token to prove identity before any account access
     const { name, email, googleUid, avatar, firebaseIdToken } = req.body;
 
     if (!email || !firebaseIdToken) {
@@ -123,31 +123,35 @@ exports.googleSync = catchAsync(async (req, res, next) => {
     try {
         const admin = require('firebase-admin');
 
-        // Check if firebase app is initialized, if not try to initialize (depends on env vars)
+        // Initialize Firebase Admin if not already done
         if (!admin.apps.length) {
-            // In a real prod setup, this should be initialized in index.js with serviceAccount setup.
-            // For now, if NEXT_PUBLIC_FIREBASE_PROJECT_ID is present, we try default init.
-            if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+            if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+                // Production: Use full service account JSON (most secure)
+                const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+                admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+            } else if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+                // Fallback: Use project ID with Application Default Credentials
                 admin.initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID });
             } else {
-                // Development bypass if Firebase admin not configured yet, skip verification
-                logger.warn('Firebase Admin not initialized. Bypassing token verification for Google Sync. FIX IN PROD!');
+                // BLOCKED: Cannot verify without Firebase configuration — reject in production
+                logger.error('SECURITY BLOCK: Firebase Admin not configured. Rejecting Google Sync request.');
+                return res.status(503).json({ success: false, error: 'خدمة المصادقة عبر Google غير متاحة حالياً. يرجى التواصل مع الإدارة.' });
             }
         }
 
-        // Only verify if initialized
-        if (admin.apps.length) {
-            const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
-            if (decodedToken.email !== email) {
-                logger.warn(`Firebase Token email mismatch. Token: ${decodedToken.email}, Body: ${email}`);
-                return res.status(401).json({ success: false, error: 'غير مصرح لك. بريد إلكتروني غير متطابق.' });
-            }
+        // MANDATORY: Always verify the Firebase ID token — No exceptions
+        const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+
+        // SECURITY: Ensure the verified token belongs to the claimed email
+        if (decodedToken.email !== email) {
+            logger.warn(`[SECURITY ALERT] Firebase Token email mismatch. Token: ${decodedToken.email}, Claimed: ${email}, IP: ${req.ip}`);
+            return res.status(401).json({ success: false, error: 'غير مصرح لك. بريد إلكتروني غير متطابق.' });
         }
+
     } catch (error) {
-        logger.error(`Firebase token verification failed: ${error.message}`);
-        // return res.status(401).json({ success: false, error: 'فشل التحقق من الهوية. يرجى تسجيل الدخول مجدداً.' });
-        // NOTE: Commented out the hard reject above temporarily if frontend isn't sending `firebaseIdToken` yet.
-        // It's strictly required, but we'll accept it for now while development completes token forwarding.
+        // CRITICAL: Hard reject on ANY verification failure — this was the original vulnerability
+        logger.error(`[SECURITY] Firebase token verification failed: ${error.message} | IP: ${req.ip}`);
+        return res.status(401).json({ success: false, error: 'فشل التحقق من الهوية. يرجى تسجيل الدخول مجدداً عبر Google.' });
     }
 
     const { user, accessToken, refreshToken, token } = await authService.googleSync({ name, email, googleUid, avatar });
