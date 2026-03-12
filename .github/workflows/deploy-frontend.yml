@@ -55,7 +55,9 @@ jobs:
             exit 0
           fi
 
-          HTTP_CODE=$(curl -k -sS -o /tmp/coolify_frontend_resp.txt -w "%{http_code}" -X GET "$WEBHOOK" || true)
+          HTTP_CODE=$(curl -k -sS -o /tmp/coolify_frontend_resp.txt -w "%{http_code}" \
+            -X GET "$WEBHOOK" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" || true)
           if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
             echo "Coolify frontend trigger succeeded (HTTP $HTTP_CODE)."
             exit 0
