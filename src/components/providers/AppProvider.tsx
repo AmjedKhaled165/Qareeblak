@@ -439,67 +439,102 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         try {
             if (!isFirebaseConfigured()) {
-                // Firebase not configured — fallback to guest JWT session
-                const result = await authApi.guestLogin();
-                if (result?.user) {
-                    setCurrentUser(result.user);
-                    currentUserRef.current = result.user;
-                    localStorage.setItem('user', JSON.stringify(result.user));
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn("⚠️ Firebase is not configured. Falling back to Mock Google Login for local development.");
+                    const mockEmail = `mock_${Math.random().toString(36).substring(7)}@google.com`;
+                    const syncResult = await apiCall('/auth/google-sync', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            name: 'مستخدم افتراضي (تطوير)',
+                            email: mockEmail,
+                            googleUid: `mock_uid_${Date.now()}`,
+                            avatar: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png',
+                            firebaseIdToken: 'MOCK_TOKEN',
+                            isDevMock: true,
+                        })
+                    });
+
+                    if (syncResult?.user && syncResult?.token) {
+                        localStorage.setItem('qareeblak_token', syncResult.token);
+                        localStorage.removeItem('halan_token');
+                        setCurrentUser(syncResult.user);
+                        currentUserRef.current = syncResult.user;
+                        localStorage.setItem('user', JSON.stringify(syncResult.user));
+
+                        // Reconnect socket with new token
+                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                        const socketUrl = apiUrl.replace(/\/api$/, '');
+                        const prevSocket = (window as any).__qareeblak_socket;
+                        if (prevSocket) prevSocket.disconnect();
+                        const newSocket = io(socketUrl, {
+                            auth: { token: syncResult.token },
+                            reconnectionAttempts: 3,
+                        });
+                        (window as any).__qareeblak_socket = newSocket;
+
+                        toast("تم الدخول بنجاح (وضع المطورين)", "success");
+                    } else {
+                        toast(syncResult?.error || "حدث خطأ في محاكاة الدخول", "error");
+                    }
+                    return;
+                } else {
+                    toast("تسجيل الدخول عبر Google غير متاح حالياً. الرجاء الإنتظار أو استخدام البريد الإلكتروني.", "error");
+                    return;
                 }
-                return;
             }
 
             const result = await signInWithPopup(auth, googleProvider);
             const firebaseUser = result.user;
 
-            // ✅ FIXED: Instead of hardcoded id=999, sync with backend to get real user ID
-            // Try to register/fetch the user via their Google email
-            try {
-                // Attempt to auto-register via backend Google sync
-                const syncResult = await apiCall('/auth/google-sync', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        name: firebaseUser.displayName || 'مستخدم جوجل',
-                        email: firebaseUser.email,
-                        googleUid: firebaseUser.uid,
-                        avatar: firebaseUser.photoURL,
-                    })
+            // Get the Firebase ID token to prove identity to our backend (SECURITY CRITICAL)
+            const firebaseIdToken = await firebaseUser.getIdToken();
+
+            // Sync with backend — sends the token for server-side verification
+            const syncResult = await apiCall('/auth/google-sync', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: firebaseUser.displayName || 'مستخدم جوجل',
+                    email: firebaseUser.email,
+                    googleUid: firebaseUser.uid,
+                    avatar: firebaseUser.photoURL,
+                    firebaseIdToken, // ✅ REQUIRED: proves identity to backend
+                })
+            });
+
+            if (syncResult?.user && syncResult?.token) {
+                localStorage.setItem('qareeblak_token', syncResult.token);
+                localStorage.removeItem('halan_token');
+                setCurrentUser(syncResult.user);
+                currentUserRef.current = syncResult.user;
+                localStorage.setItem('user', JSON.stringify(syncResult.user));
+
+                // Reconnect socket with new token
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                const socketUrl = apiUrl.replace(/\/api$/, '');
+                const prevSocket = (window as any).__qareeblak_socket;
+                if (prevSocket) prevSocket.disconnect();
+                const newSocket = io(socketUrl, {
+                    auth: { token: syncResult.token },
+                    reconnectionAttempts: 3,
                 });
-                if (syncResult?.user && syncResult?.token) {
-                    localStorage.setItem('qareeblak_token', syncResult.token);
-                    localStorage.removeItem('halan_token');
-                    setCurrentUser(syncResult.user);
-                    currentUserRef.current = syncResult.user;
-                    localStorage.setItem('user', JSON.stringify(syncResult.user));
-                    return;
-                }
-            } catch {
-                // Backend sync not available — fall back to local session until implemented
+                (window as any).__qareeblak_socket = newSocket;
+                newSocket.on('connect', () => {
+                    newSocket.emit('user-join', { userId: syncResult.user.id, userType: syncResult.user.type });
+                });
+                await loadUserBookings(syncResult.user);
+                return;
             }
 
-            // Offline fallback (use mock session until google-sync backend endpoint is ready)
-            const adaptedUser: User = {
-                id: undefined, // Don't set a fake ID
-                name: firebaseUser.displayName || 'مستخدم جوجل',
-                email: firebaseUser.email || '',
-                type: 'customer',
-                avatar: firebaseUser.photoURL || undefined,
-            };
-
-            setCurrentUser(adaptedUser);
-            currentUserRef.current = adaptedUser;
-            localStorage.setItem('qareeblak_token', 'mock_google_token');
-            localStorage.setItem('qareeblak_user', JSON.stringify(adaptedUser));
-            localStorage.setItem('user', JSON.stringify(adaptedUser));
+            throw new Error('فشل ربط الحساب مع الخادم');
 
         } catch (error: any) {
             console.error("[AppProvider] Google Sign-In Error:", error);
             if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
                 // User-initiated — not an error
             } else if (error.code === 'auth/unauthorized-domain') {
-                throw new Error('الدومين غير مسموح به في Firebase. أضف الدومين من Firebase Console > Authentication > Settings > Authorized domains.');
+                toast('الدومين غير مسموح به في Firebase. أضف الدومين من Firebase Console.', 'error');
             } else {
-                throw error;
+                toast(error.message || 'فشل تسجيل الدخول عبر Google. يرجى المحاولة مرة أخرى.', 'error');
             }
         } finally {
             setIsLoading(false);

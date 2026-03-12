@@ -72,17 +72,9 @@ export default function HomeClient() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] z-0 opacity-100 dark:opacity-90" />
         <div className="absolute inset-0 bg-black/10 dark:bg-black/40 z-[1]" />
 
-        {/* Overlapping Soft Shapes matching Image #1 */}
-        <motion.div
-          animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-white/20 dark:bg-primary/20 rounded-full blur-[80px] z-[2]"
-        />
-        <motion.div
-          animate={{ x: [0, -40, 0], y: [0, 30, 0] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#A855F7]/30 dark:bg-indigo-500/20 rounded-full blur-[100px] z-[2]"
-        />
+        {/* Overlapping Soft Shapes matching Image #1 (Static for Mobile Performance) */}
+        <div className="absolute top-[-10%] right-[-5%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-white/20 dark:bg-primary/20 rounded-full blur-[60px] md:blur-[80px] z-[2]" />
+        <div className="absolute bottom-[-20%] left-[-10%] w-[400px] md:w-[600px] h-[400px] md:h-[600px] bg-[#A855F7]/30 dark:bg-indigo-500/20 rounded-full blur-[80px] md:blur-[100px] z-[2]" />
         <div className="absolute top-[20%] left-[10%] w-72 h-72 bg-white/10 dark:bg-white/5 rounded-full blur-[60px] z-[2]" />
 
         <div className="container px-4 mx-auto text-center relative z-10">
@@ -102,11 +94,11 @@ export default function HomeClient() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="max-w-2xl mx-auto p-4 bg-white/30 dark:bg-slate-800/60 backdrop-blur-2xl rounded-[2.5rem] border border-slate-300 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.2)]"
+            className="max-w-2xl mx-auto p-3 md:p-4 bg-white/30 dark:bg-slate-800/60 backdrop-blur-2xl rounded-[2rem] md:rounded-[2.5rem] border border-slate-300 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.2)]"
           >
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="absolute right-5 top-4 h-6 w-6 text-white/70" />
+                <Search className="absolute right-5 top-4 h-6 w-6 text-slate-500 dark:text-white/70" />
                 <Input
                   className="pr-14 bg-white dark:bg-slate-950/80 border-0 h-14 text-lg placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-white rounded-[1.75rem] shadow-sm font-medium focus-visible:ring-2 focus-visible:ring-highlight"
                   placeholder="بتدور على إيه النهاردة؟"
@@ -120,7 +112,7 @@ export default function HomeClient() {
               <Button
                 size="lg"
                 onClick={() => goToExplore()}
-                className="h-14 px-10 text-xl font-bold bg-[#FED330] hover:bg-[#F7B731] text-indigo-950 rounded-[1.75rem] shadow-xl shadow-yellow-500/20 border-b-4 border-yellow-600 active:border-b-2 active:translate-y-0.5 transition-all"
+                className="w-full sm:w-auto h-14 px-10 text-xl font-bold bg-[#FED330] hover:bg-[#F7B731] text-indigo-950 rounded-[1.75rem] shadow-xl shadow-yellow-500/20 border-b-4 border-yellow-600 active:border-b-2 active:translate-y-0.5 transition-all"
               >
                 يلّا بينا
               </Button>
@@ -137,7 +129,7 @@ export default function HomeClient() {
             <div className="h-1.5 w-16 bg-primary mx-auto rounded-full" />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-5">
             {categories.map((cat, index) => (
               <motion.div
                 key={index}
@@ -147,10 +139,10 @@ export default function HomeClient() {
                 whileHover={{ y: -5 }}
               >
                 <Link href={`/explore?category=${cat.name}${addToOrderId ? `&addToOrderId=${addToOrderId}` : ""}`} className="block h-full">
-                  <Card className="cursor-pointer border-2 border-slate-200 dark:border-slate-700 shadow-sm rounded-[2.5rem] hover:shadow-xl hover:scale-[1.02] transition-all h-full bg-white dark:bg-slate-800">
-                    <CardContent className="flex flex-col items-center justify-center p-8 text-center h-full">
-                      <div className={`w-20 h-20 flex items-center justify-center rounded-full ${cat.colorClass} mb-4 shadow-inner`}>
-                        <cat.icon className="h-8 w-8" />
+                  <Card className="cursor-pointer border-2 border-slate-200 dark:border-slate-700 shadow-sm rounded-[2rem] md:rounded-[2.5rem] hover:shadow-xl hover:scale-[1.02] transition-all h-full bg-white dark:bg-slate-800">
+                    <CardContent className="flex flex-col items-center justify-center p-4 md:p-8 text-center h-full">
+                      <div className={`w-16 h-16 md:w-20 md:h-20 flex items-center justify-center rounded-full ${cat.colorClass} mb-3 md:mb-4 shadow-inner`}>
+                        <cat.icon className="h-7 w-7 md:h-8 md:w-8" />
                       </div>
                       <h3 className="font-bold text-slate-900 dark:text-white text-base">{cat.name}</h3>
                     </CardContent>

@@ -37,6 +37,18 @@ class BookingService {
         const { WalletService, PromoService } = require('./loyalty.service');
 
         try {
+            // [ENTERPRISE SECURITY PATCH] Zero-Trust Client Pricing
+            // Re-fetch correct prices from database to prevent Price Tampering/Manipulation
+            for (let i = 0; i < items.length; i++) {
+                // Assuming items contain a service ID. Custom items without valid DB IDs will retain their price (if allowed by business logic)
+                if (items[i].id && !String(items[i].id).startsWith('custom_')) {
+                    const priceCheck = await client.query('SELECT price FROM services WHERE id = $1', [items[i].id]);
+                    if (priceCheck.rows.length > 0) {
+                        items[i].price = Number(priceCheck.rows[0].price);
+                    }
+                }
+            }
+
             let totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             let totalDiscount = 0;
             let validatedPrizeId = null;

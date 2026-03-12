@@ -103,7 +103,7 @@ function ExploreContent() {
             )}
             <div className="container mx-auto px-4">
                 {/* Header & Filter */}
-                <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-8">
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-center md:items-start mb-8 text-center md:text-right">
                     <div>
                         <h1 className="text-3xl font-bold mb-2 text-foreground">تصفح الخدمات</h1>
                         <p className="text-muted-foreground">أكثر من 50 خدمة متاحة في أسيوط الجديدة</p>
@@ -111,7 +111,7 @@ function ExploreContent() {
 
                     <div className="flex gap-2 w-full md:w-auto">
                         <div className="relative flex-1 md:w-80">
-                            <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Search className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
                             <Input
                                 placeholder="بحث عن خدمة..."
                                 className="pr-9"

@@ -17,8 +17,27 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "خدمات أسيوط الجديدة",
-  description: "دليلك الشامل لجميع الخدمات في مدينة أسيوط الجديدة",
+  title: {
+    default: "قريبلك | خدمات أسيوط الجديدة",
+    template: "%s | قريبلك"
+  },
+  description: "منصتك الأولى لجميع خدمات أسيوط الجديدة — مطاعم، صيانة، صيدليات، وأكثر. اطلب في ثواني.",
+  keywords: ["أسيوط الجديدة", "خدمات", "مطاعم", "صيانة", "صيدليات", "قريبلك"],
+  authors: [{ name: "قريبلك" }],
+  robots: "index, follow",
+  openGraph: {
+    title: "قريبلك | خدمات أسيوط الجديدة",
+    description: "منصتك الأولى لجميع خدمات أسيوط الجديدة",
+    locale: "ar_EG",
+    type: "website",
+    url: "https://qareeblak.com",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#6366F1",
 };
 
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
@@ -32,7 +51,9 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
-        <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module" async></script>
+        {/* Preconnect to Google Fonts to eliminate render-blocking requests */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body
         className={`${cairo.variable} font-sans antialiased min-h-screen flex flex-col`}

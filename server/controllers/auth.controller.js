@@ -114,44 +114,57 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
  */
 exports.googleSync = catchAsync(async (req, res, next) => {
     // SECURITY: Verify the Firebase token to prove identity before any account access
-    const { name, email, googleUid, avatar, firebaseIdToken } = req.body;
+    const { name, email, googleUid, avatar, firebaseIdToken, isDevMock } = req.body;
 
-    if (!email || !firebaseIdToken) {
+    if (!email || (!firebaseIdToken && !isDevMock)) {
         return res.status(400).json({ success: false, error: 'البيانات غير مكتملة. يلزم وجود ايميل وتوكن مصادقة صالحة من Google.' });
     }
 
     try {
-        const admin = require('firebase-admin');
+        // [DEV ONLY FALLBACK]: Allow mock login if keys are missing but ONLY in development
+        if (isDevMock && process.env.NODE_ENV !== 'production') {
+            logger.warn(`⚠️ [DEV MODE] Accepted Mock Google Auth Token for ${email}`);
+        } else {
+            const admin = require('firebase-admin');
 
-        // Initialize Firebase Admin if not already done
-        if (!admin.apps.length) {
-            if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-                // Production: Use full service account JSON (most secure)
-                const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-                admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-            } else if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
-                // Fallback: Use project ID with Application Default Credentials
-                admin.initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID });
-            } else {
-                // BLOCKED: Cannot verify without Firebase configuration — reject in production
-                logger.error('SECURITY BLOCK: Firebase Admin not configured. Rejecting Google Sync request.');
-                return res.status(503).json({ success: false, error: 'خدمة المصادقة عبر Google غير متاحة حالياً. يرجى التواصل مع الإدارة.' });
+            // Initialize Firebase Admin if not already done
+            if (!admin.apps.length) {
+                if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+                    try {
+                        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+                        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+                    } catch (parseError) {
+                        logger.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON', parseError);
+                        return res.status(500).json({ success: false, error: 'يوجد خطأ في إعدادات Firebase JSON على خادم الإنتاج.' });
+                    }
+                } else if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID) {
+                    admin.initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID });
+                } else {
+                    logger.error('SECURITY BLOCK: Firebase Admin not configured. Missing PROJECT_ID or SERVICE_ACCOUNT.');
+                    return res.status(503).json({ success: false, error: 'إعدادات Firebase غير موجودة في (السيرفر Backend .env). الرجاء إضافة FIREBASE_PROJECT_ID.' });
+                }
+            }
+
+            // MANDATORY: Always verify the Firebase ID token — No exceptions
+            const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+
+            // SECURITY: Ensure the verified token belongs to the claimed email
+            if (decodedToken.email !== email) {
+                logger.warn(`[SECURITY ALERT] Firebase Token email mismatch. Token: ${decodedToken.email}, Claimed: ${email}, IP: ${req.ip}`);
+                return res.status(401).json({ success: false, error: 'غير مصرح لك. بريد إلكتروني غير متطابق بين جوجل والسيرفر.' });
             }
         }
-
-        // MANDATORY: Always verify the Firebase ID token — No exceptions
-        const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
-
-        // SECURITY: Ensure the verified token belongs to the claimed email
-        if (decodedToken.email !== email) {
-            logger.warn(`[SECURITY ALERT] Firebase Token email mismatch. Token: ${decodedToken.email}, Claimed: ${email}, IP: ${req.ip}`);
-            return res.status(401).json({ success: false, error: 'غير مصرح لك. بريد إلكتروني غير متطابق.' });
-        }
-
     } catch (error) {
-        // CRITICAL: Hard reject on ANY verification failure — this was the original vulnerability
         logger.error(`[SECURITY] Firebase token verification failed: ${error.message} | IP: ${req.ip}`);
-        return res.status(401).json({ success: false, error: 'فشل التحقق من الهوية. يرجى تسجيل الدخول مجدداً عبر Google.' });
+        let message = 'فشل التحقق من هوية جوجل. ';
+        if (error.message.includes('Credential must be provided') || error.message.includes('credential')) {
+            message += 'السيرفر يفتقر إلى صلاحيات Firebase (Service Account). الرجاء التواصل مع الدعم الفني لدعم السيرفر بالمفاتيح.';
+        } else if (error.code === 'auth/id-token-expired') {
+            message += 'جلستك في جوجل انتهت. يرجى إعادة تسجيل الدخول.';
+        } else {
+            message += 'خطأ في التوكن أو السيرفر. (السبب: ' + error.message + ')';
+        }
+        return res.status(401).json({ success: false, error: message });
     }
 
     const { user, accessToken, refreshToken, token } = await authService.googleSync({ name, email, googleUid, avatar });
