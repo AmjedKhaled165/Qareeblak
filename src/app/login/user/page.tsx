@@ -157,9 +157,9 @@ export default function UserLoginPage() {
                     <CardHeader className="text-center space-y-2 pb-6 pt-4">
                         <div className="flex justify-center mb-3">
                             <img 
-                                src="/logo.svg" 
+                                src="/qareeblak-logo.png" 
                                 alt="قريبلك" 
-                                className="w-12 h-12 drop-shadow-lg"
+                                className="w-12 h-12 object-contain drop-shadow-lg"
                             />
                         </div>
                         <div className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-400 tracking-tight font-cairo">

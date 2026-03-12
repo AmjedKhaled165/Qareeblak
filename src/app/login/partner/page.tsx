@@ -120,9 +120,9 @@ export default function PartnerLoginPage() {
                 >
                     <div className="w-20 h-20 mx-auto mb-4">
                         <img 
-                            src="/logo.svg" 
+                            src="/qareeblak-logo.png" 
                             alt="قريبلك" 
-                            className="w-full h-full drop-shadow-lg"
+                            className="w-full h-full object-contain drop-shadow-lg"
                         />
                     </div>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">

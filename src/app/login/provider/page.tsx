@@ -158,9 +158,9 @@ export default function ProviderLogin() {
                         </Link>
                         <div className="mx-auto w-20 h-20">
                             <img 
-                                src="/logo.svg" 
+                                src="/qareeblak-logo.png" 
                                 alt="قريبلك" 
-                                className="w-full h-full drop-shadow-xl"
+                                className="w-full h-full object-contain drop-shadow-xl"
                             />
                         </div>
                         <div className="space-y-2">
