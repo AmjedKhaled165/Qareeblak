@@ -212,6 +212,25 @@ class BookingRepository {
         const result = await pool.query('SELECT user_id FROM providers WHERE id = $1', [providerId]);
         return result.rows[0]?.user_id;
     }
+
+    async getProviderFinanceInfo(providerId) {
+        const result = await pool.query('SELECT commission_rate FROM providers WHERE id = $1', [providerId]);
+        return result.rows[0];
+    }
+
+    async updateBookingFinancials(id, commission, net, client = pool) {
+        await client.query(
+            'UPDATE bookings SET commission_amount = $1, net_provider_amount = $2 WHERE id = $3',
+            [commission, net, id]
+        );
+    }
+
+    async incrementUserCancellation(userId) {
+        await pool.query(
+            'UPDATE users SET cancellation_count = cancellation_count + 1, last_cancellation_at = NOW() WHERE id = $1',
+            [userId]
+        );
+    }
 }
 
 module.exports = new BookingRepository();

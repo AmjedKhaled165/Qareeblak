@@ -151,3 +151,36 @@ exports.getProviderDetailedReport = catchAsync(async (req, res) => {
         pagination: result.pagination
     });
 });
+
+// 💸 FINANCIAL CONTROLLERS (NO MERCY)
+exports.getFinanceSummary = catchAsync(async (req, res) => {
+    const summary = await adminRepo.getFinanceSummary();
+    res.json({ success: true, data: summary });
+});
+
+exports.getProviderFinanceReport = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const report = await adminRepo.getProviderFinanceReport(id);
+    if (!report) throw new AppError('مقدم الخدمة غير موجود', 404);
+    res.json({ success: true, data: report });
+});
+
+exports.createPayout = catchAsync(async (req, res) => {
+    const { providerId, amount, method, reference } = req.body;
+    if (!providerId || !amount) throw new AppError('بيانات غير مكتملة', 400);
+
+    const payoutId = await adminRepo.createPayout(providerId, amount, method, reference);
+    
+    // Audit log for the payout
+    await adminService.audit(req.user.id, 'create_payout', 'provider', providerId, 
+        `Processed payout of ${amount} to provider #${providerId}. Ref: ${reference}`, 
+        null, { amount, method, reference, payoutId }, req.ip);
+
+    res.json({ success: true, message: 'تم تسجيل عملية الصرف بنجاح ✅', payoutId });
+});
+
+exports.getPayouts = catchAsync(async (req, res) => {
+    const { limit = 50 } = req.query;
+    const payouts = await adminRepo.getPayouts(parseInt(limit));
+    res.json({ success: true, data: payouts });
+});

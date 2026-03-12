@@ -22,6 +22,12 @@ router.get('/stats', adminController.getStats);
 router.get('/providers-performance', adminController.getProvidersPerformance);
 router.get('/providers-performance/:id/orders', adminController.getProviderDetailedReport);
 
+// Finance & Payouts (No Mercy)
+router.get('/finance/summary', adminController.getFinanceSummary);
+router.get('/finance/provider/:id', adminController.getProviderFinanceReport);
+router.post('/finance/payouts', adminController.createPayout);
+router.get('/finance/payouts', adminController.getPayouts);
+
 // Orders Management
 router.get('/orders', adminController.getOrders);
 router.get('/orders/:id', adminController.getOrderDetail);

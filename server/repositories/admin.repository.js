@@ -282,6 +282,77 @@ class AdminRepository {
             }
         };
     }
+
+    // 💸 NO MERCY FINANCE
+    async getFinanceSummary() {
+        const result = await pool.query(`
+            SELECT 
+                COALESCE(SUM(price), 0) as total_gross_value,
+                COALESCE(SUM(commission_amount), 0) as total_platform_commission,
+                COALESCE(SUM(net_provider_amount), 0) as total_provider_earnings,
+                COALESCE((SELECT SUM(amount) FROM payouts WHERE status = 'completed'), 0) as total_payouts_made,
+                COALESCE((SELECT COUNT(*) FROM bookings WHERE status = 'completed' AND is_paid_to_provider = false), 0) as unpaid_bookings_count
+            FROM bookings 
+            WHERE status = 'completed'
+        `);
+        return result.rows[0];
+    }
+
+    async getProviderFinanceReport(providerId) {
+        const result = await pool.query(`
+            SELECT 
+                p.id, p.name, p.commission_rate,
+                COALESCE(SUM(b.price), 0) as lifetime_revenue,
+                COALESCE(SUM(b.commission_amount), 0) as lifetime_commission,
+                COALESCE(SUM(b.net_provider_amount), 0) as lifetime_earnings,
+                COALESCE((SELECT SUM(net_provider_amount) FROM bookings WHERE provider_id = $1 AND status = 'completed' AND is_paid_to_provider = false), 0) as current_unpaid_balance
+            FROM providers p
+            LEFT JOIN bookings b ON p.id = b.provider_id AND b.status = 'completed'
+            WHERE p.id = $1
+            GROUP BY p.id, p.name
+        `, [providerId]);
+        return result.rows[0];
+    }
+
+    async createPayout(providerId, amount, method, reference) {
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            const payoutResult = await client.query(`
+                INSERT INTO payouts (provider_id, amount, payout_method, reference_number, status, processed_at)
+                VALUES ($1, $2, $3, $4, 'completed', NOW())
+                RETURNING id
+            `, [providerId, amount, method, reference]);
+
+            const payoutId = payoutResult.rows[0].id;
+
+            await client.query(`
+                UPDATE bookings 
+                SET is_paid_to_provider = true, payout_id = $1
+                WHERE provider_id = $2 AND status = 'completed' AND is_paid_to_provider = false
+            `, [payoutId, providerId]);
+
+            await client.query('COMMIT');
+            return payoutId;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    async getPayouts(limit = 50) {
+        const result = await pool.query(`
+            SELECT pay.*, p.name as provider_name 
+            FROM payouts pay
+            JOIN providers p ON pay.provider_id = p.id
+            ORDER BY pay.created_at DESC
+            LIMIT $1
+        `, [limit]);
+        return result.rows;
+    }
 }
 
 module.exports = new AdminRepository();

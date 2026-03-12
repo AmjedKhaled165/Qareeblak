@@ -48,7 +48,7 @@ const USER_CACHE_TTL = 60;
 const dbQueryBreaker = new CircuitBreaker(
     async (userId) => {
         return await db.query(
-            'SELECT id, name, email, user_type, role, phone, avatar, is_banned, token_version FROM users WHERE id = $1',
+            'SELECT id, name, email, user_type, role, phone, avatar, is_banned, token_version, cancellation_count FROM users WHERE id = $1',
             [userId]
         );
     },

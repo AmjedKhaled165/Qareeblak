@@ -63,6 +63,13 @@ exports.checkout = catchAsync(async (req, res, next) => {
         throw new AppError('Unauthorized checkout attempt', 403);
     }
 
+    // 🛡️ [No Mercy Anti-Fraud]
+    // Block users with more than 5 cancellations to protect providers from time-wasters
+    if (req.user.cancellation_count > 5 && req.user.role !== 'admin') {
+        logger.warn(`🛑 Fraud Alert: User ${authenticatedUser} blocked from checkout (Cancellations: ${req.user.cancellation_count})`);
+        throw new AppError('تم حظر إتمام الطلبات لحسابك بسبب كثرة الإلغاءات السابقة. يرجى التواصل مع الدعم الفني.', 403);
+    }
+
     const idempotencyKey = req.headers['idempotency-key'] || null;
 
     const checkoutResult = await bookingService.checkoutTransaction(authenticatedUser, items, addressInfo, {

@@ -218,6 +218,31 @@ class BookingService {
             await syncParentOrderStatus(bookingInfo.parent_order_id, io);
         }
 
+        // 💸 Financial Calculation for Admin & Provider (Only on completion)
+        if (status === 'completed' && bookingInfo.price > 0) {
+            try {
+                const finance = await bookingRepo.getProviderFinanceInfo(bookingInfo.provider_id);
+                const rate = finance?.commission_rate || 10.00; // 10% default
+                const commission = (bookingInfo.price * (rate / 100));
+                const net = bookingInfo.price - commission;
+                
+                await bookingRepo.updateBookingFinancials(id, commission, net);
+                logger.info(`💸 Financials calculated for booking ${id}: Comm: ${commission}, Net: ${net}`);
+            } catch (err) {
+                logger.error(`💥 Failed to calculate financials for booking ${id}:`, err);
+            }
+        }
+
+        // 🛡️ Anti-Fraud: Track user cancellations
+        if (status === 'cancelled' && bookingInfo.user_id) {
+            try {
+                await bookingRepo.incrementUserCancellation(bookingInfo.user_id);
+                logger.warn(`🛡️ User ${bookingInfo.user_id} cancelled booking ${id}. Tracking for anti-fraud.`);
+            } catch (err) {
+                logger.error(`💥 Failed to increment cancellation count for user ${bookingInfo.user_id}:`, err);
+            }
+        }
+
         return result;
     }
 

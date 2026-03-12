@@ -63,6 +63,19 @@ const navSections: { title: string; items: NavItem[] }[] = [
         ],
     },
     {
+        title: "الإدارة المالية",
+        items: [
+            {
+                label: "💰 التقارير والعمولات",
+                icon: FileText,
+                children: [
+                    { label: "ملخص الأرباح", path: "/admin/finance", icon: LayoutDashboard },
+                    { label: "تسوية الحسابات (Payouts)", path: "/admin/finance/payouts", icon: ScrollText },
+                ],
+            },
+        ],
+    },
+    {
         title: "الكتالوج",
         items: [
             {

@@ -11,6 +11,7 @@ const logger = require('./utils/logger');
 const configureMiddleware = require('./middleware/config');
 const registerSocketHandlers = require('./socket/handlers');
 const runStartupMigrations = require('./migrations/startup');
+const runFinanceMigrations = require('./migrations/finance_and_fraud');
 const { verifyToken, isAdmin, verifySocketToken } = require('./middleware/auth');
 const globalErrorHandler = require('./middleware/errorHandler');
 
@@ -101,7 +102,9 @@ configureMiddleware(app, express);
 // التأكد إن القيمة هي النص 'true' حرفياً قبل التشغيل
 if (process.env.RUN_MIGRATIONS === 'true') {
     console.log('🚀 Running database migrations...');
-    runStartupMigrations().catch(err => {
+    runStartupMigrations().then(() => {
+        return runFinanceMigrations();
+    }).catch(err => {
         console.error('💥 Migration Rejection:', err);
     });
 } else {

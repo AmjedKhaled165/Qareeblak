@@ -22,11 +22,22 @@ const sendErrorProd = (err, req, res) => {
         });
     }
 
-    // Programming or unknown errors
-    logger.error('💥 ERROR 💥', err);
+    // Programming or unknown errors (Leak zero details but alert Sentry)
+    logger.error('💥 UNEXPECTED ERROR 💥', err);
+    
+    // Capture to Sentry if initialized
+    try {
+        const Sentry = require('@sentry/node');
+        if (process.env.SENTRY_DSN) {
+            Sentry.captureException(err);
+        }
+    } catch (e) {
+        // Sentry failed or not installed, ignore
+    }
+
     return res.status(500).json({
         status: 'error',
-        error: 'حدث خطأ داخلي في الخادم'
+        error: 'حدث خطأ داخلي في الخادم - مراقب السيرفر سجل العطل وسيتم مراجعته'
     });
 };
 
