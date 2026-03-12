@@ -372,6 +372,32 @@ export default function ProviderDashboard() {
         // Check authentication
         const qareeblakToken = localStorage.getItem('qareeblak_token');
         const halanToken = localStorage.getItem('halan_token');
+        const halanUserRaw = localStorage.getItem('halan_user');
+
+        // Partner users must use partner dashboards, not provider dashboard.
+        if (halanToken && !qareeblakToken && halanUserRaw) {
+            try {
+                const halanUser = JSON.parse(halanUserRaw);
+                const normalizedRole = String(halanUser?.role || '').replace(/^partner_/, '');
+                if (normalizedRole === 'owner') {
+                    router.replace('/partner/owner');
+                    return;
+                }
+                if (normalizedRole === 'supervisor') {
+                    router.replace('/partner/manager');
+                    return;
+                }
+                if (normalizedRole === 'courier') {
+                    router.replace('/partner/driver');
+                    return;
+                }
+                router.replace('/partner/dashboard');
+                return;
+            } catch {
+                router.replace('/login/provider');
+                return;
+            }
+        }
 
         // If no auth token exists at all, redirect to login
         if (!qareeblakToken && !halanToken) {
@@ -460,10 +486,19 @@ export default function ProviderDashboard() {
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
             const SOCKET_URL = API_URL.replace(/\/api$/, '') || '';
+            const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+
+            if (!token) {
+                console.warn('[ProviderDashboard] No token for socket connection; skipping socket init');
+                return () => {
+                    clearInterval(interval);
+                };
+            }
 
             socket = io(SOCKET_URL, {
                 transports: ['websocket', 'polling'],
                 reconnection: true,
+                auth: { token },
             });
 
             socket.on('connect', () => {
