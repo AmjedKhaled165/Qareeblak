@@ -367,18 +367,30 @@ export default function ProviderDashboard() {
     // ================= AUTHENTICATION GUARD =================
     useEffect(() => {
         // Wait for initialization to complete
-        if (!isInitialized) return;
+        if (!isInitialized) {
+            console.log('[ProviderDashboard] Waiting for initialization...');
+            return;
+        }
 
         // Check authentication
         const qareeblakToken = localStorage.getItem('qareeblak_token');
         const halanToken = localStorage.getItem('halan_token');
         const halanUserRaw = localStorage.getItem('halan_user');
 
+        console.log('[ProviderDashboard] Auth check completed:', {
+            qareeblakTokenExists: !!qareeblakToken,
+            halanTokenExists: !!halanToken,
+            halanUserExists: !!halanUserRaw,
+            currentUser: currentUser?.name,
+            isLoading
+        });
+
         // Partner users must use partner dashboards, not provider dashboard.
         if (halanToken && !qareeblakToken && halanUserRaw) {
             try {
                 const halanUser = JSON.parse(halanUserRaw);
                 const normalizedRole = String(halanUser?.role || '').replace(/^partner_/, '');
+                console.log('[ProviderDashboard] Halan user detected, redirecting from provider-dashboard. Role:', normalizedRole);
                 if (normalizedRole === 'owner') {
                     router.replace('/partner/owner');
                     return;
@@ -394,6 +406,7 @@ export default function ProviderDashboard() {
                 router.replace('/partner/dashboard');
                 return;
             } catch {
+                console.error('[ProviderDashboard] Error parsing halan_user');
                 router.replace('/login/provider');
                 return;
             }
@@ -418,6 +431,13 @@ export default function ProviderDashboard() {
 
     // Fetch consultations automatically (with periodic polling)
     const fetchConsultations = async (pid: string) => {
+        // CRITICAL: Stop immediately if no authentication
+        const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+        if (!token) {
+            console.warn('[ProviderDashboard] ⚠️ No token available for consultations, skipping fetch');
+            return;
+        }
+
         if (!isInitialized) return;
 
         // Don't poll if we already got an auth error
@@ -427,9 +447,9 @@ export default function ProviderDashboard() {
             console.log('[ProviderDashboard] Fetching consultations for provider:', pid);
 
             // Verify we have a token before making the request
-            const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
-            if (!token) {
-                console.warn('[ProviderDashboard] No token available for consultations');
+            const verifyToken = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+            if (!verifyToken) {
+                console.warn('[ProviderDashboard] Token disappeared during fetch');
                 setConsultationError('auth');
                 return;
             }
@@ -464,6 +484,15 @@ export default function ProviderDashboard() {
             return;
         }
 
+        // CRITICAL: Check authentication before setting up any polling
+        const qareeblakToken = localStorage.getItem('qareeblak_token');
+        const halanToken = localStorage.getItem('halan_token');
+
+        if (!qareeblakToken && !halanToken) {
+            console.warn('[ProviderDashboard] ⚠️ No authentication token found, skipping consultation setup');
+            return;
+        }
+
         console.log('[ProviderDashboard] Starting consultation sync for:', providerId);
 
         // helper to fetch safely
@@ -474,7 +503,7 @@ export default function ProviderDashboard() {
         // 1. Initial Fetch
         syncConsultations();
 
-        // 2. Poll every 10 seconds (reduced frequency)
+        // 2. Poll every 10 seconds (reduced frequency) - but only if authenticated
         const interval = setInterval(syncConsultations, 10000);
 
         // 3. Socket.io for real-time updates
