@@ -249,7 +249,12 @@ export const requestsApi = {
 // ==================== PROVIDERS API ====================
 export const providersApi = {
     async getAll() {
-        return apiCall('/providers');
+        const result = await apiCall<any>('/providers');
+
+        // Backend list endpoint may return either an array or a paginated object.
+        if (Array.isArray(result)) return result;
+        if (Array.isArray(result?.providers)) return result.providers;
+        return [];
     },
 
     async getById(id: string) {

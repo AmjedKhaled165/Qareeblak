@@ -30,13 +30,16 @@ export interface ServiceProvider {
 
 export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvider, addToOrderId?: string | null }) {
     const router = useRouter();
+    const providerName = provider?.name || "مقدم خدمة";
+    const providerCategory = provider?.category || "عام";
+    const providerLocation = provider?.location || "غير محدد";
 
     // Robust check for category
-    const isOrder = provider.category.includes("مطعم") ||
-        provider.category.includes("مطاعم") ||
-        provider.category.includes("بقالة") ||
-        provider.category.includes("سوبر") ||
-        provider.category.includes("صيدلي");
+    const isOrder = providerCategory.includes("مطعم") ||
+        providerCategory.includes("مطاعم") ||
+        providerCategory.includes("بقالة") ||
+        providerCategory.includes("سوبر") ||
+        providerCategory.includes("صيدلي");
 
     const ctaText = addToOrderId ? "أضف للطلب" : (isOrder ? "اطلب الآن" : "احجز موعد");
 
@@ -44,15 +47,15 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
     let headerColor = "bg-accent/50";
     let iconColor = "text-muted-foreground/30";
 
-    if (provider.category.includes("مطعم")) {
+    if (providerCategory.includes("مطعم")) {
         headerColor = "bg-orange-100 dark:bg-orange-950/30";
         iconColor = "text-orange-500 dark:text-orange-400";
     }
-    else if (provider.category.includes("صيانة")) {
+    else if (providerCategory.includes("صيانة")) {
         headerColor = "bg-blue-100 dark:bg-blue-950/30";
         iconColor = "text-blue-500 dark:text-blue-400";
     }
-    else if (provider.category.includes("طبي")) {
+    else if (providerCategory.includes("طبي")) {
         headerColor = "bg-green-100 dark:bg-green-950/30";
         iconColor = "text-green-500 dark:text-green-400";
     }
@@ -73,14 +76,14 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
             >
                 <div className={`relative h-40 w-full ${headerColor} flex items-center justify-center overflow-hidden`}>
                     <div className={`text-6xl font-bold opacity-20 ${iconColor} select-none group-hover:scale-110 transition-transform duration-500`}>
-                        {provider.name.charAt(0)}
+                        {providerName.charAt(0)}
                     </div>
                 </div>
                 <CardContent className="p-4 flex-1 relative">
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                            <h3 className="font-bold text-lg text-foreground line-clamp-1">{provider.name}</h3>
-                            <p className="text-sm text-muted-foreground font-medium">{provider.category}</p>
+                            <h3 className="font-bold text-lg text-foreground line-clamp-1">{providerName}</h3>
+                            <p className="text-sm text-muted-foreground font-medium">{providerCategory}</p>
                         </div>
                         <div className={`flex items-center gap-1 ${Number(provider.rating) > 0 ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/50' : 'bg-accent border-border'} px-2 py-1 rounded-full border`}>
                             <Star className={`h-3 w-3 ${Number(provider.rating) > 0 ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground'}`} />
@@ -92,7 +95,7 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
 
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                         <MapPin className="h-4 w-4 text-primary" />
-                        <span>{provider.location}</span>
+                        <span>{providerLocation}</span>
                     </div>
                 </CardContent>
                 <CardFooter className="p-4 pt-0">

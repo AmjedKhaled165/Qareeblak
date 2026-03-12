@@ -145,7 +145,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const loadProviders = useCallback(async () => {
         try {
             const data = await providersApi.getAll();
-            setProviders(data);
+            const normalized = (Array.isArray(data) ? data : []).map((provider: any) => ({
+                ...provider,
+                name: typeof provider?.name === 'string' ? provider.name : 'مقدم خدمة',
+                category: typeof provider?.category === 'string' ? provider.category : 'عام',
+                location: typeof provider?.location === 'string' ? provider.location : '',
+                services: Array.isArray(provider?.services) ? provider.services : []
+            }));
+            setProviders(normalized);
         } catch (error) {
             console.error("Failed to load providers:", error);
             setProviders([]);

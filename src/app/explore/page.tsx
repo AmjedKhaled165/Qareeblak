@@ -45,11 +45,21 @@ function ExploreContent() {
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
     const filteredProviders = useMemo(() => {
+        const normalizedQuery = debouncedSearchQuery.trim();
+
         return (providers || []).filter(provider => {
-            const matchesCategory = activeCategory === "all" || provider.category === activeCategory;
-            const matchesSearch = provider.name.includes(debouncedSearchQuery) ||
-                provider.location.includes(debouncedSearchQuery) ||
-                (provider.services && provider.services.some(s => s.name.includes(debouncedSearchQuery)));
+            const providerCategory = typeof provider?.category === 'string' ? provider.category : '';
+            const providerName = typeof provider?.name === 'string' ? provider.name : '';
+            const providerLocation = typeof provider?.location === 'string' ? provider.location : '';
+            const providerServices = Array.isArray(provider?.services) ? provider.services : [];
+
+            const matchesCategory = activeCategory === "all" || providerCategory === activeCategory;
+            const matchesSearch =
+                !normalizedQuery ||
+                providerName.includes(normalizedQuery) ||
+                providerLocation.includes(normalizedQuery) ||
+                providerServices.some(s => typeof s?.name === 'string' && s.name.includes(normalizedQuery));
+
             return matchesCategory && matchesSearch;
         });
     }, [providers, activeCategory, debouncedSearchQuery]);
