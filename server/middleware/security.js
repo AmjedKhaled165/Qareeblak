@@ -5,6 +5,8 @@ const helmet = require('helmet');
 const logger = require('../utils/logger');
 const { client: redisClient } = require('../utils/redis');
 
+let hasWarnedMemoryFallback = false;
+
 // 1. DYNAMIC RATE LIMITERS
 // ==========================================
 
@@ -28,7 +30,10 @@ const createStore = () => {
     // to trigger the internal MemoryStore, but we want to avoid the "Error: Redis not ready" 
     // thrown by the RedisStore constructor itself when it tries to load scripts.
     
-    logger.warn('[RateLimiter] Redis not ready, using memory store fallback to prevent crash');
+    if (!hasWarnedMemoryFallback) {
+        hasWarnedMemoryFallback = true;
+        logger.warn('[RateLimiter] Redis not ready during startup, using memory store fallback.');
+    }
     return undefined; // Falls back to memory store
 };
 

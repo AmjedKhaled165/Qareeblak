@@ -28,6 +28,10 @@ FROM node:25-alpine
 RUN addgroup -S nodeapp && adduser -S nodeuser -G nodeapp
 WORKDIR /app
 
+# Ensure UTF-8 output in container logs.
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
 # Install PM2 globally into the clean production image
 RUN npm install -g pm2
 

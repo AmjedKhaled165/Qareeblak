@@ -14,16 +14,16 @@ module.exports = function registerSocketHandlers(io) {
     // Only clear locations older than 24 hours (not on every startup)
     const clearStaleLocations = async () => {
         try {
-            logger.info('ðŸ§¹ Clearing driver locations older than 24 hours...');
+            logger.info('Clearing driver locations older than 24 hours...');
             const result = await db.query(`
                 UPDATE users 
                 SET latitude = NULL, longitude = NULL, is_available = false 
                 WHERE user_type = 'partner_courier' 
                 AND last_location_update < NOW() - INTERVAL '24 hours'
             `);
-            logger.info(`âœ… Cleared ${result.rowCount} stale driver locations`);
+            logger.info(`Cleared ${result.rowCount} stale driver locations`);
         } catch (error) {
-            logger.error('âŒ Failed to clear stale driver locations:', error.message);
+            logger.error('Failed to clear stale driver locations:', error.message);
         }
     };
 
@@ -34,19 +34,19 @@ module.exports = function registerSocketHandlers(io) {
     setInterval(clearStaleLocations, 60 * 60 * 1000);
 
     io.on('connection', (socket) => {
-        logger.info('ðŸ”Œ Client connected:', socket.id);
+        logger.info('Client connected:', socket.id);
 
         // ========== CHAT HANDLERS ==========
         // Join a consultation chat room
         socket.on('join-consultation', (consultationId) => {
             socket.join(consultationId);
-            logger.info(`ðŸ’¬ Client joined chat: ${consultationId}`);
+            logger.info(`Client joined chat: ${consultationId}`);
         });
 
         // Leave a consultation chat room
         socket.on('leave-consultation', (consultationId) => {
             socket.leave(consultationId);
-            logger.info(`ðŸ’¬ Client left chat: ${consultationId}`);
+            logger.info(`Client left chat: ${consultationId}`);
         });
 
         // Send message via Socket.io
@@ -57,7 +57,7 @@ module.exports = function registerSocketHandlers(io) {
 
                 if (!consultationId) {
                     logger.error('[Chat] Missing consultationId in send_message');
-                    socket.emit('message_error', { error: 'Ù…Ø¹Ø±Ù Ø§Ù„Ù…Ø­Ø§Ø¯Ø«Ø© Ù…ÙÙ‚ÙˆØ¯' });
+                    socket.emit('message_error', { error: 'معرف المحادثة مفقود' });
                     return;
                 }
 
@@ -95,7 +95,7 @@ module.exports = function registerSocketHandlers(io) {
 
                 const savedMessage = {
                     ...result.rows[0],
-                    sender_name: senderName || 'Ù…Ø³ØªØ®Ø¯Ù…'
+                    sender_name: senderName || 'مستخدم'
                 };
 
                 logger.info('[Chat] Message saved:', savedMessage.id);
@@ -108,7 +108,7 @@ module.exports = function registerSocketHandlers(io) {
                 socket.emit('message_sent', { success: true, messageId: savedMessage.id });
             } catch (error) {
                 logger.error('[Chat] Error in send_message:', error.message);
-                socket.emit('message_error', { error: 'Ø­Ø¯Ø« Ø®Ø·Ø£ ÙÙŠ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø±Ø³Ø§Ù„Ø©' });
+                socket.emit('message_error', { error: 'حدث خطأ في إرسال الرسالة' });
             }
         });
 
@@ -208,7 +208,7 @@ module.exports = function registerSocketHandlers(io) {
                     [latitude, longitude, courierId]
                 ).catch(err => logger.error('Error persisting location:', err.message));
 
-                logger.info(`ðŸ“ Location from driver: ${courierId} (${driverName || 'NO NAME'}) at (${latitude}, ${longitude})`);
+                logger.info(`Location from driver: ${courierId} (${driverName || 'NO NAME'}) at (${latitude}, ${longitude})`);
             }
         });
 
@@ -218,7 +218,7 @@ module.exports = function registerSocketHandlers(io) {
             const sid = String(driverId);
             socket.driverId = driverId;
             driverStatuses.set(driverId, 'online');
-            logger.info(`ðŸš— Driver ${driverId} is now online`);
+            logger.info(`Driver ${driverId} is now online`);
             io.emit('driver-status-changed', { driverId, status: 'online' });
 
             if (driverLocations.has(driverId)) {
@@ -229,7 +229,7 @@ module.exports = function registerSocketHandlers(io) {
         // Manager joins to track a driver
         socket.on('join-driver-tracking', (driverId) => {
             socket.join(`driver-${driverId}`);
-            logger.info(`ðŸ‘€ Manager joined tracking for driver: ${driverId}`);
+            logger.info(`Manager joined tracking for driver: ${driverId}`);
 
             if (driverStatuses.has(driverId)) {
                 socket.emit('driver-status-changed', { driverId, status: driverStatuses.get(driverId) });
@@ -242,7 +242,7 @@ module.exports = function registerSocketHandlers(io) {
         // Manager joins to track ALL drivers (Fleet Map)
         socket.on('join-managers', () => {
             socket.join('managers');
-            logger.info(`ðŸ‘€ Manager joined global fleet tracking`);
+            logger.info('Manager joined global fleet tracking');
 
             driverLocations.forEach((location, driverId) => {
                 socket.emit('updateLocation', { ...location, driverId });
@@ -252,7 +252,7 @@ module.exports = function registerSocketHandlers(io) {
         // Customer joins order tracking
         socket.on('join-tracking', (orderId) => {
             socket.join(`order-${orderId}`);
-            logger.info(`ðŸ‘€ Client joined order tracking: order-${orderId}`);
+            logger.info(`Client joined order tracking: order-${orderId}`);
         });
 
         // ==========================================
@@ -261,7 +261,7 @@ module.exports = function registerSocketHandlers(io) {
         socket.on('user-join', ({ userId, userType }) => {
             if (userId) {
                 socket.join(`user-${userId}`);
-                logger.info(`ðŸ‘¤ Client joined user room: user-${userId} (${userType || 'unknown'})`);
+                logger.info(`Client joined user room: user-${userId} (${userType || 'unknown'})`);
             }
         });
 
@@ -269,7 +269,7 @@ module.exports = function registerSocketHandlers(io) {
         socket.on('driver-logout', (driverId) => {
             if (driverId) {
                 const sid = String(driverId);
-                logger.info(`ðŸšª Driver ${driverId} logged out, clearing location`);
+                logger.info(`Driver ${driverId} logged out, clearing location`);
 
                 if (driverSockets.has(sid)) {
                     driverSockets.delete(sid);
@@ -289,7 +289,7 @@ module.exports = function registerSocketHandlers(io) {
         });
 
         socket.on('disconnect', () => {
-            logger.info('ðŸ”Œ Client disconnected:', socket.id);
+            logger.info('Client disconnected:', socket.id);
             if (socket.driverId) {
                 const driverId = socket.driverId;
                 const sid = String(driverId);
@@ -303,9 +303,9 @@ module.exports = function registerSocketHandlers(io) {
                         driverStatuses.set(sid, 'offline');
                         io.to('managers').emit('driver-status-changed', { driverId, status: 'offline' });
                         io.emit('driver-status-changed', { driverId, status: 'offline' });
-                        logger.info(`ðŸ”´ Driver ${driverId} is now offline (No more sockets) - location preserved`);
+                        logger.info(`Driver ${driverId} is now offline (no more sockets) - location preserved`);
                     } else {
-                        logger.info(`ðŸ“¡ Driver ${driverId} disconnected one socket but remains online (${sockets.size} left)`);
+                        logger.info(`Driver ${driverId} disconnected one socket but remains online (${sockets.size} left)`);
                     }
                 }
             }

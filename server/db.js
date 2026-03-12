@@ -70,6 +70,11 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const verifyDatabaseConnection = async () => {
     const isProd = process.env.NODE_ENV === 'production';
     const attempts = isProd ? 5 : 1;
+    const initialDelayMs = Number(process.env.DB_INITIAL_CONNECT_DELAY_MS || (isProd ? 2000 : 0));
+
+    if (initialDelayMs > 0) {
+        await delay(initialDelayMs);
+    }
 
     for (let i = 1; i <= attempts; i++) {
         try {
