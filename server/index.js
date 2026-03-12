@@ -131,6 +131,7 @@ const chatRoutes = require('./routes/chat');
 const notificationsRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const wheelRoutes = require('./routes/wheel');
+const debugAuthRoutes = require('./routes/debug-auth');
 
 // ================== API ROUTES ==================
 app.use('/api/health', healthRoutes);
@@ -147,6 +148,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wheel', wheelRoutes);
+app.use('/api/debug', debugAuthRoutes);
 
 // 📊 Prometheus Metrics Scraper Endpoint (Protected — localhost scraper only)
 const { register } = require('./utils/metrics');

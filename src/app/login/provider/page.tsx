@@ -75,13 +75,28 @@ export default function ProviderLogin() {
                 body: JSON.stringify({ identifier, password })
             });
 
+            console.log('[ProviderLogin] Halan login response status:', halanResponse.status);
+
             if (halanResponse.ok) {
                 const data = await halanResponse.json();
-                if (data.success) {
+                console.log('[ProviderLogin] Halan response success:', data.success, 'hasToken:', !!data.data?.token);
+
+                if (data.success && data.data?.token) {
                     // Save Halan specific data
                     localStorage.setItem('halan_token', data.data.token);
                     localStorage.setItem('halan_user', JSON.stringify(data.data.user));
 
+                    // Verify storage
+                    const storedToken = localStorage.getItem('halan_token');
+                    const storedUser = localStorage.getItem('halan_user');
+
+                    if (!storedToken || !storedUser) {
+                        console.error('[ProviderLogin] ❌ Failed to store Halan credentials!');
+                        setError("خطأ في حفظ بيانات الجلسة");
+                        return;
+                    }
+
+                    console.log('[ProviderLogin] ✅ Halan token stored, redirecting...');
                     toast(`أهلاً بك يا ${data.data.user.name_ar || 'عزيزي'} 👋`, "success");
 
                     // Redirect based on role
@@ -93,6 +108,8 @@ export default function ProviderLogin() {
                     return;
                 }
             }
+
+            console.log('[ProviderLogin] Halan login failed, trying regular provider login...');
 
             // 2. Fallback to Regular Provider Login (Shops/Services)
             // If Halan login failed, maybe they are a regular provider
@@ -107,7 +124,7 @@ export default function ProviderLogin() {
             }
 
         } catch (err) {
-            console.error(err);
+            console.error('[ProviderLogin] Error:', err);
             setError("حدث خطأ في الاتصال بالخادم. يرجى المحاولة لاحقاً.");
         } finally {
             setIsLoading(false);

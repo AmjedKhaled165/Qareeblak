@@ -56,31 +56,53 @@ export default function PartnerLoginPage() {
                 password: formData.password.trim()
             };
 
+            console.log('[PartnerLogin] Attempting login with:', { identifier: loginData.identifier.substring(0, 5) + '...' });
+
             const data = await apiCall('/halan/auth/login', {
                 method: 'POST',
                 body: JSON.stringify(loginData)
             });
 
-            if (data.success) {
-                // Store token and user info
-                localStorage.setItem('halan_token', data.data.token);
-                localStorage.setItem('halan_user', JSON.stringify(data.data.user));
+            console.log('[PartnerLogin] Login response:', { success: data.success, hasToken: !!data.data?.token, userName: data.data?.user?.name });
 
-                toast(`مرحباً ${data.data.user.name_ar}! 🎉`, "success");
+            if (data.success && data.data?.token) {
+                // Store token and user info EXPLICITLY
+                const token = data.data.token;
+                const user = data.data.user;
+
+                localStorage.setItem('halan_token', token);
+                localStorage.setItem('halan_user', JSON.stringify(user));
+
+                // Verify storage
+                const storedToken = localStorage.getItem('halan_token');
+                const storedUser = localStorage.getItem('halan_user');
+
+                if (!storedToken || !storedUser) {
+                    console.error('[PartnerLogin] ❌ Failed to store token/user in localStorage!');
+                    toast("خطأ في حفظ بيانات الجلسة. يرجى محاولة تسجيل الدخول مرة أخرى", "error");
+                    return;
+                }
+
+                console.log('[PartnerLogin] ✅ Token stored successfully. Token length:', token.length);
+                toast(`مرحباً ${user.name_ar}! 🎉`, "success");
 
                 // Redirect based on role
-                const role = data.data.user.role;
+                const role = user.role;
+                console.log('[PartnerLogin] Redirecting with role:', role);
                 if (role === 'owner' || role === 'supervisor') {
                     router.push('/partner/dashboard');
                 } else {
                     router.push('/partner/driver');
                 }
             } else {
-                toast(data.error || "فشل تسجيل الدخول", "error");
+                const errorMsg = data.error || "فشل تسجيل الدخول";
+                console.error('[PartnerLogin] Login failed:', errorMsg);
+                toast(errorMsg, "error");
             }
         } catch (error) {
-            console.error('Login error:', error);
-            toast("حدث خطأ في الاتصال بالسيرفر", "error");
+            console.error('[PartnerLogin] Login error:', error);
+            const errorMsg = error instanceof Error ? error.message : "حدث خطأ في الاتصال بالسيرفر";
+            toast(errorMsg, "error");
         } finally {
             setIsLoading(false);
         }

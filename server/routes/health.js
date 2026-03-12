@@ -15,7 +15,8 @@ router.get('/', async (req, res) => {
         timestamp: Date.now(),
         checks: {
             database: 'unknown',
-            redis: 'unknown'
+            redis: 'unknown',
+            halanUsers: 'unknown'
         }
     };
 
@@ -25,7 +26,19 @@ router.get('/', async (req, res) => {
         await db.query('SELECT 1');
         healthcheck.checks.database = `healthy (${Date.now() - dbStart}ms)`;
 
-        // 2. Check Redis
+        // 2. Check Halan Partner Users
+        try {
+            const halanUsersResult = await db.query(`
+                SELECT COUNT(*) as count FROM users 
+                WHERE user_type IN ('partner_owner', 'partner_supervisor', 'partner_courier')
+            `);
+            const halanUserCount = parseInt(halanUsersResult.rows[0]?.count || 0);
+            healthcheck.checks.halanUsers = `${halanUserCount} users`;
+        } catch (e) {
+            healthcheck.checks.halanUsers = `error: ${e.message}`;
+        }
+
+        // 3. Check Redis
         const redisStart = Date.now();
         if (redisClient.status === 'ready') {
             await redisClient.ping();
