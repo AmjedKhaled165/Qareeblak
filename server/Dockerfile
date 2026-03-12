@@ -2,6 +2,9 @@
 # Install Node.js standard Alpine image (Node 25 LTS)
 FROM node:25-alpine AS builder
 
+# Install pnpm in build image
+RUN npm install -g pnpm
+
 # Set working directory inside container
 WORKDIR /app
 
@@ -9,11 +12,11 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat python3 make g++
 
 # Copy package dependencies first to leverage Docker layer caching
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml ./
 
-# Install explicit dependencies (frozen lockfile and suppress funding/audit noise)
-RUN --mount=type=cache,target=/root/.npm \
-	npm ci --omit=dev --no-audit --prefer-offline
+# Install production dependencies with pnpm (cached store)
+RUN --mount=type=cache,target=/root/.pnpm-store \
+    pnpm install --frozen-lockfile --prod
 
 # Copy all source code
 COPY . .
