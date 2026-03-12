@@ -121,11 +121,12 @@ export default function OwnerDashboard() {
             return;
         }
         const userData = JSON.parse(storedUser);
+        const normalizedRole = String(userData.role || '').replace(/^partner_/, '');
         setUser(userData);
 
         // Only owner can access this page
-        if (userData.role !== 'owner') {
-            if (userData.role === 'courier') {
+        if (normalizedRole !== 'owner') {
+            if (normalizedRole === 'courier') {
                 router.push('/partner/driver');
             } else {
                 router.push('/partner/manager');
@@ -137,7 +138,8 @@ export default function OwnerDashboard() {
     }, []);
 
     useEffect(() => {
-        if (user && user.role === 'owner') {
+        const normalizedRole = String(user?.role || '').replace(/^partner_/, '');
+        if (user && normalizedRole === 'owner') {
             setIsLoading(true);
             fetchStats();
 

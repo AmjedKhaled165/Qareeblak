@@ -113,7 +113,16 @@ const guestLoginLimiter = rateLimit({
 // ==========================================
 // Dynamic CSP based on environment
 const connectSrcDirective = process.env.NODE_ENV === 'production'
-    ? ["'self'", "wss://qareeblak.com", "wss://www.qareeblak.com", "https://qareeblak.com", "https://www.qareeblak.com"]
+    ? [
+        "'self'",
+        'https://qareeblak.com',
+        'https://www.qareeblak.com',
+        'https://api.qareeblak.com',
+        'https://wa.qareeblak.com',
+        'wss://qareeblak.com',
+        'wss://www.qareeblak.com',
+        'wss://api.qareeblak.com'
+    ]
     : ["'self'", "ws://localhost:*", "ws://127.0.0.1:*", "http://localhost:*", "http://127.0.0.1:*"];
 
 // Allow additional domains from env var (e.g. ALLOWED_ORIGINS="https://api.example.com,wss://api.example.com")

@@ -16,13 +16,14 @@ export default function DashboardRedirect() {
         }
 
         const user = JSON.parse(storedUser);
+        const normalizedRole = String(user.role || '').replace(/^partner_/, '');
 
         // Redirect based on role
-        if (user.role === 'owner') {
+        if (normalizedRole === 'owner') {
             router.replace('/partner/owner');
-        } else if (user.role === 'supervisor') {
+        } else if (normalizedRole === 'supervisor') {
             router.replace('/partner/manager');
-        } else if (user.role === 'courier') {
+        } else if (normalizedRole === 'courier') {
             router.replace('/partner/driver');
         } else {
             // Default to manager if role unknown

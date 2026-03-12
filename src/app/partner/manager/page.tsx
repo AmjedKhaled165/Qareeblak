@@ -73,14 +73,15 @@ export default function ManagerDashboard() {
             return;
         }
         const userData = JSON.parse(storedUser);
+        const normalizedRole = String(userData.role || '').replace(/^partner_/, '');
         setUser(userData);
 
         // Redirect based on role
-        if (userData.role === 'owner') {
+        if (normalizedRole === 'owner') {
             router.push('/partner/owner');
             return;
         }
-        if (userData.role === 'courier') {
+        if (normalizedRole === 'courier') {
             router.push('/partner/driver');
             return;
         }
@@ -89,7 +90,8 @@ export default function ManagerDashboard() {
     }, []);
 
     useEffect(() => {
-        if (user && user.role === 'supervisor') {
+        const normalizedRole = String(user?.role || '').replace(/^partner_/, '');
+        if (user && normalizedRole === 'supervisor') {
             setIsLoading(true);
             fetchStats();
 
@@ -103,7 +105,8 @@ export default function ManagerDashboard() {
         try {
             // Fetch drivers (couriers) - Filter by supervisor if applicable
             let driversEndpoint = '/halan/users?role=courier';
-            if (user.role === 'supervisor') {
+            const normalizedRole = String(user?.role || '').replace(/^partner_/, '');
+            if (normalizedRole === 'supervisor') {
                 driversEndpoint += `&supervisorId=${user.id}`;
             }
 

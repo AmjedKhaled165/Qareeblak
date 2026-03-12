@@ -27,6 +27,7 @@ exports.login = catchAsync(async (req, res) => {
     if (!validPassword) throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
 
     const role = user.user_type; // partner_owner, partner_supervisor, partner_courier
+    const roleNormalized = String(role).replace(/^partner_/, '');
 
     const token = jwt.sign(
         { id: user.id, role, username: user.username },
@@ -44,7 +45,8 @@ exports.login = catchAsync(async (req, res) => {
                 email: user.email,
                 phone: user.phone,
                 avatar: user.avatar,
-                role
+                role: roleNormalized,
+                rawRole: role
             },
             token
         }
@@ -56,6 +58,7 @@ exports.getMe = catchAsync(async (req, res) => {
     const user = req.user;
 
     const role = user.user_type;
+    const roleNormalized = String(role).replace(/^partner_/, '');
 
     res.json({
         success: true,
@@ -66,7 +69,8 @@ exports.getMe = catchAsync(async (req, res) => {
             email: user.email,
             phone: user.phone,
             avatar: user.avatar,
-            role
+            role: roleNormalized,
+            rawRole: role
         }
     });
 });
