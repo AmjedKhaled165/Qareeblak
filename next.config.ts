@@ -81,8 +81,8 @@ const nextConfig: NextConfig = {
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
-      // WebSocket (ws/wss) for Socket.io + Firebase + API
-      "connect-src 'self' ws: wss: https://firebaseapp.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
+      // WebSocket + API + Firebase endpoints
+      "connect-src 'self' ws: wss: https://qareeblak.com https://www.qareeblak.com https://api.qareeblak.com https://wa.qareeblak.com https://firebaseapp.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
       // Google OAuth popup
       "frame-src 'self' https://accounts.google.com https://qareeblak.firebaseapp.com",
       "frame-ancestors 'none'",
