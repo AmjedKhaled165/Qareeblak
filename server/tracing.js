@@ -1,8 +1,3 @@
-const { NodeSDK } = require('@opentelemetry/sdk-node');
-const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
-const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
-const { Resource } = require('@opentelemetry/resources');
-const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
 const logger = require('./utils/logger');
 
 /**
@@ -11,9 +6,20 @@ const logger = require('./utils/logger');
  * Requires OTLP collector (Jaeger/Tempo) to receive data.
  */
 
-if (process.env.OTEL_ENABLED === 'true') {
+if (process.env.OTEL_ENABLED !== 'true') {
+    logger.info('Tracing disabled (OTEL_ENABLED not set to true).');
+    return;
+}
+
+try {
+    const { NodeSDK } = require('@opentelemetry/sdk-node');
+    const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+    const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
+    const { resourceFromAttributes } = require('@opentelemetry/resources');
+    const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
+
     const sdk = new NodeSDK({
-        resource: new Resource({
+        resource: resourceFromAttributes({
             [SemanticResourceAttributes.SERVICE_NAME]: 'qareeblak-backend',
         }),
         traceExporter: new OTLPTraceExporter({
@@ -31,6 +37,6 @@ if (process.env.OTEL_ENABLED === 'true') {
             .catch((error) => logger.error('Error terminating tracing', error))
             .finally(() => process.exit(0));
     });
-} else {
-    logger.info('Tracing disabled (OTEL_ENABLED not set to true).');
+} catch (error) {
+    logger.warn('Tracing initialization skipped:', error.message);
 }
