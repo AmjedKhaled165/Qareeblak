@@ -99,7 +99,7 @@ app.set('io', io);
 configureMiddleware(app, express);
 
 // Run Startup Migrations (only if enabled)
-// التأكد إن القيمة هي النص 'true' حرفياً قبل التشغيل
+// Ensure the value is literally the string 'true' before running
 if (process.env.RUN_MIGRATIONS === 'true') {
     console.log('🚀 Running database migrations...');
     runStartupMigrations().then(() => {

@@ -14,16 +14,16 @@ const pool = new Pool({
 });
 
 const partnerAccounts = [
-    // المالك
+    // Owner
     { name: 'حالا', username: 'halan', email: 'halan@halan.com', password: 'Halan#2026', user_type: 'partner_owner', phone: '01012345678' },
 
-    // المسؤولين (Supervisors)
+    // Supervisors
     { name: 'حاتم', username: 'hatem', email: 'hatem@halan.com', password: 'Hatem#2026', user_type: 'partner_supervisor', phone: '01122334455' },
     { name: 'حسين', username: 'hussein', email: 'hussein@halan.com', password: 'Hussein#2026', user_type: 'partner_supervisor', phone: '01277889900' },
     { name: 'أشرف', username: 'ashraf', email: 'ashraf@halan.com', password: 'Ashraf#2026', user_type: 'partner_supervisor', phone: '01555667788' },
     { name: 'محمد', username: 'mohamed', email: 'mohamed@halan.com', password: 'Mohamed#2026', user_type: 'partner_supervisor', phone: '01099887766' },
 
-    // المندوبين (Couriers)
+    // Couriers
     { name: 'عمر', username: 'omar', email: 'omar@courier.com', password: 'Omar#2026', user_type: 'partner_courier', phone: '01144556622' },
     { name: 'ياسين', username: 'yassin', email: 'yassin@courier.com', password: 'Yassin#2026', user_type: 'partner_courier', phone: '01288990011' },
     { name: 'حمزة', username: 'hamza', email: 'hamza@courier.com', password: 'Hamza@Ride2026', user_type: 'partner_courier', phone: '01066778899' },

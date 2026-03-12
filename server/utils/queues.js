@@ -25,19 +25,19 @@ const addNotificationJob = async (data) => {
 const initializeWorkers = async () => {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
-    // إنشاء اتصال ريديس مخصص للـ BullMQ بمواصفات Upstash
+    // Create a dedicated Redis connection for BullMQ with Upstash specifications
     const connection = new IORedis(redisUrl, {
         tls: { 
-            rejectUnauthorized: false // عشان يقبل الـ SSL بتاع Upstash
+            rejectUnauthorized: false // To accept Upstash SSL
         },
-        connectTimeout: 20000, // 20 ثانية للاتصال
-        maxRetriesPerRequest: null, // ⚠️ ده أهم سطر! بدونه BullMQ هيعمل Crash
+        connectTimeout: 20000, // 20 seconds to connect
+        maxRetriesPerRequest: null, // ⚠️ Most important line! Required for BullMQ
         retryStrategy: (times) => {
-            // محاولة إعادة الاتصال بشكل تدريجي
-            if (times > 3) return null; // إيقاف بعد 3 محاولات
+            // Gradual reconnection attempts
+            if (times > 3) return null; // stop after 3 attempts
             return Math.min(times * 500, 2000);
         },
-        enableOfflineQueue: true // الاحتفاظ بالطلبات أثناء انقطاع الاتصال
+        enableOfflineQueue: true // Keep requests during disconnection
     });
 
     connection.on('error', (err) => {
@@ -85,7 +85,7 @@ const initializeWorkers = async () => {
         }
     }, { connection });
 
-    // عشان نمسك أي Errors وميقفلش التطبيق
+    // To catch any Errors and prevent app termination
     worker.on('error', err => {
         logger.error('BullMQ Worker Error:', err);
     });

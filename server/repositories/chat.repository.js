@@ -41,7 +41,7 @@ class ChatRepository {
     }
 
     async getProviderConsultations(providerId, status, limit, lastId) {
-        // Cursor-based pagination: مفيش OFFSET — بيستخدم index على updated_at
+        // Cursor-based pagination: No OFFSET - uses index on updated_at
         const conditions = ['c.provider_id = $1'];
         const params = [providerId];
         let paramIdx = 2;
@@ -89,8 +89,8 @@ class ChatRepository {
     }
 
     async getMessages(consultationId, limit, lastId) {
-        // Cursor-based pagination: بدلاً من OFFSET، بنستخدم WHERE id < lastId
-        // هذا يضمن O(log N) بدلاً من O(N) عند وجود آلاف الرسائل
+        // Cursor-based pagination: instead of OFFSET, we use WHERE id < lastId
+        // This ensures O(log N) instead of O(N) when there are thousands of messages
         let query;
         let params;
 
@@ -99,7 +99,7 @@ class ChatRepository {
                 SELECT 
                     cm.id, cm.consultation_id, cm.sender_id, cm.sender_type,
                     cm.message, cm.message_type, cm.image_url, cm.is_read, cm.created_at,
-                    COALESCE(u.name, 'مستخدم') as sender_name
+                    COALESCE(u.name, 'User') as sender_name
                 FROM chat_messages cm
                 LEFT JOIN users u ON cm.sender_id = u.id
                 WHERE cm.consultation_id = $1 AND cm.id < $2
@@ -112,7 +112,7 @@ class ChatRepository {
                 SELECT 
                     cm.id, cm.consultation_id, cm.sender_id, cm.sender_type,
                     cm.message, cm.message_type, cm.image_url, cm.is_read, cm.created_at,
-                    COALESCE(u.name, 'مستخدم') as sender_name
+                    COALESCE(u.name, 'User') as sender_name
                 FROM chat_messages cm
                 LEFT JOIN users u ON cm.sender_id = u.id
                 WHERE cm.consultation_id = $1
@@ -123,7 +123,7 @@ class ChatRepository {
         }
 
         const result = await pool.query(query, params);
-        // Reverse: نرجعهم تصاعدياً للـ UI (newest last)
+        // Reverse: return them ascending for the UI (newest last)
         return result.rows.reverse();
     }
 
