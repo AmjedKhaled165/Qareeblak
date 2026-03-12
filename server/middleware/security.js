@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis').default;
 const xss = require('xss-clean');
 const helmet = require('helmet');
@@ -32,6 +32,9 @@ const createStore = () => {
     return undefined; // Falls back to memory store
 };
 
+// Normalize IP keys safely for IPv6 and proxy scenarios.
+const getIpKey = (req) => ipKeyGenerator(req.ip || req.socket?.remoteAddress || '');
+
 // A. Low-Trust / Public Rate Limiter (IP Based)
 // Prevents high-velocity scanning/probing
 const publicLimiter = rateLimit({
@@ -48,7 +51,7 @@ const authLimiter = rateLimit({
     store: createStore(),
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10, // 10 attempts per IP
-    keyGenerator: (req) => `rl_auth_${req.ip}`,
+    keyGenerator: (req) => `rl_auth_${getIpKey(req)}`,
     validate: { keyGeneratorIpFallback: false },
     message: { error: '❌ تم حظر هاتفك لكثرة محاولات الدخول الفاشلة. انتظر 15 دقيقة.' },
     standardHeaders: true,
@@ -61,7 +64,7 @@ const checkoutLimiter = rateLimit({
     store: createStore(),
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 2, // Max 2 checkouts per minute (Very strict)
-    keyGenerator: (req) => `rl_checkout_${req.user?.id || req.ip}`,
+    keyGenerator: (req) => `rl_checkout_${req.user?.id || getIpKey(req)}`,
     validate: { keyGeneratorIpFallback: false },
     message: { error: '🔔 أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
     standardHeaders: true,
@@ -73,7 +76,7 @@ const chatLimiter = rateLimit({
     store: createStore(),
     windowMs: 60 * 1000,
     max: 15,
-    keyGenerator: (req) => `rl_chat_${req.user?.id || req.ip}`,
+    keyGenerator: (req) => `rl_chat_${req.user?.id || getIpKey(req)}`,
     validate: { keyGeneratorIpFallback: false },
     message: { error: '💬 أنت ترسل رسائل بسرعة كبيرة جداً.' },
     standardHeaders: true,
@@ -86,7 +89,7 @@ const orderLimiter = rateLimit({
     store: createStore(),
     windowMs: 1 * 60 * 1000,
     max: 5, // Allow slightly more for order creation
-    keyGenerator: (req) => `rl_order_${req.user?.id || req.ip}`,
+    keyGenerator: (req) => `rl_order_${req.user?.id || getIpKey(req)}`,
     validate: { keyGeneratorIpFallback: false },
     message: { error: '⚠️ أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
     standardHeaders: true,
@@ -98,7 +101,8 @@ const guestLoginLimiter = rateLimit({
     store: createStore(),
     windowMs: 60 * 60 * 1000, // 1 hour window
     max: 3, // Max 3 guest accounts per IP per hour
-    keyGenerator: (req) => `rl_guest_${req.ip}`,
+    keyGenerator: (req) => `rl_guest_${getIpKey(req)}`,
+    validate: { keyGeneratorIpFallback: false },
     message: { error: 'تم الوصول إلى الحد الأقصى لتسجيل الدخول كزائر. يرجى المحاولة لاحقاً أو إنشاء حساب حقيقي.' },
     standardHeaders: true,
     legacyHeaders: false,

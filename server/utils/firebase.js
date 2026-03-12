@@ -1,6 +1,33 @@
 const admin = require('firebase-admin');
 const logger = require('./logger');
 
+const normalizePrivateKey = (rawKey = '') => {
+    let key = String(rawKey || '').trim();
+
+    // Remove surrounding quotes that can be injected by env editors.
+    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'")) || (key.startsWith('`') && key.endsWith('`'))) {
+        key = key.slice(1, -1);
+    }
+
+    // Normalize escaped and platform newlines.
+    key = key.replace(/\\r/g, '');
+    key = key.replace(/\\n/g, '\n');
+    key = key.replace(/\r/g, '');
+
+    // Ensure valid PEM boundary line breaks.
+    key = key.replace(/-----BEGIN PRIVATE KEY-----\s*/, '-----BEGIN PRIVATE KEY-----\n');
+    key = key.replace(/\s*-----END PRIVATE KEY-----/, '\n-----END PRIVATE KEY-----');
+
+    // Trim trailing spaces from each line without touching payload characters.
+    key = key
+        .split('\n')
+        .map((line) => line.trimEnd())
+        .join('\n')
+        .trim();
+
+    return `${key}\n`;
+};
+
 /**
  * Initialize Firebase Admin SDK
  * Uses environment variables for service account credentials
@@ -22,8 +49,8 @@ const initializeFirebase = () => {
 
         // Production setup with Service Account
         if (clientEmail && privateKey) {
-            // Fix for private key newlines in different environments
-            const formattedKey = privateKey.replace(/\\n/g, '\n');
+            // Normalize key formatting to survive env editor escaping/quoting issues.
+            const formattedKey = normalizePrivateKey(privateKey);
             
             admin.initializeApp({
                 credential: admin.credential.cert({
