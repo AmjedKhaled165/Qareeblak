@@ -1,10 +1,9 @@
-name: Qareeblak CI/CD Pipeline
+name: Qareeblak CI/CD Pipeline (Archived)
 
+# Archived to avoid duplicate builds/deploy race conditions.
+# Can still be run manually from the GitHub Actions UI if needed.
 on:
-  push:
-    branches: [ main, production ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 env:
   NODE_VERSION: '20.x'
