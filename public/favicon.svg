@@ -1,0 +1,10 @@
+<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Blue letter Q shape -->
+  <path d="M 2 2 L 8 2 L 10 4 L 10 8 L 8 10 L 2 10 L 2 2" fill="#6366F1" stroke="#6366F1" stroke-width="0.5"/>
+  
+  <!-- Yellow accent -->
+  <path d="M 6 6 L 10 6 L 10 10 L 6 10 Z" fill="#FBBF24" opacity="0.7"/>
+  
+  <!-- Lightning bolt inside -->
+  <path d="M 7 4 L 9 4 L 8 6 L 10 6 L 7 10 Z" fill="#FBBF24"/>
+</svg>

@@ -52,9 +52,14 @@ export function Navbar() {
                 <div className="flex items-center gap-2">
                     <Link
                         href={currentUser?.type === 'provider' ? "/provider-dashboard" : "/"}
-                        className="text-2xl font-bold text-primary tracking-tight"
+                        className="flex items-center gap-2 transition-transform hover:scale-105"
                     >
-                        قريبلك
+                        <img 
+                            src="/logo.svg" 
+                            alt="قريبلك" 
+                            className="w-8 h-8 md:w-10 md:h-10"
+                        />
+                        <span className="text-lg md:text-2xl font-bold text-primary tracking-tight hidden sm:inline">قريبلك</span>
                     </Link>
                 </div>
 

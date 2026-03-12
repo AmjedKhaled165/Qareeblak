@@ -21,7 +21,14 @@ export function Footer() {
 
                 {/* Brand & Bio */}
                 <div className="space-y-4">
-                    <h3 className="text-xl font-bold text-foreground">خدمات أسيوط الجديدة</h3>
+                    <div className="flex items-center gap-2">
+                        <img 
+                            src="/logo.svg" 
+                            alt="قريبلك" 
+                            className="w-6 h-6"
+                        />
+                        <h3 className="text-xl font-bold text-foreground">قريبلك</h3>
+                    </div>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                         منصتك الأولى للوصول لكل الخدمات في أسيوط الجديدة. من السباكة للصيدليات، كل اللي تحتاجه في مكان واحد.
                     </p>

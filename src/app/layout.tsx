@@ -25,12 +25,22 @@ export const metadata: Metadata = {
   keywords: ["أسيوط الجديدة", "خدمات", "مطاعم", "صيانة", "صيدليات", "قريبلك"],
   authors: [{ name: "قريبلك" }],
   robots: "index, follow",
+  icons: {
+    icon: "/logo-128.svg",
+    apple: "/logo-128.svg",
+  },
   openGraph: {
     title: "قريبلك | خدمات أسيوط الجديدة",
     description: "منصتك الأولى لجميع خدمات أسيوط الجديدة",
     locale: "ar_EG",
     type: "website",
     url: "https://qareeblak.com",
+    images: [{
+      url: "/logo-128.svg",
+      width: 128,
+      height: 128,
+      alt: "قريبلك"
+    }],
   },
 };
 

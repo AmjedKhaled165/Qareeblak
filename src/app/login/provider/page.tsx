@@ -156,8 +156,12 @@ export default function ProviderLogin() {
                         <Link href="/login" className="absolute right-6 top-6 text-muted-foreground hover:text-foreground transition-colors">
                             <ArrowRight className="w-6 h-6" />
                         </Link>
-                        <div className="mx-auto w-20 h-20 bg-gradient-to-br from-primary to-indigo-600 rounded-[1.5rem] flex items-center justify-center shadow-xl shadow-primary/20">
-                            <Briefcase className="w-10 h-10 text-white" />
+                        <div className="mx-auto w-20 h-20">
+                            <img 
+                                src="/logo.svg" 
+                                alt="قريبلك" 
+                                className="w-full h-full drop-shadow-xl"
+                            />
                         </div>
                         <div className="space-y-2">
                             <CardTitle className="text-3xl font-bold text-foreground font-cairo">

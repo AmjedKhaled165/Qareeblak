@@ -118,11 +118,15 @@ export default function PartnerLoginPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center mb-8"
                 >
-                    <div className="w-20 h-20 bg-gradient-to-br from-violet-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        <Truck className="w-10 h-10 text-white" />
+                    <div className="w-20 h-20 mx-auto mb-4">
+                        <img 
+                            src="/logo.svg" 
+                            alt="قريبلك" 
+                            className="w-full h-full drop-shadow-lg"
+                        />
                     </div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-blue-600 bg-clip-text text-transparent mb-2">
-                        نظام حالاً للتوصيل
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                        حالاً للتوصيل
                     </h1>
                     <p className="text-slate-500">سجل دخولك للوصول للوحة التحكم</p>
                 </motion.div>
