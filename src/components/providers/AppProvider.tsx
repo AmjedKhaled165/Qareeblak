@@ -236,16 +236,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             return null;
         } catch (error: any) {
             console.error("[AppProvider] Failed to load user:", error);
-
-            // Only clear token on explicit auth errors — not on server/network errors
-            const msg = error.message || "";
-            const isAuthError = msg.includes("401") || msg.includes("403") ||
-                msg.includes("غير مصرح") || msg.includes("عدم التفويض");
-
-            if (isAuthError) {
-                localStorage.removeItem('qareeblak_token');
-                setCurrentUser(null);
-            }
+            // Keep session persistent. Do not clear tokens automatically.
             return null;
         }
     }, []);

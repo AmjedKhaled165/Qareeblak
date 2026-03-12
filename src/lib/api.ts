@@ -115,23 +115,8 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
         } else if (response.status === 401) {
             console.warn(`[API] 401 Unauthorized for ${endpoint}.`);
 
-            // Check which token was actually used so we clear the right session
-            const isHalanRequest = endpoint.includes('/halan') || endpoint.includes('/providers');
-
-            if (typeof window !== 'undefined') {
-                if (isHalanRequest) {
-                    console.log('[API] Clearing Halan session due to 401');
-                    localStorage.removeItem('halan_token');
-                    localStorage.removeItem('halan_user');
-                } else {
-                    console.log('[API] Clearing Qareeblak session due to 401');
-                    localStorage.removeItem('qareeblak_token');
-                    localStorage.removeItem('user'); // Qareeblak user key
-                }
-
-                // If on a page that requires this auth, trigger a reload or redirect
-                // But we'll let the component's useEffect handle the missing session
-            }
+            // IMPORTANT: Do not clear session automatically.
+            // User should be logged out only via explicit logout action.
 
             throw new Error(data?.error || data?.message || `عدم التفويض - يرجى تسجيل الدخول`);
         } else if (response.status === 500) {

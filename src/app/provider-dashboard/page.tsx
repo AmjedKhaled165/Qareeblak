@@ -406,14 +406,10 @@ export default function ProviderDashboard() {
             return;
         }
 
-        // Now that AppProvider hydrates both Qareeblak and Halan users into currentUser,
-        // we can simply check if currentUser exists after initialization.
+        // Keep session stable: don't force-login loop if user hydration is delayed.
+        // Redirect should happen only when there is no token at all or explicit logout.
         if (!currentUser && !isLoading) {
-            console.warn('[ProviderDashboard] Token exists but no user loaded (Session Invalid/Expired). Redirecting.');
-            // Clear potentially stale tokens
-            localStorage.removeItem('qareeblak_token');
-            localStorage.removeItem('halan_token');
-            router.push('/login/provider');
+            console.warn('[ProviderDashboard] Token exists but user not loaded yet, waiting...');
             return;
         }
 
