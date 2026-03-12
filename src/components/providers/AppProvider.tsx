@@ -191,14 +191,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
      */
     const loadCurrentUser = useCallback(async (): Promise<User | null> => {
         try {
+            console.log('[AppProvider] Loading current user...');
+            
             // 1. Qareeblak Token (real JWT)
             const qareeblakToken = localStorage.getItem('qareeblak_token');
             if (qareeblakToken) {
+                console.log('[AppProvider] Found qareeblak_token');
                 if (qareeblakToken === 'mock_google_token') {
                     // Google user with offline mock — restore from localStorage
                     const savedUser = localStorage.getItem('qareeblak_user');
                     if (savedUser) {
                         const parsed = JSON.parse(savedUser);
+                        console.log('[AppProvider] Loaded mock user:', parsed.name);
                         setCurrentUser(parsed);
                         localStorage.setItem('user', JSON.stringify(parsed));
                         return parsed;
@@ -207,6 +211,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 }
 
                 const user = await authApi.getCurrentUser();
+                console.log('[AppProvider] Loaded qareeblak user:', user.name);
                 setCurrentUser(user);
                 localStorage.setItem('user', JSON.stringify(user));
                 return user;
@@ -216,9 +221,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const halanToken = localStorage.getItem('halan_token');
             const halanUserStr = localStorage.getItem('halan_user');
 
+            console.log('[AppProvider] Checking Halan token:', { hasToken: !!halanToken, hasUser: !!halanUserStr });
+
             if (halanToken && halanUserStr) {
                 try {
                     const halanUser = JSON.parse(halanUserStr);
+                    console.log('[AppProvider] Loaded Halan user:', { id: halanUser.id, name: halanUser.name, role: halanUser.role });
                     const adaptedUser: User = {
                         id: halanUser.id,
                         name: halanUser.name,
@@ -233,6 +241,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 }
             }
 
+            console.log('[AppProvider] No active session found');
             return null;
         } catch (error: any) {
             console.error("[AppProvider] Failed to load user:", error);

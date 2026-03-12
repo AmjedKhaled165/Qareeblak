@@ -42,11 +42,21 @@ function getAuthToken(endpoint: string): string | null {
         endpoint.includes('/providers') ||
         endpoint.includes('/auth/provider');
 
+    let token: string | null = null;
     if (isHalanEndpoint) {
-        return localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
+        token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
+        if (token && endpoint.includes('/halan')) {
+            console.log('[API] Using Halan token for endpoint:', endpoint.substring(0, 30));
+        }
+    } else {
+        token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
     }
-
-    return localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+    
+    if (!token && endpoint.includes('/halan')) {
+        console.warn('[API] ⚠️ No token found for Halan endpoint:', endpoint);
+    }
+    
+    return token;
 }
 
 // Helper function for API calls
@@ -99,12 +109,19 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
 
     if (!response.ok) {
         // Detailed error logging for debugging 401 and other issues
+        const isHalanEndpoint = endpoint.includes('/halan');
+        const halanToken = localStorage.getItem('halan_token');
+        const qareeblakToken = localStorage.getItem('qareeblak_token');
+        
         console.error(`❌ API Error (${endpoint}):`, {
             status: response.status,
             statusText: response.statusText,
             url: url,
             hasToken: !!token,
             tokenType: token ? (token.startsWith('ey') ? 'JWT' : 'Other') : 'none',
+            isHalanEndpoint,
+            halanTokenSet: !!halanToken,
+            qareeblakTokenSet: !!qareeblakToken,
             error: data?.error || data?.message,
             fullResponse: data
         });
@@ -114,6 +131,12 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
             throw new Error(`الطلب غير موجود (${response.status}) - ${endpoint}`);
         } else if (response.status === 401) {
             console.warn(`[API] 401 Unauthorized for ${endpoint}.`);
+            console.log('[API] Current token status:', {
+                hasToken: !!token,
+                isHalanEndpoint,
+                halanTokenExists: !!halanToken,
+                qareeblakTokenExists: !!qareeblakToken
+            });
 
             // IMPORTANT: Do not clear session automatically.
             // User should be logged out only via explicit logout action.
