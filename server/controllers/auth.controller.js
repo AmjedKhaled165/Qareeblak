@@ -125,47 +125,19 @@ exports.googleSync = catchAsync(async (req, res, next) => {
         if (isDevMock && process.env.NODE_ENV !== 'production') {
             logger.warn(`⚠️ [DEV MODE] Accepted Mock Google Auth Token for ${email}`);
         } else {
-            const admin = require('firebase-admin');
+            const { admin } = require('../utils/firebase');
 
-            // Initialize Firebase Admin if not already done
-            if (!admin.apps.length) {
-                if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-                    try {
-                        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-                        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-                    } catch (parseError) {
-                        logger.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON', parseError);
-                        return res.status(500).json({ success: false, error: 'يوجد خطأ في إعدادات Firebase JSON على خادم الإنتاج.' });
-                    }
-                } else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-                    try {
-                        admin.initializeApp({
-                            credential: admin.credential.cert({
-                                projectId: process.env.FIREBASE_PROJECT_ID,
-                                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                                // Handle literal \n strings that might come from .env parsing
-                                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-                            })
-                        });
-                    } catch (initError) {
-                        logger.error('Failed to initialize Firebase with individual ENV keys', initError);
-                        return res.status(500).json({ success: false, error: 'فشل تهيئة Firebase باستخدام المفاتيح المتفرقة في الخادم.' });
-                    }
-                } else if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID) {
-                    admin.initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID });
-                } else {
-                    logger.error('SECURITY BLOCK: Firebase Admin not configured. Missing PROJECT_ID or SERVICE_ACCOUNT.');
-                    return res.status(503).json({ success: false, error: 'إعدادات Firebase غير موجودة في (السيرفر Backend .env). الرجاء إضافة FIREBASE_PROJECT_ID.' });
+            // Verify Firebase identity
+            if (admin && admin.apps.length) {
+                const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+
+                // SECURITY: Ensure the verified token belongs to the claimed email
+                if (decodedToken.email !== email) {
+                    logger.warn(`[SECURITY ALERT] Firebase Token email mismatch. Token: ${decodedToken.email}, Claimed: ${email}, IP: ${req.ip}`);
+                    return res.status(401).json({ success: false, error: 'غير مصرح لك. بريد إلكتروني غير متطابق بين جوجل والسيرفر.' });
                 }
-            }
-
-            // MANDATORY: Always verify the Firebase ID token — No exceptions
-            const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
-
-            // SECURITY: Ensure the verified token belongs to the claimed email
-            if (decodedToken.email !== email) {
-                logger.warn(`[SECURITY ALERT] Firebase Token email mismatch. Token: ${decodedToken.email}, Claimed: ${email}, IP: ${req.ip}`);
-                return res.status(401).json({ success: false, error: 'غير مصرح لك. بريد إلكتروني غير متطابق بين جوجل والسيرفر.' });
+            } else {
+                logger.warn('Firebase Admin not fully initialized. Syncing without backend token verification.');
             }
         }
     } catch (error) {

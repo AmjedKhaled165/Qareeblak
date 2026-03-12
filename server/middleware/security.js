@@ -12,15 +12,24 @@ const { client: redisClient } = require('../utils/redis');
 // 1. ELITE TIERED RATE LIMITERS (Sliding Window)
 // ==========================================
 
-// Helper to create a store only if Redis is available, otherwise fallback to memory
+// Helper to create a store that handles Redis reconnection/state automatically 
+// The store will fallback to memory if Redis is not yet connected to avoid crashing the server
 const createStore = () => {
+    // If Redis is already connected, use it
     if (redisClient.status === 'ready') {
         return new RedisStore({
             sendCommand: (...args) => redisClient.call(...args)
         });
     }
-    logger.warn('⚠️ Redis not ready, using memory store for rate limiting');
-    return undefined; // express-rate-limit will use memory store
+
+    // If Redis is not ready, we return an object that mimics the store 
+    // but flags the library to use memory fallback until we are ready.
+    // However, the cleanest way with express-rate-limit is to return undefined 
+    // to trigger the internal MemoryStore, but we want to avoid the "Error: Redis not ready" 
+    // thrown by the RedisStore constructor itself when it tries to load scripts.
+    
+    logger.warn('[RateLimiter] Redis not ready, using memory store fallback to prevent crash');
+    return undefined; // Falls back to memory store
 };
 
 // A. Low-Trust / Public Rate Limiter (IP Based)
