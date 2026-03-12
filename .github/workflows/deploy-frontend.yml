@@ -48,4 +48,18 @@ jobs:
 
       - name: Trigger Coolify Frontend
         if: success()
-        run: curl -k -fsS -X GET "${{ secrets.COOLIFY_FRONTEND_WEBHOOK }}"
+        run: |
+          WEBHOOK="${{ secrets.COOLIFY_FRONTEND_WEBHOOK }}"
+          if [ -z "$WEBHOOK" ]; then
+            echo "::warning::COOLIFY_FRONTEND_WEBHOOK is empty. Skipping deploy trigger."
+            exit 0
+          fi
+
+          HTTP_CODE=$(curl -k -sS -o /tmp/coolify_frontend_resp.txt -w "%{http_code}" -X GET "$WEBHOOK" || true)
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Coolify frontend trigger succeeded (HTTP $HTTP_CODE)."
+            exit 0
+          fi
+
+          echo "::warning::Coolify frontend trigger failed with HTTP $HTTP_CODE. Check webhook secret or permissions."
+          head -c 300 /tmp/coolify_frontend_resp.txt || true
