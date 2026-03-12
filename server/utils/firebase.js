@@ -28,6 +28,28 @@ const normalizePrivateKey = (rawKey = '') => {
     return `${key}\n`;
 };
 
+const parseServiceAccountFromEnv = () => {
+    const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    if (!rawJson) return null;
+
+    try {
+        // Accept either direct JSON string or base64-encoded JSON.
+        const decoded = rawJson.trim().startsWith('{')
+            ? rawJson
+            : Buffer.from(rawJson, 'base64').toString('utf8');
+
+        const obj = JSON.parse(decoded);
+        return {
+            projectId: obj.project_id,
+            clientEmail: obj.client_email,
+            privateKey: obj.private_key,
+        };
+    } catch (err) {
+        logger.warn(`⚠️ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: ${err.message}`);
+        return null;
+    }
+};
+
 /**
  * Initialize Firebase Admin SDK
  * Uses environment variables for service account credentials
@@ -38,9 +60,20 @@ const initializeFirebase = () => {
             return admin.app();
         }
 
-        const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-        let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+        const serviceAccountEnv = parseServiceAccountFromEnv();
+
+        const projectId = serviceAccountEnv?.projectId || process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+        const clientEmail = serviceAccountEnv?.clientEmail || process.env.FIREBASE_CLIENT_EMAIL;
+        let privateKey = serviceAccountEnv?.privateKey || process.env.FIREBASE_PRIVATE_KEY;
+
+        // Optional safer single-line env var to avoid multiline key editor issues.
+        if (!privateKey && process.env.FIREBASE_PRIVATE_KEY_BASE64) {
+            try {
+                privateKey = Buffer.from(process.env.FIREBASE_PRIVATE_KEY_BASE64, 'base64').toString('utf8');
+            } catch (err) {
+                logger.warn(`⚠️ Failed to decode FIREBASE_PRIVATE_KEY_BASE64: ${err.message}`);
+            }
+        }
 
         if (!projectId) {
             logger.warn('⚠️ Firebase Project ID missing. Google Sync/FCM will be limited.');

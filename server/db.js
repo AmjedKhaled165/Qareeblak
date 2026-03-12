@@ -65,21 +65,35 @@ pool.query = async function (text, params) {
     }
 };
 
-// Immediately test connection and fail fast if down in production
-pool.connect()
-    .then(client => {
-        logger.info('✅ Connected to PostgreSQL database pool');
-        client.release();
-    })
-    .catch(err => {
-        logger.error('❌ Database connection error:', err.message);
-        if (process.env.NODE_ENV === 'production') {
-            logger.error('🔥 PRODUCTION FATAL: Exiting due to missed DB connection');
-            process.exit(1);
-        } else {
-            logger.warn('⚠️ Development Mode: Server will stay alive despite DB failure.');
+// Immediately test connection with retries to avoid cold-start race failures.
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const verifyDatabaseConnection = async () => {
+    const isProd = process.env.NODE_ENV === 'production';
+    const attempts = isProd ? 5 : 1;
+
+    for (let i = 1; i <= attempts; i++) {
+        try {
+            const client = await pool.connect();
+            logger.info('✅ Connected to PostgreSQL database pool');
+            client.release();
+            return;
+        } catch (err) {
+            logger.error(`❌ Database connection error (attempt ${i}/${attempts}):`, err.message);
+            if (i < attempts) {
+                await delay(2000);
+            }
         }
-    });
+    }
+
+    if (isProd) {
+        logger.error('🔥 PRODUCTION FATAL: Exiting after DB connection retries failed');
+        process.exit(1);
+    } else {
+        logger.warn('⚠️ Development Mode: Server will stay alive despite DB failure.');
+    }
+};
+
+verifyDatabaseConnection();
 
 // Handle idle client errors
 pool.on('error', (err, client) => {
