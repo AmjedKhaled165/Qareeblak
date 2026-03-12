@@ -1,18 +1,6 @@
-<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="128" height="128" fill="white"/>
-  
-  <!-- Yellow Arc (Top) -->
-  <path d="M 32 38 A 32 32 0 0 1 64 20 A 38 38 0 0 1 96 52 L 90 45 A 32 32 0 0 0 64 32 A 25 25 0 0 0 40 50 Z" fill="#FBBF24"/>
-  
-  <!-- Yellow Arc (Bottom) -->
-  <path d="M 45 110 A 38 38 0 0 1 20 72 L 28 80 A 32 32 0 0 0 42 100 A 25 25 0 0 0 64 110 Z" fill="#FBBF24"/>
-  
-  <!-- Blue Arrow (Top) -->
-  <path d="M 28 38 L 77 64 L 28 55 Z" fill="#6366F1"/>
-  
-  <!-- Blue Arrow (Bottom) -->
-  <path d="M 30 93 L 83 64 L 30 74 Z" fill="#6366F1"/>
-  
-  <!-- Central Blue Lightning -->
-  <path d="M 64 32 L 90 58 L 68 62 L 103 103 L 64 68 L 85 64 Z" fill="#6366F1"/>
+<svg width="128" height="128" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gold ring -->
+  <circle cx="115" cy="100" r="57" stroke="#F5B816" stroke-width="18" fill="none"/>
+  <!-- Purple double-spike arrow pointing right -->
+  <path d="M 35 20 L 78 48 L 168 100 L 78 152 L 35 180 L 58 152 L 72 100 L 58 48 Z" fill="#6C3CE1"/>
 </svg>
