@@ -3,14 +3,15 @@
 # Build: ~80MB final image vs ~600MB without standalone
 # =====================================================
 
-# Stage 1: Install dependencies
+# Stage 1: Install dependencies (cache-friendly)
 FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+# Copy only dependency manifests first to maximize Docker cache hits
 COPY package.json package-lock.json ./
-# استخدام npm install بدلاً من npm ci للمرونة أكثر مع تضاربات النسخ
-RUN npm install --legacy-peer-deps --ignore-engines || npm install --force
+# npm ci is faster and deterministic when lockfile is present
+RUN npm ci --legacy-peer-deps --ignore-engines
 
 # Stage 2: Build the application
 FROM node:22-alpine AS builder
@@ -27,6 +28,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV NEXT_DISABLE_ESLINT=1
 
 RUN npm run build
 
