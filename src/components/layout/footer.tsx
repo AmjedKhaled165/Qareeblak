@@ -23,7 +23,7 @@ export function Footer() {
                 <div className="space-y-4">
                     <div className="flex items-center gap-2">
                         <img 
-                            src="/logo.svg" 
+                            src="/qareeblak-logo.png" 
                             alt="قريبلك" 
                             className="w-6 h-6"
                         />
@@ -73,9 +73,9 @@ export function Footer() {
                         <li><Link href="/terms" className="hover:text-primary">شروط الاستخدام</Link></li>
                     </ul>
                     <div className="flex gap-4 pt-4">
-                        <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="فيسبوك" className="hover:text-primary transition-colors"><Facebook className="h-5 w-5" /></a>
-                        <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="تويتر" className="hover:text-primary transition-colors"><Twitter className="h-5 w-5" /></a>
-                        <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="إنستغرام" className="hover:text-primary transition-colors"><Instagram className="h-5 w-5" /></a>
+                        <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="فيسبوك" className="hover:text-primary transition-colors"><Facebook className="h-5 w-5" /></a>
+                        <a href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="تويتر" className="hover:text-primary transition-colors"><Twitter className="h-5 w-5" /></a>
+                        <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="إنستغرام" className="hover:text-primary transition-colors"><Instagram className="h-5 w-5" /></a>
                     </div>
                 </div>
             </div>
