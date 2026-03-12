@@ -137,6 +137,20 @@ exports.googleSync = catchAsync(async (req, res, next) => {
                         logger.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON', parseError);
                         return res.status(500).json({ success: false, error: 'يوجد خطأ في إعدادات Firebase JSON على خادم الإنتاج.' });
                     }
+                } else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+                    try {
+                        admin.initializeApp({
+                            credential: admin.credential.cert({
+                                projectId: process.env.FIREBASE_PROJECT_ID,
+                                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                                // Handle literal \n strings that might come from .env parsing
+                                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+                            })
+                        });
+                    } catch (initError) {
+                        logger.error('Failed to initialize Firebase with individual ENV keys', initError);
+                        return res.status(500).json({ success: false, error: 'فشل تهيئة Firebase باستخدام المفاتيح المتفرقة في الخادم.' });
+                    }
                 } else if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID) {
                     admin.initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID });
                 } else {
