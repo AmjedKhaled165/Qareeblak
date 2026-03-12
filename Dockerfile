@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # =====================================================
 # Next.js Production Dockerfile (Standalone Output)
 # Build: ~80MB final image vs ~600MB without standalone
@@ -10,8 +11,9 @@ WORKDIR /app
 
 # Copy only dependency manifests first to maximize Docker cache hits
 COPY package.json package-lock.json ./
-# npm ci is faster and deterministic when lockfile is present
-RUN npm ci --legacy-peer-deps --ignore-engines
+# npm ci is faster/deterministic; cache mount speeds repeated CI builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --legacy-peer-deps --ignore-engines --no-audit --prefer-offline
 
 # Stage 2: Build the application
 FROM node:22-alpine AS builder

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Install Node.js standard Alpine image (Node 25 LTS)
 FROM node:25-alpine AS builder
 
@@ -11,7 +12,8 @@ RUN apk add --no-cache libc6-compat python3 make g++
 COPY package*.json ./
 
 # Install explicit dependencies (frozen lockfile and suppress funding/audit noise)
-RUN npm ci --only=production
+RUN --mount=type=cache,target=/root/.npm \
+	npm ci --omit=dev --no-audit --prefer-offline
 
 # Copy all source code
 COPY . .
