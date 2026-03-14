@@ -10,15 +10,35 @@ if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET is required but not set in environment!');
 }
 
+async function findHalanUserByIdentifier(identifier) {
+    const normalized = identifier.trim();
+
+    try {
+        // Preferred path when username column exists.
+        return await pool.query(
+            `SELECT * FROM users
+             WHERE (username = $1 OR email = $1 OR phone = $1)
+             AND user_type IN ('partner_owner', 'partner_supervisor', 'partner_courier')`,
+            [normalized]
+        );
+    } catch (error) {
+        // Fallback for legacy backups where users.username does not exist.
+        if (error && error.code === '42703') {
+            return pool.query(
+                `SELECT *, NULL::text AS username FROM users
+                 WHERE (email = $1 OR phone = $1)
+                 AND user_type IN ('partner_owner', 'partner_supervisor', 'partner_courier')`,
+                [normalized]
+            );
+        }
+        throw error;
+    }
+}
+
 exports.login = catchAsync(async (req, res) => {
     const { identifier, password } = req.body;
 
-    const result = await pool.query(
-        `SELECT * FROM users 
-         WHERE (username = $1 OR email = $1) 
-         AND user_type IN ('partner_owner', 'partner_supervisor', 'partner_courier')`,
-        [identifier.trim()]
-    );
+    const result = await findHalanUserByIdentifier(identifier);
 
     if (result.rows.length === 0) throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
 
@@ -28,9 +48,10 @@ exports.login = catchAsync(async (req, res) => {
 
     const role = user.user_type; // partner_owner, partner_supervisor, partner_courier
     const roleNormalized = String(role).replace(/^partner_/, '');
+    const username = user.username || user.email || user.phone || null;
 
     const token = jwt.sign(
-        { id: user.id, role, username: user.username },
+        { id: user.id, role, username },
         JWT_SECRET,
         { expiresIn: '30d' }
     );
@@ -40,7 +61,7 @@ exports.login = catchAsync(async (req, res) => {
         data: {
             user: {
                 id: user.id,
-                username: user.username,
+                username,
                 name_ar: user.name,
                 email: user.email,
                 phone: user.phone,
@@ -86,11 +107,25 @@ exports.registerMember = catchAsync(async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const userType = `partner_${role}`;
 
-    const result = await pool.query(
-        `INSERT INTO users (name, username, email, phone, password, user_type) 
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [name, username, email || null, phone || null, hashedPassword, userType]
-    );
+    let result;
+    try {
+        result = await pool.query(
+            `INSERT INTO users (name, username, email, phone, password, user_type)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            [name, username || null, email || null, phone || null, hashedPassword, userType]
+        );
+    } catch (error) {
+        // Legacy schema fallback where users.username does not exist.
+        if (error && error.code === '42703') {
+            result = await pool.query(
+                `INSERT INTO users (name, email, phone, password, user_type)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+                [name, email || null, phone || null, hashedPassword, userType]
+            );
+        } else {
+            throw error;
+        }
+    }
 
     const newUserId = result.rows[0].id;
 

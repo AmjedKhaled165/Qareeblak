@@ -54,8 +54,13 @@ const validate = (schema, target = 'body') => (req, res, next) => {
         req[target] = schema.parse(req[target]);
         next();
     } catch (error) {
-        const errors = error.errors.map(err => err.message).join(', ');
-        return res.status(400).json({ success: false, error: errors, details: error.errors });
+        const issues = Array.isArray(error?.issues)
+            ? error.issues
+            : (Array.isArray(error?.errors) ? error.errors : []);
+        const errors = issues.length > 0
+            ? issues.map((err) => err.message).join(', ')
+            : 'بيانات غير صالحة';
+        return res.status(400).json({ success: false, error: errors, details: issues });
     }
 };
 
