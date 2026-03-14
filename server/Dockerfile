@@ -14,6 +14,9 @@ RUN apk add --no-cache libc6-compat python3 make g++
 # Copy package dependencies first to leverage Docker layer caching
 COPY package.json pnpm-lock.yaml ./
 
+# Ensure Prisma schema directory is present in image before install/build steps.
+COPY prisma ./prisma/
+
 # Install production dependencies with pnpm (cached store)
 RUN --mount=type=cache,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile --prod
