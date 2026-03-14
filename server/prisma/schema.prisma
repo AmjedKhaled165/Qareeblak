@@ -1,0 +1,181 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------
+// 1. Authentication & Users
+// --------------------------------------
+
+enum Role {
+  USER
+  PROVIDER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String? // Hashed password (optional for OAuth)
+  role          Role      @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  providerProfile ProviderProfile?
+  bookings        Booking[]        @relation("CustomerBookings")
+  reviews         Review[]
+  auditLogs       AuditLog[] // Actions performed by this user (Admin)
+  complaints      Complaint[]
+}
+
+// --------------------------------------
+// 2. Provider Details
+// --------------------------------------
+
+model ProviderProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  category   String // e.g., "Restaurant", "Plumber"
+  bio        String?
+  location   String?
+  phone      String?
+  isApproved Boolean @default(false)
+
+  rating      Float @default(5.0)
+  reviewCount Int   @default(0)
+
+  services Service[]
+  bookings Booking[] @relation("ProviderBookings")
+}
+
+// --------------------------------------
+// 3. Services & Products
+// --------------------------------------
+
+model Service {
+  id         String          @id @default(cuid())
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  price       Float
+  isActive    Boolean @default(true)
+}
+
+// --------------------------------------
+// 4. Booking & Orders
+// --------------------------------------
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+model Booking {
+  id         String @id @default(cuid())
+  customerId String
+  customer   User   @relation("CustomerBookings", fields: [customerId], references: [id])
+
+  providerId String
+  provider   ProviderProfile @relation("ProviderBookings", fields: [providerId], references: [id])
+
+  serviceName String // Snapshot of service name
+  details     String? // Or JSON for multiple items
+  price       Float? // Agreed price
+
+  status BookingStatus @default(PENDING)
+  date   DateTime      @default(now())
+
+  complaints Complaint[]
+}
+
+// --------------------------------------
+// 5. Social & Feedback
+// --------------------------------------
+
+model Review {
+  id       String @id @default(cuid())
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  // Review could be linked to a specific booking for verified reviews
+  // For now, simpler implementation:
+  message String
+  rating  Int
+
+  createdAt DateTime @default(now())
+}
+
+// --------------------------------------
+// 7. Support & Complaints
+// --------------------------------------
+
+model Complaint {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Optional: Link to a specific booking if related (context)
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+
+  subject     String
+  description String
+  imageUrl    String? // Optional screenshot
+
+  status    String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id       String  @id @default(cuid())
+  action   String // e.g. "APPROVE_PROVIDER", "DELETE_USER"
+  adminId  String
+  admin    User    @relation(fields: [adminId], references: [id])
+  targetId String? // ID of the entity affected
+  details  String?
+
+  createdAt DateTime @default(now())
+}
+
+// --------------------------------------
+// 8. Security & Logging
+// --------------------------------------
+
+model SecurityLog {
+  id        String   @id @default(cuid())
+  ipAddress String
+  action    String
+  status    String
+  metadata  String?
+  createdAt DateTime @default(now())
+}
+
+model BlockedClient {
+  id          String    @id @default(cuid())
+  ipAddress   String    @unique
+  reason      String?
+  attempts    Int       @default(0)
+  isBlocked   Boolean   @default(false)
+  blockedAt   DateTime?
+  lastAttempt DateTime  @default(now())
+  expiresAt   DateTime?
+}
