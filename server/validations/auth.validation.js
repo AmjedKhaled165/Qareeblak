@@ -6,6 +6,9 @@ const registerSchema = z.object({
         .max(50)
         .regex(/^[\u0600-\u06FFa-zA-Z\s]+$/, 'الاسم يجب أن يحتوي على حروف فقط'),
     email: z.string().email('بريد إلكتروني غير صالح'),
+    // Compatibility: frontend may still send userType.
+    // We accept it to avoid 400, while backend service still forces "customer".
+    userType: z.enum(['customer', 'provider', 'admin']).optional(),
     password: z.string()
         .min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل')
         .regex(/[A-Z]/, 'يجب أن تحتوي على حرف كابيتال واحد على الأقل')

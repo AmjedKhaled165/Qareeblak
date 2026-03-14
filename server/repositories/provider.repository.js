@@ -1,40 +1,78 @@
 const pool = require('../db');
 
+let providersColumnsCache = null;
+
+async function getProvidersColumns() {
+    if (providersColumnsCache) return providersColumnsCache;
+
+    const colsResult = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'providers'`
+    );
+
+    providersColumnsCache = new Set(colsResult.rows.map((r) => r.column_name));
+    return providersColumnsCache;
+}
+
 class ProviderRepository {
     /**
      * @param {{limit: number, lastId: number, lastRating: number, category: string}} options
      */
     async getProviders({ limit = 20, lastId, lastRating, category }) {
-        // [ENTERPRISE PERFORMANCE] Cursor-based pagination using composite (rating, id)
-        // This avoids O(N) OFFSET penalty and JSON_AGG memory exhaustion
-        const params = [limit];
-        const conditions = ['p.is_approved = TRUE', 'p.is_banned = FALSE'];
+        try {
+            const cols = await getProvidersColumns();
 
-        if (category) {
-            params.push(category);
-            conditions.push(`p.category = $${params.length}`);
+            // [ENTERPRISE PERFORMANCE] Cursor-based pagination using composite (rating, id)
+            const params = [limit];
+            const conditions = [];
+
+            if (cols.has('is_approved')) {
+                conditions.push('p.is_approved = TRUE');
+            }
+            if (cols.has('is_banned')) {
+                conditions.push('p.is_banned = FALSE');
+            }
+
+            if (category && cols.has('category')) {
+                params.push(category);
+                conditions.push(`p.category = $${params.length}`);
+            }
+
+            if (lastRating !== undefined && lastId !== undefined && cols.has('rating')) {
+                params.push(lastRating, lastId);
+                const rIdx = params.length - 1;
+                const iIdx = params.length;
+                conditions.push(`(p.rating < $${rIdx} OR (p.rating = $${rIdx} AND p.id > $${iIdx}))`);
+            }
+
+            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+            const userIdSelect = cols.has('user_id') ? 'p.user_id' : 'NULL::bigint AS user_id';
+            const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
+            const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
+            const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+            const orderBy = cols.has('rating') ? 'p.rating DESC, p.id ASC' : 'p.id ASC';
+
+            const query = `
+                SELECT
+                    p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
+                    ${ratingSelect}, ${reviewsSelect}, ${joinedDateSelect}
+                FROM providers p
+                ${whereClause}
+                ORDER BY ${orderBy}
+                LIMIT $1
+            `;
+
+            const result = await pool.query(query, params);
+            return result.rows;
+        } catch (error) {
+            // If providers table is missing in a partial/legacy backup, fail gracefully.
+            if (error && error.code === '42P01') {
+                return [];
+            }
+            throw error;
         }
-
-        if (lastRating !== undefined && lastId !== undefined) {
-            params.push(lastRating, lastId);
-            const rIdx = params.length - 1;
-            const iIdx = params.length;
-            // Keyset pagination for composite ordering (ordered by rating DESC, then id ASC)
-            conditions.push(`(p.rating < $${rIdx} OR (p.rating = $${rIdx} AND p.id > $${iIdx}))`);
-        }
-
-        const query = `
-            SELECT 
-                p.id, p.name, p.email, p.category, p.location, p.phone, p.user_id,
-                p.rating, p.reviews_count as reviews, p.joined_date
-            FROM providers p
-            WHERE ${conditions.join(' AND ')}
-            ORDER BY p.rating DESC, p.id ASC
-            LIMIT $1
-        `;
-
-        const result = await pool.query(query, params);
-        return result.rows;
     }
 
     async getByIdWithDetails(id) {
