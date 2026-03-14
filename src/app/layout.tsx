@@ -17,6 +17,7 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://qareeblak.com"),
   title: {
     default: "قريبلك | خدمات أسيوط الجديدة",
     template: "%s | قريبلك"

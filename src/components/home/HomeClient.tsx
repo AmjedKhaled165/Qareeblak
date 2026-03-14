@@ -87,7 +87,7 @@ export default function HomeClient() {
               عايز تنجز؟ <span className="text-[#FED330]">قريبلك</span> موجود!
             </h1>
             <p className="text-lg md:text-xl text-white/90 mb-10 max-w-xl mx-auto font-medium">
-              من "عايز أكلة حلوة" لـ "عايز سباك شاطر".. كل خدمات أسيوط الجديدة بين إيديك في ثواني.
+              من &quot;عايز أكلة حلوة&quot; لـ &quot;عايز سباك شاطر&quot;.. كل خدمات أسيوط الجديدة بين إيديك في ثواني.
             </p>
           </motion.div>
 

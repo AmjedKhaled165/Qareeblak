@@ -74,7 +74,7 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
         } else {
             const serviceName = selectedServiceType || "حجز خدمة";
             addToGlobalCart({
-                id: `booking-${Date.now()}`,
+                id: `booking-${provider.id}-${serviceName}`,
                 name: `${serviceName}`,
                 price: 0,
                 quantity: 1,
