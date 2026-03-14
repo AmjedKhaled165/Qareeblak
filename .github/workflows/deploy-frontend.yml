@@ -45,7 +45,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trigger Coolify Frontend
+      - name: Trigger Coolify Frontend Deployment
         if: success()
         run: |
           WEBHOOK="${{ secrets.COOLIFY_FRONTEND_WEBHOOK }}"
