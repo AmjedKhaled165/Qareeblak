@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -21,9 +21,11 @@ enum Role {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String    @id @default(uuid())
   name          String?
   email         String    @unique
+  username      String?   @unique
+  phone         String?
   emailVerified DateTime?
   image         String?
   password      String? // Hashed password (optional for OAuth)
