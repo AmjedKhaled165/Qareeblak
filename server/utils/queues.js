@@ -23,7 +23,13 @@ const addNotificationJob = async (data) => {
 
 // Called from index.js ONLY after connectRedis() succeeds
 const initializeWorkers = async () => {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+    // Auto-fix: Upstash requires rediss:// (TLS) — guard against misconfigured env vars.
+    if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
+        redisUrl = redisUrl.replace(/^redis:\/\//, 'rediss://');
+        logger.warn('⚠️  BullMQ: Auto-corrected Upstash REDIS_URL to rediss://');
+    }
 
     // Create a dedicated Redis connection for BullMQ with Upstash specifications
     const connection = new IORedis(redisUrl, {
@@ -85,9 +91,18 @@ const initializeWorkers = async () => {
         }
     }, { connection });
 
-    // To catch any Errors and prevent app termination
+    // Circuit breaker: mute & close worker after 5 rapid errors to prevent memory flood
+    let _notifErrors = 0; let _notifErrorWindow = Date.now();
     worker.on('error', err => {
-        logger.error('BullMQ Worker Error:', err);
+        const now = Date.now();
+        if (now - _notifErrorWindow > 60000) { _notifErrors = 0; _notifErrorWindow = now; }
+        _notifErrors++;
+        if (_notifErrors <= 5) {
+            logger.error('BullMQ Worker Error:', err.message);
+        } else if (_notifErrors === 6) {
+            logger.error('BullMQ Worker: too many errors — closing worker to prevent memory flood.');
+            worker.close(true).catch(() => {});
+        }
     });
     worker.on('completed', (job) => logger.debug(`Job ${job.id} completed`));
     worker.on('failed', (job, err) => logger.error(`Job ${job.id} failed: ${err.message}`));
@@ -121,8 +136,18 @@ const initializeWorkers = async () => {
         }
     }, { connection });
 
+    // Circuit breaker: silence & close after 5 rapid errors to prevent the memory-flooding loop
+    let _maintErrors = 0; let _maintErrorWindow = Date.now();
     maintenanceWorker.on('error', err => {
-        logger.error('BullMQ Maintenance Worker Error:', err);
+        const now = Date.now();
+        if (now - _maintErrorWindow > 60000) { _maintErrors = 0; _maintErrorWindow = now; }
+        _maintErrors++;
+        if (_maintErrors <= 5) {
+            logger.error('BullMQ Maintenance Worker Error:', err.message);
+        } else if (_maintErrors === 6) {
+            logger.error('BullMQ Maintenance Worker: too many errors — closing worker to prevent memory flood.');
+            maintenanceWorker.close(true).catch(() => {});
+        }
     });
     maintenanceWorker.on('failed', (job, err) => logger.error(`[Maintenance] Job ${job?.id} failed: ${err.message}`));
 

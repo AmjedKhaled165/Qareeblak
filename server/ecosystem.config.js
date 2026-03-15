@@ -9,7 +9,8 @@ module.exports = {
             watch: false,
             max_memory_restart: '2G', // Limit to 2GB for BullMQ Workers
             // Node V8 max space (Must ALWAYS be lower than max_memory_restart to allow clean GC before PM2 SIGKILL)
-            node_args: "--max-old-space-size=1536", // 1.5GB - Give more space to the app
+            // --expose-gc allows Guardian Watchdog to call global.gc() for forced garbage collection
+            node_args: "--max-old-space-size=1536 --expose-gc",
             env: {
                 NODE_ENV: 'development',
                 PORT: 5000

@@ -1,7 +1,13 @@
 const Redis = require('ioredis');
 const logger = require('./logger');
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+// Auto-fix: Upstash requires rediss:// (TLS). If the URL has the wrong scheme, correct it silently.
+if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
+    redisUrl = redisUrl.replace(/^redis:\/\//, 'rediss://');
+    logger.warn('⚠️  Auto-corrected Upstash REDIS_URL to use rediss:// (TLS required by Upstash)');
+}
 
 // تكوين Redis مع دعم SSL و Timeout للـ Upstash أو أي Redis سحابي
 const client = new Redis(redisUrl, {
