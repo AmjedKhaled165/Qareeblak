@@ -32,24 +32,50 @@ const initializeWorkers = async () => {
     }
 
     // Create a dedicated Redis connection for BullMQ with Upstash specifications
+    let _bullQuotaExceeded = false;
+
     const connection = new IORedis(redisUrl, {
         tls: { 
-            rejectUnauthorized: false // To accept Upstash SSL
+            rejectUnauthorized: false
         },
-        connectTimeout: 20000, // 20 seconds to connect
-        maxRetriesPerRequest: null, // ⚠️ Most important line! Required for BullMQ
+        connectTimeout: 20000,
+        maxRetriesPerRequest: null, // ⚠️ Required for BullMQ
         retryStrategy: (times) => {
-            // Gradual reconnection attempts
-            if (times > 3) return null; // stop after 3 attempts
+            if (_bullQuotaExceeded) return null; // abort immediately
+            if (times > 3) return null;
             return Math.min(times * 500, 2000);
         },
-        enableOfflineQueue: true // Keep requests during disconnection
+        enableOfflineQueue: false // Don't queue commands when disconnected
+    });
+
+    // Test connection before initializing workers
+    await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('BullMQ Redis connect timeout')), 15000);
+        connection.once('ready', () => { clearTimeout(timeout); resolve(); });
+        connection.once('error', (err) => {
+            clearTimeout(timeout);
+            if (err.message && err.message.includes('max requests limit exceeded')) {
+                _bullQuotaExceeded = true;
+                reject(new Error('Upstash quota exceeded — skipping BullMQ workers'));
+            } else {
+                reject(err);
+            }
+        });
+        connection.connect().catch(reject);
     });
 
     connection.on('error', (err) => {
+        if (err.message && err.message.includes('max requests limit exceeded')) {
+            if (!_bullQuotaExceeded) {
+                _bullQuotaExceeded = true;
+                logger.error('🚫 BullMQ: Upstash quota exceeded — closing all workers.');
+                connection.disconnect();
+            }
+            return;
+        }
         logger.warn('BullMQ Redis error:', err.message);
     });
-    
+
     connection.on('ready', () => {
         logger.info('✅ BullMQ Redis connection established');
     });

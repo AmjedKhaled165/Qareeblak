@@ -10,25 +10,34 @@ if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
 }
 
 // تكوين Redis مع دعم SSL و Timeout للـ Upstash أو أي Redis سحابي
+// Detect Upstash quota-exceeded — stop all retries immediately to avoid wasting the daily budget.
+let _quotaExceeded = false;
+
 const client = new Redis(redisUrl, {
     tls: { 
-        // تخطي مشاكل شهادات SSL في البيئات السحابية
         rejectUnauthorized: false 
     },
-    connectTimeout: 20000, // 20 ثانية للاتصال
-    maxRetriesPerRequest: null, // مهم لـ BullMQ
+    connectTimeout: 20000,
+    maxRetriesPerRequest: null, // required by BullMQ
     retryStrategy(times) {
-        // محاولة إعادة الاتصال بشكل تدريجي
+        if (_quotaExceeded) return null; // abort immediately on quota error
         const delay = Math.min(times * 50, 2000);
         return delay;
     },
-    // إيقاف إعادة المحاولة التلقائية بعد عدد معين من المرات
-    lazyConnect: true, // الاتصال يدوياً عند الحاجة
-    enableOfflineQueue: true, // الاحتفاظ بالطلبات أثناء انقطاع الاتصال
+    lazyConnect: true,
+    enableOfflineQueue: true,
 });
 
 client.on('error', (err) => {
-    // تسجيل الخطأ مرة واحدة فقط لتجنب الازعاج
+    // Upstash daily quota exhausted → stop all retries immediately
+    if (err.message && err.message.includes('max requests limit exceeded')) {
+        if (!_quotaExceeded) {
+            _quotaExceeded = true;
+            logger.error('🚫 Upstash Redis daily quota exceeded. Disabling Redis until quota resets (midnight UTC).');
+            client.disconnect();
+        }
+        return;
+    }
     if (!client._warnedOnce) {
         client._warnedOnce = true;
         logger.warn(`Redis unavailable (${err.message}) - caching and real-time adapter disabled.`);
@@ -57,13 +66,17 @@ const connectRedis = async () => {
         await client.connect();
         return true;
     } catch (error) {
-        logger.warn('Redis unavailable - caching, queue adapter, and background jobs disabled.');
-        if (process.env.NODE_ENV === 'production') {
-            logger.error('FATAL: Redis is required in production. Exiting.');
-            process.exit(1);
+        // Quota exceeded is a temporary condition — do NOT crash the process
+        if (error.message && error.message.includes('max requests limit exceeded')) {
+            _quotaExceeded = true;
+            logger.error('🚫 Upstash Redis daily quota exceeded on connect. Running without Redis until quota resets.');
+            return false;
         }
+        logger.warn('Redis unavailable - caching, queue adapter, and background jobs disabled.');
         return false;
     }
 };
 
-module.exports = { client, connectRedis };
+const isQuotaExceeded = () => _quotaExceeded;
+
+module.exports = { client, connectRedis, isQuotaExceeded };
