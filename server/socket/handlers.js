@@ -23,7 +23,11 @@ module.exports = function registerSocketHandlers(io) {
             `);
             logger.info(`Cleared ${result.rowCount} stale driver locations`);
         } catch (error) {
-            logger.error('Failed to clear stale driver locations:', error.message);
+            if (error?.code === '42P01') {
+                logger.warn('Skipping stale driver cleanup on first run: core tables are not ready yet.');
+            } else {
+                logger.error('Failed to clear stale driver locations:', error.stack || error.message || error);
+            }
         }
     };
 

@@ -2,6 +2,126 @@ const db = require('../db');
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
+async function ensureCoreTables(query) {
+    // Order matters because of foreign keys.
+    await query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255),
+            email VARCHAR(255) UNIQUE,
+            password VARCHAR(255),
+            username VARCHAR(255) UNIQUE,
+            phone VARCHAR(50),
+            user_type VARCHAR(50) DEFAULT 'customer',
+            latitude DECIMAL(10, 8),
+            longitude DECIMAL(11, 8),
+            last_location_update TIMESTAMP,
+            is_available BOOLEAN DEFAULT false,
+            is_online BOOLEAN DEFAULT false,
+            max_active_orders INTEGER DEFAULT 10,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS providers (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name VARCHAR(255),
+            email VARCHAR(255),
+            category VARCHAR(100),
+            location VARCHAR(255),
+            phone VARCHAR(50),
+            rating DECIMAL(2, 1) DEFAULT 0.0,
+            reviews_count INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Compatibility table for deployments expecting a dedicated drivers relation.
+    await query(`
+        CREATE TABLE IF NOT EXISTS drivers (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            is_available BOOLEAN DEFAULT false,
+            latitude DECIMAL(10, 8),
+            longitude DECIMAL(11, 8),
+            last_location_update TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS services (
+            id SERIAL PRIMARY KEY,
+            provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+            name VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS bookings (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+            service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
+            parent_order_id INTEGER,
+            halan_order_id VARCHAR(100),
+            appointment_date TIMESTAMP,
+            appointment_type VARCHAR(50),
+            discount_amount DECIMAL(10, 2) DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS delivery_orders (
+            id SERIAL PRIMARY KEY,
+            source TEXT,
+            customer_phone VARCHAR(50),
+            customer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            order_type VARCHAR(20) DEFAULT 'manual',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS parent_orders (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            discount_amount DECIMAL(10, 2) DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id SERIAL PRIMARY KEY,
+            consultation_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            is_read BOOLEAN DEFAULT false,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS reviews (
+            id SERIAL PRIMARY KEY,
+            provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+            review_date DATE DEFAULT CURRENT_DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+}
+
 /**
  * Run idempotent startup migrations
  */
@@ -25,6 +145,9 @@ async function runStartupMigrations() {
         await query('CREATE EXTENSION IF NOT EXISTS postgis;');
         await query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
         await query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+
+        // Ensure core relations exist before any update/cleanup/index logic.
+        await ensureCoreTables(query);
 
         // 1. Migration: Ensure default ratings are 0.0 for providers with no reviews
         const ratingRes = await query("UPDATE providers SET rating = 0.0 WHERE reviews_count = 0");
