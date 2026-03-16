@@ -2,8 +2,9 @@ const Redis = require('ioredis');
 const logger = require('./logger');
 
 let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const MAX_REDIS_RETRIES = Number(process.env.REDIS_MAX_RETRIES || 20);
+const MAX_REDIS_RETRIES = Number(process.env.REDIS_MAX_RETRIES || 5);
 const RECONNECT_LOG_INTERVAL_MS = 60000;
+let _etimedoutCount = 0;
 
 // Auto-fix: Upstash requires rediss:// (TLS). If the URL has the wrong scheme, correct it silently.
 if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
@@ -21,16 +22,17 @@ const client = new Redis(redisUrl, {
     tls: { 
         rejectUnauthorized: false 
     },
-    connectTimeout: 20000,
+    connectTimeout: 5000,
     maxRetriesPerRequest: null, // required by BullMQ
     retryStrategy(times) {
         if (_quotaExceeded || _redisDisabled) return null; // abort immediately on quota/fatal state
         if (times > MAX_REDIS_RETRIES) {
             _redisDisabled = true;
-            logger.error(`🚫 Redis reconnect attempts exceeded (${MAX_REDIS_RETRIES}). Redis disabled for this process lifetime.`);
+            logger.error(`🚫 Redis disabled after ${MAX_REDIS_RETRIES} failed reconnect attempts. Running without Redis.`);
             return null;
         }
-        const delay = Math.min(times * 250, 5000);
+        // Exponential backoff: 1s, 2s, 4s, 8s ... capped at 10s
+        const delay = Math.min(1000 * Math.pow(2, times - 1), 10000);
         return delay;
     },
     lazyConnect: true,
@@ -53,6 +55,16 @@ client.on('error', (err) => {
         _redisDisabled = true;
         logger.error(`🚫 Redis configuration/auth error detected (${err.message}). Redis disabled until next deploy/restart.`);
         client.disconnect();
+        return;
+    }
+    // ETIMEDOUT usually means quota limit or persistent network failure — stop fast
+    if (err.message && err.message.includes('ETIMEDOUT')) {
+        _etimedoutCount++;
+        if (_etimedoutCount >= 3 && !_redisDisabled) {
+            _redisDisabled = true;
+            logger.error('🚫 Redis ETIMEDOUT 3 times in a row. Redis disabled — check Upstash quota or URL.');
+            client.disconnect();
+        }
         return;
     }
     if (!client._warnedOnce) {
