@@ -25,6 +25,15 @@ export const metadata: Metadata = {
   description: "منصتك الأولى لجميع خدمات أسيوط الجديدة — مطاعم، صيانة، صيدليات، وأكثر. اطلب في ثواني.",
   keywords: ["أسيوط الجديدة", "خدمات", "مطاعم", "صيانة", "صيدليات", "قريبلك"],
   authors: [{ name: "قريبلك" }],
+  icons: {
+    icon: [
+      { url: "/qareeblak-icon-white-bg.ico" },
+      { url: "/qareeblak-icon.ico" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" }
+    ],
+    shortcut: ["/qareeblak-icon-white-bg.ico"],
+    apple: [{ url: "/icon-512.png", sizes: "180x180", type: "image/png" }],
+  },
   robots: "index, follow",
   openGraph: {
     title: "قريبلك | خدمات أسيوط الجديدة",
