@@ -5,6 +5,7 @@ const db = require('./db');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const IORedis = require('ioredis');
 require('dotenv').config();
 const logger = require('./utils/logger');
 
@@ -18,7 +19,7 @@ const globalErrorHandler = require('./middleware/errorHandler');
 // ================== UTILS & SERVICES ==================
 const healthRoutes = require('./routes/health');
 const { initializeWorkers } = require('./utils/queues');
-const { connectRedis } = require('./utils/redis');
+const { connectRedis, client: redisPublishClient, getRedisConnectionOptions, normalizeRedisUrl } = require('./utils/redis');
 const { initializeFirebase } = require('./utils/firebase');
 const watchdog = require('./utils/watchdog');
 
@@ -80,13 +81,25 @@ const io = new Server(server, {
 
 // Redis Adapter for Socket.io (Scaling to multi-node)
 // Set up AFTER Redis connects to avoid duplicate client error-spam
-const { client: redisPublishClient } = require('./utils/redis');
+let _redisAdapterInitialized = false;
 redisPublishClient.on('ready', () => {
+    if (_redisAdapterInitialized) return;
     try {
         const { createAdapter } = require('@socket.io/redis-adapter');
-        const subClient = redisPublishClient.duplicate();
-        io.adapter(createAdapter(redisPublishClient, subClient));
-        logger.info('🚀 Socket.io Redis Adapter enabled');
+        const redisUrl = normalizeRedisUrl(process.env.REDIS_URL || 'redis://localhost:6379');
+        const adapterRedisOptions = getRedisConnectionOptions(redisUrl, { lazyConnect: true });
+        const pubClient = new IORedis(redisUrl, adapterRedisOptions);
+        const subClient = new IORedis(redisUrl, adapterRedisOptions);
+
+        Promise.all([pubClient.connect(), subClient.connect()])
+            .then(() => {
+                io.adapter(createAdapter(pubClient, subClient));
+                _redisAdapterInitialized = true;
+                logger.info('🚀 Socket.io Redis Adapter enabled');
+            })
+            .catch((err) => {
+                logger.warn(`⚠️ Redis Adapter connection failed, falling back to local adapter: ${err.message}`);
+            });
     } catch (err) {
         logger.warn(`⚠️ Redis Adapter failed to initialize, falling back to local adapter: ${err.message}`);
     }

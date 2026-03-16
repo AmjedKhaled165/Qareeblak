@@ -1,21 +1,19 @@
 const Redis = require('ioredis');
 const logger = require('./logger');
 
-let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const isTlsRedis = /^rediss:\/\//i.test(redisUrl);
-let redisHost = null;
-try {
-    redisHost = new URL(redisUrl).hostname;
-} catch (_) {
-    redisHost = null;
-}
+const normalizeRedisUrl = (url) => {
+    if (url.includes('upstash.io') && url.startsWith('redis://')) {
+        return url.replace(/^redis:\/\//, 'rediss://');
+    }
+    return url;
+};
+
+let redisUrl = normalizeRedisUrl(process.env.REDIS_URL || 'redis://localhost:6379');
 const MAX_REDIS_RETRIES = Number(process.env.REDIS_MAX_RETRIES || 5);
 const RECONNECT_LOG_INTERVAL_MS = 60000;
 let _etimedoutCount = 0;
 
-// Auto-fix: Upstash requires rediss:// (TLS). If the URL has the wrong scheme, correct it silently.
-if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
-    redisUrl = redisUrl.replace(/^redis:\/\//, 'rediss://');
+if (process.env.REDIS_URL && process.env.REDIS_URL !== redisUrl) {
     logger.warn('⚠️  Auto-corrected Upstash REDIS_URL to use rediss:// (TLS required by Upstash)');
 }
 
@@ -25,16 +23,29 @@ let _quotaExceeded = false;
 let _redisDisabled = false;
 let _lastReconnectLogAt = 0;
 
-const client = new Redis(redisUrl, {
-    ...(isTlsRedis ? {
-        tls: {
-            // Some hosted Redis providers require explicit TLS options.
-            rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED !== 'false',
-            ...(redisHost ? { servername: redisHost } : {}),
-        }
-    } : {}),
-    connectTimeout: 5000,
-    maxRetriesPerRequest: null, // required by BullMQ
+const getRedisConnectionOptions = (url = redisUrl, overrides = {}) => {
+    const isTlsRedis = /^rediss:\/\//i.test(url);
+    let redisHost = null;
+    try {
+        redisHost = new URL(url).hostname;
+    } catch (_) {
+        redisHost = null;
+    }
+
+    return {
+        ...(isTlsRedis ? {
+            tls: {
+                rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED !== 'false',
+                ...(redisHost ? { servername: redisHost } : {}),
+            }
+        } : {}),
+        connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 5000),
+        maxRetriesPerRequest: null,
+        ...overrides,
+    };
+};
+
+const client = new Redis(redisUrl, getRedisConnectionOptions(redisUrl, {
     retryStrategy(times) {
         if (_quotaExceeded || _redisDisabled) return null; // abort immediately on quota/fatal state
         if (times > MAX_REDIS_RETRIES) {
@@ -47,10 +58,7 @@ const client = new Redis(redisUrl, {
         return delay;
     },
     lazyConnect: true,
-    // Prevent unbounded memory growth when Redis is down.
-    enableOfflineQueue: false,
-    autoResendUnfulfilledCommands: false,
-});
+}));
 
 client.on('error', (err) => {
     // Upstash daily quota exhausted → stop all retries immediately
@@ -124,4 +132,4 @@ const connectRedis = async () => {
 
 const isQuotaExceeded = () => _quotaExceeded;
 
-module.exports = { client, connectRedis, isQuotaExceeded };
+module.exports = { client, connectRedis, isQuotaExceeded, getRedisConnectionOptions, normalizeRedisUrl };

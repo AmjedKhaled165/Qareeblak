@@ -1,6 +1,7 @@
 const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
 const logger = require('./logger');
+const { getRedisConnectionOptions, normalizeRedisUrl } = require('./redis');
 const fcmService = require('../services/fcm.service');
 const db = require('../db');
 
@@ -23,14 +24,7 @@ const addNotificationJob = async (data) => {
 
 // Called from index.js ONLY after connectRedis() succeeds
 const initializeWorkers = async () => {
-    let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    const isTlsRedis = /^rediss:\/\//i.test(redisUrl);
-    let redisHost = null;
-    try {
-        redisHost = new URL(redisUrl).hostname;
-    } catch (_) {
-        redisHost = null;
-    }
+    let redisUrl = normalizeRedisUrl(process.env.REDIS_URL || 'redis://localhost:6379');
 
     // Auto-fix: Upstash requires rediss:// (TLS) — guard against misconfigured env vars.
     if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
@@ -42,20 +36,14 @@ const initializeWorkers = async () => {
     let _bullQuotaExceeded = false;
 
     const connection = new IORedis(redisUrl, {
-        ...(isTlsRedis ? {
-            tls: {
-                rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED !== 'false',
-                ...(redisHost ? { servername: redisHost } : {}),
-            }
-        } : {}),
-        connectTimeout: 20000,
-        maxRetriesPerRequest: null, // ⚠️ Required for BullMQ
+        ...getRedisConnectionOptions(redisUrl, {
+            connectTimeout: 20000,
+        }),
         retryStrategy: (times) => {
             if (_bullQuotaExceeded) return null; // abort immediately
             if (times > 3) return null;
             return Math.min(times * 500, 2000);
         },
-        enableOfflineQueue: false // Don't queue commands when disconnected
     });
 
     // Test connection before initializing workers
