@@ -8,6 +8,11 @@ async function runStartupMigrations() {
     logger.info('🚀 Starting database migrations...');
 
     try {
+        // Ensure required DB extensions exist before any schema/table operations.
+        await db.query('CREATE EXTENSION IF NOT EXISTS postgis;');
+        await db.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
+        await db.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+
         // 1. Migration: Ensure default ratings are 0.0 for providers with no reviews
         const ratingRes = await db.query("UPDATE providers SET rating = 0.0 WHERE reviews_count = 0");
         if (ratingRes.rowCount > 0) {
@@ -166,8 +171,9 @@ async function runStartupMigrations() {
         // Log error but don't crash - if columns already exist or permission issues, we might be fine
         if (err.message.includes('permission denied') || err.message.includes('must be owner')) {
             console.warn('⚠️ Migration Warning: Insufficient permissions to modify schema. If columns already exist, this can be ignored.');
+            logger.warn('Migration warning details:', err.stack || err.message || err);
         } else {
-            logger.error('❌ Migration Error:', err.message);
+            logger.error('❌ Migration Error:', err.stack || err.message || err);
         }
     }
 }

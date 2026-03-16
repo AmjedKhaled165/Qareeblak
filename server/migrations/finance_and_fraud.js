@@ -5,6 +5,11 @@ async function runFinanceAndFraudMigrations() {
     logger.info('💸 Starting Financial & Anti-Fraud migrations...');
 
     try {
+        // Ensure required DB extensions exist before any schema/table operations.
+        await db.query('CREATE EXTENSION IF NOT EXISTS postgis;');
+        await db.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
+        await db.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+
         // 1. Add Commission to Providers
         await db.query(`
             ALTER TABLE providers 
@@ -44,7 +49,7 @@ async function runFinanceAndFraudMigrations() {
 
         logger.info('✅ Financial & Anti-Fraud migrations completed');
     } catch (err) {
-        logger.error('❌ Finance/Fraud Migration Error:', err.message);
+        logger.error('❌ Finance/Fraud Migration Error:', err.stack || err.message || err);
     }
 }
 
