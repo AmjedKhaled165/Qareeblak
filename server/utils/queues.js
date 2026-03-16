@@ -38,6 +38,7 @@ const initializeWorkers = async () => {
     const connection = new IORedis(redisUrl, {
         ...getRedisConnectionOptions(redisUrl, {
             connectTimeout: 20000,
+            maxRetriesPerRequest: null,
         }),
         retryStrategy: (times) => {
             if (_bullQuotaExceeded) return null; // abort immediately

@@ -1,4 +1,5 @@
 const db = require('../db');
+const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
 /**
@@ -7,20 +8,32 @@ const logger = require('../utils/logger');
 async function runStartupMigrations() {
     logger.info('🚀 Starting database migrations...');
 
+    const useSslMigrationClient = process.env.DB_SSL === 'true';
+    const migrationPool = useSslMigrationClient
+        ? new Pool({
+            connectionString: process.env.DATABASE_URL,
+            max: 1,
+            idleTimeoutMillis: 10000,
+            connectionTimeoutMillis: 5000,
+            ssl: { rejectUnauthorized: false },
+        })
+        : null;
+    const query = (text, params) => (migrationPool ? migrationPool.query(text, params) : db.query(text, params));
+
     try {
         // Ensure required DB extensions exist before any schema/table operations.
-        await db.query('CREATE EXTENSION IF NOT EXISTS postgis;');
-        await db.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
-        await db.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+        await query('CREATE EXTENSION IF NOT EXISTS postgis;');
+        await query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
+        await query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
 
         // 1. Migration: Ensure default ratings are 0.0 for providers with no reviews
-        const ratingRes = await db.query("UPDATE providers SET rating = 0.0 WHERE reviews_count = 0");
+        const ratingRes = await query("UPDATE providers SET rating = 0.0 WHERE reviews_count = 0");
         if (ratingRes.rowCount > 0) {
             logger.info(`✅ Rating Migration: Updated ${ratingRes.rowCount} providers to 0.0 rating`);
         }
 
         // 2. Migration: Safe column and index checks for bookings
-        const colCheck = await db.query(`
+        const colCheck = await query(`
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'bookings' AND column_name = 'appointment_date'
@@ -28,7 +41,7 @@ async function runStartupMigrations() {
 
         if (colCheck.rows.length === 0) {
             logger.info('🔄 Attempting to add appointment columns...');
-            await db.query(`
+            await query(`
                 ALTER TABLE bookings 
                 ADD COLUMN IF NOT EXISTS appointment_date TIMESTAMP,
                 ADD COLUMN IF NOT EXISTS appointment_type VARCHAR(50)
@@ -37,7 +50,7 @@ async function runStartupMigrations() {
         }
 
         // 3. Check for appointment index
-        const indexCheck = await db.query(`
+        const indexCheck = await query(`
             SELECT indexname 
             FROM pg_indexes 
             WHERE tablename = 'bookings' AND indexname = 'idx_bookings_appointment_date'
@@ -45,7 +58,7 @@ async function runStartupMigrations() {
 
         if (indexCheck.rows.length === 0) {
             logger.info('🔄 Attempting to create appointment index...');
-            await db.query(`
+            await query(`
                 CREATE INDEX IF NOT EXISTS idx_bookings_appointment_date 
                 ON bookings(appointment_date)
             `);
@@ -53,8 +66,8 @@ async function runStartupMigrations() {
         }
 
         // 4. Migration: Add order_type column to delivery_orders
-        await db.query("ALTER TABLE delivery_orders ADD COLUMN IF NOT EXISTS order_type VARCHAR(20) DEFAULT 'manual'");
-        const orderRes = await db.query(`
+        await query("ALTER TABLE delivery_orders ADD COLUMN IF NOT EXISTS order_type VARCHAR(20) DEFAULT 'manual'");
+        const orderRes = await query(`
             UPDATE delivery_orders 
             SET order_type = 'app' 
             WHERE source ILIKE '%qareeblak%' 
@@ -65,11 +78,11 @@ async function runStartupMigrations() {
         }
 
         // 5. Migration: Add is_online and max_active_orders columns for courier capacity
-        await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false");
-        await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS max_active_orders INTEGER DEFAULT 10");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS max_active_orders INTEGER DEFAULT 10");
 
         // 6. Migration: Wheel of Luck Tables
-        await db.query(`
+        await query(`
             CREATE TABLE IF NOT EXISTS wheel_prizes (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
@@ -83,7 +96,7 @@ async function runStartupMigrations() {
             )
         `);
 
-        await db.query(`
+        await query(`
             CREATE TABLE IF NOT EXISTS user_prizes (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -97,13 +110,13 @@ async function runStartupMigrations() {
         `);
 
         // 7. Migration: Add discount columns to orders
-        await db.query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
-        await db.query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS prize_id INTEGER REFERENCES user_prizes(id)");
-        await db.query("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
+        await query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
+        await query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS prize_id INTEGER REFERENCES user_prizes(id)");
+        await query("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
 
         // 8. Migration: Add Critical Performance Indexes for Halan Orders & Tracking
         logger.info('🔄 Attempting to create critical tracking indexes...');
-        await db.query(`
+        await query(`
             CREATE INDEX IF NOT EXISTS idx_delivery_customer_phone ON delivery_orders(customer_phone);
             CREATE INDEX IF NOT EXISTS idx_delivery_customer_id ON delivery_orders(customer_id);
             CREATE INDEX IF NOT EXISTS idx_bookings_halan_order ON bookings(halan_order_id);
@@ -115,7 +128,7 @@ async function runStartupMigrations() {
             CREATE INDEX IF NOT EXISTS idx_reviews_provider_id ON reviews(provider_id, review_date DESC);
         `);
         // 9. Migration: Password Reset Tokens
-        await db.query(`
+        await query(`
             CREATE TABLE IF NOT EXISTS password_reset_tokens (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -127,7 +140,7 @@ async function runStartupMigrations() {
         logger.info(`✅ Auth Migration: Enabled Password Reset system`);
 
         // 10. Migration: Wallet System (Retention & Fintech)
-        await db.query(`
+        await query(`
             CREATE TABLE IF NOT EXISTS wallets (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
@@ -136,7 +149,7 @@ async function runStartupMigrations() {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
-        await db.query(`
+        await query(`
             CREATE TABLE IF NOT EXISTS wallet_transactions (
                 id SERIAL PRIMARY KEY,
                 wallet_id INTEGER REFERENCES wallets(id) ON DELETE CASCADE,
@@ -149,7 +162,7 @@ async function runStartupMigrations() {
         `);
 
         // 11. Migration: Promo Code Engine
-        await db.query(`
+        await query(`
             CREATE TABLE IF NOT EXISTS promo_codes (
                 id SERIAL PRIMARY KEY,
                 code VARCHAR(50) UNIQUE NOT NULL,
@@ -168,12 +181,31 @@ async function runStartupMigrations() {
 
         logger.info('✨ All migrations completed successfully');
     } catch (err) {
+        console.dir(err, { depth: null });
+        console.error('Migration Error JSON:', JSON.stringify({
+            message: err?.message,
+            code: err?.code,
+            detail: err?.detail,
+            hint: err?.hint,
+            where: err?.where,
+            schema: err?.schema,
+            table: err?.table,
+            column: err?.column,
+            constraint: err?.constraint,
+            routine: err?.routine,
+        }, null, 2));
         // Log error but don't crash - if columns already exist or permission issues, we might be fine
         if (err.message.includes('permission denied') || err.message.includes('must be owner')) {
             console.warn('⚠️ Migration Warning: Insufficient permissions to modify schema. If columns already exist, this can be ignored.');
             logger.warn('Migration warning details:', err.stack || err.message || err);
         } else {
             logger.error('❌ Migration Error:', err.stack || err.message || err);
+        }
+    } finally {
+        if (migrationPool) {
+            await migrationPool.end().catch((closeErr) => {
+                logger.warn('Failed to close migration SSL pool:', closeErr?.message || closeErr);
+            });
         }
     }
 }
