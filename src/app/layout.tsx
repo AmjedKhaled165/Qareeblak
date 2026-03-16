@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   authors: [{ name: "قريبلك" }],
   robots: "index, follow",
   icons: {
-    icon: "/qareeblak-icon.ico",
-    apple: "/qareeblak-logo.png",
+    icon: "/favicon.ico",
+    apple: "/icon-512.png",
   },
   openGraph: {
     title: "قريبلك | خدمات أسيوط الجديدة",

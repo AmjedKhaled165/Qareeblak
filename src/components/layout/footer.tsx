@@ -23,9 +23,9 @@ export function Footer() {
                 <div className="space-y-4">
                     <div className="flex items-center gap-2">
                         <img 
-                            src="/qareeblak-logo.png" 
+                            src="/qareeblak-logo-cropped.png" 
                             alt="قريبلك" 
-                            className="w-6 h-6"
+                            className="w-10 h-10"
                         />
                         <h3 className="text-xl font-bold text-foreground">قريبلك</h3>
                     </div>
