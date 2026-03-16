@@ -26,10 +26,6 @@ export const metadata: Metadata = {
   keywords: ["أسيوط الجديدة", "خدمات", "مطاعم", "صيانة", "صيدليات", "قريبلك"],
   authors: [{ name: "قريبلك" }],
   robots: "index, follow",
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/icon-512.png",
-  },
   openGraph: {
     title: "قريبلك | خدمات أسيوط الجديدة",
     description: "منصتك الأولى لجميع خدمات أسيوط الجديدة",
