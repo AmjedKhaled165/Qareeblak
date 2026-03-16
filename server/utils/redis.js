@@ -2,6 +2,8 @@ const Redis = require('ioredis');
 const logger = require('./logger');
 
 let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const MAX_REDIS_RETRIES = Number(process.env.REDIS_MAX_RETRIES || 20);
+const RECONNECT_LOG_INTERVAL_MS = 60000;
 
 // Auto-fix: Upstash requires rediss:// (TLS). If the URL has the wrong scheme, correct it silently.
 if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
@@ -12,6 +14,8 @@ if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
 // تكوين Redis مع دعم SSL و Timeout للـ Upstash أو أي Redis سحابي
 // Detect Upstash quota-exceeded — stop all retries immediately to avoid wasting the daily budget.
 let _quotaExceeded = false;
+let _redisDisabled = false;
+let _lastReconnectLogAt = 0;
 
 const client = new Redis(redisUrl, {
     tls: { 
@@ -20,12 +24,19 @@ const client = new Redis(redisUrl, {
     connectTimeout: 20000,
     maxRetriesPerRequest: null, // required by BullMQ
     retryStrategy(times) {
-        if (_quotaExceeded) return null; // abort immediately on quota error
-        const delay = Math.min(times * 50, 2000);
+        if (_quotaExceeded || _redisDisabled) return null; // abort immediately on quota/fatal state
+        if (times > MAX_REDIS_RETRIES) {
+            _redisDisabled = true;
+            logger.error(`🚫 Redis reconnect attempts exceeded (${MAX_REDIS_RETRIES}). Redis disabled for this process lifetime.`);
+            return null;
+        }
+        const delay = Math.min(times * 250, 5000);
         return delay;
     },
     lazyConnect: true,
-    enableOfflineQueue: true,
+    // Prevent unbounded memory growth when Redis is down.
+    enableOfflineQueue: false,
+    autoResendUnfulfilledCommands: false,
 });
 
 client.on('error', (err) => {
@@ -36,6 +47,12 @@ client.on('error', (err) => {
             logger.error('🚫 Upstash Redis daily quota exceeded. Disabling Redis until quota resets (midnight UTC).');
             client.disconnect();
         }
+        return;
+    }
+    if (err.message && /WRONGPASS|NOAUTH|invalid password|ENOTFOUND/i.test(err.message)) {
+        _redisDisabled = true;
+        logger.error(`🚫 Redis configuration/auth error detected (${err.message}). Redis disabled until next deploy/restart.`);
+        client.disconnect();
         return;
     }
     if (!client._warnedOnce) {
@@ -54,7 +71,11 @@ client.on('connect', () => {
 });
 
 client.on('reconnecting', () => {
-    logger.info('🔄 Reconnecting to Redis...');
+    const now = Date.now();
+    if (now - _lastReconnectLogAt >= RECONNECT_LOG_INTERVAL_MS) {
+        _lastReconnectLogAt = now;
+        logger.info('🔄 Reconnecting to Redis...');
+    }
 });
 
 /**
@@ -63,6 +84,7 @@ client.on('reconnecting', () => {
  */
 const connectRedis = async () => {
     try {
+        if (_redisDisabled) return false;
         await client.connect();
         return true;
     } catch (error) {
