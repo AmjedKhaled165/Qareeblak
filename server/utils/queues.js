@@ -24,6 +24,13 @@ const addNotificationJob = async (data) => {
 // Called from index.js ONLY after connectRedis() succeeds
 const initializeWorkers = async () => {
     let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const isTlsRedis = /^rediss:\/\//i.test(redisUrl);
+    let redisHost = null;
+    try {
+        redisHost = new URL(redisUrl).hostname;
+    } catch (_) {
+        redisHost = null;
+    }
 
     // Auto-fix: Upstash requires rediss:// (TLS) — guard against misconfigured env vars.
     if (redisUrl.includes('upstash.io') && redisUrl.startsWith('redis://')) {
@@ -35,9 +42,12 @@ const initializeWorkers = async () => {
     let _bullQuotaExceeded = false;
 
     const connection = new IORedis(redisUrl, {
-        tls: { 
-            rejectUnauthorized: false
-        },
+        ...(isTlsRedis ? {
+            tls: {
+                rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED !== 'false',
+                ...(redisHost ? { servername: redisHost } : {}),
+            }
+        } : {}),
         connectTimeout: 20000,
         maxRetriesPerRequest: null, // ⚠️ Required for BullMQ
         retryStrategy: (times) => {

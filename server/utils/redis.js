@@ -2,6 +2,13 @@ const Redis = require('ioredis');
 const logger = require('./logger');
 
 let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const isTlsRedis = /^rediss:\/\//i.test(redisUrl);
+let redisHost = null;
+try {
+    redisHost = new URL(redisUrl).hostname;
+} catch (_) {
+    redisHost = null;
+}
 const MAX_REDIS_RETRIES = Number(process.env.REDIS_MAX_RETRIES || 5);
 const RECONNECT_LOG_INTERVAL_MS = 60000;
 let _etimedoutCount = 0;
@@ -19,9 +26,13 @@ let _redisDisabled = false;
 let _lastReconnectLogAt = 0;
 
 const client = new Redis(redisUrl, {
-    tls: { 
-        rejectUnauthorized: false 
-    },
+    ...(isTlsRedis ? {
+        tls: {
+            // Some hosted Redis providers require explicit TLS options.
+            rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED !== 'false',
+            ...(redisHost ? { servername: redisHost } : {}),
+        }
+    } : {}),
     connectTimeout: 5000,
     maxRetriesPerRequest: null, // required by BullMQ
     retryStrategy(times) {
