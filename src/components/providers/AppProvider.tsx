@@ -217,11 +217,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     return null;
                 }
 
-                const user = await authApi.getCurrentUser();
-                console.log('[AppProvider] Loaded qareeblak user:', user.name);
-                setCurrentUser(user);
-                localStorage.setItem('user', JSON.stringify(user));
-                return user;
+                try {
+                    const user = await authApi.getCurrentUser();
+                    console.log('[AppProvider] Loaded qareeblak user:', user.name);
+                    setCurrentUser(user);
+                    localStorage.setItem('user', JSON.stringify(user));
+                    return user;
+                } catch (authErr: any) {
+                    // Stale/invalid persisted token: clear it once to avoid 401 loops.
+                    console.warn('[AppProvider] Clearing stale qareeblak session token after /auth/me failure');
+                    localStorage.removeItem('qareeblak_token');
+                    localStorage.removeItem('qareeblak_user');
+                    localStorage.removeItem('user');
+                    setCurrentUser(null);
+                    return null;
+                }
             }
 
             // 2. Halan Token (partner/courier)

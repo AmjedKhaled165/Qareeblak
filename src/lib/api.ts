@@ -138,8 +138,13 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
                 qareeblakTokenExists: !!qareeblakToken
             });
 
-            // IMPORTANT: Do not clear session automatically.
-            // User should be logged out only via explicit logout action.
+            // If /auth/me fails with 401, the persisted session is stale/invalid.
+            // Clear stale local session to stop repeated unauthorized polling loops.
+            if (cleanEndpoint === 'auth/me' && typeof window !== 'undefined') {
+                localStorage.removeItem('qareeblak_token');
+                localStorage.removeItem('qareeblak_user');
+                localStorage.removeItem('user');
+            }
 
             throw new Error(data?.error || data?.message || `عدم التفويض - يرجى تسجيل الدخول`);
         } else if (response.status === 500) {
