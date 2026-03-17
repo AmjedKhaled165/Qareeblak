@@ -17,9 +17,22 @@ const registerSchema = z.object({
 }).strict();
 
 const loginSchema = z.object({
-    email: z.string().email('بريد إلكتروني غير صالح'),
+    identifier: z.string().trim().optional(),
+    email: z.string().trim().optional(),
     password: z.string().min(1, 'كلمة المرور مطلوبة'),
-});
+}).superRefine((data, ctx) => {
+    const identifier = (data.identifier || data.email || '').trim();
+    if (!identifier) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['identifier'],
+            message: 'اسم المستخدم أو البريد الإلكتروني مطلوب'
+        });
+    }
+}).transform((data) => ({
+    identifier: (data.identifier || data.email || '').trim(),
+    password: data.password
+}));
 
 const providerRequestSchema = z.object({
     name: z.string().min(3, 'اسم العلامة التجارية يجب أن يكون 3 حروف على الأقل'),

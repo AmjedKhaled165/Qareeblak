@@ -17,9 +17,10 @@ exports.register = catchAsync(async (req, res, next) => {
 });
 
 exports.login = catchAsync(async (req, res, next) => {
-    const { email, password } = req.body;
+    const { identifier, email, password } = req.body;
+    const loginIdentifier = (identifier || email || '').trim();
 
-    const { user, accessToken, refreshToken, token } = await authService.loginUser(email, password);
+    const { user, accessToken, refreshToken, token } = await authService.loginUser(loginIdentifier, password);
 
     logger.info(`User logged in: ${user.email}`);
     res.status(200).json({

@@ -53,8 +53,32 @@ class AuthService {
         return { user, ...tokens };
     }
 
-    async loginUser(email, password) {
-        const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    async loginUser(identifier, password) {
+        const normalizedIdentifier = String(identifier || '').trim();
+        let result;
+
+        try {
+            result = await db.query(
+                `SELECT * FROM users
+                 WHERE LOWER(email) = LOWER($1)
+                    OR LOWER(username) = LOWER($1)
+                    OR phone = $1`,
+                [normalizedIdentifier]
+            );
+        } catch (error) {
+            // Legacy fallback if username column is missing.
+            if (error && error.code === '42703') {
+                result = await db.query(
+                    `SELECT * FROM users
+                     WHERE LOWER(email) = LOWER($1)
+                        OR phone = $1`,
+                    [normalizedIdentifier]
+                );
+            } else {
+                throw error;
+            }
+        }
+
         if (result.rows.length === 0) {
             throw new AppError('بيانات الدخول غير صحيحة', 401);
         }

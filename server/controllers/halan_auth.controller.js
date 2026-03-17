@@ -17,7 +17,12 @@ async function findHalanUserByIdentifier(identifier) {
         // Preferred path when username column exists.
         return await pool.query(
             `SELECT * FROM users
-             WHERE (username = $1 OR email = $1 OR phone = $1)
+             WHERE (
+                LOWER(username) = LOWER($1)
+                OR LOWER(email) = LOWER($1)
+                OR phone = $1
+                OR regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+             )
              AND user_type IN ('partner_owner', 'partner_supervisor', 'partner_courier')`,
             [normalized]
         );
@@ -26,7 +31,11 @@ async function findHalanUserByIdentifier(identifier) {
         if (error && error.code === '42703') {
             return pool.query(
                 `SELECT *, NULL::text AS username FROM users
-                 WHERE (email = $1 OR phone = $1)
+                 WHERE (
+                    LOWER(email) = LOWER($1)
+                    OR phone = $1
+                    OR regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
+                 )
                  AND user_type IN ('partner_owner', 'partner_supervisor', 'partner_courier')`,
                 [normalized]
             );
