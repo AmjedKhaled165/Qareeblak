@@ -210,7 +210,12 @@ export function NotificationBell() {
                                             تحديد الكل كمقروء
                                         </button>
                                     )}
-                                    <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-accent rounded-full">
+                                    <button
+                                        onClick={() => setIsOpen(false)}
+                                        className="p-1 hover:bg-accent rounded-full"
+                                        aria-label="إغلاق الإشعارات"
+                                        title="إغلاق الإشعارات"
+                                    >
                                         <X className="w-4 h-4 text-muted-foreground" />
                                     </button>
                                 </div>
