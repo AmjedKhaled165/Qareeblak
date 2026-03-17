@@ -35,13 +35,13 @@ connectRedis().then(async (redisAvailable) => {
         try {
             await initializeWorkers();
         } catch (err) {
-            logger.error('💥 Failed to initialize BullMQ workers:', err);
+            logger.error({ err }, '💥 Failed to initialize BullMQ workers');
         }
     } else {
         logger.warn('Background job workers disabled (Redis unavailable).');
     }
 }).catch(err => {
-    logger.error('💥 Critical error during Redis/Worker initialization:', err);
+    logger.error({ err }, '💥 Critical error during Redis/Worker initialization');
 });
 
 const app = express();

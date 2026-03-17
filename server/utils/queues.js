@@ -39,6 +39,7 @@ const initializeWorkers = async () => {
         ...getRedisConnectionOptions(redisUrl, {
             connectTimeout: 20000,
             maxRetriesPerRequest: null,
+            lazyConnect: true,
         }),
         retryStrategy: (times) => {
             if (_bullQuotaExceeded) return null; // abort immediately
@@ -60,7 +61,16 @@ const initializeWorkers = async () => {
                 reject(err);
             }
         });
-        connection.connect().catch(reject);
+
+        if (connection.status === 'ready') {
+            clearTimeout(timeout);
+            resolve();
+            return;
+        }
+
+        if (connection.status === 'wait') {
+            connection.connect().catch(reject);
+        }
     });
 
     connection.on('error', (err) => {
