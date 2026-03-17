@@ -21,6 +21,7 @@ services:
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    command: sh -c "sleep 10 && npm start"
     depends_on:
       db:
         condition: service_healthy
