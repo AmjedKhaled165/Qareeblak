@@ -46,7 +46,7 @@ async function setCache(key, value, ttl = 300) {
             return true;
         }
 
-        await redis.setEx(key, ttl, JSON.stringify(value));
+        await redis.set(key, JSON.stringify(value), 'EX', ttl);
         return true;
     } catch (error) {
         logger.error(`[Cache] Error setting key "${key}": ${error.message}`);

@@ -40,6 +40,8 @@ model User {
   reviews         Review[]
   auditLogs       AuditLog[] // Actions performed by this user (Admin)
   complaints      Complaint[]
+
+  @@map("users")
 }
 
 // --------------------------------------

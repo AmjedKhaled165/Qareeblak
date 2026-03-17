@@ -107,7 +107,7 @@ async function getUserWithCache(userId) {
     // 3. Store in cache (non-fatal if Redis is down)
     if (redisClient && redisClient.status === 'ready') {
         try {
-            await redisClient.setEx(cacheKey, USER_CACHE_TTL, JSON.stringify(user));
+            await redisClient.set(cacheKey, JSON.stringify(user), 'EX', USER_CACHE_TTL);
         } catch (cacheErr) {
             // Non-fatal - continue without caching
         }

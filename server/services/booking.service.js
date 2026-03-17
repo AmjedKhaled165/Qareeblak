@@ -125,7 +125,7 @@ class BookingService {
             client.release();
 
             const resData = { parentId, bookingIds, finalPrice, walletUsed: walletDeduction };
-            if (idempotencyLockAcquired) await redisClient.setEx(`idempotency:checkout:${idempotencyKey}`, 86400, JSON.stringify(resData));
+            if (idempotencyLockAcquired) await redisClient.set(`idempotency:checkout:${idempotencyKey}`, JSON.stringify(resData), 'EX', 86400);
 
             return resData;
         } catch (error) {
