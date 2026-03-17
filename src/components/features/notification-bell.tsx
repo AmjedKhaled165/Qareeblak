@@ -38,7 +38,7 @@ export function NotificationBell() {
     const fetchNotifications = useCallback(async () => {
         if (!currentUser?.id) return;
         try {
-            const data = await apiCall(`/notifications/user/${currentUser.id}`);
+            const data = await apiCall('/notifications');
             if (Array.isArray(data)) {
                 // De-duplicate notifications by ID (ensuring string comparison for safety)
                 const uniqueData = data.reduce((acc: Notification[], curr: Notification) => {
@@ -68,7 +68,11 @@ export function NotificationBell() {
         const connectSocket = async () => {
             try {
                 const { io } = await import('socket.io-client');
-                const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
+                const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+                const socket = io(API_BASE, {
+                    transports: ['websocket', 'polling'],
+                    auth: { token: token || undefined }
+                });
                 socketRef.current = socket;
 
                 socket.on('new-notification', (data: { userId: string; notification: Notification }) => {
@@ -114,7 +118,7 @@ export function NotificationBell() {
     const markAllRead = async () => {
         if (!currentUser?.id) return;
         try {
-            await apiCall(`/notifications/user/${currentUser.id}/read-all`, { method: 'PATCH' });
+            await apiCall('/notifications/read-all', { method: 'PATCH' });
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
         } catch (e) {

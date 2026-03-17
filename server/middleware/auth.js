@@ -10,7 +10,10 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || process.env.JWT_SEC
 
 // 🔑 [Big Tech] Secrets Rotation Pool
 // Primary secret is first in the list. Verification checks all.
-const SECRET_POOL = process.env.JWT_SECRET_POOL ? process.env.JWT_SECRET_POOL.split(',') : [JWT_SECRET];
+const envPool = process.env.JWT_SECRET_POOL
+    ? process.env.JWT_SECRET_POOL.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+const SECRET_POOL = Array.from(new Set([JWT_SECRET, ...envPool].filter(Boolean)));
 
 if (!JWT_SECRET) {
     logger.error('🔥 FATAL ERROR: JWT_ACCESS_SECRET IS MISSING. SERVER REFUSES TO START.');
