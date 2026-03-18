@@ -24,6 +24,26 @@ function fetchWithTimeout(url: string, options: RequestInit = {}, timeout: numbe
     });
 }
 
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getRequestTimeout(endpoint: string, options: RequestInit): number {
+    const method = (options.method || 'GET').toUpperCase();
+
+    // Provider list can be heavy on production DBs, so allow more time.
+    if (endpoint.includes('/providers') && method === 'GET') {
+        return 30000;
+    }
+
+    // Order creation may include multiple writes/validations.
+    if (endpoint.includes('/orders') && method === 'POST') {
+        return 30000;
+    }
+
+    return 15000;
+}
+
 // Types for API Responses
 export interface ApiResponse<T = any> {
     success: boolean;
@@ -82,18 +102,43 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // ⏱️ Determine timeout based on endpoint (longer for order creation)
-    const timeout = endpoint.includes('/orders') && options.method === 'POST'
-        ? 30000  // 30 seconds for order creation
-        : 15000; // 15 seconds for other requests
+    const method = (options.method || 'GET').toUpperCase();
+    const timeout = getRequestTimeout(endpoint, options);
+    const maxAttempts = method === 'GET' ? 2 : 1;
 
     let response: Response;
     try {
-        response = await fetchWithTimeout(url, {
-            cache: 'no-store', // Ensure we always get fresh data
-            ...options,
-            headers
-        }, timeout);
+        let lastTimeoutError: Error | null = null;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                response = await fetchWithTimeout(url, {
+                    cache: 'no-store', // Ensure we always get fresh data
+                    ...options,
+                    headers
+                }, timeout);
+
+                // Success: stop retry loop.
+                lastTimeoutError = null;
+                break;
+            } catch (error: any) {
+                if (error?.message !== 'TIMEOUT') {
+                    throw error;
+                }
+
+                lastTimeoutError = error;
+
+                if (attempt < maxAttempts) {
+                    console.warn(`⏱️ Timeout for ${endpoint}, retrying (${attempt}/${maxAttempts - 1})...`);
+                    await sleep(500);
+                    continue;
+                }
+            }
+        }
+
+        if (lastTimeoutError) {
+            throw lastTimeoutError;
+        }
     } catch (error: any) {
         if (error.message === 'TIMEOUT') {
             console.error(`⏱️ Request timeout for ${endpoint} (${timeout}ms)`);
