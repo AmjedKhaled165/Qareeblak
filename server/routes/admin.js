@@ -49,8 +49,8 @@ router.get('/couriers/available', adminController.getAvailableCouriers);
 router.get('/audit-logs', adminController.getAuditLogs);
 
 // 🛠️ [Chaos Engineering] Fault Injection — DEV/STAGING ONLY
-// These endpoints are DISABLED in production to prevent accidental or malicious disruption
-if (process.env.NODE_ENV !== 'production') {
+// Requires explicit CHAOS_ENABLED=true to avoid accidental production-like slowdowns.
+if (process.env.NODE_ENV !== 'production' && process.env.CHAOS_ENABLED === 'true') {
     const chaos = require('../utils/resilience');
     router.post('/chaos/db-failure', (req, res) => {
         const { status } = req.body;

@@ -41,11 +41,18 @@ const cleanDatabaseUrl = databaseUrl
     .replace(/\?&/, '?')
     .replace(/[?&]$/, '');
 
+const DB_QUERY_TIMEOUT_MS = Number(process.env.DB_QUERY_TIMEOUT_MS || 15000);
+const DB_STATEMENT_TIMEOUT_MS = Number(process.env.DB_STATEMENT_TIMEOUT_MS || 15000);
+const DB_IDLE_IN_TX_TIMEOUT_MS = Number(process.env.DB_IDLE_IN_TX_TIMEOUT_MS || 15000);
+
 const pool = new Pool({
     connectionString: cleanDatabaseUrl,
     max: Math.max(poolMaxPerInstance, 5), // Ensure at least 5 connections per instance even on huge machines
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
+    query_timeout: DB_QUERY_TIMEOUT_MS,
+    statement_timeout: DB_STATEMENT_TIMEOUT_MS,
+    idle_in_transaction_session_timeout: DB_IDLE_IN_TX_TIMEOUT_MS,
     maxUses: 7500, // Close idle connections after usage to prevent memory leaks
     ...(isRemoteDb && { ssl: { rejectUnauthorized: false } })
 });
