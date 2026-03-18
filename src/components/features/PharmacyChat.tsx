@@ -171,7 +171,12 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 try {
                     const guestName = `زائر_${Math.floor(Math.random() * 10000)}`;
                     const { authApi } = await import('@/lib/api');
-                    const res = await authApi.register(guestName, `${guestName}@guest.qareeblak.com`, 'guest123');
+                    const res = await authApi.register({
+                        name: guestName,
+                        email: `${guestName}@guest.qareeblak.com`,
+                        password: 'Guest#2026a',
+                        phone: '01000000000'
+                    });
                     if (res && res.token) {
                         token = res.token;
                         toast("مرحباً! تم إنشاء حساب زائر", "success");

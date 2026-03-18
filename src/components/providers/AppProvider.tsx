@@ -89,7 +89,7 @@ interface AppContextType {
     // Auth actions
     loginUser: (email: string, password: string) => Promise<boolean>;
     logout: () => void;
-    registerUser: (name: string, email: string, password: string) => Promise<boolean>;
+    registerUser: (name: string, email: string, password: string, phone: string) => Promise<boolean>;
     submitProviderRequest: (data: any) => Promise<boolean>;
     googleLogin: () => Promise<void>;
 
@@ -405,10 +405,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (socket) socket.disconnect();
     };
 
-    const registerUser = async (name: string, email: string, password: string): Promise<boolean> => {
+    const registerUser = async (name: string, email: string, password: string, phone: string): Promise<boolean> => {
         try {
             setIsLoading(true);
-            const result = await authApi.register(name, email, password);
+            const result = await authApi.register({ name, email, password, phone });
             const user = result.user;
             setCurrentUser(user);
             currentUserRef.current = user;

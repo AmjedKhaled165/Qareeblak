@@ -211,10 +211,16 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
 
 // ==================== AUTH API ====================
 export const authApi = {
-    async register(name: string, email: string, password: string, userType: string = 'customer') {
+    async register(data: { name: string; email: string; password: string; phone: string; userType?: string }) {
         const result = await apiCall('/auth/register', {
             method: 'POST',
-            body: JSON.stringify({ name, email, password, userType })
+            body: JSON.stringify({
+                name: data.name,
+                email: data.email,
+                password: data.password,
+                phone: data.phone,
+                userType: data.userType || 'customer'
+            })
         });
         if (result.token) {
             localStorage.setItem('qareeblak_token', result.token);

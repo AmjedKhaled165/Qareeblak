@@ -1,19 +1,25 @@
 const { z } = require('zod');
 
+const strongPassword = z.string()
+    .min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل')
+    .regex(/[A-Z]/, 'يجب أن تحتوي على حرف كابيتال واحد على الأقل')
+    .regex(/[a-z]/, 'يجب أن تحتوي على حرف صغير واحد على الأقل')
+    .regex(/[0-9]/, 'يجب أن تحتوي على رقم واحد على الأقل')
+    .regex(/[^A-Za-z0-9]/, 'يجب أن تحتوي على رمز أو علامة خاصة واحدة على الأقل');
+
 const registerSchema = z.object({
     name: z.string()
         .min(5, 'يرجى كتابة الاسم ثنائياً على الأقل')
         .max(50)
         .regex(/^[\u0600-\u06FFa-zA-Z\s]+$/, 'الاسم يجب أن يحتوي على حروف فقط'),
     email: z.string().email('بريد إلكتروني غير صالح'),
+    phone: z.string()
+        .trim()
+        .regex(/^\d{10,15}$/, 'رقم الهاتف يجب أن يكون من 10 إلى 15 رقم'),
     // Compatibility: frontend may still send userType.
     // We accept it to avoid 400, while backend service still forces "customer".
     userType: z.enum(['customer', 'provider', 'admin']).optional(),
-    password: z.string()
-        .min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل')
-        .regex(/[A-Z]/, 'يجب أن تحتوي على حرف كابيتال واحد على الأقل')
-        .regex(/[a-z]/, 'يجب أن تحتوي على حرف صغير واحد على الأقل')
-        .regex(/[0-9]/, 'يجب أن تحتوي على رقم واحد على الأقل'),
+    password: strongPassword,
 }).strict();
 
 const loginSchema = z.object({
@@ -37,7 +43,7 @@ const loginSchema = z.object({
 const providerRequestSchema = z.object({
     name: z.string().min(3, 'اسم العلامة التجارية يجب أن يكون 3 حروف على الأقل'),
     email: z.string().email('بريد إلكتروني غير صالح'),
-    password: z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
+    password: strongPassword,
     phone: z.string().min(10, 'رقم الهاتف غير صحيح'),
     category: z.string().min(1, 'التصنيف مطلوب'),
     location: z.string().min(1, 'الموقع مطلوب'),
@@ -51,8 +57,10 @@ const updateProfileSchema = z.object({
     oldPassword: z.string().optional(),
     newPassword: z.string()
         .min(8, 'كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل')
-        .regex(/[A-Z]/, 'يجب أن تحتوي على حرف كبير واحد على الأقل')
+        .regex(/[A-Z]/, 'يجب أن تحتوي على حرف كابيتال واحد على الأقل')
+        .regex(/[a-z]/, 'يجب أن تحتوي على حرف صغير واحد على الأقل')
         .regex(/[0-9]/, 'يجب أن تحتوي على رقم واحد على الأقل')
+        .regex(/[^A-Za-z0-9]/, 'يجب أن تحتوي على رمز أو علامة خاصة واحدة على الأقل')
         .optional(),
 }).strict();
 
@@ -62,7 +70,7 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z.object({
     token: z.string().min(1, 'الرمز مطلوب'),
-    newPassword: z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
+    newPassword: strongPassword,
 });
 
 const validate = (schema, target = 'body') => (req, res, next) => {

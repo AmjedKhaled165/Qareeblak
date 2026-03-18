@@ -34,7 +34,7 @@ class AuthService {
         return { accessToken, refreshToken, token: accessToken };
     }
 
-    async registerUser({ name, email, password }) {
+    async registerUser({ name, email, password, phone }) {
         const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
         if (existingUser.rows.length > 0) {
             throw new AppError('البريد الإلكتروني مسجل مسبقاً', 400);
@@ -43,8 +43,8 @@ class AuthService {
         const hashedPassword = await bcrypt.hash(password, 12);
         // Force user_type to 'customer' to prevent mass assignment (privilege escalation)
         const result = await db.query(
-            'INSERT INTO users (name, email, password, user_type) VALUES ($1, $2, $3, $4) RETURNING id, name, email, user_type',
-            [name, email, hashedPassword, 'customer']
+            'INSERT INTO users (name, email, password, user_type, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, user_type, phone',
+            [name, email, hashedPassword, 'customer', phone]
         );
 
         const user = result.rows[0];

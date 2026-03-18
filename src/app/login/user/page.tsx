@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Mail, Lock, User, Loader2 } from "lucide-react";
+import { ArrowRight, Mail, Lock, User, Loader2, Phone, CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -23,6 +23,7 @@ export default function UserLoginPage() {
     // Form States
     const [email, setEmail] = useState("");
     const [name, setName] = useState("");
+    const [phone, setPhone] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -45,8 +46,22 @@ export default function UserLoginPage() {
 
     // Validation Helpers
     const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const passwordChecks = {
+        minLength: password.length >= 8,
+        hasUpper: /[A-Z]/.test(password),
+        hasLower: /[a-z]/.test(password),
+        hasNumber: /[0-9]/.test(password),
+        hasSymbol: /[^A-Za-z0-9]/.test(password),
+    };
+
     const isPasswordStrong = (pass: string) =>
-        pass.length >= 8 && /[A-Z]/.test(pass) && /[a-z]/.test(pass) && /[0-9]/.test(pass);
+        pass.length >= 8 &&
+        /[A-Z]/.test(pass) &&
+        /[a-z]/.test(pass) &&
+        /[0-9]/.test(pass) &&
+        /[^A-Za-z0-9]/.test(pass);
+
+    const isPhoneValid = (value: string) => /^\d{10,15}$/.test(value.trim());
     const isNameValid = (name: string) =>
         name.trim().split(" ").length >= 2 && /^[\u0600-\u06FFa-zA-Z\s]+$/.test(name);
 
@@ -94,7 +109,7 @@ export default function UserLoginPage() {
     };
 
     const handleRegister = () => {
-        if (!name || !email || !password) {
+        if (!name || !email || !phone || !password) {
             setError("يرجى تعبئة جميع الحقول المطلوبة.");
             setErrorType("OTHER");
             return;
@@ -112,8 +127,14 @@ export default function UserLoginPage() {
             return;
         }
 
+        if (!isPhoneValid(phone)) {
+            setError("رقم الهاتف يجب أن يكون من 10 إلى 15 رقم.");
+            setErrorType("OTHER");
+            return;
+        }
+
         if (!isPasswordStrong(password)) {
-            setError("كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف كابيتال وصغير ورقم.");
+            setError("كلمة المرور لا تستوفي كل الشروط المطلوبة.");
             setErrorType("OTHER");
             return;
         }
@@ -122,7 +143,7 @@ export default function UserLoginPage() {
         setError(null);
 
         setTimeout(async () => {
-            const success = await registerUser(name, email, password);
+            const success = await registerUser(name, email, password, phone);
             setIsLoading(false);
 
             if (success) {
@@ -248,6 +269,24 @@ export default function UserLoginPage() {
                                     </div>
                                 )}
 
+                                {activeTab === "register" && (
+                                    <div className="space-y-2 text-right">
+                                        <Label className="text-sm font-bold text-foreground/80 mr-1">رقم التليفون</Label>
+                                        <div className="relative">
+                                            <Phone className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground"
+                                                placeholder="01012345678"
+                                                value={phone}
+                                                onChange={(e) => {
+                                                    setPhone(e.target.value.replace(/\s+/g, ""));
+                                                    setError(null);
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="space-y-2 text-right">
                                     <Label className="text-sm font-bold text-foreground/80 mr-1">البريد الإلكتروني</Label>
                                     <div className="relative">
@@ -273,6 +312,31 @@ export default function UserLoginPage() {
                                             onChange={(e) => { setPassword(e.target.value); setError(null); }}
                                         />
                                     </div>
+
+                                    {activeTab === "register" && (
+                                        <div className="rounded-xl border border-border/50 bg-background/70 p-3 space-y-1.5 text-xs">
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <span className={passwordChecks.minLength ? "text-emerald-500" : "text-destructive"}>8 أحرف على الأقل</span>
+                                                {passwordChecks.minLength ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                                            </div>
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <span className={passwordChecks.hasUpper ? "text-emerald-500" : "text-destructive"}>حرف كبير (A-Z)</span>
+                                                {passwordChecks.hasUpper ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                                            </div>
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <span className={passwordChecks.hasLower ? "text-emerald-500" : "text-destructive"}>حرف صغير (a-z)</span>
+                                                {passwordChecks.hasLower ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                                            </div>
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <span className={passwordChecks.hasNumber ? "text-emerald-500" : "text-destructive"}>رقم (0-9)</span>
+                                                {passwordChecks.hasNumber ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                                            </div>
+                                            <div className="flex items-center gap-2 justify-end">
+                                                <span className={passwordChecks.hasSymbol ? "text-emerald-500" : "text-destructive"}>رمز خاص (!@#$...)</span>
+                                                {passwordChecks.hasSymbol ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <XCircle className="h-3.5 w-3.5 text-destructive" />}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Action Button */}
