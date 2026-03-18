@@ -275,6 +275,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const initialize = async () => {
             setIsLoading(true);
 
+            // Real-time booking updates — keep this above any early returns
+            // to avoid temporal dead zone access before initialization.
+            const refreshBookings = () => {
+                const u = currentUserRef.current;
+                if (u?.id) loadUserBookings(u);
+            };
+
             // Load providers AND user in parallel (they're independent)
             const [, user] = await Promise.all([
                 loadProviders(),
@@ -319,12 +326,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     socket.disconnect();
                 }
             });
-
-            // Real-time booking updates — use ref to avoid stale closures
-            const refreshBookings = () => {
-                const u = currentUserRef.current;
-                if (u?.id) loadUserBookings(u);
-            };
 
             socket.on('booking-updated', refreshBookings);
             socket.on('order-status-changed', refreshBookings);

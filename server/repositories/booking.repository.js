@@ -1,5 +1,20 @@
 const pool = require('../db');
 
+let bookingsColumnsCache = null;
+
+async function getBookingsColumns() {
+    if (bookingsColumnsCache) return bookingsColumnsCache;
+
+    const result = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'bookings'`
+    );
+
+    bookingsColumnsCache = new Set(result.rows.map((row) => row.column_name));
+    return bookingsColumnsCache;
+}
+
 class BookingRepository {
     async beginTransaction() {
         // pool is the Pool instance directly (db.js exports pool, not { pool })
@@ -71,23 +86,49 @@ class BookingRepository {
     }
 
     async getBookingsByProvider(providerId, limit, lastId) {
+        const cols = await getBookingsColumns();
+        const userNameExpr = cols.has('user_name')
+            ? 'b.user_name'
+            : (cols.has('customer_name') ? 'b.customer_name' : `'عميل'`);
+        const serviceNameExpr = cols.has('service_name') ? 'b.service_name' : `'خدمة'`;
+        const dateExpr = cols.has('booking_date') ? 'b.booking_date' : 'b.created_at';
+        const appointmentDateExpr = cols.has('appointment_date') ? 'b.appointment_date' : 'NULL';
+        const appointmentTypeExpr = cols.has('appointment_type') ? 'b.appointment_type' : 'NULL';
+        const parentOrderExpr = cols.has('parent_order_id') ? 'b.parent_order_id' : 'NULL';
+
         let query;
         let params;
 
         if (lastId) {
             query = `
-                SELECT id, user_name as userName, service_name as serviceName, status, price, booking_date as date, appointment_date as appointmentDate, appointment_type as appointmentType, parent_order_id as parentOrderId
-                FROM bookings
-                WHERE provider_id = $1 AND id < $2
+                SELECT b.id,
+                       ${userNameExpr} AS "userName",
+                       ${serviceNameExpr} AS "serviceName",
+                       b.status,
+                       b.price,
+                       ${dateExpr} AS date,
+                       ${appointmentDateExpr} AS "appointmentDate",
+                       ${appointmentTypeExpr} AS "appointmentType",
+                       ${parentOrderExpr} AS "parentOrderId"
+                FROM bookings b
+                WHERE b.provider_id = $1 AND b.id < $2
                 ORDER BY id DESC
                 LIMIT $3
             `;
             params = [providerId, lastId, limit];
         } else {
             query = `
-                SELECT id, user_name as userName, service_name as serviceName, status, price, booking_date as date, appointment_date as appointmentDate, appointment_type as appointmentType, parent_order_id as parentOrderId
-                FROM bookings
-                WHERE provider_id = $1
+                SELECT b.id,
+                       ${userNameExpr} AS "userName",
+                       ${serviceNameExpr} AS "serviceName",
+                       b.status,
+                       b.price,
+                       ${dateExpr} AS date,
+                       ${appointmentDateExpr} AS "appointmentDate",
+                       ${appointmentTypeExpr} AS "appointmentType",
+                       ${parentOrderExpr} AS "parentOrderId"
+                FROM bookings b
+                WHERE b.provider_id = $1
                 ORDER BY id DESC
                 LIMIT $2
             `;
@@ -101,23 +142,65 @@ class BookingRepository {
     }
 
     async getBookingsByUser(userId, limit, lastId) {
+        const cols = await getBookingsColumns();
+        const userNameExpr = cols.has('user_name')
+            ? 'b.user_name'
+            : (cols.has('customer_name') ? 'b.customer_name' : `'عميل'`);
+        const serviceNameExpr = cols.has('service_name') ? 'b.service_name' : `'خدمة'`;
+        const providerNameExpr = cols.has('provider_name') ? 'b.provider_name' : `'مقدم خدمة'`;
+        const dateExpr = cols.has('booking_date') ? 'b.booking_date' : 'b.created_at';
+        const appointmentDateExpr = cols.has('appointment_date') ? 'b.appointment_date' : 'NULL';
+        const appointmentTypeExpr = cols.has('appointment_type') ? 'b.appointment_type' : 'NULL';
+        const bundleExpr = cols.has('bundle_id') ? 'b.bundle_id' : 'NULL';
+        const parentOrderExpr = cols.has('parent_order_id') ? 'b.parent_order_id' : 'NULL';
+        const halanOrderExpr = cols.has('halan_order_id') ? 'b.halan_order_id' : 'NULL';
+        const itemsExpr = cols.has('items') ? 'b.items' : "'[]'::text";
+
         let query;
         let params;
 
         if (lastId) {
             query = `
-                SELECT id, user_name as userName, service_name as serviceName, provider_name as providerName, provider_id as providerId, status, details, items, price, halan_order_id as halanOrderId, booking_date as date, bundle_id as bundleId, parent_order_id as parentOrderId, appointment_date as appointmentDate, appointment_type as appointmentType
-                FROM bookings
-                WHERE user_id = $1 AND id < $2
+                SELECT b.id,
+                       ${userNameExpr} AS "userName",
+                       ${serviceNameExpr} AS "serviceName",
+                       ${providerNameExpr} AS "providerName",
+                       b.provider_id AS "providerId",
+                       b.status,
+                       b.details,
+                       ${itemsExpr} AS items,
+                       b.price,
+                       ${halanOrderExpr} AS "halanOrderId",
+                       ${dateExpr} AS date,
+                       ${bundleExpr} AS "bundleId",
+                       ${parentOrderExpr} AS "parentOrderId",
+                       ${appointmentDateExpr} AS "appointmentDate",
+                       ${appointmentTypeExpr} AS "appointmentType"
+                FROM bookings b
+                WHERE b.user_id = $1 AND b.id < $2
                 ORDER BY id DESC
                 LIMIT $3
             `;
             params = [userId, lastId, limit];
         } else {
             query = `
-                SELECT id, user_name as userName, service_name as serviceName, provider_name as providerName, provider_id as providerId, status, details, items, price, halan_order_id as halanOrderId, booking_date as date, bundle_id as bundleId, parent_order_id as parentOrderId, appointment_date as appointmentDate, appointment_type as appointmentType
-                FROM bookings
-                WHERE user_id = $1
+                SELECT b.id,
+                       ${userNameExpr} AS "userName",
+                       ${serviceNameExpr} AS "serviceName",
+                       ${providerNameExpr} AS "providerName",
+                       b.provider_id AS "providerId",
+                       b.status,
+                       b.details,
+                       ${itemsExpr} AS items,
+                       b.price,
+                       ${halanOrderExpr} AS "halanOrderId",
+                       ${dateExpr} AS date,
+                       ${bundleExpr} AS "bundleId",
+                       ${parentOrderExpr} AS "parentOrderId",
+                       ${appointmentDateExpr} AS "appointmentDate",
+                       ${appointmentTypeExpr} AS "appointmentType"
+                FROM bookings b
+                WHERE b.user_id = $1
                 ORDER BY id DESC
                 LIMIT $2
             `;
