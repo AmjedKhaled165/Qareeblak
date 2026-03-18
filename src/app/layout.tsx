@@ -27,12 +27,13 @@ export const metadata: Metadata = {
   authors: [{ name: "قريبلك" }],
   icons: {
     icon: [
-      { url: "/qareeblak-logo.png?v=20260318", type: "image/png", sizes: "32x32" },
-      { url: "/qareeblak-logo.png?v=20260318", type: "image/png", sizes: "192x192" },
-      { url: "/qareeblak-icon.ico?v=20260318", type: "image/x-icon", sizes: "any" }
+      { url: "/qareeblak-icon-white-bg.ico?v=20260319", type: "image/x-icon", sizes: "any" },
+      { url: "/qareeblak-logo-cropped.png?v=20260318", type: "image/png", sizes: "32x32" },
+      { url: "/qareeblak-logo-cropped.png?v=20260318", type: "image/png", sizes: "192x192" },
+      { url: "/qareeblak-logo-cropped.png?v=20260318", type: "image/png", sizes: "512x512" }
     ],
-    shortcut: [{ url: "/qareeblak-logo.png?v=20260318", type: "image/png", sizes: "32x32" }],
-    apple: [{ url: "/qareeblak-logo.png?v=20260318", sizes: "180x180", type: "image/png" }],
+    shortcut: [{ url: "/qareeblak-icon-white-bg.ico?v=20260319", type: "image/x-icon", sizes: "any" }],
+    apple: [{ url: "/qareeblak-logo-cropped.png?v=20260318", sizes: "180x180", type: "image/png" }],
   },
   robots: "index, follow",
   openGraph: {
