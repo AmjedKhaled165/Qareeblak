@@ -183,7 +183,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }));
             setProviders(normalized);
         } catch (error) {
-            console.error("Failed to load providers:", error);
+            console.warn("Failed to load providers:", error);
             setProviders([]);
         }
     }, []);

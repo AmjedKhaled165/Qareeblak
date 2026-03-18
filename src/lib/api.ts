@@ -151,7 +151,7 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
         }
     } catch (error: any) {
         if (error.message === 'TIMEOUT') {
-            console.error(`⏱️ Request timeout for ${endpoint} (${timeout}ms)`);
+            console.warn(`⏱️ Request timeout for ${endpoint} (${timeout}ms)`);
             throw new Error('انتهت مهلة الطلب. يرجى التحقق من حالة الطلب في سجل الطلبات.');
         }
         throw error;
@@ -322,12 +322,20 @@ export const requestsApi = {
 // ==================== PROVIDERS API ====================
 export const providersApi = {
     async getAll() {
-        const result = await apiCall<any>('/providers');
+        try {
+            const result = await apiCall<any>('/providers');
 
-        // Backend list endpoint may return either an array or a paginated object.
-        if (Array.isArray(result)) return result;
-        if (Array.isArray(result?.providers)) return result.providers;
-        return [];
+            // Backend list endpoint may return either an array or a paginated object.
+            if (Array.isArray(result)) return result;
+            if (Array.isArray(result?.providers)) return result.providers;
+            return [];
+        } catch (error: any) {
+            if (String(error?.message || '').includes('انتهت مهلة الطلب')) {
+                // Do not break app startup in slow networks; keep UI usable.
+                return [];
+            }
+            throw error;
+        }
     },
 
     async getById(id: string) {

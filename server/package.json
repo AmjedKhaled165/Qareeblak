@@ -8,6 +8,7 @@
     },
     "scripts": {
         "start": "node --max-old-space-size=4096 index.js",
+        "start:short": "node scripts/start-short.js",
         "dev": "nodemon index.js",
         "prisma:validate": "prisma validate --schema ./prisma/schema.prisma",
         "prisma:push": "prisma db push --schema ./prisma/schema.prisma --accept-data-loss"
