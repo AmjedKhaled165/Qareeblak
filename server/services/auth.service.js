@@ -384,6 +384,9 @@ class AuthService {
             };
         } catch (error) {
             console.error('Google Sync Error:', error);
+            if (error instanceof AppError) {
+                throw error;
+            }
             throw new AppError('فشل تسجيل الدخول باستخدام جوجل، حاول لاحقاً', 500);
         }
     }

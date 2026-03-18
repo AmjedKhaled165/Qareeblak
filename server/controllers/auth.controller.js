@@ -155,13 +155,17 @@ exports.googleSync = catchAsync(async (req, res, next) => {
     }
 
     const { user, accessToken, refreshToken, token } = await authService.googleSync({ name, email, googleUid, avatar });
+    const phoneRequired = !user?.phone;
 
     logger.info(`Google sync success for: ${email}`);
     res.status(200).json({
         success: true,
         message: 'تم تسجيل الدخول بنجاح',
         user,
-        token
+        token,
+        accessToken,
+        refreshToken,
+        phoneRequired
     });
 });
 

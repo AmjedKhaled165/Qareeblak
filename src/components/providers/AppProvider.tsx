@@ -6,6 +6,7 @@ import { io } from "socket.io-client";
 import { auth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
 import { signInWithPopup } from "firebase/auth";
 import { useToast } from "./ToastProvider";
+import { usePathname, useRouter } from "next/navigation";
 
 // ================= TYPES =================
 interface ProviderService {
@@ -91,7 +92,7 @@ interface AppContextType {
     logout: () => void;
     registerUser: (name: string, email: string, password: string, phone: string) => Promise<boolean>;
     submitProviderRequest: (data: any) => Promise<boolean>;
-    googleLogin: () => Promise<void>;
+    googleLogin: () => Promise<{ success: boolean; phoneRequired: boolean }>;
 
     // Provider actions
     refreshProviders: () => Promise<void>;
@@ -126,6 +127,8 @@ const AppContext = createContext<AppContextType | null>(null);
 // ================= PROVIDER COMPONENT =================
 export function AppProvider({ children }: { children: ReactNode }) {
     const { toast } = useToast();
+    const router = useRouter();
+    const pathname = usePathname();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [providers, setProviders] = useState<Provider[]>([]);
     const [bookings, setBookings] = useState<Booking[]>([]);
@@ -140,6 +143,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         currentUserRef.current = currentUser;
     }, [currentUser]);
+
+    // Block customer navigation until a phone number is saved.
+    useEffect(() => {
+        if (!isInitialized || !currentUser) return;
+
+        const qareeblakToken = localStorage.getItem('qareeblak_token');
+        if (!qareeblakToken) return;
+
+        const userType = currentUser.user_type || currentUser.type;
+        const hasPhone = Boolean(String(currentUser.phone || '').trim());
+        const needsPhone = userType === 'customer' && !hasPhone;
+
+        const currentPath = pathname || '/';
+        const isAllowedPath = currentPath === '/complete-phone' || currentPath.startsWith('/login');
+
+        if (needsPhone && !isAllowedPath) {
+            localStorage.setItem('qareeblak_phone_required', '1');
+            localStorage.setItem('qareeblak_post_phone_redirect', currentPath);
+            router.replace('/complete-phone');
+            return;
+        }
+
+        if (!needsPhone) {
+            localStorage.removeItem('qareeblak_phone_required');
+        }
+    }, [isInitialized, currentUser, pathname, router]);
 
     // ================= LOAD DATA =================
     const loadProviders = useCallback(async () => {
@@ -465,7 +494,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const googleLogin = async () => {
+    const googleLogin = async (): Promise<{ success: boolean; phoneRequired: boolean }> => {
         setIsLoading(true);
         try {
             if (!isFirebaseConfigured()) {
@@ -491,6 +520,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
                         currentUserRef.current = syncResult.user;
                         localStorage.setItem('user', JSON.stringify(syncResult.user));
 
+                        const phoneRequired = Boolean(syncResult.phoneRequired || !syncResult.user?.phone);
+                        if (phoneRequired) {
+                            localStorage.setItem('qareeblak_phone_required', '1');
+                        } else {
+                            localStorage.removeItem('qareeblak_phone_required');
+                        }
+
                         // Reconnect socket with new token
                         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
                         const socketUrl = apiUrl.replace(/\/api$/, '');
@@ -503,13 +539,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
                         (window as any).__qareeblak_socket = newSocket;
 
                         toast("تم الدخول بنجاح (وضع المطورين)", "success");
+                        return { success: true, phoneRequired };
                     } else {
                         toast(syncResult?.error || "حدث خطأ في محاكاة الدخول", "error");
+                        return { success: false, phoneRequired: false };
                     }
-                    return;
                 } else {
                     toast("تسجيل الدخول عبر Google غير متاح حالياً. الرجاء الإنتظار أو استخدام البريد الإلكتروني.", "error");
-                    return;
+                    return { success: false, phoneRequired: false };
                 }
             }
 
@@ -538,6 +575,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 currentUserRef.current = syncResult.user;
                 localStorage.setItem('user', JSON.stringify(syncResult.user));
 
+                const phoneRequired = Boolean(syncResult.phoneRequired || !syncResult.user?.phone);
+                if (phoneRequired) {
+                    localStorage.setItem('qareeblak_phone_required', '1');
+                } else {
+                    localStorage.removeItem('qareeblak_phone_required');
+                }
+
                 // Reconnect socket with new token
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
                 const socketUrl = apiUrl.replace(/\/api$/, '');
@@ -552,7 +596,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     newSocket.emit('user-join', { userId: syncResult.user.id, userType: syncResult.user.type });
                 });
                 await loadUserBookings(syncResult.user);
-                return;
+                return { success: true, phoneRequired };
             }
 
             throw new Error('فشل ربط الحساب مع الخادم');
@@ -566,6 +610,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             } else {
                 toast(error.message || 'فشل تسجيل الدخول عبر Google. يرجى المحاولة مرة أخرى.', 'error');
             }
+            return { success: false, phoneRequired: false };
         } finally {
             setIsLoading(false);
         }

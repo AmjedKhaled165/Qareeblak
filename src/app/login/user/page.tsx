@@ -67,7 +67,15 @@ export default function UserLoginPage() {
 
     const handleGoogle = async () => {
         try {
-            await googleLogin();
+            const result = await googleLogin();
+            if (!result?.success) return;
+
+            if (result.phoneRequired) {
+                toast("تم تسجيل الدخول، برجاء تسجيل رقم الهاتف أولاً لإكمال الحساب", "success");
+                router.push("/complete-phone");
+                return;
+            }
+
             toast("تم تسجيل الدخول باستخدام Google بنجاح", "success");
             router.push("/");
         } catch (e: any) {
