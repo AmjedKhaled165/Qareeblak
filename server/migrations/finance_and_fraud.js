@@ -1,21 +1,9 @@
 const db = require('../db');
-const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
 async function runFinanceAndFraudMigrations() {
     logger.info('💸 Starting Financial & Anti-Fraud migrations...');
-
-    const useSslMigrationClient = process.env.DB_SSL === 'true';
-    const migrationPool = useSslMigrationClient
-        ? new Pool({
-            connectionString: process.env.DATABASE_URL,
-            max: 1,
-            idleTimeoutMillis: 10000,
-            connectionTimeoutMillis: 5000,
-            ssl: { rejectUnauthorized: false },
-        })
-        : null;
-    const query = (text, params) => (migrationPool ? migrationPool.query(text, params) : db.query(text, params));
+    const query = (text, params) => db.query(text, params);
 
     try {
         // Ensure required DB extensions exist before any schema/table operations.
@@ -76,12 +64,6 @@ async function runFinanceAndFraudMigrations() {
             routine: err?.routine,
         }, null, 2));
         logger.error('❌ Finance/Fraud Migration Error:', err.stack || err.message || err);
-    } finally {
-        if (migrationPool) {
-            await migrationPool.end().catch((closeErr) => {
-                logger.warn('Failed to close finance/fraud migration SSL pool:', closeErr?.message || closeErr);
-            });
-        }
     }
 }
 

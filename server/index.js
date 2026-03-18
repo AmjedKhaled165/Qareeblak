@@ -123,7 +123,11 @@ configureMiddleware(app, express);
 // Ensure the value is literally the string 'true' before running
 if (process.env.RUN_MIGRATIONS === 'true') {
     console.log('🚀 Running database migrations...');
-    runStartupMigrations().then(() => {
+    runStartupMigrations().then((startupOk) => {
+        if (!startupOk) {
+            logger.warn('⚠️ Skipping finance migrations because startup migrations failed.');
+            return;
+        }
         return runFinanceMigrations();
     }).catch(err => {
         console.error('💥 Migration Rejection:', err);

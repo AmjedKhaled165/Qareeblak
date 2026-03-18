@@ -1,5 +1,4 @@
 const db = require('../db');
-const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
 async function ensureCoreTables(query) {
@@ -127,25 +126,7 @@ async function ensureCoreTables(query) {
  */
 async function runStartupMigrations() {
     logger.info('🚀 Starting database migrations...');
-
-    const migrationConnectionString = String(process.env.DATABASE_URL || '')
-        .replace(/[?&]sslmode=[^&]*/g, '')
-        .replace(/[?&]channel_binding=[^&]*/g, '')
-        .replace(/[?&]uselibpqcompat=[^&]*/g, '')
-        .replace(/\?&/, '?')
-        .replace(/[?&]$/, '');
-
-    const useSslMigrationClient = process.env.DB_SSL === 'true';
-    const migrationPool = useSslMigrationClient
-        ? new Pool({
-            connectionString: migrationConnectionString,
-            max: 1,
-            idleTimeoutMillis: 10000,
-            connectionTimeoutMillis: 5000,
-            ssl: { rejectUnauthorized: false },
-        })
-        : null;
-    const query = (text, params) => (migrationPool ? migrationPool.query(text, params) : db.query(text, params));
+    const query = (text, params) => db.query(text, params);
 
     try {
         // Ensure required DB extensions exist before any schema/table operations.
@@ -363,6 +344,7 @@ async function runStartupMigrations() {
         logger.info(`✅ BI Migration: Wallets and Promo Engine initialized`);
 
         logger.info('✨ All migrations completed successfully');
+        return true;
     } catch (err) {
         console.dir(err, { depth: null });
         console.error('Migration Error JSON:', JSON.stringify({
@@ -384,12 +366,7 @@ async function runStartupMigrations() {
         } else {
             logger.error('❌ Migration Error:', err.stack || err.message || err);
         }
-    } finally {
-        if (migrationPool) {
-            await migrationPool.end().catch((closeErr) => {
-                logger.warn('Failed to close migration SSL pool:', closeErr?.message || closeErr);
-            });
-        }
+        return false;
     }
 }
 
