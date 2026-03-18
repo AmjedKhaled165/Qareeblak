@@ -20,15 +20,28 @@ module.exports = function configureMiddleware(app, express) {
     const productionOrigins = process.env.CORS_ORIGINS
         ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
         : ['https://qareeblak.com', 'https://www.qareeblak.com'];
+    const localOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'];
+    const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_CORS !== 'false';
+    const allowedOrigins = new Set([
+        ...(process.env.NODE_ENV === 'production' ? productionOrigins : []),
+        ...(allowLocalhostInProd ? localOrigins : (process.env.NODE_ENV === 'production' ? [] : localOrigins))
+    ]);
 
-    app.use(cors({
-        origin: process.env.NODE_ENV === 'production'
-            ? productionOrigins
-            : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'],
+    const corsOptions = {
+        origin: (origin, callback) => {
+            // Allow non-browser clients and same-origin server calls.
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.has(origin)) return callback(null, true);
+            return callback(null, false);
+        },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-    }));
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        optionsSuccessStatus: 204
+    };
+
+    app.use(cors(corsOptions));
+    app.options('*', cors(corsOptions));
 
     // Compression middleware
     app.use(compression({

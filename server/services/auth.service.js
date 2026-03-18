@@ -66,14 +66,26 @@ class AuthService {
                 [normalizedIdentifier]
             );
         } catch (error) {
-            // Legacy fallback if username column is missing.
+            // Legacy fallback if username/phone columns are missing.
             if (error && error.code === '42703') {
-                result = await db.query(
-                    `SELECT * FROM users
-                     WHERE LOWER(email) = LOWER($1)
-                        OR phone = $1`,
-                    [normalizedIdentifier]
-                );
+                try {
+                    result = await db.query(
+                        `SELECT * FROM users
+                         WHERE LOWER(email) = LOWER($1)
+                            OR phone = $1`,
+                        [normalizedIdentifier]
+                    );
+                } catch (legacyErr) {
+                    if (legacyErr && legacyErr.code === '42703') {
+                        result = await db.query(
+                            `SELECT * FROM users
+                             WHERE LOWER(email) = LOWER($1)`,
+                            [normalizedIdentifier]
+                        );
+                    } else {
+                        throw legacyErr;
+                    }
+                }
             } else {
                 throw error;
             }

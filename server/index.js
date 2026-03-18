@@ -50,6 +50,15 @@ const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+const productionCorsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+    : ['https://qareeblak.com', 'https://www.qareeblak.com'];
+const localhostCorsOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'];
+const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_CORS !== 'false';
+const socketAllowedOrigins = [
+    ...(process.env.NODE_ENV === 'production' ? productionCorsOrigins : localhostCorsOrigins),
+    ...(allowLocalhostInProd ? localhostCorsOrigins : [])
+];
 
 // Sentry Integration (v10 API)
 let Sentry = null;
@@ -70,9 +79,7 @@ if (process.env.SENTRY_DSN) {
 // Socket.io setup for real-time tracking
 const io = new Server(server, {
     cors: {
-        origin: process.env.NODE_ENV === 'production'
-            ? (process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : ['https://qareeblak.com', 'https://www.qareeblak.com'])
-            : true,
+        origin: socketAllowedOrigins,
         methods: ['GET', 'POST'],
         credentials: true,
     },
