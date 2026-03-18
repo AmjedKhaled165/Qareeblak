@@ -27,11 +27,11 @@ export const metadata: Metadata = {
   authors: [{ name: "قريبلك" }],
   icons: {
     icon: [
-      { url: "/assets/favicon.ico", type: "image/x-icon" },
-      { url: "/assets/logo.png", type: "image/png", sizes: "192x192" }
+      { url: "/qareeblak-icon.ico?v=20260318", type: "image/x-icon" },
+      { url: "/qareeblak-logo.png?v=20260318", type: "image/png", sizes: "192x192" }
     ],
-    shortcut: ["/assets/favicon.ico"],
-    apple: [{ url: "/assets/logo.png", sizes: "192x192", type: "image/png" }],
+    shortcut: ["/qareeblak-icon.ico?v=20260318"],
+    apple: [{ url: "/qareeblak-logo.png?v=20260318", sizes: "192x192", type: "image/png" }],
   },
   robots: "index, follow",
   openGraph: {
