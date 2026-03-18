@@ -69,44 +69,37 @@ export default function ProviderLogin() {
         try {
             // 1. Try Halan Login (Partner/Courier/Supervisor/Owner)
             // We use direct fetch here to avoid the AppStore wrapper which is designed for regular users
-            const halanResponse = await fetch('/api/halan/auth/login', {
+            const data = await apiCall('/halan/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ identifier, password })
             });
+            console.log('[ProviderLogin] Halan response success:', data.success, 'hasToken:', !!data.data?.token);
 
-            console.log('[ProviderLogin] Halan login response status:', halanResponse.status);
-
-            if (halanResponse.ok) {
-                const data = await halanResponse.json();
-                console.log('[ProviderLogin] Halan response success:', data.success, 'hasToken:', !!data.data?.token);
-
-                if (data.success && data.data?.token) {
-                    // Save Halan specific data
-                    localStorage.setItem('halan_token', data.data.token);
-                    localStorage.setItem('halan_user', JSON.stringify(data.data.user));
+            if (data.success && data.data?.token) {
+                // Save Halan specific data
+                localStorage.setItem('halan_token', data.data.token);
+                localStorage.setItem('halan_user', JSON.stringify(data.data.user));
 
                     // Verify storage
                     const storedToken = localStorage.getItem('halan_token');
                     const storedUser = localStorage.getItem('halan_user');
 
-                    if (!storedToken || !storedUser) {
-                        console.error('[ProviderLogin] ❌ Failed to store Halan credentials!');
-                        setError("خطأ في حفظ بيانات الجلسة");
-                        return;
-                    }
-
-                    console.log('[ProviderLogin] ✅ Halan token stored, redirecting...');
-                    toast(`أهلاً بك يا ${data.data.user.name_ar || 'عزيزي'} 👋`, "success");
-
-                    // Redirect based on role
-                    const role = data.data.user.role;
-                    if (role === 'owner') router.push('/partner/owner');
-                    else if (role === 'supervisor') router.push('/partner/manager');
-                    else if (role === 'courier') router.push('/partner/driver');
-                    else router.push('/partner/dashboard'); // Fallback
+                if (!storedToken || !storedUser) {
+                    console.error('[ProviderLogin] ❌ Failed to store Halan credentials!');
+                    setError("خطأ في حفظ بيانات الجلسة");
                     return;
                 }
+
+                console.log('[ProviderLogin] ✅ Halan token stored, redirecting...');
+                toast(`أهلاً بك يا ${data.data.user.name_ar || 'عزيزي'} 👋`, "success");
+
+                // Redirect based on role
+                const role = data.data.user.role;
+                if (role === 'owner') router.push('/partner/owner');
+                else if (role === 'supervisor') router.push('/partner/manager');
+                else if (role === 'courier') router.push('/partner/driver');
+                else router.push('/partner/dashboard'); // Fallback
+                return;
             }
 
             console.log('[ProviderLogin] Halan login failed, trying regular provider login...');

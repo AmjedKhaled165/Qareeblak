@@ -1,6 +1,15 @@
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const forceLocalProxy = process.env.NEXT_PUBLIC_FORCE_LOCAL_API_PROXY === 'true';
+const useSameOriginProxy = isLocalBrowser || forceLocalProxy;
+
+const API_BASE_URL = useSameOriginProxy
+    ? ''
+    : (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+
 // Ensure we don't duplicate /api if it's already in the base URL
-const BASE_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
+const BASE_URL = useSameOriginProxy
+    ? '/api'
+    : (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`);
 
 // Check if we should use mock API for development
 const USE_MOCK_API = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_USE_MOCK_API === 'true';
