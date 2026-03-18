@@ -166,7 +166,12 @@ export default function TrackOrderPage() {
         const interval = setInterval(fetchOrder, 30000);
         return () => {
             clearInterval(interval);
-            socket?.disconnect();
+            if (socket) {
+                socket.off('connect');
+                socket.off('order-status-changed');
+                socket.off('booking-updated');
+                socket.disconnect();
+            }
         };
     }, [fetchOrder, trackingId]);
 

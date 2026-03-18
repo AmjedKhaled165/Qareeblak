@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Skip type and lint checks during Docker builds (fix separately)
+  // Allow explicit opt-out for CI/Docker, but validate by default.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: process.env.NEXT_DISABLE_TYPECHECK === '1',
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -11,8 +11,8 @@ const nextConfig: NextConfig = {
 
   // ⚡ PERFORMANCE OPTIMIZATIONS
 
-  // Standalone output for Docker (reduces image from ~600MB to ~80MB)
-  output: 'standalone',
+  // Enable standalone only for container/CI builds to avoid Windows symlink EPERM.
+  output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
 
   // Compiler optimizations
   compiler: {
@@ -89,7 +89,7 @@ const nextConfig: NextConfig = {
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "upgrade-insecure-requests",
+      ...(isDev ? [] : ["upgrade-insecure-requests"]),
     ].join('; ');
 
     return [

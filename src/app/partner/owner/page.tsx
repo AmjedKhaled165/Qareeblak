@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Settings, LogOut, Package, Clock, CheckCircle, TrendingUp, DollarSign, User, MapPin, Search, Filter, Plus, Users, RefreshCw, BarChart3, ListOrdered, Bike, ShoppingBag } from "lucide-react";
@@ -70,7 +70,7 @@ function StatsCard({ title, value, icon: Icon, color, onClick }: { title: string
         }
     };
 
-    const classes = getColorClasses(color);
+    const classes = useMemo(() => getColorClasses(color), [color]);
 
     return (
         <motion.div
@@ -151,11 +151,11 @@ export default function OwnerDashboard() {
 
     const fetchStats = async () => {
         try {
-            // Fetch all users (supervisors and couriers)
-            const usersData = await apiCall('/halan/users');
-
-            // Fetch all orders
-            const ordersData = await apiCall('/halan/orders');
+            // Fire both API calls in parallel — was sequential, doubled latency
+            const [usersData, ordersData] = await Promise.all([
+                apiCall('/halan/users'),
+                apiCall('/halan/orders'),
+            ]);
 
             const users = usersData.success ? usersData.data : [];
             const orders = ordersData.success ? ordersData.data : [];

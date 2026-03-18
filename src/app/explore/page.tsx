@@ -1,22 +1,31 @@
 "use client";
 
-import { ServiceCard } from "@/components/features/service-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, SlidersHorizontal, Utensils, Wrench, Pill, Car, ShoppingBag, ShoppingCart } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useCartStore } from "@/components/providers/CartProvider";
-import { CartModal } from "@/components/features/cart-modal";
 
 import { SkeletonCard } from "@/components/features/skeleton-card";
 import { useMemo } from "react";
 
 import { useDebounce } from "@/hooks/use-debounce";
+
+const ServiceCard = dynamic(
+    () => import("@/components/features/service-card").then((m) => m.ServiceCard),
+    { loading: () => <SkeletonCard /> }
+);
+
+const CartModal = dynamic(
+    () => import("@/components/features/cart-modal").then((m) => m.CartModal),
+    { ssr: false }
+);
 
 const CATEGORIES = [
     { id: "all", label: "الكل", icon: null },
@@ -26,8 +35,6 @@ const CATEGORIES = [
     { id: "سيارات", label: "خدمات سيارات", icon: Car },
     { id: "بقالة", label: "سوبر ماركت", icon: ShoppingBag },
 ];
-
-import { Suspense } from 'react';
 
 function ExploreContent() {
     const { providers, isInitialized, isLoading, currentUser } = useAppStore();
@@ -44,28 +51,37 @@ function ExploreContent() {
     // Debounce the search term to prevent lag
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-    const filteredProviders = useMemo(() => {
-        const normalizedQuery = debouncedSearchQuery.trim();
-
-        return (providers || []).filter(provider => {
-            const providerCategory = typeof provider?.category === 'string' ? provider.category : '';
+    const normalizedProviders = useMemo(() => {
+        return (providers || []).map((provider) => {
             const providerName = typeof provider?.name === 'string' ? provider.name : '';
             const providerLocation = typeof provider?.location === 'string' ? provider.location : '';
             const providerServices = Array.isArray(provider?.services) ? provider.services : [];
+            const servicesText = providerServices
+                .map((s) => (typeof s?.name === 'string' ? s.name : ''))
+                .join(' ');
 
-            const matchesCategory = activeCategory === "all" || providerCategory === activeCategory;
-            const matchesSearch =
-                !normalizedQuery ||
-                providerName.includes(normalizedQuery) ||
-                providerLocation.includes(normalizedQuery) ||
-                providerServices.some(s => typeof s?.name === 'string' && s.name.includes(normalizedQuery));
+            return {
+                ...provider,
+                _providerCategory: typeof provider?.category === 'string' ? provider.category : '',
+                _searchIndex: `${providerName} ${providerLocation} ${servicesText}`,
+            };
+        });
+    }, [providers]);
+
+    const filteredProviders = useMemo(() => {
+        const normalizedQuery = debouncedSearchQuery.trim();
+
+        return normalizedProviders.filter(provider => {
+            const matchesCategory = activeCategory === "all" || provider._providerCategory === activeCategory;
+            const matchesSearch = !normalizedQuery || provider._searchIndex.includes(normalizedQuery);
 
             return matchesCategory && matchesSearch;
         });
-    }, [providers, activeCategory, debouncedSearchQuery]);
+    }, [normalizedProviders, activeCategory, debouncedSearchQuery]);
 
     useEffect(() => {
         if (currentUser?.type === 'provider') {
+            router.prefetch('/provider-dashboard');
             router.replace('/provider-dashboard');
         }
     }, [currentUser, router]);
@@ -81,9 +97,12 @@ function ExploreContent() {
         setVisibleCount(12);
     }, [activeCategory, debouncedSearchQuery]);
 
-    if (!isInitialized || currentUser?.type === 'provider') return null;
+    const displayedProviders = useMemo(
+        () => filteredProviders.slice(0, visibleCount),
+        [filteredProviders, visibleCount]
+    );
 
-    const displayedProviders = filteredProviders.slice(0, visibleCount);
+    if (!isInitialized || currentUser?.type === 'provider') return null;
 
     const handleLoadMore = () => {
         setVisibleCount(prev => prev + 12);
@@ -130,8 +149,8 @@ function ExploreContent() {
                             />
                         </div>
                         <Button
-                            variant="outline"
                             size="icon"
+                            variant="outline"
                             onClick={() => {
                                 setActiveCategory('all');
                                 setSearchQuery('');

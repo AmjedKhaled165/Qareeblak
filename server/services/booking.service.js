@@ -37,16 +37,28 @@ class BookingService {
         const { WalletService, PromoService } = require('./loyalty.service');
 
         try {
-            // [ENTERPRISE SECURITY PATCH] Zero-Trust Client Pricing
-            // Re-fetch correct prices from database to prevent Price Tampering/Manipulation
-            for (let i = 0; i < items.length; i++) {
-                // Assuming items contain a service ID. Custom items without valid DB IDs will retain their price (if allowed by business logic)
-                if (items[i].id && !String(items[i].id).startsWith('custom_')) {
-                    const priceCheck = await client.query('SELECT price FROM services WHERE id = $1', [items[i].id]);
-                    if (priceCheck.rows.length > 0) {
-                        items[i].price = Number(priceCheck.rows[0].price);
+            // [ENTERPRISE SECURITY PATCH] Zero-Trust Client Pricing — Batch Version
+            // Single IN query replaces N sequential SELECTs (was O(n) round-trips)
+            const verifiableIds = Array.from(new Set(
+                items
+                    .filter(i => i.id && !String(i.id).startsWith('custom_'))
+                    .map(i => i.id)
+            ));
+
+            if (verifiableIds.length > 0) {
+                const pricesResult = await client.query(
+                    'SELECT id, price FROM services WHERE id = ANY($1)',
+                    [verifiableIds]
+                );
+                const priceMap = new Map(
+                    pricesResult.rows.map(r => [String(r.id), Number(r.price)])
+                );
+                items.forEach(item => {
+                    if (item.id && !String(item.id).startsWith('custom_')) {
+                        const serverPrice = priceMap.get(String(item.id));
+                        if (serverPrice !== undefined) item.price = serverPrice;
                     }
-                }
+                });
             }
 
             let totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -169,7 +181,8 @@ class BookingService {
         const bookingInfo = result; // Use the freshly updated row data
 
         const customerId = bookingInfo.user_id;
-        const providerUserId = await bookingRepo.getUserIdByProviderId(bookingInfo.provider_id);
+        // providerUserId is now returned directly from getBookingToUpdate JOIN — no extra DB call
+        const providerUserId = bookingInfo.providerUserId;
 
         if (io) {
             const payload = { id, status, parentId: bookingInfo.parent_order_id };
@@ -219,13 +232,13 @@ class BookingService {
         }
 
         // 💸 Financial Calculation for Admin & Provider (Only on completion)
+        // commissionRate comes from the getBookingToUpdate JOIN — no extra DB call
         if (status === 'completed' && bookingInfo.price > 0) {
             try {
-                const finance = await bookingRepo.getProviderFinanceInfo(bookingInfo.provider_id);
-                const rate = finance?.commission_rate || 10.00; // 10% default
+                const rate = Number(bookingInfo.commissionRate) || 10.00;
                 const commission = (bookingInfo.price * (rate / 100));
                 const net = bookingInfo.price - commission;
-                
+
                 await bookingRepo.updateBookingFinancials(id, commission, net);
                 logger.info(`💸 Financials calculated for booking ${id}: Comm: ${commission}, Net: ${net}`);
             } catch (err) {
@@ -256,20 +269,21 @@ class BookingService {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
 
+        // Fetch providerUserId ONCE and reuse for both notification and socket (was called twice)
+        let providerUserId = null;
+        if (booking.provider_id) {
+            providerUserId = await bookingRepo.getUserIdByProviderId(booking.provider_id);
+        }
+
         if (party === 'provider' && booking.user_id) {
             await createNotification(booking.user_id, `اقترح مقدم الخدمة موعداً جديداً ${formattedDate}`, 'appointment_negotiation', String(id), io);
-        } else if (party === 'customer' && booking.provider_id) {
-            const providerUserId = await bookingRepo.getUserIdByProviderId(booking.provider_id);
-            if (providerUserId) {
-                await createNotification(providerUserId, `العميل اقترح موعداً جديداً ${formattedDate}`, 'appointment_negotiation', String(id), io);
-            }
+        } else if (party === 'customer' && providerUserId) {
+            await createNotification(providerUserId, `العميل اقترح موعداً جديداً ${formattedDate}`, 'appointment_negotiation', String(id), io);
         }
 
         if (io) {
             const payload = { id, status: newStatus, appointmentDate: newDate, lastUpdatedBy: party };
             if (booking.user_id) io.to(`user-${booking.user_id}`).emit('booking-updated', payload);
-
-            const providerUserId = await bookingRepo.getUserIdByProviderId(booking.provider_id);
             if (providerUserId) io.to(`user-${providerUserId}`).emit('booking-updated', payload);
         }
 

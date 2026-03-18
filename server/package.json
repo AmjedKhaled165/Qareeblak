@@ -4,7 +4,7 @@
     "description": "Backend API for Qareeblak Service Marketplace",
     "main": "index.js",
     "engines": {
-        "node": ">=25.7.0"
+        "node": ">=20.0.0"
     },
     "scripts": {
         "start": "node --max-old-space-size=4096 index.js",

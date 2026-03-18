@@ -20,6 +20,14 @@
         "/^\\$rootDeps = Test-Path \\.\\\\node_modules; \\$serverDeps = Test-Path \\.\\\\server\\\\node_modules; Write-Output \"root_node_modules=\\$rootDeps\"; Write-Output \"server_node_modules=\\$serverDeps\"; pnpm -v; node -v$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^New-Item -ItemType Directory -Path \"public\\\\assets\" -Force \\| Out-Null; Copy-Item \"Qareeblak_Logo\\\\Qareeblak_Logo_rbg\\.ico\" \"public\\\\assets\\\\favicon\\.ico\" -Force; Copy-Item \"Qareeblak_Logo\\\\Qareeblak_Logo_rbg\\.png\" \"public\\\\assets\\\\logo\\.png\" -Force; Get-ChildItem \"public\\\\assets\" \\| Select-Object Name,Length$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git add public/assets/favicon\\.ico public/assets/logo\\.png src/app/layout\\.tsx; git commit -m \"Update favicon and high-res app icon assets\"; git push$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

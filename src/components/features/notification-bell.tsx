@@ -35,8 +35,10 @@ export function NotificationBell() {
     const [unreadCount, setUnreadCount] = useState(0);
     const socketRef = useRef<any>(null);
 
+    const hasQareeblakToken = typeof window !== 'undefined' && !!localStorage.getItem('qareeblak_token');
+
     const fetchNotifications = useCallback(async () => {
-        if (!currentUser?.id) return;
+        if (!currentUser?.id || !hasQareeblakToken) return;
         try {
             const data = await apiCall('/notifications');
             if (Array.isArray(data)) {
@@ -52,7 +54,7 @@ export function NotificationBell() {
         } catch (error) {
             console.error('Failed to fetch notifications:', error);
         }
-    }, [currentUser?.id]);
+    }, [currentUser?.id, hasQareeblakToken]);
 
     // Initial fetch + polling
     useEffect(() => {
@@ -63,14 +65,12 @@ export function NotificationBell() {
 
     // Socket.io real-time listener
     useEffect(() => {
-        if (!currentUser?.id) return;
+        if (!currentUser?.id || !hasQareeblakToken) return;
 
         const connectSocket = async () => {
             try {
                 const { io } = await import('socket.io-client');
-                const token = currentUser.type === 'provider'
-                    ? (localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token'))
-                    : localStorage.getItem('qareeblak_token');
+                const token = localStorage.getItem('qareeblak_token');
 
                 if (!token) {
                     return;
@@ -108,7 +108,7 @@ export function NotificationBell() {
                 socketRef.current.disconnect();
             }
         };
-    }, [currentUser?.id]);
+    }, [currentUser?.id, hasQareeblakToken]);
 
     const markAsRead = async (id: number) => {
         try {
@@ -165,7 +165,7 @@ export function NotificationBell() {
         return `منذ ${days} يوم`;
     };
 
-    if (!currentUser) return null;
+    if (!currentUser || !hasQareeblakToken) return null;
 
     return (
         <div className="relative">

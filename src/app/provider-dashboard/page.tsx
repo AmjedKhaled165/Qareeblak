@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { LayoutDashboard, ShoppingBag, Star, TrendingUp, Settings, LogOut, Utensils, Plus, Trash2, Edit, Check, X, Clock, Camera, Upload, User } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Star, TrendingUp, Settings, LogOut, Utensils, Plus, Trash2, Edit, Check, X, Clock, Camera, Upload, User, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -16,14 +16,29 @@ import { apiCall, bookingsApi } from "@/lib/api";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { format } from "date-fns";
 import { isPharmacyProvider, isMaintenanceProvider } from "@/lib/category-utils";
-import { ConsultationChat } from "@/components/provider/ConsultationChat";
-import { MessageSquare } from "lucide-react";
+import dynamic from "next/dynamic";
 import { io } from "socket.io-client";
-import { PriceEstimationModal } from "@/components/providers/MaintenanceModals";
-import { OrderDetailModal } from "@/components/providers/OrderDetailModal";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const API_BASE = API_URL.replace(/\/api$/, ''); // Ensure no trailing /api
+
+const ConsultationChat = dynamic(
+    () => import("@/components/provider/ConsultationChat").then((m) => m.ConsultationChat),
+    {
+        ssr: false,
+        loading: () => <div className="flex items-center justify-center h-64 text-muted-foreground animate-pulse">جاري تحميل المحادثة...</div>
+    }
+);
+
+const PriceEstimationModalAsync = dynamic(
+    () => import("@/components/providers/MaintenanceModals").then((m) => m.PriceEstimationModal),
+    { ssr: false }
+);
+
+const OrderDetailModalAsync = dynamic(
+    () => import("@/components/providers/OrderDetailModal").then((m) => m.OrderDetailModal),
+    { ssr: false }
+);
 
 // Type definitions
 interface Service {
@@ -138,6 +153,8 @@ export default function ProviderDashboard() {
     const [consultations, setConsultations] = useState<any[]>([]);
     const [consultationError, setConsultationError] = useState<string | null>(null);
     const [selectedConsultation, setSelectedConsultation] = useState<any>(null);
+    // ⚡ Optimistic status overrides: map of bookingId → status to show instantly before API confirms
+    const [optimisticStatuses, setOptimisticStatuses] = useState<Map<string, Booking['status']>>(new Map());
 
     // Server-Side Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -176,8 +193,11 @@ export default function ProviderDashboard() {
             }
         }
 
-        // Force reload to immediately show phone numbers
-        window.location.reload();
+        setIsPriceEstimationOpen(false);
+        setSelectedBookingId(null);
+        if (activeTab === 'orders' && providerId) {
+            fetchPaginatedBookings();
+        }
     };
 
     const handleAcceptAppointment = async (bookingId: string) => {
@@ -206,8 +226,9 @@ export default function ProviderDashboard() {
             }
 
             toast('تم تأكيد الموعد بنجاح! يمكنك الآن التواصل مع العميل 📞', 'success');
-            // Optimistically update local state or reload
-            window.location.reload();
+            if (activeTab === 'orders' && providerId) {
+                fetchPaginatedBookings();
+            }
         } catch (error) {
             console.error('Accept appointment failed', error);
             toast('حدث خطأ في تأكيد الموعد', 'error');
@@ -241,8 +262,9 @@ export default function ProviderDashboard() {
                 console.error('Failed to send notification:', error);
             }
 
-            // Force reload to immediately show phone numbers
-            window.location.reload();
+            if (activeTab === 'orders' && providerId) {
+                fetchPaginatedBookings();
+            }
         }
     };
 
@@ -254,25 +276,28 @@ export default function ProviderDashboard() {
     let providerId: string | undefined = undefined;
 
     if (currentUser) {
-        if (currentUser.type === 'provider' && !providers.find(p => String(p.userId) === String(currentUser.id))) {
-            // For Halan providers who are not in the 'providers' list yet, use their ID directly
-            // This handles the Halan hydration case
-            providerId = String(currentUser.id);
-        } else {
-            // For Qareeblak providers
-            myProviderProfile = providers.find((p: Provider) =>
-                (p.userId && String(p.userId) === String(currentUser.id)) ||
-                (p.email && p.email === currentUser.email)
-            );
-            providerId = myProviderProfile?.id;
-        }
+        // Always derive providerId from the providers list (which gives us providers.id).
+        // Halan providers are not in the Qareeblak providers list, so providerId stays
+        // undefined for them — they use the Halan partner dashboard for consultations.
+        myProviderProfile = providers.find((p: Provider) =>
+            (p.userId && String(p.userId) === String(currentUser.id)) ||
+            (p.email && p.email === currentUser.email)
+        );
+        providerId = myProviderProfile?.id;
     }
 
     // Fallback to client-side filtered bookings for overview and real-time updates
-    const myBookings = (currentUser && bookings) ? bookings.filter((b: Booking) =>
-        (myProviderProfile && b.providerId === myProviderProfile.id) ||
-        (b.providerName === currentUser.name && !b.providerId)
-    ) : [];
+    // Apply optimistic status overrides so UI updates immediately before API confirms
+    const myBookings = useMemo(() => {
+        const base = (currentUser && bookings) ? bookings.filter((b: Booking) =>
+            (myProviderProfile && b.providerId === myProviderProfile.id) ||
+            (b.providerName === currentUser.name && !b.providerId)
+        ) : [];
+        if (optimisticStatuses.size === 0) return base;
+        return base.map((b: Booking) =>
+            optimisticStatuses.has(b.id) ? { ...b, status: optimisticStatuses.get(b.id) as Booking['status'] } : b
+        );
+    }, [currentUser, bookings, myProviderProfile, optimisticStatuses]);
 
     const myServices = myProviderProfile?.services || [];
     const myReviews = myProviderProfile?.reviewsList || [];
@@ -319,9 +344,20 @@ export default function ProviderDashboard() {
     }, [isInitialized, providerId, currentPage, activeTab, fetchPaginatedBookings]);
 
     // Use server-paginated bookings for orders tab, fallback to client-side for other tabs
-    const displayBookings = activeTab === 'orders' && paginatedBookings.length > 0
-        ? paginatedBookings
-        : myBookings.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
+    const displayBookings = useMemo(() => {
+        const source = activeTab === 'orders' && paginatedBookings.length > 0
+            ? paginatedBookings
+            : myBookings.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage);
+
+        if (optimisticStatuses.size === 0) {
+            return source;
+        }
+
+        return source.map((booking) => {
+            const optimistic = optimisticStatuses.get(booking.id);
+            return optimistic ? { ...booking, status: optimistic as Booking['status'] } : booking;
+        });
+    }, [activeTab, paginatedBookings, myBookings, currentPage, ordersPerPage, optimisticStatuses]);
 
     const displayTotalPages = activeTab === 'orders' && totalPages > 0
         ? totalPages
@@ -334,7 +370,9 @@ export default function ProviderDashboard() {
             let itemsArr: any[] = [];
             try {
                 itemsArr = Array.isArray(booking.items) ? booking.items : JSON.parse(booking.items || "[]");
-            } catch (e) { }
+            } catch {
+                itemsArr = [];
+            }
             if (itemsArr && itemsArr.length > 0) {
                 displayPrice = itemsArr.reduce((sum: number, item: any) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0);
             }
@@ -430,11 +468,15 @@ export default function ProviderDashboard() {
     }, [isInitialized, currentUser, isLoading, router]);
 
     // Fetch consultations automatically (with periodic polling)
-    const fetchConsultations = async (pid: string) => {
-        // CRITICAL: Stop immediately if no authentication
-        const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
-        if (!token) {
-            console.warn('[ProviderDashboard] ⚠️ No token available for consultations, skipping fetch');
+    const fetchConsultations = useCallback(async (pid: string) => {
+        if (!currentUser || currentUser.type !== 'provider') {
+            return;
+        }
+
+        // Chat consultation endpoints are protected by qareeblak auth.
+        const qareeblakToken = localStorage.getItem('qareeblak_token');
+        if (!qareeblakToken) {
+            console.warn('[ProviderDashboard] ⚠️ No qareeblak token available for consultations, skipping fetch');
             return;
         }
 
@@ -446,8 +488,8 @@ export default function ProviderDashboard() {
         try {
             console.log('[ProviderDashboard] Fetching consultations for provider:', pid);
 
-            // Verify we have a token before making the request
-            const verifyToken = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+            // Verify qareeblak token is still present before making the request
+            const verifyToken = localStorage.getItem('qareeblak_token');
             if (!verifyToken) {
                 console.warn('[ProviderDashboard] Token disappeared during fetch');
                 setConsultationError('auth');
@@ -455,7 +497,7 @@ export default function ProviderDashboard() {
             }
 
             // USE apiCall instead of manual fetch to ensure correct headers/token
-            const data = await apiCall(`/chat/provider/${pid}/consultations`);
+            const data = await apiCall(`/chat/dashboard/${pid}`);
 
             if (data && data.success) {
                 setConsultations(data.consultations || []);
@@ -466,19 +508,30 @@ export default function ProviderDashboard() {
             }
         } catch (err: any) {
             const errorMessage = err?.message || String(err);
-            console.error('[ProviderDashboard] Failed to fetch consultations:', errorMessage);
+            const isAuthError =
+                errorMessage.includes('غير مصرح') ||
+                errorMessage.includes('عدم التفويض') ||
+                errorMessage.includes('401') ||
+                errorMessage.includes('403');
 
             // If it's an auth error, stop polling
-            if (errorMessage.includes('عدم التفويض') || errorMessage.includes('401')) {
+            if (isAuthError) {
                 console.warn('[ProviderDashboard] Auth error detected, stopping consultation polling');
                 setConsultationError('auth');
+                return;
             }
+
+            console.warn('[ProviderDashboard] Consultation fetch skipped due to non-auth error:', errorMessage);
         }
-    };
+    }, [currentUser, isInitialized, consultationError]);
 
     // Auto-fetch consultations on mount and periodically
     // Auto-fetch consultations on mount and periodically
     useEffect(() => {
+        if (activeTab !== 'conversations') {
+            return;
+        }
+
         if (!providerId) {
             console.warn('[ProviderDashboard] No providerId available, skipping consultation fetch');
             return;
@@ -486,10 +539,9 @@ export default function ProviderDashboard() {
 
         // CRITICAL: Check authentication before setting up any polling
         const qareeblakToken = localStorage.getItem('qareeblak_token');
-        const halanToken = localStorage.getItem('halan_token');
 
-        if (!qareeblakToken && !halanToken) {
-            console.warn('[ProviderDashboard] ⚠️ No authentication token found, skipping consultation setup');
+        if (!qareeblakToken) {
+            console.warn('[ProviderDashboard] ⚠️ No qareeblak token found, skipping consultation setup');
             return;
         }
 
@@ -503,15 +555,15 @@ export default function ProviderDashboard() {
         // 1. Initial Fetch
         syncConsultations();
 
-        // 2. Poll every 10 seconds (reduced frequency) - but only if authenticated
-        const interval = setInterval(syncConsultations, 10000);
+        // 2. Poll every 15 seconds while conversations are visible
+        const interval = setInterval(syncConsultations, 15000);
 
         // 3. Socket.io for real-time updates
         let socket: any = null;
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
             const SOCKET_URL = API_URL.replace(/\/api$/, '') || '';
-            const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+            const token = localStorage.getItem('qareeblak_token');
 
             if (!token) {
                 console.warn('[ProviderDashboard] No token for socket connection; skipping socket init');
@@ -542,17 +594,14 @@ export default function ProviderDashboard() {
             clearInterval(interval);
             if (socket) socket.disconnect();
         };
-        // We act on providerId changes. 
-        // Note: fetchConsultations is intentionally omitted from deps to avoid infinite loops 
-        // if it's not memoized. We trust providerId as the key trigger.
-    }, [providerId]);
+    }, [providerId, currentUser?.type, activeTab, fetchConsultations]);
 
     // Refetch when entering conversations tab
     useEffect(() => {
         if (activeTab === 'conversations' && providerId) {
             fetchConsultations(String(providerId));
         }
-    }, [activeTab, providerId]);
+    }, [activeTab, providerId, currentUser?.type, fetchConsultations]);
 
     // Real-time notifications for status changes
     useEffect(() => {
@@ -886,8 +935,13 @@ export default function ProviderDashboard() {
     };
 
     const handleOrderStatus = async (bookingId: string, status: 'confirmed' | 'completed' | 'rejected', price?: number) => {
+        // ⚡ OPTIMISTIC UI: Snap the UI to the new status immediately
+        const prevStatus = (myBookings.find((b: Booking) => b.id === bookingId) as any)?.status;
+        setOptimisticStatuses(prev => new Map(prev).set(bookingId, status));
         try {
             await updateBookingStatus(bookingId, status, price);
+            // On success, clear the optimistic override (real store data will take over)
+            setOptimisticStatuses(prev => { const m = new Map(prev); m.delete(bookingId); return m; });
 
             // Check if this is a maintenance booking (skip Halan delivery)
             const providerIsMaintenance = isMaintenanceProvider(myProviderProfile?.category);
@@ -1027,7 +1081,15 @@ export default function ProviderDashboard() {
             // Rejected status
             toast("تم رفض الطلب", "info");
         } catch (error) {
+            // Rollback optimistic update on failure
+            if (prevStatus) {
+                setOptimisticStatuses(prev => new Map(prev).set(bookingId, prevStatus));
+            }
             toast("حدث خطأ في تحديث الطلب", "error");
+        } finally {
+            if (activeTab === 'orders' && providerId) {
+                fetchPaginatedBookings();
+            }
         }
     };
 
@@ -1893,7 +1955,7 @@ export default function ProviderDashboard() {
             )}
 
             {/* Order Detail Modal */}
-            <OrderDetailModal
+            <OrderDetailModalAsync
                 booking={selectedOrderModal}
                 isOpen={!!selectedOrderModal}
                 onClose={() => setSelectedOrderModal(null)}
@@ -1934,7 +1996,7 @@ export default function ProviderDashboard() {
             />
 
             {/* Maintenance Modals */}
-            <PriceEstimationModal
+            <PriceEstimationModalAsync
                 isOpen={isPriceEstimationOpen}
                 onClose={() => setIsPriceEstimationOpen(false)}
                 onConfirm={handleAcceptWithPrice}

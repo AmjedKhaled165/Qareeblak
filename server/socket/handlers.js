@@ -118,27 +118,43 @@ module.exports = function registerSocketHandlers(io) {
 
         // Typing indicator
         socket.on('typing', ({ consultationId, userId, userName }) => {
-            logger.info('[Chat] User typing:', { consultationId, userId, userName });
-            socket.to(consultationId).emit('user-typing', { userId, userName });
+            try {
+                logger.info('[Chat] User typing:', { consultationId, userId, userName });
+                socket.to(consultationId).emit('user-typing', { userId, userName });
+            } catch (error) {
+                logger.error('[Chat] Error broadcasting typing event:', error?.message || error);
+            }
         });
 
         // Stop typing indicator
         socket.on('stop-typing', ({ consultationId, userId }) => {
-            logger.info('[Chat] User stop typing:', { consultationId, userId });
-            socket.to(consultationId).emit('user-stop-typing', { userId });
+            try {
+                logger.info('[Chat] User stop typing:', { consultationId, userId });
+                socket.to(consultationId).emit('user-stop-typing', { userId });
+            } catch (error) {
+                logger.error('[Chat] Error broadcasting stop-typing event:', error?.message || error);
+            }
         });
 
         // Pharmacist online status
         socket.on('pharmacist-online', (providerId) => {
-            socket.providerId = providerId;
-            socket.join(`provider-${providerId}`);
-            io.emit('pharmacist-status', { providerId, status: 'online' });
-            logger.info(`ðŸ’Š Pharmacist ${providerId} is now online`);
+            try {
+                socket.providerId = providerId;
+                socket.join(`provider-${providerId}`);
+                io.emit('pharmacist-status', { providerId, status: 'online' });
+                logger.info(`Pharmacist ${providerId} is now online`);
+            } catch (error) {
+                logger.error('[Chat] Error setting pharmacist online:', error?.message || error);
+            }
         });
 
         socket.on('pharmacist-offline', (providerId) => {
-            io.emit('pharmacist-status', { providerId, status: 'offline' });
-            logger.info(`ðŸ’Š Pharmacist ${providerId} is now offline`);
+            try {
+                io.emit('pharmacist-status', { providerId, status: 'offline' });
+                logger.info(`Pharmacist ${providerId} is now offline`);
+            } catch (error) {
+                logger.error('[Chat] Error setting pharmacist offline:', error?.message || error);
+            }
         });
 
         // ========== DRIVER LOCATION HANDLERS ==========
@@ -191,26 +207,31 @@ module.exports = function registerSocketHandlers(io) {
                 };
 
                 if (!driverName) {
-                    db.query('SELECT name FROM users WHERE id = $1', [courierId])
-                        .then(res => {
-                            if (res.rows.length > 0 && res.rows[0].name) {
-                                const name = res.rows[0].name;
-                                const current = driverLocations.get(sid);
-                                if (current) {
-                                    driverLocations.set(sid, { ...current, name });
-                                    broadcastLocation(name);
-                                }
+                    try {
+                        const res = await db.query('SELECT name FROM users WHERE id = $1', [courierId]);
+                        if (res.rows.length > 0 && res.rows[0].name) {
+                            const name = res.rows[0].name;
+                            const current = driverLocations.get(sid);
+                            if (current) {
+                                driverLocations.set(sid, { ...current, name });
+                                broadcastLocation(name);
                             }
-                        })
-                        .catch(err => logger.error('Error fetching name for driver:', err.message));
+                        }
+                    } catch (err) {
+                        logger.error('Error fetching name for driver:', err?.message || err);
+                    }
                 }
 
                 broadcastLocation();
 
-                db.query(
-                    'UPDATE users SET latitude = $1, longitude = $2, last_location_update = NOW() WHERE id = $3',
-                    [latitude, longitude, courierId]
-                ).catch(err => logger.error('Error persisting location:', err.message));
+                try {
+                    await db.query(
+                        'UPDATE users SET latitude = $1, longitude = $2, last_location_update = NOW() WHERE id = $3',
+                        [latitude, longitude, courierId]
+                    );
+                } catch (err) {
+                    logger.error('Error persisting location:', err?.message || err);
+                }
 
                 logger.info(`Location from driver: ${courierId} (${driverName || 'NO NAME'}) at (${latitude}, ${longitude})`);
             }
@@ -285,7 +306,7 @@ module.exports = function registerSocketHandlers(io) {
                 db.query(
                     'UPDATE users SET latitude = NULL, longitude = NULL, last_location_update = NULL WHERE id = $1',
                     [driverId]
-                ).catch(err => logger.error('Error clearing location on logout:', err.message));
+                ).catch(err => logger.error('Error clearing location on logout:', err?.message || err));
 
                 io.to('managers').emit('driver-offline', { driverId });
                 io.emit('driver-status-changed', { driverId, status: 'offline' });

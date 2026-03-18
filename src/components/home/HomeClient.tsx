@@ -216,7 +216,7 @@ export default function HomeClient() {
         <section className="py-24 bg-background">
           <div className="container px-4 mx-auto">
             <div className="bg-primary/20 backdrop-blur-xl rounded-[3rem] p-12 text-center border border-primary/20">
-              <h2 className="text-3xl font-bold mb-4 text-primary">أهلاً بك مجدداً يا {currentUser.name.split(" ")[0]}!</h2>
+              <h2 className="text-3xl font-bold mb-4 text-primary">أهلاً بك مجدداً يا {currentUser?.name?.split(" ")?.[0] || 'مستخدم'}!</h2>
               <p className="text-lg mb-8 opacity-80">أنت الآن في وضع مقدم الخدمة. يمكنك متابعة طلبات العملاء وتحديث خدماتك من لوحة التحكم.</p>
               <Button
                 onClick={() => window.location.href = '/provider-dashboard'}

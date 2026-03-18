@@ -1,13 +1,10 @@
 const { Pool } = require('pg');
-const path = require('path');
 const os = require('os');
 const logger = require('./utils/logger');
 const { dbQueryDurationSeconds } = require('./utils/metrics');
 const chaos = require('./utils/resilience');
 
-// Force load env
-const envPath = path.join(__dirname, '..', '.env.local');
-const dotEnvResult = require('dotenv').config({ path: envPath });
+// NOTE: dotenv is already loaded in index.js before this module is required.
 
 if (process.env.DATABASE_URL) {
     // Force to 127.0.0.1 to avoid LAN IP resolution issues (dev only)

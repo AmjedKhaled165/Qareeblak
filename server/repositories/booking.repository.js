@@ -228,7 +228,17 @@ class BookingRepository {
     }
 
     async getBookingToUpdate(id) {
-        const query = 'SELECT user_id, provider_id, parent_order_id, halan_order_id, service_name, status FROM bookings WHERE id = $1';
+        // JOIN providers once to get providerUserId + commissionRate —
+        // eliminates separate getUserIdByProviderId() and getProviderFinanceInfo() round-trips.
+        const query = `
+            SELECT b.user_id, b.provider_id, b.parent_order_id, b.halan_order_id,
+                   b.service_name, b.status, b.price,
+                   p.user_id AS "providerUserId",
+                   COALESCE(p.commission_rate, 10.00) AS "commissionRate"
+            FROM bookings b
+            LEFT JOIN providers p ON b.provider_id = p.id
+            WHERE b.id = $1
+        `;
         const result = await pool.query(query, [id]);
         return result.rows[0];
     }

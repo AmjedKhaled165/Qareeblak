@@ -116,7 +116,7 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
     const timeout = getRequestTimeout(endpoint, options);
     const maxAttempts = method === 'GET' ? 2 : 1;
 
-    let response: Response;
+    let response: Response | null = null;
     try {
         let lastTimeoutError: Error | null = null;
 
@@ -155,6 +155,10 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
             throw new Error('انتهت مهلة الطلب. يرجى التحقق من حالة الطلب في سجل الطلبات.');
         }
         throw error;
+    }
+
+    if (!response) {
+        throw new Error('No response received from server');
     }
 
     const text = await response.text();

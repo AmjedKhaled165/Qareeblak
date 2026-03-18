@@ -55,7 +55,7 @@ class ChatRepository {
             params.push(lastId);
         }
 
-        params.push(Math.min(limit, 50), ...[]);
+        params.push(Math.min(limit, 50));
         const limitParam = `$${paramIdx}`;
 
         const query = `
@@ -83,7 +83,6 @@ class ChatRepository {
             LIMIT ${limitParam}
         `;
 
-        params.push(Math.min(limit, 50));
         const result = await pool.query(query, params);
         return result.rows;
     }

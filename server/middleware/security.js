@@ -1,6 +1,5 @@
-const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const { rateLimit } = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis').default;
-const xss = require('xss-clean');
 const helmet = require('helmet');
 const logger = require('../utils/logger');
 const { client: redisClient } = require('../utils/redis');
@@ -38,7 +37,7 @@ const createStore = () => {
 };
 
 // Normalize IP keys safely for IPv6 and proxy scenarios.
-const getIpKey = (req) => ipKeyGenerator(req.ip || req.socket?.remoteAddress || '');
+const getIpKey = (req) => req.ip || req.socket?.remoteAddress || '127.0.0.1';
 
 // A. Low-Trust / Public Rate Limiter (IP Based)
 // Prevents high-velocity scanning/probing
@@ -151,9 +150,9 @@ const securityHeaders = helmet({
 });
 
 // ==========================================
-// 3. XSS SANITIZER
+// 3. XSS SANITIZER (uses custom middleware/xss.js)
 // ==========================================
-const xssSanitizer = xss();
+const xssSanitizer = require('./xss');
 
 module.exports = {
     globalLimiter: publicLimiter, // Alias for routes calling it global
