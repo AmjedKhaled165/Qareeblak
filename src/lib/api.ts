@@ -171,8 +171,8 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
         const isHalanEndpoint = endpoint.includes('/halan');
         const halanToken = localStorage.getItem('halan_token');
         const qareeblakToken = localStorage.getItem('qareeblak_token');
-        
-        console.error(`❌ API Error (${endpoint}):`, {
+
+        const debugPayload = {
             status: response.status,
             statusText: response.statusText,
             url: url,
@@ -183,7 +183,15 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
             qareeblakTokenSet: !!qareeblakToken,
             error: data?.error || data?.message,
             fullResponse: data
-        });
+        };
+
+        if (response.status === 429) {
+            console.warn(`⚠️ API Rate Limited (${endpoint}):`, debugPayload);
+        } else if (response.status >= 500) {
+            console.error(`❌ API Error (${endpoint}):`, debugPayload);
+        } else {
+            console.warn(`⚠️ API Request Failed (${endpoint}):`, debugPayload);
+        }
 
         // Handle different error scenarios
         if (response.status === 404) {
@@ -209,6 +217,8 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
             }
 
             throw new Error(data?.error || data?.message || `عدم التفويض - يرجى تسجيل الدخول`);
+        } else if (response.status === 429) {
+            throw new Error(data?.error || data?.message || '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.');
         } else if (response.status === 500) {
             throw new Error(`خطأ في الخادم (${response.status}) - حاول مرة أخرى لاحقاً`);
         }

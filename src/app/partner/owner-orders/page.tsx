@@ -281,6 +281,72 @@ export default function OwnerAllOrdersPage() {
     const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('search') || '');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+    // Keep latest fetchOrders for socket callbacks without re-registering listeners each render.
+    const fetchOrdersRef = useRef<() => Promise<void>>(async () => { });
+
+    const fetchFilters = useCallback(async () => {
+        try {
+            const usersData = await apiCall('/halan/users');
+            if (usersData.success) {
+                const allUsers = usersData.data;
+                setDrivers(allUsers.filter((u: any) => u.role === 'courier'));
+                setManagers(allUsers.filter((u: any) => u.role === 'supervisor'));
+            }
+        } catch (error: any) {
+            const message = String(error?.message || '');
+            if (message.includes('نشاط غير طبيعي')) {
+                console.warn('Filters request was rate limited.');
+                return;
+            }
+            console.error('Error fetching filters:', error);
+        }
+    }, []);
+
+    const fetchOrders = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (statusFilter !== 'all') params.append('status', statusFilter);
+            if (driverFilter !== 'all') params.append('courierId', driverFilter);
+            if (managerFilter !== 'all') params.append('supervisorId', managerFilter);
+            if (sourceFilter !== 'all') params.append('source', sourceFilter);
+            if (searchQuery.trim()) params.append('search', searchQuery.trim());
+
+            // Pagination params
+            params.append('page', page.toString());
+            params.append('limit', LIMIT.toString());
+
+            const queryString = params.toString();
+            const endpoint = `/halan/orders${queryString ? `?${queryString}` : ''}`;
+
+            const data = await apiCall(endpoint);
+            if (data.success) {
+                setOrders(data.data || []);
+                // Handle pagination metadata if returned by backend
+                if (data.pagination) {
+                    setTotalPages(data.pagination.totalPages);
+                    setTotalOrders(data.pagination.total);
+                }
+            } else {
+                setOrders([]);
+            }
+        } catch (error: any) {
+            const message = String(error?.message || '');
+            if (message.includes('نشاط غير طبيعي')) {
+                console.warn('Orders request was rate limited.');
+                setOrders([]);
+            } else {
+                console.error('Error fetching orders:', error);
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }, [statusFilter, driverFilter, managerFilter, sourceFilter, searchQuery, page]);
+
+    useEffect(() => {
+        fetchOrdersRef.current = fetchOrders;
+    }, [fetchOrders]);
+
     useEffect(() => {
         const storedUser = localStorage.getItem('halan_user');
         if (!storedUser) {
@@ -302,7 +368,7 @@ export default function OwnerAllOrdersPage() {
 
             const handleUpdate = () => {
                 console.log('[OwnerDashboard] 🔄 Triggering refresh from socket event');
-                fetchOrders();
+                fetchOrdersRef.current();
             };
 
             socket.on('booking-updated', handleUpdate);
@@ -315,62 +381,13 @@ export default function OwnerAllOrdersPage() {
                 socket.off('order-updated', handleUpdate);
             };
         }
-    }, [user]); // Add user as dependency for fetchOrders context if needed
+    }, [router, fetchFilters]);
 
     useEffect(() => {
         if (user) {
             fetchOrders();
         }
-    }, [user, statusFilter, driverFilter, managerFilter, sourceFilter, searchQuery, page]); // Re-fetch on page change
-
-    const fetchFilters = async () => {
-        try {
-            const usersData = await apiCall('/halan/users');
-            if (usersData.success) {
-                const allUsers = usersData.data;
-                setDrivers(allUsers.filter((u: any) => u.role === 'courier'));
-                setManagers(allUsers.filter((u: any) => u.role === 'supervisor'));
-            }
-        } catch (error) {
-            console.error('Error fetching filters:', error);
-        }
-    };
-
-    const fetchOrders = async () => {
-        setIsLoading(true);
-        try {
-            const params = new URLSearchParams();
-            if (statusFilter !== 'all') params.append('status', statusFilter);
-            if (driverFilter !== 'all') params.append('courierId', driverFilter);
-            if (managerFilter !== 'all') params.append('supervisorId', managerFilter);
-            if (sourceFilter !== 'all') params.append('source', sourceFilter);
-            if (searchQuery.trim()) params.append('search', searchQuery.trim());
-
-            // Pagination params
-            params.append('page', page.toString());
-            params.append('limit', LIMIT.toString());
-
-            const queryString = params.toString();
-            const endpoint = `/halan/orders${queryString ? `?${queryString}` : ''}`;
-
-            const data = await apiCall(endpoint);
-            if (data.success) {
-                console.log('📦 Fetched Orders:', data.data);
-                setOrders(data.data || []);
-                // Handle pagination metadata if returned by backend
-                if (data.pagination) {
-                    setTotalPages(data.pagination.totalPages);
-                    setTotalOrders(data.pagination.total);
-                }
-            } else {
-                setOrders([]);
-            }
-        } catch (error) {
-            console.error('Error fetching orders:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    }, [user, fetchOrders]); // Re-fetch on page/filter changes via memoized callback
 
     const getStatusLabel = (status: string) => {
         switch (status) {
