@@ -118,7 +118,12 @@ export default function ProviderLogin() {
 
         } catch (err) {
             console.error('[ProviderLogin] Error:', err);
-            setError("حدث خطأ في الاتصال بالخادم. يرجى المحاولة لاحقاً.");
+            const message = err instanceof Error ? err.message : '';
+            if (message.includes('اسم المستخدم') || message.includes('كلمة المرور')) {
+                setError("اسم المستخدم أو كلمة المرور غير صحيحة.");
+            } else {
+                setError("حدث خطأ في الاتصال بالخادم. يرجى المحاولة لاحقاً.");
+            }
         } finally {
             setIsLoading(false);
         }

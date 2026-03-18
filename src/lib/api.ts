@@ -85,7 +85,8 @@ function getAuthToken(endpoint: string): string | null {
         token = localStorage.getItem('qareeblak_token');
     }
     
-    if (!token && endpoint.includes('/halan')) {
+    const isPublicHalanLogin = endpoint.includes('/halan/auth/login');
+    if (!token && endpoint.includes('/halan') && !isPublicHalanLogin) {
         console.warn('[API] ⚠️ No token found for Halan endpoint:', endpoint);
     }
     
