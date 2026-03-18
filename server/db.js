@@ -23,6 +23,7 @@ const databaseUrl = process.env.DATABASE_URL;
 
 // Detect remote/cloud DB — Neon.tech, Supabase, or any production env requires SSL
 const isProduction = process.env.NODE_ENV === 'production';
+const allowDegradedStartup = process.env.ALLOW_DB_DEGRADED_STARTUP === 'true';
 const isRemoteDb = databaseUrl.includes('neon.tech') || databaseUrl.includes('supabase') || isProduction;
 
 // Safety mechanism for multi-core scaling (PM2 Cluster)
@@ -78,6 +79,7 @@ const verifyDatabaseConnection = async () => {
     const isProd = process.env.NODE_ENV === 'production';
     const attempts = isProd ? 5 : 1;
     const initialDelayMs = Number(process.env.DB_INITIAL_CONNECT_DELAY_MS || (isProd ? 2000 : 0));
+    let connected = false;
 
     if (initialDelayMs > 0) {
         await delay(initialDelayMs);
@@ -88,6 +90,7 @@ const verifyDatabaseConnection = async () => {
             const client = await pool.connect();
             logger.info('✅ Connected to PostgreSQL database pool');
             client.release();
+            connected = true;
             return;
         } catch (err) {
             logger.error(`❌ Database connection error (attempt ${i}/${attempts}):`, err.message);
@@ -97,11 +100,11 @@ const verifyDatabaseConnection = async () => {
         }
     }
 
-    if (isProd) {
+    if (isProd && !allowDegradedStartup && !connected) {
         logger.error('🔥 PRODUCTION FATAL: Exiting after DB connection retries failed');
         process.exit(1);
     } else {
-        logger.warn('⚠️ Development Mode: Server will stay alive despite DB failure.');
+        logger.warn('⚠️ Degraded startup: server will stay alive despite DB connection failures.');
     }
 };
 
