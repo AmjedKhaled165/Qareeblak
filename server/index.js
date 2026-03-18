@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 // 🛰️ [Big Tech Step] Initialize Tracing FIRST (Before any other imports)
 require('./tracing');
 
@@ -6,7 +8,6 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const IORedis = require('ioredis');
-require('dotenv').config();
 const logger = require('./utils/logger');
 
 const configureMiddleware = require('./middleware/config');
