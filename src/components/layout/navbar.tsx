@@ -46,7 +46,7 @@ export function Navbar() {
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
-            <div className="container mx-auto flex h-20 md:h-24 items-center justify-between px-4">
+            <div className="container mx-auto flex h-16 md:h-20 items-center justify-between px-4">
 
                 {/* 1. Logo */}
                 <div className="flex items-center gap-2">
@@ -57,7 +57,7 @@ export function Navbar() {
                         <img 
                             src="/qareeblak-logo-cropped.png?v=20260318" 
                             alt="قريبلك" 
-                            className="w-20 h-auto md:w-32 lg:w-40"
+                            className="h-12 md:h-14 w-auto object-contain"
                         />
                         <span className="text-base md:text-xl font-bold text-primary tracking-tight hidden sm:inline">قريبلك</span>
                     </Link>
