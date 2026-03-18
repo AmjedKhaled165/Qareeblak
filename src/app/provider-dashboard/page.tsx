@@ -521,7 +521,7 @@ export default function ProviderDashboard() {
             }
 
             socket = io(SOCKET_URL, {
-                transports: ['websocket', 'polling'],
+                transports: ['polling', 'websocket'],
                 reconnection: true,
                 auth: { token },
             });

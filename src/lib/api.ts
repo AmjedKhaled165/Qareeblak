@@ -44,12 +44,16 @@ function getAuthToken(endpoint: string): string | null {
 
     let token: string | null = null;
     if (isHalanEndpoint) {
+        // Halan/partner routes should prefer the dedicated partner token,
+        // but can fallback to regular token for shared admin/provider APIs.
         token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
         if (token && endpoint.includes('/halan')) {
             console.log('[API] Using Halan token for endpoint:', endpoint.substring(0, 30));
         }
     } else {
-        token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+        // Non-Halan routes must never fallback to halan_token,
+        // otherwise stale partner sessions can break normal customer auth.
+        token = localStorage.getItem('qareeblak_token');
     }
     
     if (!token && endpoint.includes('/halan')) {
@@ -144,6 +148,9 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
                 localStorage.removeItem('qareeblak_token');
                 localStorage.removeItem('qareeblak_user');
                 localStorage.removeItem('user');
+                // Clear partner artifacts too to stop mixed-session loops.
+                localStorage.removeItem('halan_token');
+                localStorage.removeItem('halan_user');
             }
 
             throw new Error(data?.error || data?.message || `عدم التفويض - يرجى تسجيل الدخول`);

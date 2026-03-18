@@ -74,8 +74,12 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
     useEffect(() => {
         if (!isOpen) return;
 
+        const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token') || localStorage.getItem('token');
+        if (!token) return;
+
         socketRef.current = io(SOCKET_URL, {
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
+            auth: { token }
         });
 
         // Join consultation room

@@ -171,9 +171,16 @@ export default function DriverTrackingPage() {
         setConnectionStatus('connecting');
 
         const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+        const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
+
+        if (!token) {
+            setConnectionStatus('disconnected');
+            return;
+        }
 
         socketRef.current = io(SOCKET_URL, {
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
+            auth: { token },
             reconnectionAttempts: 5,
             reconnectionDelay: 1000
         });

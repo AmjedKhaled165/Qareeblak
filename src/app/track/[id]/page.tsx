@@ -128,13 +128,19 @@ export default function TrackOrderPage() {
         // 🟢 Real-time Socket Listener
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const socketUrl = apiUrl.replace(/\/api$/, '');
-        const socket = io(socketUrl);
+        const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+        const socket = token
+            ? io(socketUrl, {
+                transports: ['polling', 'websocket'],
+                auth: { token }
+            })
+            : null;
 
-        socket.on('connect', () => {
+        socket?.on('connect', () => {
             console.log('Connected to tracking updates');
         });
 
-        socket.on('order-status-changed', (data) => {
+        socket?.on('order-status-changed', (data) => {
             // Check if this update belongs to our order or any of our sub-orders
             // trackingId could be "1" or "P1"
             const cleanId = String(trackingId).replace('P', '');
@@ -146,7 +152,7 @@ export default function TrackOrderPage() {
             }
         });
 
-        socket.on('booking-updated', (data) => {
+        socket?.on('booking-updated', (data) => {
             const cleanId = String(trackingId).replace('P', '');
 
             // Refresh if tracking this specific booking OR if tracking the parent of this booking
@@ -160,7 +166,7 @@ export default function TrackOrderPage() {
         const interval = setInterval(fetchOrder, 30000);
         return () => {
             clearInterval(interval);
-            socket.disconnect();
+            socket?.disconnect();
         };
     }, [fetchOrder, trackingId]);
 

@@ -82,9 +82,15 @@ export default function DriversMap({ user }: DriversMapProps) {
     useEffect(() => {
         // Connect to socket
         const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+        const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
+
+        if (!token) {
+            return;
+        }
 
         socketRef.current = io(SOCKET_URL, {
-            transports: ['websocket', 'polling']
+            transports: ['polling', 'websocket'],
+            auth: { token }
         });
 
         socketRef.current.on('connect', () => {

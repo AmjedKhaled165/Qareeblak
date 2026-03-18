@@ -51,7 +51,9 @@ const USER_CACHE_TTL = 60;
 const dbQueryBreaker = new CircuitBreaker(
     async (userId) => {
         return await db.query(
-            'SELECT id, name, email, user_type, role, phone, avatar, is_banned, token_version, cancellation_count FROM users WHERE id = $1',
+            // Use SELECT * to stay compatible with older schemas where optional
+            // auth columns (e.g. role/cancellation_count/token_version) may not exist yet.
+            'SELECT * FROM users WHERE id = $1',
             [userId]
         );
     },
@@ -106,6 +108,17 @@ async function getUserWithCache(userId) {
     if (result.rows.length === 0) return null;
 
     const user = result.rows[0];
+
+    // Backward-compatible defaults for environments with partial migrations.
+    if (user.token_version === undefined || user.token_version === null) {
+        user.token_version = 1;
+    }
+    if (user.cancellation_count === undefined || user.cancellation_count === null) {
+        user.cancellation_count = 0;
+    }
+    if (!user.role) {
+        user.role = user.user_type;
+    }
 
     // 3. Store in cache (non-fatal if Redis is down)
     if (redisClient && redisClient.status === 'ready') {

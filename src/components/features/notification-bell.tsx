@@ -68,10 +68,17 @@ export function NotificationBell() {
         const connectSocket = async () => {
             try {
                 const { io } = await import('socket.io-client');
-                const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+                const token = currentUser.type === 'provider'
+                    ? (localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token'))
+                    : localStorage.getItem('qareeblak_token');
+
+                if (!token) {
+                    return;
+                }
+
                 const socket = io(API_BASE, {
-                    transports: ['websocket', 'polling'],
-                    auth: { token: token || undefined }
+                    transports: ['polling', 'websocket'],
+                    auth: { token }
                 });
                 socketRef.current = socket;
 

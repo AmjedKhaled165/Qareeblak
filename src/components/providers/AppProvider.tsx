@@ -291,9 +291,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
             // Backend requires token via verifySocketToken middleware
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
             const socketUrl = apiUrl.replace(/\/api$/, '');
-            const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+
+            // Pick socket auth token based on the resolved session type.
+            const isHalanSession = !!(user && (user.type === 'provider') && localStorage.getItem('halan_token'));
+            const token = isHalanSession
+                ? localStorage.getItem('halan_token')
+                : localStorage.getItem('qareeblak_token');
+
+            if (!token) {
+                // No authenticated session yet; skip socket bootstrap and rely on HTTP flows.
+                pollInterval = setInterval(refreshBookings, 120000);
+                return;
+            }
 
             socket = io(socketUrl, {
+                transports: ['polling', 'websocket'],
                 auth: { token: token || undefined },
                 reconnectionAttempts: 3,
                 reconnectionDelay: 5000,
