@@ -32,7 +32,7 @@ const createStore = () => {
     
     if (!hasWarnedMemoryFallback) {
         hasWarnedMemoryFallback = true;
-        logger.warn('[RateLimiter] Redis not ready during startup, using memory store fallback.');
+        logger.info('[RateLimiter] Redis not ready during startup, using memory store fallback.');
     }
     return undefined; // Falls back to memory store
 };

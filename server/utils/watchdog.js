@@ -8,11 +8,13 @@ const { activeCheckoutsGauge } = require('./metrics');
 class GuardianWatchdog {
     constructor() {
         this.status = 'healthy';
+        this.lastHealAt = new Map();
         this.thresholds = {
-            memory: 0.95, // 95% of heap - رفع الحد لتقليل الـ healing المتكرر
-            eventLoopLag: 200, // 200ms
+            memory: Number(process.env.GUARDIAN_MEMORY_THRESHOLD || 0.97),
+            eventLoopLag: Number(process.env.GUARDIAN_EVENT_LOOP_LAG_MS || 200),
             maxActiveCheckouts: 500
         };
+        this.healCooldownMs = Number(process.env.GUARDIAN_HEAL_COOLDOWN_MS || 600000);
     }
 
     start() {
@@ -39,6 +41,13 @@ class GuardianWatchdog {
     }
 
     heal(reason, detail) {
+        const now = Date.now();
+        const last = this.lastHealAt.get(reason) || 0;
+        if (now - last < this.healCooldownMs) {
+            return;
+        }
+        this.lastHealAt.set(reason, now);
+
         logger.error(`🚨 [Guardian] HEALING TRIGGERED: ${reason} - ${detail}`);
         this.status = 'degraded';
 

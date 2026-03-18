@@ -128,10 +128,17 @@ async function ensureCoreTables(query) {
 async function runStartupMigrations() {
     logger.info('🚀 Starting database migrations...');
 
+    const migrationConnectionString = String(process.env.DATABASE_URL || '')
+        .replace(/[?&]sslmode=[^&]*/g, '')
+        .replace(/[?&]channel_binding=[^&]*/g, '')
+        .replace(/[?&]uselibpqcompat=[^&]*/g, '')
+        .replace(/\?&/, '?')
+        .replace(/[?&]$/, '');
+
     const useSslMigrationClient = process.env.DB_SSL === 'true';
     const migrationPool = useSslMigrationClient
         ? new Pool({
-            connectionString: process.env.DATABASE_URL,
+            connectionString: migrationConnectionString,
             max: 1,
             idleTimeoutMillis: 10000,
             connectionTimeoutMillis: 5000,
