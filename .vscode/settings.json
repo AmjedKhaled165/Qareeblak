@@ -1,3 +1,25 @@
 {
-    "css.lint.unknownAtRules": "ignore"
+    "css.lint.unknownAtRules": "ignore",
+    "chat.tools.terminal.autoApprove": {
+        "/^git push origin main$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git add src/lib/api\\.ts; git commit -m \"fix\\(api\\): reduce /providers timeout failures with longer timeout and safe GET retry\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git add server/repositories/booking\\.repository\\.js src/components/providers/AppProvider\\.tsx; git commit -m \"fix\\(bookings\\): support legacy booking column names and resolve AppProvider TDZ runtime crash\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git add server/migrations/startup\\.js; git commit -m \"fix\\(migrations\\): ensure legacy bookings name columns exist and backfill to stop /bookings/user 500\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^\\$rootDeps = Test-Path \\.\\\\node_modules; \\$serverDeps = Test-Path \\.\\\\server\\\\node_modules; Write-Output \"root_node_modules=\\$rootDeps\"; Write-Output \"server_node_modules=\\$serverDeps\"; pnpm -v; node -v$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
 }
