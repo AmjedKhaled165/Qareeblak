@@ -172,6 +172,59 @@ async function runStartupMigrations() {
             logger.info(`✅ Bookings Migration: Added appointment columns`);
         }
 
+        // 2.1 Migration: Legacy bookings schema compatibility (old/new deployments)
+        // Some production databases use customer_name instead of user_name.
+        // Ensure canonical columns always exist so API queries don't crash.
+        await query(`
+            ALTER TABLE bookings
+            ADD COLUMN IF NOT EXISTS user_name VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS service_name VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS provider_name VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS details TEXT,
+            ADD COLUMN IF NOT EXISTS items TEXT,
+            ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pending',
+            ADD COLUMN IF NOT EXISTS price DECIMAL(10,2)
+        `);
+
+        const bookingsColumnsRes = await query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'bookings'
+        `);
+        const bookingsColumns = new Set(bookingsColumnsRes.rows.map((r) => r.column_name));
+
+        if (bookingsColumns.has('customer_name')) {
+            await query(`
+                UPDATE bookings
+                SET user_name = COALESCE(user_name, customer_name)
+                WHERE user_name IS NULL
+            `);
+        }
+
+        if (bookingsColumns.has('created_at')) {
+            await query(`
+                UPDATE bookings
+                SET booking_date = COALESCE(booking_date, created_at)
+                WHERE booking_date IS NULL
+            `);
+        }
+
+        // Fill provider_name from providers table when possible.
+        await query(`
+            UPDATE bookings b
+            SET provider_name = COALESCE(b.provider_name, p.name)
+            FROM providers p
+            WHERE b.provider_name IS NULL
+              AND b.provider_id = p.id
+        `);
+
+        // Final safety defaults to avoid NOT NULL style assumptions in app responses.
+        await query(`UPDATE bookings SET user_name = COALESCE(user_name, 'عميل') WHERE user_name IS NULL`);
+        await query(`UPDATE bookings SET service_name = COALESCE(service_name, 'خدمة') WHERE service_name IS NULL`);
+        await query(`UPDATE bookings SET provider_name = COALESCE(provider_name, 'مقدم خدمة') WHERE provider_name IS NULL`);
+        logger.info('✅ Bookings compatibility migration applied (legacy name columns ensured)');
+
         // 3. Check for appointment index
         const indexCheck = await query(`
             SELECT indexname 
