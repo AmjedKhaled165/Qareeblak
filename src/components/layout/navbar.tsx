@@ -45,18 +45,20 @@ export function Navbar() {
     };
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
-            <div className="container mx-auto flex h-16 md:h-20 items-center justify-between px-4">
+        <header className="sticky top-0 z-50 w-full overflow-x-clip border-b bg-background/80 backdrop-blur-md">
+            <div className="container mx-auto flex h-16 min-w-0 items-center justify-between gap-2 px-4 md:h-20 md:gap-4">
 
                 {/* 1. Logo */}
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 shrink-0 items-center gap-2">
                     <Link
                         href={currentUser?.type === 'provider' ? "/provider-dashboard" : "/"}
-                        className="flex items-center gap-2 transition-transform hover:scale-105"
+                        className="flex min-w-0 items-center gap-2 transition-transform hover:scale-105"
                     >
                         <img 
                             src="/qareeblak-logo-cropped.png?v=20260318" 
                             alt="قريبلك" 
+                            width={56}
+                            height={56}
                             className="h-12 md:h-14 w-auto object-contain"
                         />
                         <span className="text-base md:text-xl font-bold text-primary tracking-tight hidden sm:inline">قريبلك</span>
@@ -64,7 +66,7 @@ export function Navbar() {
                 </div>
 
                 {/* 2. Desktop Navigation (Hidden on Mobile) */}
-                <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+                <nav className="hidden min-w-0 flex-wrap items-center gap-4 text-sm font-medium md:flex lg:gap-6">
                     {currentUser?.type !== 'provider' && (
                         <>
                             <Link href="/" className="transition-colors hover:text-primary">الرئيسية</Link>
@@ -82,7 +84,7 @@ export function Navbar() {
                 </nav>
 
                 {/* 3. User & Actions */}
-                <div className="flex items-center gap-4">
+                <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3 md:gap-4">
                     <ThemeToggle />
 
                     {/* Notification Bell - visible for all logged in users */}
@@ -207,7 +209,7 @@ export function Navbar() {
                     {/* Mobile Menu Button - Visible on Mobile Only */}
                     {currentUser?.type !== 'provider' && (
                         <button
-                            className="md:hidden p-2 text-foreground hover:bg-accent rounded-md"
+                            className="md:hidden shrink-0 rounded-md p-2 text-foreground hover:bg-accent"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
                             {isMobileMenuOpen ? <X /> : <Menu />}
@@ -223,9 +225,9 @@ export function Navbar() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="md:hidden border-t bg-background overflow-hidden"
+                        className="md:hidden w-full overflow-hidden border-t bg-background"
                     >
-                        <div className="p-4 space-y-4">
+                        <div className="min-w-0 space-y-4 p-4">
                             {currentUser?.type !== 'provider' && (
                                 <>
                                     <Link href="/" className="flex items-center gap-3 text-foreground font-medium p-2 hover:bg-accent rounded-md" onClick={() => setIsMobileMenuOpen(false)}>

@@ -25,7 +25,9 @@ export function Footer() {
                         <img 
                             src="/qareeblak-logo-cropped.png?v=20260318" 
                             alt="قريبلك" 
-                            className="w-10 h-10"
+                            width={40}
+                            height={40}
+                            className="w-10 h-10 object-contain shrink-0"
                         />
                         <h3 className="text-xl font-bold text-foreground">قريبلك</h3>
                     </div>

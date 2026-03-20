@@ -158,6 +158,8 @@ export default function ProviderLogin() {
                             <img 
                                 src="/qareeblak-logo-cropped.png?v=20260318" 
                                 alt="قريبلك" 
+                                width={80}
+                                height={80}
                                 className="w-full h-full object-contain drop-shadow-xl"
                             />
                         </div>

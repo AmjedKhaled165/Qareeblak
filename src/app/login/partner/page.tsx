@@ -122,6 +122,8 @@ export default function PartnerLoginPage() {
                         <img 
                             src="/qareeblak-logo-cropped.png?v=20260318" 
                             alt="قريبلك" 
+                            width={80}
+                            height={80}
                             className="w-full h-full object-contain drop-shadow-lg"
                         />
                     </div>

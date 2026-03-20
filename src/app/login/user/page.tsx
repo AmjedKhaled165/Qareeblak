@@ -188,6 +188,8 @@ export default function UserLoginPage() {
                             <img 
                                 src="/qareeblak-logo-cropped.png?v=20260318" 
                                 alt="قريبلك" 
+                                width={48}
+                                height={48}
                                 className="w-12 h-12 object-contain drop-shadow-lg"
                             />
                         </div>
