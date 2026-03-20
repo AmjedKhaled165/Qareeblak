@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useConfirm } from "@/components/providers/ConfirmProvider";
+import { OrderDetailModal } from "@/components/providers/OrderDetailModal";
 import { apiCall, bookingsApi } from "@/lib/api";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { format } from "date-fns";
@@ -32,11 +33,6 @@ const ConsultationChat = dynamic(
 
 const PriceEstimationModalAsync = dynamic(
     () => import("@/components/providers/MaintenanceModals").then((m) => m.PriceEstimationModal),
-    { ssr: false }
-);
-
-const OrderDetailModalAsync = dynamic(
-    () => import("@/components/providers/OrderDetailModal").then((m) => m.OrderDetailModal),
     { ssr: false }
 );
 
@@ -1958,7 +1954,7 @@ export default function ProviderDashboard() {
             )}
 
             {/* Order Detail Modal */}
-            <OrderDetailModalAsync
+            <OrderDetailModal
                 booking={selectedOrderModal}
                 isOpen={!!selectedOrderModal}
                 onClose={() => setSelectedOrderModal(null)}
