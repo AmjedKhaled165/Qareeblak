@@ -120,7 +120,7 @@ export default function PartnerLoginPage() {
                 >
                     <div className="w-20 h-20 mx-auto mb-4">
                         <img 
-                            src="/qareeblak-logo-cropped.png?v=20260318" 
+                            src="/Qareeblak_Logo_rbg.png?v=20260321" 
                             alt="قريبلك" 
                             width={80}
                             height={80}

@@ -156,7 +156,7 @@ export default function ProviderLogin() {
                         </Link>
                         <div className="mx-auto w-20 h-20">
                             <img 
-                                src="/qareeblak-logo-cropped.png?v=20260318" 
+                                src="/Qareeblak_Logo_rbg.png?v=20260321" 
                                 alt="قريبلك" 
                                 width={80}
                                 height={80}

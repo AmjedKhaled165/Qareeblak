@@ -55,7 +55,7 @@ export function Navbar() {
                         className="flex min-w-0 items-center gap-2 transition-transform hover:scale-105"
                     >
                         <img 
-                            src="/qareeblak-logo-cropped.png?v=20260318" 
+                            src="/Qareeblak_Logo_rbg.png?v=20260321" 
                             alt="قريبلك" 
                             width={44}
                             height={44}
