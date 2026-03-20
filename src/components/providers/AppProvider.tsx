@@ -170,6 +170,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     }, [isInitialized, currentUser, pathname, router]);
 
+    // Provider accounts should stay inside provider dashboard only.
+    useEffect(() => {
+        if (!isInitialized || !currentUser) return;
+
+        const qareeblakToken = localStorage.getItem('qareeblak_token');
+        const halanToken = localStorage.getItem('halan_token');
+        const userType = currentUser.user_type || currentUser.type;
+        const currentPath = pathname || '/';
+
+        const isRegularProviderSession = Boolean(qareeblakToken) && !halanToken && userType === 'provider';
+        const isProviderDashboardPath = currentPath === '/provider-dashboard' || currentPath.startsWith('/provider-dashboard/');
+
+        if (isRegularProviderSession && !isProviderDashboardPath) {
+            router.replace('/provider-dashboard');
+        }
+    }, [isInitialized, currentUser, pathname, router]);
+
     // ================= LOAD DATA =================
     const loadProviders = useCallback(async () => {
         try {
