@@ -1,13 +1,12 @@
 "use client";
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Button } from '../ui/button';
 import {
     MapPin, Phone, Calendar, Clock, User, MessageSquare,
-    Check, X, ExternalLink, Package, Wrench
+    Check, X, Package, Wrench
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { isMaintenanceProvider } from '@/lib/category-utils';
 
 interface Booking {

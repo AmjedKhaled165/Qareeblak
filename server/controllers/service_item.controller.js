@@ -2,6 +2,7 @@ const serviceRepo = require('../repositories/service_item.repository');
 const providerRepo = require('../repositories/provider.repository');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const { invalidatePattern } = require('../utils/redis-cache');
 
 exports.create = catchAsync(async (req, res, next) => {
     const userId = req.user.id;
@@ -19,6 +20,13 @@ exports.create = catchAsync(async (req, res, next) => {
     }
 
     const id = await serviceRepo.create(providerId, req.body);
+    
+    // Invalidate caches so the new service appears immediately
+    await invalidatePattern('route:/api/providers*');
+    await invalidatePattern('route:/api/services*');
+    await invalidatePattern('route:/providers*');
+    await invalidatePattern('route:/services*');
+
     res.status(201).json({
         success: true,
         message: 'تم إضافة الصنف بنجاح ليظهر لجميع العملاء',
@@ -37,6 +45,12 @@ exports.update = catchAsync(async (req, res, next) => {
         throw new AppError('لم يتم العثور على الصنف أو لا تملك صلاحية تعديله', 404);
     }
 
+    // Invalidate caches
+    await invalidatePattern('route:/api/providers*');
+    await invalidatePattern('route:/api/services*');
+    await invalidatePattern('route:/providers*');
+    await invalidatePattern('route:/services*');
+
     res.json({ success: true, message: 'تم تحديث البيانات بنجاح' });
 });
 
@@ -50,6 +64,12 @@ exports.delete = catchAsync(async (req, res, next) => {
     if (!deleted) {
         throw new AppError('لم يتم العثور على الصنف أو لا تملك صلاحية حذفه', 404);
     }
+
+    // Invalidate caches
+    await invalidatePattern('route:/api/providers*');
+    await invalidatePattern('route:/api/services*');
+    await invalidatePattern('route:/providers*');
+    await invalidatePattern('route:/services*');
 
     res.json({ success: true, message: 'تم حذف الصنف بنجاح' });
 });
