@@ -1,11 +1,15 @@
 "use client";
 
 import React from 'react';
-import {
-    MapPin, Phone, Calendar, Clock, User, MessageSquare,
-    Check, X as CloseIcon, Package as PackageIcon, Wrench
-} from 'lucide-react';
 import { isMaintenanceProvider } from '@/lib/category-utils';
+
+function Glyph({ symbol, className = '' }: { symbol: string; className?: string }) {
+    return (
+        <span aria-hidden="true" className={`inline-flex items-center justify-center ${className}`}>
+            {symbol}
+        </span>
+    );
+}
 
 interface Booking {
     id: string;
@@ -158,7 +162,7 @@ export function OrderDetailModal({
                 <div className="flex items-center justify-between px-8 pt-8 pb-5 border-b border-border/50 bg-muted/20 shrink-0">
                     <div className="flex items-center gap-4">
                         <div className={`p-3 rounded-2xl ${isMaintenance ? 'bg-blue-500/10 text-blue-500' : 'bg-primary/10 text-primary'}`}>
-                            {isMaintenance ? <Wrench className="w-6 h-6" /> : <PackageIcon className="w-6 h-6" />}
+                            {isMaintenance ? <Glyph symbol="🛠️" className="text-xl" /> : <Glyph symbol="📦" className="text-xl" />}
                         </div>
                         <div className="text-right">
                             <h2 className="text-xl font-black font-cairo text-foreground">
@@ -179,7 +183,7 @@ export function OrderDetailModal({
                             className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-all"
                             title="إغلاق"
                         >
-                            <CloseIcon className="w-5 h-5" />
+                            <Glyph symbol="✕" className="text-base" />
                         </button>
                     </div>
                 </div>
@@ -190,7 +194,7 @@ export function OrderDetailModal({
                     {/* --- Customer Section --- */}
                     <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
                         <h3 className="text-xs font-black text-muted-foreground mb-4 font-cairo flex items-center gap-2">
-                            <User className="w-4 h-4" /> بيانات العميل
+                            <Glyph symbol="👤" className="text-sm" /> بيانات العميل
                         </h3>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -201,7 +205,7 @@ export function OrderDetailModal({
                                     <p className="font-black text-lg text-foreground font-cairo">{booking.userName}</p>
                                     {showPhone && phone ? (
                                         <a href={`tel:${phone}`} className="flex items-center gap-2 text-sm font-bold text-emerald-600 hover:underline mt-1 transition-colors">
-                                            <Phone className="w-3.5 h-3.5" />
+                                            <Glyph symbol="📞" className="text-sm" />
                                             <span dir="ltr">{phone}</span>
                                         </a>
                                     ) : (
@@ -217,12 +221,12 @@ export function OrderDetailModal({
                             <div className="flex gap-2">
                                 {showPhone && phone && (
                                     <a href={`tel:${phone}`} className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500/20 transition-all border border-emerald-500/20" title="اتصال">
-                                        <Phone className="w-5 h-5" />
+                                        <Glyph symbol="📞" className="text-base" />
                                     </a>
                                 )}
                                 {isPharmacy && onOpenChat && booking.status !== 'cancelled' && booking.status !== 'rejected' && (
                                     <button onClick={() => onOpenChat(booking)} className="p-3 bg-blue-500/10 text-blue-500 rounded-xl hover:bg-blue-500/20 transition-all border border-blue-500/20" title="محادثة">
-                                        <MessageSquare className="w-5 h-5" />
+                                        <Glyph symbol="💬" className="text-base" />
                                     </button>
                                 )}
                             </div>
@@ -233,7 +237,7 @@ export function OrderDetailModal({
                     {address && (
                         <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
                             <h3 className="text-xs font-black text-muted-foreground mb-3 font-cairo flex items-center gap-2">
-                                <MapPin className="w-4 h-4" /> العنوان
+                                <Glyph symbol="📍" className="text-sm" /> العنوان
                             </h3>
                             <p className="text-foreground font-bold text-base leading-relaxed mb-4">{address}</p>
 
@@ -244,18 +248,18 @@ export function OrderDetailModal({
                     {isMaintenance && booking.appointmentDate && (
                         <div className="bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-950/30 dark:to-sky-950/20 rounded-2xl p-5 border border-blue-200/50 dark:border-blue-800/30">
                             <h3 className="text-xs font-black text-blue-500 mb-3 font-cairo flex items-center gap-2">
-                                <Calendar className="w-4 h-4" /> الموعد المحدد
+                                <Glyph symbol="📅" className="text-sm" /> الموعد المحدد
                             </h3>
                             <div className="flex items-center gap-4">
                                 <div className="bg-blue-500/10 p-4 rounded-2xl text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                                    <Calendar className="w-8 h-8" />
+                                    <Glyph symbol="📅" className="text-2xl" />
                                 </div>
                                 <div>
                                     <p className="text-xl font-black text-blue-900 dark:text-blue-100 font-cairo">
                                         {new Date(booking.appointmentDate).toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}
                                     </p>
                                     <div className="flex items-center gap-2 mt-1.5 text-blue-700 dark:text-blue-300">
-                                        <Clock className="w-4 h-4" />
+                                        <Glyph symbol="⏰" className="text-sm" />
                                         <span className="font-black text-base">
                                             {new Date(booking.appointmentDate).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
                                         </span>
@@ -269,7 +273,7 @@ export function OrderDetailModal({
                     {itemsArr.length > 0 && (
                         <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
                             <h3 className="text-xs font-black text-muted-foreground mb-3 font-cairo flex items-center gap-2">
-                                <PackageIcon className="w-4 h-4" /> المنتجات
+                                <Glyph symbol="📦" className="text-sm" /> المنتجات
                             </h3>
                             <div className="space-y-2">
                                 {itemsArr.map((item: any, idx: number) => (
@@ -306,7 +310,7 @@ export function OrderDetailModal({
                             </div>
                         ) : (
                             <div className="flex items-center gap-3 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-5 py-4 rounded-xl">
-                                <Clock className="w-5 h-5 shrink-0" />
+                                <Glyph symbol="⏰" className="text-base shrink-0" />
                                 <span className="font-black text-base font-cairo">السعر يحدد بعد المعاينة</span>
                             </div>
                         )}
@@ -328,7 +332,7 @@ export function OrderDetailModal({
                                             onClose();
                                         }}
                                     >
-                                        <Check className="w-5 h-5 ml-2" />
+                                        <Glyph symbol="✓" className="text-base ml-2" />
                                         الموافقة على الموعد المقترح
                                     </button>
                                 ) : (
@@ -338,7 +342,7 @@ export function OrderDetailModal({
                                             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-13 rounded-xl font-black text-base font-cairo shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
                                             onClick={() => { onAccept(booking); onClose(); }}
                                         >
-                                            <Check className="w-5 h-5 ml-2" />
+                                            <Glyph symbol="✓" className="text-base ml-2" />
                                             {isMaintenance ? 'قبول وتأكيد الموعد' : (isManual ? 'بدء التحضير' : 'قبول الطلب')}
                                         </button>
                                     )
@@ -348,7 +352,7 @@ export function OrderDetailModal({
                         {/* Reschedule button removed - Direct acceptance only */}
                         {booking.status === 'provider_rescheduled' && (
                             <div className="w-full h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 font-bold font-cairo">
-                                <Clock className="w-5 h-5 ml-2 animate-pulse" />
+                                <Glyph symbol="⏰" className="text-base ml-2 animate-pulse" />
                                 بانتظار رد العميل على الموعد
                             </div>
                         )}
@@ -359,7 +363,7 @@ export function OrderDetailModal({
                                         href={`tel:${phone}`}
                                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-13 rounded-xl font-black text-base font-cairo shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                                     >
-                                        <Phone className="w-5 h-5" />
+                                        <Glyph symbol="📞" className="text-base" />
                                         اتصال بالعميل
                                     </a>
                                 )}
@@ -368,7 +372,7 @@ export function OrderDetailModal({
                                     className="w-full bg-amber-600 hover:bg-amber-700 text-white h-13 rounded-xl font-black text-base font-cairo shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
                                     onClick={() => { onComplete(booking.id); onClose(); }}
                                 >
-                                    <Check className="w-5 h-5 ml-2" />
+                                    <Glyph symbol="✓" className="text-base ml-2" />
                                     {isMaintenance ? 'تم إتمام الخدمة ✓' : 'تم التجهيز ✓'}
                                 </button>
                             </>

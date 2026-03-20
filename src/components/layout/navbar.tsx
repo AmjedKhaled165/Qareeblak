@@ -59,6 +59,7 @@ export function Navbar() {
                             alt="قريبلك" 
                             width={44}
                             height={44}
+                            suppressHydrationWarning
                             className="h-9 md:h-10 w-auto object-contain shrink-0"
                         />
                         <span className="text-base md:text-xl font-bold text-primary tracking-tight hidden sm:inline">قريبلك</span>
