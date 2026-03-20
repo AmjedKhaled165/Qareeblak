@@ -658,9 +658,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
 
             if (action === 'add') {
-                const parsedProviderId = Number(providerId);
                 await servicesApi.add({
-                    providerId: Number.isFinite(parsedProviderId) ? parsedProviderId : undefined,
+                    providerId: String(providerId),
                     name: data.name,
                     description: data.description,
                     price: data.price,
