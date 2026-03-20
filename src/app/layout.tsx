@@ -27,14 +27,16 @@ export const metadata: Metadata = {
   authors: [{ name: "قريبلك" }],
   icons: {
     icon: [
-      { url: "/favicon.ico?v=20260319b", type: "image/x-icon", sizes: "any" },
-      { url: "/icon.png?v=20260319b", type: "image/png", sizes: "32x32" },
-      { url: "/icon.png?v=20260319b", type: "image/png", sizes: "192x192" },
-      { url: "/icon.png?v=20260319b", type: "image/png", sizes: "512x512" }
+      { url: "/icon-16x16.png?v=20260321", type: "image/png", sizes: "16x16" },
+      { url: "/icon-32x32.png?v=20260321", type: "image/png", sizes: "32x32" },
+      { url: "/apple-touch-icon.png?v=20260321", type: "image/png", sizes: "180x180" },
+      { url: "/icon-192x192.png?v=20260321", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512x512.png?v=20260321", type: "image/png", sizes: "512x512" },
     ],
-    shortcut: [{ url: "/favicon.ico?v=20260319b", type: "image/x-icon", sizes: "any" }],
-    apple: [{ url: "/icon.png?v=20260319b", sizes: "180x180", type: "image/png" }],
+    shortcut: [{ url: "/icon-32x32.png?v=20260321", type: "image/png", sizes: "32x32" }],
+    apple: [{ url: "/apple-touch-icon.png?v=20260321", sizes: "180x180", type: "image/png" }],
   },
+  manifest: "/manifest.json",
   robots: "index, follow",
   openGraph: {
     title: "قريبلك | خدمات أسيوط الجديدة",
@@ -54,6 +56,7 @@ export const metadata: Metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
   themeColor: "#6366F1",
 };
 

@@ -57,9 +57,9 @@ export function Navbar() {
                         <img 
                             src="/qareeblak-logo-cropped.png?v=20260318" 
                             alt="قريبلك" 
-                            width={56}
-                            height={56}
-                            className="h-12 md:h-14 w-auto object-contain"
+                            width={52}
+                            height={52}
+                            className="h-10 md:h-12 w-auto object-contain shrink-0"
                         />
                         <span className="text-base md:text-xl font-bold text-primary tracking-tight hidden sm:inline">قريبلك</span>
                     </Link>
