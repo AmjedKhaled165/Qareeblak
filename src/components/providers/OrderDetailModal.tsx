@@ -1,8 +1,6 @@
 "use client";
 
 import React from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import {
     MapPin, Phone, Calendar, Clock, User, MessageSquare,
     Check, X as CloseIcon, Package as PackageIcon, Wrench
@@ -115,6 +113,7 @@ export function OrderDetailModal({
     booking, isOpen, onClose, onAccept, onReschedule, onReject, onComplete, isPharmacy, onOpenChat, servicePrice, onAcceptAppointment, providerCategory, isManualOrder
 }: OrderDetailModalProps) {
     if (!booking) return null;
+    if (!isOpen) return null;
 
     const details = booking.details || "";
     const phone = extractPhone(details);
@@ -146,8 +145,14 @@ export function OrderDetailModal({
     } catch (e) { }
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[92vh] overflow-hidden bg-card border-border rounded-[2rem] p-0 text-foreground flex flex-col gap-0">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={onClose}
+        >
+            <div
+                className="max-w-2xl w-full max-h-[92vh] overflow-hidden bg-card border border-border rounded-[2rem] p-0 text-foreground flex flex-col gap-0"
+                onClick={(e) => e.stopPropagation()}
+            >
 
                 {/* ===== HEADER ===== */}
                 <div className="flex items-center justify-between px-8 pt-8 pb-5 border-b border-border/50 bg-muted/20 shrink-0">
@@ -156,12 +161,12 @@ export function OrderDetailModal({
                             {isMaintenance ? <Wrench className="w-6 h-6" /> : <PackageIcon className="w-6 h-6" />}
                         </div>
                         <div className="text-right">
-                            <DialogTitle className="text-xl font-black font-cairo text-foreground">
+                            <h2 className="text-xl font-black font-cairo text-foreground">
                                 طلب #{booking.id.substring(0, 8)}
-                            </DialogTitle>
-                            <DialogDescription className="text-sm font-bold text-muted-foreground mt-0.5">
+                            </h2>
+                            <p className="text-sm font-bold text-muted-foreground mt-0.5">
                                 {booking.serviceName}
-                            </DialogDescription>
+                            </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -315,7 +320,8 @@ export function OrderDetailModal({
                         {isPending && (
                             <div className="flex gap-3">
                                 {booking.status === 'customer_rescheduled' ? (
-                                    <Button
+                                    <button
+                                        type="button"
                                         className="flex-1 bg-purple-600 hover:bg-purple-700 text-white h-13 rounded-xl font-black text-base font-cairo shadow-lg shadow-purple-500/20 transition-all active:scale-[0.98]"
                                         onClick={() => {
                                             if (onAcceptAppointment) onAcceptAppointment(booking.id);
@@ -324,16 +330,17 @@ export function OrderDetailModal({
                                     >
                                         <Check className="w-5 h-5 ml-2" />
                                         الموافقة على الموعد المقترح
-                                    </Button>
+                                    </button>
                                 ) : (
                                     booking.status !== 'provider_rescheduled' && (
-                                        <Button
+                                        <button
+                                            type="button"
                                             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-13 rounded-xl font-black text-base font-cairo shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
                                             onClick={() => { onAccept(booking); onClose(); }}
                                         >
                                             <Check className="w-5 h-5 ml-2" />
                                             {isMaintenance ? 'قبول وتأكيد الموعد' : (isManual ? 'بدء التحضير' : 'قبول الطلب')}
-                                        </Button>
+                                        </button>
                                     )
                                 )}
                             </div>
@@ -356,20 +363,21 @@ export function OrderDetailModal({
                                         اتصال بالعميل
                                     </a>
                                 )}
-                                <Button
+                                <button
+                                    type="button"
                                     className="w-full bg-amber-600 hover:bg-amber-700 text-white h-13 rounded-xl font-black text-base font-cairo shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
                                     onClick={() => { onComplete(booking.id); onClose(); }}
                                 >
                                     <Check className="w-5 h-5 ml-2" />
                                     {isMaintenance ? 'تم إتمام الخدمة ✓' : 'تم التجهيز ✓'}
-                                </Button>
+                                </button>
                             </>
                         )}
 
                     </div>
                 )}
 
-            </DialogContent>
-        </Dialog>
+            </div>
+        </div>
     );
 }
