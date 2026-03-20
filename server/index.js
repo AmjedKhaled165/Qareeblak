@@ -1,3 +1,4 @@
+require('newrelic');
 require('dotenv').config();
 
 // 🛰️ [Big Tech Step] Initialize Tracing FIRST (Before any other imports)

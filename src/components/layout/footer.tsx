@@ -27,6 +27,7 @@ export function Footer() {
                             alt="قريبلك" 
                             width={40}
                             height={40}
+                            suppressHydrationWarning
                             className="w-10 h-10 object-contain shrink-0"
                         />
                         <h3 className="text-xl font-bold text-foreground">قريبلك</h3>

@@ -2,12 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Store, ArrowLeft, Truck } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useEffect } from "react";
+
+function Glyph({ symbol, className = "" }: { symbol: string; className?: string }) {
+    return <span aria-hidden="true" className={className}>{symbol}</span>;
+}
 
 export default function LoginPage() {
     const router = useRouter();
@@ -53,7 +56,7 @@ export default function LoginPage() {
                     <Card className="h-full cursor-pointer border-0 shadow-2xl bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] overflow-hidden group">
                         <CardContent className="p-10 flex flex-col items-center text-center h-full">
                             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 border border-primary/20">
-                                <User className="w-10 h-10 text-primary" />
+                                <Glyph symbol="👤" className="text-4xl" />
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-2 font-cairo">أنا عميل</h2>
                             <p className="text-slate-400 mb-8 max-w-[250px] flex-1">
@@ -76,7 +79,7 @@ export default function LoginPage() {
                     <Card className="h-full cursor-pointer border-0 shadow-2xl bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] overflow-hidden group">
                         <CardContent className="p-10 flex flex-col items-center text-center h-full">
                             <div className="w-24 h-24 bg-secondary/10 rounded-full flex items-center justify-center mb-6 border border-secondary/20">
-                                <Store className="w-10 h-10 text-secondary" />
+                                <Glyph symbol="🏪" className="text-4xl" />
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-2 font-cairo">أنا مقدم خدمة</h2>
                             <p className="text-slate-400 mb-8 max-w-[250px] flex-1">
@@ -97,7 +100,7 @@ export default function LoginPage() {
                 className="mt-12 relative z-10"
             >
                 <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors font-bold text-lg">
-                    <ArrowLeft className="w-5 h-5 -rotate-180" />
+                    <Glyph symbol="→" className="text-xl" />
                     العودة للرئيسية
                 </Link>
             </motion.div>

@@ -377,7 +377,7 @@ export const providersApi = {
 // ==================== SERVICES API ====================
 export const servicesApi = {
     async add(data: {
-        providerId: string;
+        providerId?: string | number;
         name: string;
         description?: string;
         price: number;

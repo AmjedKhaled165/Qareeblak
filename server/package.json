@@ -41,6 +41,7 @@
         "morgan": "^1.10.1",
         "multer": "^2.0.2",
         "multer-s3": "^3.0.1",
+        "newrelic": "^13.17.0",
         "node-abort-controller": ">=3.1.1",
         "opossum": "^5.0.1",
         "pg": "^8.18.0",
