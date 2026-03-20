@@ -23,7 +23,7 @@ async function findHalanUserByIdentifier(identifier) {
                 OR phone = $1
                 OR regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
              )
-             AND user_type IN ('partner_owner', 'partner_supervisor', 'partner_courier')`,
+             AND LOWER(COALESCE(user_type, '')) IN ('partner_owner', 'partner_supervisor', 'partner_courier', 'owner', 'supervisor', 'courier')`,
             [normalized]
         );
     } catch (error) {
@@ -36,12 +36,27 @@ async function findHalanUserByIdentifier(identifier) {
                     OR phone = $1
                     OR regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = regexp_replace($1, '\\D', '', 'g')
                  )
-                 AND user_type IN ('partner_owner', 'partner_supervisor', 'partner_courier')`,
+                 AND LOWER(COALESCE(user_type, '')) IN ('partner_owner', 'partner_supervisor', 'partner_courier', 'owner', 'supervisor', 'courier')`,
                 [normalized]
             );
         }
         throw error;
     }
+}
+
+function toCanonicalPartnerType(rawType) {
+    const type = String(rawType || '').toLowerCase();
+    if (type === 'partner_owner' || type === 'owner') return 'partner_owner';
+    if (type === 'partner_supervisor' || type === 'supervisor') return 'partner_supervisor';
+    if (type === 'partner_courier' || type === 'courier') return 'partner_courier';
+    return null;
+}
+
+function toRoleLabel(canonicalType) {
+    if (canonicalType === 'partner_owner') return 'owner';
+    if (canonicalType === 'partner_supervisor') return 'supervisor';
+    if (canonicalType === 'partner_courier') return 'courier';
+    return null;
 }
 
 exports.login = catchAsync(async (req, res) => {
@@ -52,11 +67,47 @@ exports.login = catchAsync(async (req, res) => {
     if (result.rows.length === 0) throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
 
     const user = result.rows[0];
-    const validPassword = await bcrypt.compare(password.trim(), user.password);
+    const rawPassword = String(user.password || '');
+    const incomingPassword = password.trim();
+    const hasBcryptHash = rawPassword.startsWith('$2a$') || rawPassword.startsWith('$2b$') || rawPassword.startsWith('$2y$');
+
+    let validPassword = false;
+    if (hasBcryptHash) {
+        validPassword = await bcrypt.compare(incomingPassword, rawPassword);
+    } else {
+        // Legacy fallback: allow plaintext passwords once, then migrate to hash.
+        validPassword = incomingPassword === rawPassword;
+    }
+
     if (!validPassword) throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
 
-    const role = user.user_type; // partner_owner, partner_supervisor, partner_courier
-    const roleNormalized = String(role).replace(/^partner_/, '');
+    const canonicalUserType = toCanonicalPartnerType(user.user_type);
+    if (!canonicalUserType) throw new AppError('نوع الحساب غير مدعوم للدخول', 403);
+
+    const updates = [];
+    const params = [];
+
+    if (!hasBcryptHash) {
+        const migratedHash = await bcrypt.hash(incomingPassword, 10);
+        params.push(migratedHash);
+        updates.push(`password = $${params.length}`);
+    }
+
+    if (String(user.user_type) !== canonicalUserType) {
+        params.push(canonicalUserType);
+        updates.push(`user_type = $${params.length}`);
+    }
+
+    if (updates.length > 0) {
+        params.push(user.id);
+        await pool.query(
+            `UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`,
+            params
+        );
+    }
+
+    const role = canonicalUserType;
+    const roleNormalized = toRoleLabel(canonicalUserType);
     const username = user.username || user.email || user.phone || null;
 
     const token = jwt.sign(
