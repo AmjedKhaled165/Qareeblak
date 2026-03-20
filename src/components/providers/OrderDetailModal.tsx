@@ -1,11 +1,11 @@
 "use client";
 
 import React from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/dialog';
-import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import {
     MapPin, Phone, Calendar, Clock, User, MessageSquare,
-    Check, X, Package, Wrench
+    Check, X as CloseIcon, Package as PackageIcon, Wrench
 } from 'lucide-react';
 import { isMaintenanceProvider } from '@/lib/category-utils';
 
@@ -153,7 +153,7 @@ export function OrderDetailModal({
                 <div className="flex items-center justify-between px-8 pt-8 pb-5 border-b border-border/50 bg-muted/20 shrink-0">
                     <div className="flex items-center gap-4">
                         <div className={`p-3 rounded-2xl ${isMaintenance ? 'bg-blue-500/10 text-blue-500' : 'bg-primary/10 text-primary'}`}>
-                            {isMaintenance ? <Wrench className="w-6 h-6" /> : <Package className="w-6 h-6" />}
+                            {isMaintenance ? <Wrench className="w-6 h-6" /> : <PackageIcon className="w-6 h-6" />}
                         </div>
                         <div className="text-right">
                             <DialogTitle className="text-xl font-black font-cairo text-foreground">
@@ -174,7 +174,7 @@ export function OrderDetailModal({
                             className="p-2.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-all"
                             title="إغلاق"
                         >
-                            <X className="w-5 h-5" />
+                            <CloseIcon className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
@@ -264,7 +264,7 @@ export function OrderDetailModal({
                     {itemsArr.length > 0 && (
                         <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
                             <h3 className="text-xs font-black text-muted-foreground mb-3 font-cairo flex items-center gap-2">
-                                <Package className="w-4 h-4" /> المنتجات
+                                <PackageIcon className="w-4 h-4" /> المنتجات
                             </h3>
                             <div className="space-y-2">
                                 {itemsArr.map((item: any, idx: number) => (
