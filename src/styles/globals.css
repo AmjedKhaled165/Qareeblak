@@ -105,3 +105,43 @@ textarea {
 .dark .glass {
   @apply bg-black/70 border-white/10;
 }
+
+/* ═══ Cross-Browser Compatibility ═══ */
+
+/* Safari backdrop-filter fallback */
+.backdrop-blur-md,
+.backdrop-blur-xl,
+.backdrop-blur-sm,
+.backdrop-blur-lg {
+  -webkit-backdrop-filter: var(--tw-backdrop-blur);
+  backdrop-filter: var(--tw-backdrop-blur);
+}
+
+/* Prevent tap highlight color on mobile browsers */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scroll for all browsers including Safari */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* iOS momentum scrolling for overflowing containers */
+[class*="overflow-auto"],
+[class*="overflow-y-auto"],
+[class*="overflow-x-auto"],
+[class*="overflow-scroll"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure touch targets are responsive */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
