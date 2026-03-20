@@ -1,53 +1,92 @@
 const pool = require('../db');
 
+let servicesColumnsCache = null;
+
+async function getServicesColumns() {
+    if (servicesColumnsCache) return servicesColumnsCache;
+
+    const colsResult = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'services'`
+    );
+
+    servicesColumnsCache = new Set(colsResult.rows.map((r) => r.column_name));
+    return servicesColumnsCache;
+}
+
 class ServiceItemRepository {
     async create(providerId, data) {
+        const cols = await getServicesColumns();
+        const offer = data.offer || {};
+
+        const insertCols = ['provider_id', 'name'];
+        const params = [providerId, data.name];
+
+        const pushIfExists = (col, value) => {
+            if (!cols.has(col)) return;
+            insertCols.push(col);
+            params.push(value);
+        };
+
+        pushIfExists('description', data.description || null);
+        pushIfExists('price', data.price ?? 0);
+        pushIfExists('image', data.image || null);
+        pushIfExists('has_offer', !!data.offer);
+        pushIfExists('offer_type', offer.type || null);
+        pushIfExists('discount_percent', offer.discountPercent || null);
+        pushIfExists('bundle_count', offer.bundleCount || null);
+        pushIfExists('bundle_free_count', offer.bundleFreeCount || null);
+        pushIfExists('offer_end_date', offer.endDate || null);
+
+        const placeholders = insertCols.map((_, idx) => `$${idx + 1}`).join(', ');
         const query = `
-            INSERT INTO services 
-            (provider_id, name, description, price, image, has_offer, offer_type, 
-             discount_percent, bundle_count, bundle_free_count, offer_end_date) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+            INSERT INTO services (${insertCols.join(', ')})
+            VALUES (${placeholders})
             RETURNING id
         `;
-        const offer = data.offer || {};
-        const params = [
-            providerId, data.name, data.description, data.price, data.image,
-            !!data.offer, offer.type || null, offer.discountPercent || null,
-            offer.bundleCount || null, offer.bundleFreeCount || null, offer.endDate || null
-        ];
         const result = await pool.query(query, params);
         return result.rows[0].id;
     }
 
     async updateSecure(id, providerId, data, isAdmin = false) {
+        const cols = await getServicesColumns();
         const offer = data.offer || {};
 
-        // Base query - only allow update if provider owns the service
-        let query = `
-            UPDATE services SET 
-                name = COALESCE($1, name), 
-                description = COALESCE($2, description), 
-                price = COALESCE($3, price), 
-                image = COALESCE($4, image),
-                has_offer = $5, 
-                offer_type = $6, 
-                discount_percent = $7, 
-                bundle_count = $8, 
-                bundle_free_count = $9, 
-                offer_end_date = $10
-            WHERE id = $11
-        `;
+        const sets = [];
+        const params = [];
 
-        const params = [
-            data.name || null, data.description || null, data.price || null, data.image || null,
-            !!data.offer, offer.type || null, offer.discountPercent || null,
-            offer.bundleCount || null, offer.bundleFreeCount || null, offer.endDate || null,
-            id
-        ];
+        const pushSet = (col, value) => {
+            if (!cols.has(col)) return;
+            params.push(value);
+            sets.push(`${col} = $${params.length}`);
+        };
+
+        if (data.name !== undefined) pushSet('name', data.name || null);
+        if (data.description !== undefined) pushSet('description', data.description || null);
+        if (data.price !== undefined) pushSet('price', data.price);
+        if (data.image !== undefined) pushSet('image', data.image || null);
+
+        // Keep offer fields in sync when provided
+        if (data.offer !== undefined) {
+            pushSet('has_offer', !!data.offer);
+            pushSet('offer_type', offer.type || null);
+            pushSet('discount_percent', offer.discountPercent || null);
+            pushSet('bundle_count', offer.bundleCount || null);
+            pushSet('bundle_free_count', offer.bundleFreeCount || null);
+            pushSet('offer_end_date', offer.endDate || null);
+        }
+
+        if (sets.length === 0) {
+            return true;
+        }
+
+        params.push(id);
+        let query = `UPDATE services SET ${sets.join(', ')} WHERE id = $${params.length}`;
 
         if (!isAdmin) {
-            query += ` AND provider_id = $12`;
             params.push(providerId);
+            query += ` AND provider_id = $${params.length}`;
         }
 
         const result = await pool.query(query, params);
@@ -68,14 +107,26 @@ class ServiceItemRepository {
     }
 
     async getByProvider(providerId) {
-        const result = await pool.query(`
-            SELECT 
-                id, name, description, price, image,
-                has_offer, offer_type, discount_percent, 
-                bundle_count, bundle_free_count, offer_end_date
-            FROM services
-            WHERE provider_id = $1
-        `, [providerId]);
+        const cols = await getServicesColumns();
+
+        const selectParts = [
+            'id',
+            cols.has('name') ? 'name' : 'NULL::text AS name',
+            cols.has('description') ? 'description' : 'NULL::text AS description',
+            cols.has('price') ? 'price' : '0::numeric AS price',
+            cols.has('image') ? 'image' : 'NULL::text AS image',
+            cols.has('has_offer') ? 'has_offer' : 'FALSE AS has_offer',
+            cols.has('offer_type') ? 'offer_type' : 'NULL::text AS offer_type',
+            cols.has('discount_percent') ? 'discount_percent' : 'NULL::numeric AS discount_percent',
+            cols.has('bundle_count') ? 'bundle_count' : 'NULL::int AS bundle_count',
+            cols.has('bundle_free_count') ? 'bundle_free_count' : 'NULL::int AS bundle_free_count',
+            cols.has('offer_end_date') ? 'offer_end_date' : 'NULL::timestamp AS offer_end_date',
+        ];
+
+        const result = await pool.query(
+            `SELECT ${selectParts.join(', ')} FROM services WHERE provider_id = $1`,
+            [providerId]
+        );
         return result.rows;
     }
 }
