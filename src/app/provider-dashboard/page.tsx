@@ -882,17 +882,20 @@ export default function ProviderDashboard() {
 
         try {
             if (editingServiceId) {
-                await manageService(providerId, 'update', { id: editingServiceId, ...serviceData });
+                const success = await manageService(providerId, 'update', { id: editingServiceId, ...serviceData });
+                if (!success) throw new Error('SERVICE_UPDATE_FAILED');
                 toast("تم تعديل الخدمة بنجاح", "success");
             } else {
-                await manageService(providerId, 'add', serviceData);
+                const success = await manageService(providerId, 'add', serviceData);
+                if (!success) throw new Error('SERVICE_CREATE_FAILED');
                 toast("تم إضافة الخدمة بنجاح", "success");
             }
             setIsServiceModalOpen(false);
             resetServiceForm();
             setEditingServiceId(null);
         } catch (error) {
-            toast("حدث خطأ في حفظ الخدمة", "error");
+            console.error('[ProviderDashboard] Failed to save service:', error);
+            toast("فشل حفظ الخدمة. تأكد من بيانات الحساب والصنف وحاول مرة أخرى.", "error");
         }
     };
 

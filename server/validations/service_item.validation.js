@@ -9,12 +9,12 @@ const offerSchema = z.object({
 });
 
 const createServiceSchema = z.object({
-    providerId: z.number().int().positive(),
+    providerId: z.coerce.number().int().positive().optional().nullable(),
     name: z.string().min(1, 'اسم الخدمة مطلوب'),
-    description: z.string().optional(),
-    price: z.number().nonnegative(),
-    image: z.string().optional(),
-    offer: offerSchema.optional()
+    description: z.string().optional().nullable(),
+    price: z.coerce.number().nonnegative(),
+    image: z.string().optional().nullable(),
+    offer: offerSchema.optional().nullable()
 });
 
 const updateServiceSchema = createServiceSchema.partial();

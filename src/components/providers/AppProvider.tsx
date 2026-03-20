@@ -641,7 +641,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
 
             if (action === 'add') {
-                await servicesApi.add({ providerId, name: data.name, description: data.description, price: data.price, image: data.image, offer: data.offer });
+                const parsedProviderId = Number(providerId);
+                await servicesApi.add({
+                    providerId: Number.isFinite(parsedProviderId) ? parsedProviderId : undefined,
+                    name: data.name,
+                    description: data.description,
+                    price: data.price,
+                    image: data.image,
+                    offer: data.offer
+                });
             } else if (action === 'update') {
                 await servicesApi.update(data.id, { name: data.name, description: data.description, price: data.price, image: data.image, offer: data.offer });
             } else if (action === 'delete') {
