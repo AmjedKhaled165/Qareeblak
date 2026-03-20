@@ -1,7 +1,25 @@
 "use client";
 
 import React from 'react';
-import { isMaintenanceProvider } from '@/lib/category-utils';
+
+const MAINTENANCE_KEYWORDS = [
+    'صيانة',
+    'سباكة',
+    'كهرباء',
+    'كهربائي',
+    'نجارة',
+    'دهانات',
+    'تكييف',
+    'maintenance',
+    'plumbing',
+    'electrical',
+];
+
+function isMaintenanceCategory(category: string | undefined | null): boolean {
+    if (!category) return false;
+    const normalized = String(category).toLowerCase().trim();
+    return MAINTENANCE_KEYWORDS.some((keyword) => normalized.includes(keyword));
+}
 
 function Glyph({ symbol, className = '' }: { symbol: string; className?: string }) {
     return (
@@ -132,9 +150,9 @@ export function OrderDetailModal({
     // Phone Privacy Rules:
     // Maintenance/Plumbing providers → ALWAYS show phone
     // Food/Pharmacy/Market providers → NEVER show phone (use chat/app call)
-    const isMaintenanceCategory = isMaintenanceProvider(providerCategory);
-    const showPhone = isMaintenanceCategory ? !!phone : false;
-    const showPhoneMessage = isMaintenanceCategory 
+    const isMaintenanceCategoryProvider = isMaintenanceCategory(providerCategory);
+    const showPhone = isMaintenanceCategoryProvider ? !!phone : false;
+    const showPhoneMessage = isMaintenanceCategoryProvider 
         ? null 
         : '****** (يظهر للمندوب فقط)';
     
