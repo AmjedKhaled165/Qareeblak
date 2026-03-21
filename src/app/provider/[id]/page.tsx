@@ -14,6 +14,7 @@ import { CartModal } from "@/components/features/cart-modal";
 import { isPharmacyProvider, isMaintenanceProvider } from "@/lib/category-utils";
 import { PharmacyProviderLayout } from "@/components/providers/PharmacyProviderLayout";
 import { MaintenanceBookingModal } from "@/components/features/maintenance-booking-modal";
+import { apiCall } from "@/lib/api";
 
 // Type definitions
 interface Review {
@@ -35,6 +36,7 @@ interface Service {
         discountPercent?: number;
         bundleCount?: number;
         bundleFreeCount?: number;
+        endDate?: string;
         expiresAt?: string;
     };
 }
@@ -65,6 +67,7 @@ export default function ProviderProfile() {
     const [activeTab, setActiveTab] = useState<'services' | 'reviews'>('services');
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [targetOrder, setTargetOrder] = useState<any>(null);
+    const [providerDetails, setProviderDetails] = useState<Provider | null>(null);
     // Maintenance booking modal state - MOVED UP TO FIX HOOK ORDER
     const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
     const [selectedMaintenanceService, setSelectedMaintenanceService] = useState<string | undefined>(undefined);
@@ -72,14 +75,37 @@ export default function ProviderProfile() {
     const addToOrderId = searchParams.get('addToOrderId');
     const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
-    const provider = providers.find((p: Provider) => p.id === params.id);
+    const providerFromStore = providers.find((p: Provider) => p.id === params.id);
+    const provider = providerDetails || providerFromStore;
+
+    const fetchProviderDetails = async (providerId: string) => {
+        try {
+            const data = await apiCall(`/providers/${providerId}`);
+            if (data) {
+                setProviderDetails(data as Provider);
+            }
+        } catch (error) {
+            console.warn('[ProviderProfile] Failed to fetch provider details:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (!isInitialized || !params?.id) return;
+
+        const id = String(params.id);
+        fetchProviderDetails(id);
+
+        // Keep customer page synced with server-side menu updates.
+        const interval = setInterval(() => fetchProviderDetails(id), 10000);
+        return () => clearInterval(interval);
+    }, [isInitialized, params?.id]);
 
     // Auto-refresh providers if not found (retry mechanism)
     useEffect(() => {
-        if (isInitialized && !provider) {
+        if (isInitialized && !providerFromStore) {
             refreshProviders();
         }
-    }, [isInitialized, params.id, provider, refreshProviders]);
+    }, [isInitialized, params.id, providerFromStore, refreshProviders]);
 
     // Fetch target order if addToOrderId exists
     useEffect(() => {

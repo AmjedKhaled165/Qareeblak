@@ -26,6 +26,7 @@ exports.create = catchAsync(async (req, res, next) => {
     await invalidatePattern('route:/api/services*');
     await invalidatePattern('route:/providers*');
     await invalidatePattern('route:/services*');
+    await invalidatePattern('providers:list:*');
 
     res.status(201).json({
         success: true,
@@ -50,6 +51,7 @@ exports.update = catchAsync(async (req, res, next) => {
     await invalidatePattern('route:/api/services*');
     await invalidatePattern('route:/providers*');
     await invalidatePattern('route:/services*');
+    await invalidatePattern('providers:list:*');
 
     res.json({ success: true, message: 'تم تحديث البيانات بنجاح' });
 });
@@ -70,6 +72,7 @@ exports.delete = catchAsync(async (req, res, next) => {
     await invalidatePattern('route:/api/services*');
     await invalidatePattern('route:/providers*');
     await invalidatePattern('route:/services*');
+    await invalidatePattern('providers:list:*');
 
     res.json({ success: true, message: 'تم حذف الصنف بنجاح' });
 });
