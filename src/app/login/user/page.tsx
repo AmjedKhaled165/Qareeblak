@@ -6,6 +6,7 @@ import { useAppStore } from "@/components/providers/AppProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Mail, Lock, User, Loader2, Phone, CheckCircle2, XCircle } from "lucide-react";
@@ -313,10 +314,9 @@ export default function UserLoginPage() {
                                 <div className="space-y-2 text-right">
                                     <Label className="text-sm font-bold text-foreground/80 mr-1">كلمة المرور</Label>
                                     <div className="relative">
-                                        <Lock className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                                        <Input
+                                        <Lock className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
+                                        <PasswordInput
                                             className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground"
-                                            type="password"
                                             placeholder="••••••••"
                                             value={password}
                                             onChange={(e) => { setPassword(e.target.value); setError(null); }}

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -441,8 +442,7 @@ export default function UsersCustomersPage() {
                                         </div>
                                         <div>
                                             <label className="text-xs font-semibold text-slate-500 mb-1 block">كلمة المرور الجديدة</label>
-                                            <Input
-                                                type="password"
+                                            <PasswordInput
                                                 value={newPassword}
                                                 onChange={(e) => setNewPassword(e.target.value)}
                                                 placeholder="أدخل كلمة المرور الجديدة..."

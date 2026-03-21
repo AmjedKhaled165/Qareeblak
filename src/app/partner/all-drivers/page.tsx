@@ -17,6 +17,7 @@ import {
 import { apiCall } from "@/lib/api";
 import StatusModal from "@/components/ui/status-modal";
 import ConfirmModal from "@/components/ui/confirm-modal";
+import { PasswordInput } from "@/components/ui/password-input"
 
 export default function AllDriversPage() {
     const router = useRouter();
@@ -396,8 +397,7 @@ export default function AllDriversPage() {
                             </div>
                             <div>
                                 <label className="text-xs text-slate-500 mr-2">كلمة المرور</label>
-                                <input
-                                    type="password"
+                                <PasswordInput
                                     className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3"
                                     placeholder="********"
                                     value={newDriver.password}

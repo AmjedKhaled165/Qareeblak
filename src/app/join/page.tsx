@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { CheckCircle2, Clock } from "lucide-react"
 import { useState } from "react"
@@ -163,9 +164,8 @@ export default function JoinPage() {
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-sm font-bold text-foreground/80 mr-1">كلمة المرور</label>
-                                    <Input
+                                    <PasswordInput
                                         className="h-12 rounded-xl bg-background border-border/50 focus:ring-2 focus:ring-primary/20"
-                                        type="password"
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         placeholder="******"

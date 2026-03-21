@@ -6,6 +6,7 @@ import { useAppStore } from "@/components/providers/AppProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Store, Loader2, Truck, Briefcase } from "lucide-react";
@@ -201,9 +202,8 @@ export default function ProviderLogin() {
 
                         <div className="space-y-2 text-right">
                             <Label htmlFor="password" className="text-sm font-bold text-foreground/80 mr-1">كلمة المرور</Label>
-                            <Input
+                            <PasswordInput
                                 id="password"
-                                type="password"
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
