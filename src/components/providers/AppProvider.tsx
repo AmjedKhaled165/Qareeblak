@@ -657,8 +657,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
             setIsLoading(true);
 
+            const assertSuccess = (result: any, fallbackMessage: string) => {
+                if (result && typeof result === 'object' && 'success' in result && result.success === false) {
+                    throw new Error(result.error || result.message || fallbackMessage);
+                }
+            };
+
             if (action === 'add') {
-                await servicesApi.add({
+                const result = await servicesApi.add({
                     providerId: String(providerId),
                     name: data.name,
                     description: data.description,
@@ -666,10 +672,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     image: data.image,
                     offer: data.offer
                 });
+                assertSuccess(result, 'SERVICE_CREATE_FAILED');
             } else if (action === 'update') {
-                await servicesApi.update(data.id, { name: data.name, description: data.description, price: data.price, image: data.image, offer: data.offer });
+                const result = await servicesApi.update(data.id, { name: data.name, description: data.description, price: data.price, image: data.image, offer: data.offer });
+                assertSuccess(result, 'SERVICE_UPDATE_FAILED');
             } else if (action === 'delete') {
-                await servicesApi.delete(data.id);
+                const result = await servicesApi.delete(data.id);
+                assertSuccess(result, 'SERVICE_DELETE_FAILED');
             }
 
             await loadProviders();

@@ -9,11 +9,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { LayoutDashboard, ShoppingBag, Star, TrendingUp, Settings, LogOut, Utensils, Plus, Trash2, Edit, Check, X, Clock, Camera, Upload, User, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useConfirm } from "@/components/providers/ConfirmProvider";
 import { OrderDetailModal } from "@/components/providers/OrderDetailModal";
-import { apiCall, bookingsApi } from "@/lib/api";
+import { apiCall, bookingsApi, servicesApi } from "@/lib/api";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { format } from "date-fns";
 import { isPharmacyProvider, isMaintenanceProvider } from "@/lib/category-utils";
@@ -160,6 +160,7 @@ export default function ProviderDashboard() {
     const [totalPages, setTotalPages] = useState(0);
     const [bookingsLoading, setBookingsLoading] = useState(false);
     const [bookingsError, setBookingsError] = useState<string | null>(null);
+    const [providerServices, setProviderServices] = useState<Service[]>([]);
 
     // Maintenance Modals State
     const [isPriceEstimationOpen, setIsPriceEstimationOpen] = useState(false);
@@ -295,7 +296,9 @@ export default function ProviderDashboard() {
         );
     }, [currentUser, bookings, myProviderProfile, optimisticStatuses]);
 
-    const myServices = myProviderProfile?.services || [];
+    const myServices = (myProviderProfile?.services && myProviderProfile.services.length > 0)
+        ? myProviderProfile.services
+        : providerServices;
     const myReviews = myProviderProfile?.reviewsList || [];
 
     // Server-side paginated bookings fetch
@@ -332,12 +335,33 @@ export default function ProviderDashboard() {
         }
     }, [providerId, currentPage, ordersPerPage]);
 
+    const fetchProviderServices = useCallback(async (pid?: string) => {
+        if (!pid) {
+            setProviderServices([]);
+            return;
+        }
+
+        try {
+            const services = await servicesApi.getByProvider(pid);
+            setProviderServices(Array.isArray(services) ? services : []);
+        } catch (error) {
+            console.warn('[ProviderDashboard] Failed to fetch provider services:', error);
+            setProviderServices([]);
+        }
+    }, []);
+
     // Fetch paginated bookings when provider ID or page changes
     useEffect(() => {
         if (isInitialized && providerId && activeTab === 'orders') {
             fetchPaginatedBookings();
         }
     }, [isInitialized, providerId, currentPage, activeTab, fetchPaginatedBookings]);
+
+    useEffect(() => {
+        if (isInitialized && providerId) {
+            fetchProviderServices(providerId);
+        }
+    }, [isInitialized, providerId, fetchProviderServices]);
 
     // Use server-paginated bookings for orders tab, fallback to client-side for other tabs
     const displayBookings = useMemo(() => {
@@ -880,10 +904,12 @@ export default function ProviderDashboard() {
             if (editingServiceId) {
                 const success = await manageService(providerId, 'update', { id: editingServiceId, ...serviceData });
                 if (!success) throw new Error('SERVICE_UPDATE_FAILED');
+                await fetchProviderServices(providerId);
                 toast("تم تعديل الخدمة بنجاح", "success");
             } else {
                 const success = await manageService(providerId, 'add', serviceData);
                 if (!success) throw new Error('SERVICE_CREATE_FAILED');
+                await fetchProviderServices(providerId);
                 toast("تم إضافة الخدمة بنجاح", "success");
             }
             setIsServiceModalOpen(false);
@@ -909,6 +935,7 @@ export default function ProviderDashboard() {
         if (confirmed) {
             try {
                 await manageService(providerId, 'delete', { id });
+                await fetchProviderServices(providerId);
                 toast("تم حذف الخدمة", "info");
             } catch (error) {
                 toast("حدث خطأ في حذف الخدمة", "error");
@@ -1336,7 +1363,12 @@ export default function ProviderDashboard() {
                                         onEscapeKeyDown={(e: KeyboardEvent) => e.preventDefault()}
                                     >
                                         <DialogHeader className="flex flex-row items-center justify-between border-b border-border pb-6 mb-6">
-                                            <DialogTitle className="text-2xl font-black font-cairo text-foreground">{editingServiceId ? 'تعديل الخدمة' : 'إضافة خدمة جديدة'}</DialogTitle>
+                                            <div className="text-right">
+                                                <DialogTitle className="text-2xl font-black font-cairo text-foreground">{editingServiceId ? 'تعديل الخدمة' : 'إضافة خدمة جديدة'}</DialogTitle>
+                                                <DialogDescription className="text-sm text-muted-foreground font-cairo mt-1">
+                                                    أدخل بيانات الخدمة ثم اضغط حفظ لتظهر للعملاء.
+                                                </DialogDescription>
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={() => setIsServiceModalOpen(false)}
