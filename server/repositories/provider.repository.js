@@ -1,29 +1,10 @@
 const pool = require('../db');
 
 let providersColumnsCache = null;
-
-async function ensureProvidersColumns() {
-    await pool.query(`
-        ALTER TABLE providers
-        ADD COLUMN IF NOT EXISTS name VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS email VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS category VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS location TEXT,
-        ADD COLUMN IF NOT EXISTS phone VARCHAR(50),
-        ADD COLUMN IF NOT EXISTS user_id INTEGER,
-        ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS reviews_count INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE,
-        ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    `);
-}
+let reviewsColumnsCache = null;
 
 async function getProvidersColumns() {
     if (providersColumnsCache) return providersColumnsCache;
-
-    // Keep legacy deployments compatible by creating missing optional provider fields.
-    await ensureProvidersColumns();
 
     const colsResult = await pool.query(
         `SELECT column_name
@@ -33,6 +14,19 @@ async function getProvidersColumns() {
 
     providersColumnsCache = new Set(colsResult.rows.map((r) => r.column_name));
     return providersColumnsCache;
+}
+
+async function getReviewsColumns() {
+    if (reviewsColumnsCache) return reviewsColumnsCache;
+
+    const colsResult = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'reviews'`
+    );
+
+    reviewsColumnsCache = new Set(colsResult.rows.map((r) => r.column_name));
+    return reviewsColumnsCache;
 }
 
 class ProviderRepository {
@@ -97,11 +91,20 @@ class ProviderRepository {
 
     async getByIdWithDetails(id) {
         const cols = await getProvidersColumns();
+        const reviewCols = await getReviewsColumns();
         const userIdSelect = cols.has('user_id') ? 'p.user_id' : 'NULL::bigint AS user_id';
         const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
         const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+        const reviewUserNameSelect = reviewCols.has('user_name')
+            ? 'user_name'
+            : (reviewCols.has('customer_name') ? 'customer_name AS user_name' : "'عميل' AS user_name");
+        const reviewRatingSelect = reviewCols.has('rating') ? 'rating' : '0::numeric AS rating';
+        const reviewCommentSelect = reviewCols.has('comment') ? 'comment' : 'NULL::text AS comment';
+        const reviewDateSelect = reviewCols.has('review_date')
+            ? 'review_date'
+            : (reviewCols.has('created_at') ? 'created_at AS review_date' : 'NOW() AS review_date');
 
         // Single provider details with limited aggregation is acceptable
         const result = await pool.query(`
@@ -114,7 +117,11 @@ class ProviderRepository {
                 ) as services_raw,
                 COALESCE(
                     (SELECT json_agg(rev.*) FROM (
-                        SELECT id, user_name, rating, comment, review_date FROM reviews WHERE provider_id = p.id ORDER BY review_date DESC LIMIT 50
+                        SELECT id, ${reviewUserNameSelect}, ${reviewRatingSelect}, ${reviewCommentSelect}, ${reviewDateSelect}
+                        FROM reviews
+                        WHERE provider_id = p.id
+                        ORDER BY review_date DESC
+                        LIMIT 50
                     ) rev),
                     '[]'::json
                 ) as reviews_raw
@@ -137,8 +144,18 @@ class ProviderRepository {
     }
 
     async getReviews(providerId) {
+        const reviewCols = await getReviewsColumns();
+        const reviewUserNameSelect = reviewCols.has('user_name')
+            ? 'user_name'
+            : (reviewCols.has('customer_name') ? 'customer_name AS user_name' : "'عميل' AS user_name");
+        const reviewRatingSelect = reviewCols.has('rating') ? 'rating' : '0::numeric AS rating';
+        const reviewCommentSelect = reviewCols.has('comment') ? 'comment' : 'NULL::text AS comment';
+        const reviewDateSelect = reviewCols.has('review_date')
+            ? 'review_date'
+            : (reviewCols.has('created_at') ? 'created_at AS review_date' : 'NOW() AS review_date');
+
         const result = await pool.query(`
-            SELECT id, user_name, rating, comment, review_date
+            SELECT id, ${reviewUserNameSelect}, ${reviewRatingSelect}, ${reviewCommentSelect}, ${reviewDateSelect}
             FROM reviews
             WHERE provider_id = $1
             ORDER BY review_date DESC
