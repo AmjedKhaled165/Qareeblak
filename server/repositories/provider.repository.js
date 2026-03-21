@@ -2,8 +2,28 @@ const pool = require('../db');
 
 let providersColumnsCache = null;
 
+async function ensureProvidersColumns() {
+    await pool.query(`
+        ALTER TABLE providers
+        ADD COLUMN IF NOT EXISTS name VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS email VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS category VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS location TEXT,
+        ADD COLUMN IF NOT EXISTS phone VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS user_id INTEGER,
+        ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS reviews_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE,
+        ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `);
+}
+
 async function getProvidersColumns() {
     if (providersColumnsCache) return providersColumnsCache;
+
+    // Keep legacy deployments compatible by creating missing optional provider fields.
+    await ensureProvidersColumns();
 
     const colsResult = await pool.query(
         `SELECT column_name
