@@ -555,6 +555,43 @@ export default function ProviderDashboard() {
         }
     }, [currentUser, isInitialized, consultationError]);
 
+    // Global Socket for real-time service item syncing
+    useEffect(() => {
+        if (!providerId || !isInitialized) return;
+
+        const qareeblakToken = localStorage.getItem('qareeblak_token');
+        if (!qareeblakToken) return;
+
+        console.log('[ProviderDashboard] Starting global socket listener for provider:', providerId);
+
+        let socket: any = null;
+        try {
+            const SOCKET_URL = API_BASE;
+            socket = io(SOCKET_URL, {
+                transports: ['polling', 'websocket'],
+                reconnection: true,
+                auth: { token: qareeblakToken },
+            });
+
+            socket.on('connect', () => {
+                console.log('[ProviderDashboard] Global Socket connected');
+                // Join provider room (reusing existing pharmacist-online event which joins the correct room)
+                socket.emit('pharmacist-online', providerId);
+            });
+
+            socket.on('services_updated', () => {
+                console.log('[ProviderDashboard] Services updated by server! Refreshing...');
+                fetchProviderServices(String(providerId));
+            });
+        } catch (err) {
+            console.error('[ProviderDashboard] Global Socket setup failed:', err);
+        }
+
+        return () => {
+            if (socket) socket.disconnect();
+        };
+    }, [providerId, isInitialized, fetchProviderServices]);
+
     // Auto-fetch consultations on mount and periodically
     // Auto-fetch consultations on mount and periodically
     useEffect(() => {

@@ -28,6 +28,12 @@ exports.create = catchAsync(async (req, res, next) => {
     await invalidatePattern('route:/services*');
     await invalidatePattern('providers:list:*');
 
+    // Emit real-time update
+    const io = req.app.get('io');
+    if (io) {
+        io.to(`provider-${providerId}`).emit('services_updated');
+    }
+
     res.status(201).json({
         success: true,
         message: 'تم إضافة الصنف بنجاح ليظهر لجميع العملاء',
@@ -53,6 +59,12 @@ exports.update = catchAsync(async (req, res, next) => {
     await invalidatePattern('route:/services*');
     await invalidatePattern('providers:list:*');
 
+    // Emit real-time update
+    const io = req.app.get('io');
+    if (io) {
+        io.to(`provider-${providerId}`).emit('services_updated');
+    }
+
     res.json({ success: true, message: 'تم تحديث البيانات بنجاح' });
 });
 
@@ -73,6 +85,12 @@ exports.delete = catchAsync(async (req, res, next) => {
     await invalidatePattern('route:/providers*');
     await invalidatePattern('route:/services*');
     await invalidatePattern('providers:list:*');
+
+    // Emit real-time update
+    const io = req.app.get('io');
+    if (io) {
+        io.to(`provider-${providerId}`).emit('services_updated');
+    }
 
     res.json({ success: true, message: 'تم حذف الصنف بنجاح' });
 });

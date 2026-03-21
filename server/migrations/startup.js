@@ -241,6 +241,23 @@ async function runStartupMigrations() {
             logger.info(`✅ Order Type Migration: Backfilled ${orderRes.rowCount} app orders`);
         }
 
+        // 4.1 Migration: Add missing columns to services table
+        logger.info('🔄 Checking services table schema...');
+        await query(`
+            ALTER TABLE services 
+            ADD COLUMN IF NOT EXISTS description TEXT,
+            ADD COLUMN IF NOT EXISTS price DECIMAL(10, 2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS image TEXT,
+            ADD COLUMN IF NOT EXISTS has_offer BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS offer_type VARCHAR(50),
+            ADD COLUMN IF NOT EXISTS discount_percent DECIMAL(5, 2),
+            ADD COLUMN IF NOT EXISTS bundle_count INTEGER,
+            ADD COLUMN IF NOT EXISTS bundle_free_count INTEGER,
+            ADD COLUMN IF NOT EXISTS offer_end_date TIMESTAMP
+        `);
+        logger.info('✅ Services Migration: Ensured service item columns exist');
+
+
         // 5. Migration: Add is_online and max_active_orders columns for courier capacity
         await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false");
         await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS max_active_orders INTEGER DEFAULT 10");
