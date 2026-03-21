@@ -173,8 +173,33 @@ class ProviderRepository {
     }
 
     async getProviderIdByUserId(userId) {
-        const result = await pool.query('SELECT id FROM providers WHERE user_id = $1', [userId]);
-        return result.rows[0]?.id;
+        const cols = await getProvidersColumns();
+
+        // Primary mapping: providers.user_id -> users.id
+        if (cols.has('user_id')) {
+            const byUserId = await pool.query('SELECT id FROM providers WHERE user_id = $1 LIMIT 1', [userId]);
+            if (byUserId.rows[0]?.id) return byUserId.rows[0].id;
+        }
+
+        // Fallback for legacy DBs where provider isn't linked by user_id yet.
+        const userResult = await pool.query('SELECT email, phone FROM users WHERE id = $1 LIMIT 1', [userId]);
+        const user = userResult.rows[0];
+        if (!user) return null;
+
+        if (cols.has('email') && user.email) {
+            const byEmail = await pool.query(
+                'SELECT id FROM providers WHERE LOWER(email) = LOWER($1) LIMIT 1',
+                [user.email]
+            );
+            if (byEmail.rows[0]?.id) return byEmail.rows[0].id;
+        }
+
+        if (cols.has('phone') && user.phone) {
+            const byPhone = await pool.query('SELECT id FROM providers WHERE phone = $1 LIMIT 1', [user.phone]);
+            if (byPhone.rows[0]?.id) return byPhone.rows[0].id;
+        }
+
+        return null;
     }
 
     async updateProvider(id, data) {
