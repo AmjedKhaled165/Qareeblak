@@ -2,8 +2,26 @@ const pool = require('../db');
 
 let servicesColumnsCache = null;
 
+async function ensureServicesColumns() {
+    await pool.query(`
+        ALTER TABLE services
+        ADD COLUMN IF NOT EXISTS description TEXT,
+        ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS image TEXT,
+        ADD COLUMN IF NOT EXISTS has_offer BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS offer_type VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS discount_percent NUMERIC(10,2),
+        ADD COLUMN IF NOT EXISTS bundle_count INTEGER,
+        ADD COLUMN IF NOT EXISTS bundle_free_count INTEGER,
+        ADD COLUMN IF NOT EXISTS offer_end_date TIMESTAMP
+    `);
+}
+
 async function getServicesColumns() {
     if (servicesColumnsCache) return servicesColumnsCache;
+
+    // Keep legacy deployments compatible by self-healing missing service fields.
+    await ensureServicesColumns();
 
     const colsResult = await pool.query(
         `SELECT column_name

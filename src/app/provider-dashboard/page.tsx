@@ -296,9 +296,9 @@ export default function ProviderDashboard() {
         );
     }, [currentUser, bookings, myProviderProfile, optimisticStatuses]);
 
-    const myServices = (myProviderProfile?.services && myProviderProfile.services.length > 0)
-        ? myProviderProfile.services
-        : providerServices;
+    const myServices = providerServices.length > 0
+        ? providerServices
+        : (myProviderProfile?.services || []);
     const myReviews = myProviderProfile?.reviewsList || [];
 
     // Server-side paginated bookings fetch
@@ -362,6 +362,16 @@ export default function ProviderDashboard() {
             fetchProviderServices(providerId);
         }
     }, [isInitialized, providerId, fetchProviderServices]);
+
+    useEffect(() => {
+        if (!isInitialized || !providerId || activeTab !== 'services') return;
+
+        const interval = setInterval(() => {
+            fetchProviderServices(providerId);
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [isInitialized, providerId, activeTab, fetchProviderServices]);
 
     // Use server-paginated bookings for orders tab, fallback to client-side for other tabs
     const displayBookings = useMemo(() => {
