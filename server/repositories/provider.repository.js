@@ -76,11 +76,18 @@ class ProviderRepository {
     }
 
     async getByIdWithDetails(id) {
+        const cols = await getProvidersColumns();
+        const userIdSelect = cols.has('user_id') ? 'p.user_id' : 'NULL::bigint AS user_id';
+        const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
+        const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
+        const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+
         // Single provider details with limited aggregation is acceptable
         const result = await pool.query(`
             SELECT 
-                p.id, p.name, p.email, p.category, p.location, p.phone, p.user_id,
-                p.rating, p.reviews_count as reviews, p.is_approved, p.joined_date,
+                p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${joinedDateSelect},
                 COALESCE(
                     (SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id),
                     '[]'::json
@@ -120,11 +127,14 @@ class ProviderRepository {
     }
 
     async search(query) {
+        const cols = await getProvidersColumns();
+        const approvalCondition = cols.has('is_approved') ? 'is_approved = TRUE AND' : '';
+        const categoryField = cols.has('category') ? 'category' : 'name';
+
         const result = await pool.query(`
-            SELECT id, name, category, phone
+            SELECT id, name, ${categoryField} AS category, phone
             FROM providers
-            WHERE is_approved = TRUE 
-            AND (name ILIKE $1 OR category ILIKE $1)
+            WHERE ${approvalCondition} (name ILIKE $1 OR ${categoryField} ILIKE $1)
             ORDER BY name ASC
             LIMIT 20
         `, [`%${query.trim()}%`]);
@@ -132,10 +142,17 @@ class ProviderRepository {
     }
 
     async getById(id) {
+        const cols = await getProvidersColumns();
+        const userIdSelect = cols.has('user_id') ? 'p.user_id' : 'NULL::bigint AS user_id';
+        const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
+        const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
+        const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+
         const result = await pool.query(`
             SELECT 
-                p.id, p.name, p.email, p.category, p.location, p.phone, p.user_id,
-                p.rating, p.reviews_count as reviews, p.is_approved, p.joined_date
+                p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${joinedDateSelect}
             FROM providers p
             WHERE p.id = $1
         `, [id]);
@@ -143,10 +160,16 @@ class ProviderRepository {
     }
 
     async getByEmail(email) {
+        const cols = await getProvidersColumns();
+        const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
+        const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
+        const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone,
-                p.rating, p.reviews_count as reviews, p.is_approved, p.joined_date
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${joinedDateSelect}
             FROM providers p
             WHERE p.email = $1
         `, [email]);
