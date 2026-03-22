@@ -369,6 +369,66 @@ class BookingRepository {
         return result.rows[0];
     }
 
+    async createDeliveryOrderForBooking(booking) {
+        const bookingId = booking.id;
+        const details = String(booking.details || '');
+
+        const phoneMatch = details.match(/الهاتف:\s*([^|]+)/);
+        const addressMatch = details.match(/العنوان:\s*([^|]+)/);
+
+        const customerPhone = phoneMatch?.[1]?.trim() || '';
+        const deliveryAddress = addressMatch?.[1]?.trim() || details || 'غير محدد';
+        const customerName = booking.user_name || booking.customer_name || 'عميل Qareeblak';
+
+        let itemsPayload = booking.items || [];
+        if (typeof itemsPayload === 'string') {
+            try {
+                itemsPayload = JSON.parse(itemsPayload);
+            } catch (e) {
+                itemsPayload = [];
+            }
+        }
+
+        const orderNumber = `HLN-BK-${bookingId}-${Date.now().toString(36).toUpperCase()}`;
+        const result = await pool.query(
+            `INSERT INTO delivery_orders
+                (order_number, customer_name, customer_phone, pickup_address, delivery_address, status, notes, items, source, order_type, delivery_fee)
+             VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
+             RETURNING id`,
+            [
+                orderNumber,
+                customerName,
+                customerPhone,
+                booking.provider_name || 'المتجر',
+                deliveryAddress,
+                'pending',
+                details || `Linked from booking #${bookingId}`,
+                JSON.stringify(Array.isArray(itemsPayload) ? itemsPayload : []),
+                'qareeblak',
+                'app',
+                0
+            ]
+        );
+
+        const halanOrderId = result.rows[0]?.id;
+        if (!halanOrderId) return null;
+
+        if (booking.parent_order_id) {
+            await pool.query(
+                'UPDATE bookings SET halan_order_id = $1 WHERE parent_order_id = $2',
+                [halanOrderId, booking.parent_order_id]
+            );
+        } else {
+            await pool.query(
+                'UPDATE bookings SET halan_order_id = $1 WHERE id = $2',
+                [halanOrderId, bookingId]
+            );
+        }
+
+        return halanOrderId;
+    }
+
     async rescheduleBooking(id, newDate, newStatus, lastUpdatedBy) {
         const result = await pool.query(
             'UPDATE bookings SET appointment_date = $1, status = $2, last_updated_by = $3 WHERE id = $4 RETURNING *',

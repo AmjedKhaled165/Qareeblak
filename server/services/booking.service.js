@@ -263,8 +263,22 @@ class BookingService {
             io.to('admin').emit('booking-updated', payload);
         }
 
-        if (bookingInfo.halan_order_id) {
-            const halanOrderId = bookingInfo.halan_order_id;
+        let halanOrderId = bookingInfo.halan_order_id;
+
+        // Legacy recovery: some old bookings were confirmed/completed before halan_order_id linkage existed.
+        if (!halanOrderId && (status === 'confirmed' || status === 'completed')) {
+            try {
+                halanOrderId = await bookingRepo.createDeliveryOrderForBooking(bookingInfo);
+                if (halanOrderId) {
+                    bookingInfo.halan_order_id = halanOrderId;
+                    logger.info(`Linked legacy booking ${id} to new delivery order ${halanOrderId}`);
+                }
+            } catch (linkErr) {
+                logger.error(`Failed to link booking ${id} to delivery order`, linkErr);
+            }
+        }
+
+        if (halanOrderId) {
             const deliveryOrder = await bookingRepo.checkDeliveryOrderType(halanOrderId);
 
             const isManualOrder = deliveryOrder && (
