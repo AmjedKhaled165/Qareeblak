@@ -24,6 +24,21 @@ class DeliveryService {
         });
     }
 
+    async getCourierHistory(userId, role, period = 'today', explicitCourierId) {
+        const normalizedRole = String(role || '').toLowerCase();
+        const normalizedPeriod = ['today', 'week', 'month'].includes(period) ? period : 'today';
+
+        let courierId = Number(userId);
+        if (['admin', 'owner', 'partner_owner'].includes(normalizedRole) && explicitCourierId) {
+            const parsed = Number(explicitCourierId);
+            if (Number.isInteger(parsed) && parsed > 0) {
+                courierId = parsed;
+            }
+        }
+
+        return await deliveryRepo.getCourierHistory(courierId, normalizedPeriod);
+    }
+
     async createOrder(userId, role, orderData) {
         const {
             customerName, customerPhone, pickupAddress, deliveryAddress,

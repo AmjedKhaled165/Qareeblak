@@ -278,6 +278,53 @@ class DeliveryRepository {
         await pool.query('DELETE FROM delivery_orders WHERE id = $1', [id]);
     }
 
+    async getCourierHistory(courierId, period = 'today') {
+        const cols = await getDeliveryOrdersColumns();
+
+        const timeExpr = cols.has('delivered_at')
+            ? 'COALESCE(o.delivered_at, o.updated_at, o.created_at)'
+            : (cols.has('updated_at') ? 'COALESCE(o.updated_at, o.created_at)' : 'o.created_at');
+
+        const conditions = ['o.courier_id = $1'];
+        const params = [courierId];
+
+        if (cols.has('is_deleted')) {
+            conditions.push('COALESCE(o.is_deleted, false) = false');
+        }
+
+        if (period === 'today') {
+            conditions.push(`${timeExpr} >= date_trunc('day', NOW())`);
+        } else if (period === 'week') {
+            conditions.push(`${timeExpr} >= date_trunc('week', NOW())`);
+        } else if (period === 'month') {
+            conditions.push(`${timeExpr} >= date_trunc('month', NOW())`);
+        }
+
+        const deliveredAtExpr = cols.has('delivered_at') ? 'o.delivered_at' : 'NULL AS delivered_at';
+        const updatedAtExpr = cols.has('updated_at') ? 'o.updated_at' : 'NULL AS updated_at';
+        const deliveryFeeExpr = cols.has('delivery_fee') ? 'o.delivery_fee' : '0 AS delivery_fee';
+
+        const query = `
+            SELECT
+                o.id,
+                o.status,
+                o.customer_name,
+                o.customer_phone,
+                o.delivery_address,
+                ${deliveryFeeExpr},
+                o.created_at,
+                ${updatedAtExpr},
+                ${deliveredAtExpr}
+            FROM delivery_orders o
+            WHERE ${conditions.join(' AND ')}
+            ORDER BY ${timeExpr} DESC, o.id DESC
+            LIMIT 500
+        `;
+
+        const result = await pool.query(query, params);
+        return result.rows || [];
+    }
+
     async addHistory(orderId, status, userId, notes, latitude = null, longitude = null, client = pool) {
         const query = `
             INSERT INTO order_history (order_id, status, changed_by, notes, latitude, longitude)

@@ -205,6 +205,20 @@ exports.getOrders = catchAsync(async (req, res, next) => {
     });
 });
 
+exports.getCourierHistory = catchAsync(async (req, res, next) => {
+    const userId = req.user.id || req.user.userId;
+    const role = String(req.user.role || req.user.type || '').toLowerCase();
+
+    if (!['courier', 'partner_courier', 'admin', 'owner', 'partner_owner'].includes(role)) {
+        throw new AppError('غير مصرح لك بعرض سجل المندوب', 403);
+    }
+
+    const period = String(req.query.period || 'today').toLowerCase();
+    const data = await deliveryService.getCourierHistory(userId, role, period, req.query.courierId);
+
+    res.status(200).json({ success: true, data });
+});
+
 exports.getOrder = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;

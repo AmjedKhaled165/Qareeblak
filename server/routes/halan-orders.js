@@ -26,6 +26,9 @@ router.use(globalLimiter);
 // Get All Orders (Filtered by Role inside Controller/Service)
 router.get('/', deliveryController.getOrders);
 
+// Courier history for stats dashboard
+router.get('/courier/history', deliveryController.getCourierHistory);
+
 // Track/Get Single Order
 router.get('/:id', deliveryController.getOrder);
 
