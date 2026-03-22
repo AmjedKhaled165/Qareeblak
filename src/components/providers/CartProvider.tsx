@@ -67,18 +67,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const addToGlobalCart = (item: CartItem) => {
         const normalizedItem = { ...item, id: String(item.id), providerId: String(item.providerId) };
+        const alreadyExists = globalCart.some(
+            (i) => i.id === normalizedItem.id && i.providerId === normalizedItem.providerId
+        );
+
         setGlobalCart(prev => {
             const existing = prev.find(i => i.id === normalizedItem.id && i.providerId === normalizedItem.providerId);
             if (existing) {
-                toast("تم التعديل في السلة", "success");
                 return prev.map(i => (i.id === normalizedItem.id && i.providerId === normalizedItem.providerId)
                     ? { ...i, quantity: i.quantity + normalizedItem.quantity }
                     : i
                 );
             }
-            toast("تمت الإضافة للسلة", "success");
             return [...prev, normalizedItem];
         });
+
+        toast(alreadyExists ? "تم التعديل في السلة" : "تمت الإضافة للسلة", "success");
     };
 
     const removeFromGlobalCart = (providerId: string, itemId: string) => {
