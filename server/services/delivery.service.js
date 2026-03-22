@@ -37,7 +37,7 @@ class DeliveryService {
         const { status, courierId, supervisorId, search, source, page = 1, limit = 50 } = query;
         const offset = (page - 1) * limit;
 
-        return await deliveryRepo.getOrders({
+        const result = await deliveryRepo.getOrders({
             role: reqUser.role || reqUser.type,
             userId: reqUser.id || reqUser.userId,
             status,
@@ -48,6 +48,32 @@ class DeliveryService {
             limit,
             offset
         });
+
+        const normalizedRole = String(reqUser.role || reqUser.type || '').toLowerCase();
+        const isAdminLike = ['admin', 'owner', 'partner_owner'].includes(normalizedRole);
+
+        if (isAdminLike && Array.isArray(result.records) && result.records.length > 0) {
+            const requesterId = reqUser.id || reqUser.userId;
+            const backfillCandidates = result.records.filter((o) => {
+                const hasSupervisor = Number(o.supervisor_id || 0) > 0;
+                const closed = ['delivered', 'cancelled'].includes(String(o.status || '').toLowerCase());
+                return !hasSupervisor && !closed;
+            }).slice(0, 10);
+
+            for (const order of backfillCandidates) {
+                try {
+                    const assigned = await performAutoAssign(order.id, requesterId, null, String(order.status || 'pending'));
+                    if (assigned) {
+                        order.supervisor_id = assigned.id;
+                        order.supervisor_name = assigned.name;
+                    }
+                } catch (e) {
+                    logger.error(`[OrderBackfill] Failed auto-assign for order #${order.id}:`, e.message || e);
+                }
+            }
+        }
+
+        return result;
     }
 
     async getCourierHistory(userId, role, period = 'today', explicitCourierId) {
