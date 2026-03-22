@@ -5,6 +5,28 @@ const db = require('../db');
 const { verifyToken } = require('../middleware/auth');
 const AppError = require('../utils/appError');
 
+let notificationsColumnsCache = null;
+
+async function getNotificationsColumns() {
+    if (notificationsColumnsCache) return notificationsColumnsCache;
+
+    const result = await db.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'notifications'`
+    );
+
+    notificationsColumnsCache = new Set(result.rows.map((row) => row.column_name));
+    return notificationsColumnsCache;
+}
+
+function pickFirstExisting(columns, candidates) {
+    for (const c of candidates) {
+        if (columns.has(c)) return c;
+    }
+    return null;
+}
+
 // All notification routes require authentication
 router.use(verifyToken);
 
@@ -16,12 +38,28 @@ router.get('/', async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { unread } = req.query;
+        const cols = await getNotificationsColumns();
+        const messageCol = pickFirstExisting(cols, ['message', 'body', 'content', 'title']);
+        const typeCol = pickFirstExisting(cols, ['type', 'notification_type']);
+        const refCol = pickFirstExisting(cols, ['reference_id', 'reference', 'related_id']);
+        const readCol = pickFirstExisting(cols, ['is_read', 'read']);
 
-        let query = 'SELECT * FROM notifications WHERE user_id = $1';
+        let query = `
+            SELECT
+                id,
+                user_id,
+                ${messageCol ? `${messageCol}::text` : `'إشعار جديد'`} AS message,
+                ${typeCol ? `${typeCol}::text` : `'info'`} AS type,
+                ${refCol ? `${refCol}::text` : 'NULL'} AS reference_id,
+                ${readCol ? `${readCol}` : 'FALSE'} AS is_read,
+                created_at
+            FROM notifications
+            WHERE user_id = $1
+        `;
         const params = [userId];
 
-        if (unread === 'true') {
-            query += ' AND is_read = FALSE';
+        if (unread === 'true' && readCol) {
+            query += ` AND ${readCol} = FALSE`;
         }
 
         query += ' ORDER BY created_at DESC LIMIT 50';
@@ -40,8 +78,13 @@ router.get('/', async (req, res, next) => {
 router.get('/unread-count', async (req, res, next) => {
     try {
         const userId = req.user.id;
+        const cols = await getNotificationsColumns();
+        const readCol = pickFirstExisting(cols, ['is_read', 'read']);
+        if (!readCol) {
+            return res.json({ count: 0 });
+        }
         const result = await db.query(
-            'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = FALSE',
+            `SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND ${readCol} = FALSE`,
             [userId]
         );
         res.json({ count: parseInt(result.rows[0].count) });
@@ -58,9 +101,14 @@ router.patch('/:id/read', async (req, res, next) => {
     try {
         const { id } = req.params;
         const userId = req.user.id;
+        const cols = await getNotificationsColumns();
+        const readCol = pickFirstExisting(cols, ['is_read', 'read']);
+        if (!readCol) {
+            return res.json({ success: true, message: 'No read-state column available' });
+        }
 
         const result = await db.query(
-            'UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2 RETURNING id',
+            `UPDATE notifications SET ${readCol} = TRUE WHERE id = $1 AND user_id = $2 RETURNING id`,
             [id, userId]
         );
 
@@ -81,8 +129,13 @@ router.patch('/:id/read', async (req, res, next) => {
 router.patch('/read-all', async (req, res, next) => {
     try {
         const userId = req.user.id;
+        const cols = await getNotificationsColumns();
+        const readCol = pickFirstExisting(cols, ['is_read', 'read']);
+        if (!readCol) {
+            return res.json({ success: true, message: 'No read-state column available' });
+        }
         await db.query(
-            'UPDATE notifications SET is_read = TRUE WHERE user_id = $1 AND is_read = FALSE',
+            `UPDATE notifications SET ${readCol} = TRUE WHERE user_id = $1 AND ${readCol} = FALSE`,
             [userId]
         );
         res.json({ success: true, message: 'All notifications marked as read' });
@@ -121,12 +174,40 @@ router.post('/', async (req, res, next) => {
 // ==========================================
 async function createNotification(userId, message, type, referenceId = null, io = null) {
     try {
+        const cols = await getNotificationsColumns();
+        const messageCol = pickFirstExisting(cols, ['message', 'body', 'content', 'title']);
+        const typeCol = pickFirstExisting(cols, ['type', 'notification_type']);
+        const refCol = pickFirstExisting(cols, ['reference_id', 'reference', 'related_id']);
+        const readCol = pickFirstExisting(cols, ['is_read', 'read']);
+
+        const insertCols = ['user_id'];
+        const values = ['$1'];
+        const params = [userId];
+
+        const push = (col, value) => {
+            params.push(value);
+            insertCols.push(col);
+            values.push(`$${params.length}`);
+        };
+
+        if (messageCol) push(messageCol, message);
+        if (typeCol) push(typeCol, type);
+        if (refCol) push(refCol, referenceId);
+        if (readCol) push(readCol, false);
+
         const result = await db.query(
-            `INSERT INTO notifications (user_id, message, type, reference_id)
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-            [userId, message, type, referenceId]
+            `INSERT INTO notifications (${insertCols.join(', ')}) VALUES (${values.join(', ')}) RETURNING *`,
+            params
         );
-        const notification = result.rows[0];
+
+        const raw = result.rows[0] || {};
+        const notification = {
+            ...raw,
+            message: messageCol ? raw[messageCol] : message,
+            type: typeCol ? raw[typeCol] : type,
+            reference_id: refCol ? raw[refCol] : referenceId,
+            is_read: readCol ? raw[readCol] : false
+        };
 
         // Emit real-time notification via Socket.io
         if (io) {

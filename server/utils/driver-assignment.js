@@ -2,6 +2,21 @@ const pool = require('../db');
 const { syncParentOrderStatus } = require('./parent-sync');
 const logger = require('./logger');
 
+let usersColumnsCache = null;
+
+async function getUsersColumns() {
+    if (usersColumnsCache) return usersColumnsCache;
+
+    const result = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'users'`
+    );
+
+    usersColumnsCache = new Set(result.rows.map((row) => row.column_name));
+    return usersColumnsCache;
+}
+
 /**
  * Automatically assigns an order to an available supervisor.
  *
@@ -42,9 +57,16 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
             }
         }
 
+        const userCols = await getUsersColumns();
+        const roleExpr = userCols.has('user_type')
+            ? `COALESCE(u.user_type, '')`
+            : (userCols.has('role') ? `COALESCE(u.role, '')` : `''`);
+        const isAvailableExpr = userCols.has('is_available') ? `COALESCE(u.is_available, false)` : `TRUE`;
+        const maxActiveOrdersExpr = userCols.has('max_active_orders') ? `u.max_active_orders` : `100`;
+
         // Pick supervisors who are explicitly active only.
         const supervisorsResult = await pool.query(`
-            SELECT u.id, u.name, u.username, u.max_active_orders,
+            SELECT u.id, u.name, u.username, ${maxActiveOrdersExpr} as max_active_orders,
                    COALESCE((
                        SELECT COUNT(*) FROM delivery_orders d
                        WHERE d.supervisor_id = u.id
@@ -58,8 +80,8 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
                        AND COALESCE(d2.is_deleted, false) = false
                    ), 0)::int as today_orders
             FROM users u
-            WHERE COALESCE(u.user_type, u.role, '') IN ('supervisor', 'partner_supervisor', 'manager')
-            AND COALESCE(u.is_available, false) = true
+            WHERE ${roleExpr} IN ('supervisor', 'partner_supervisor', 'manager')
+            AND ${isAvailableExpr} = true
         `);
 
         logger.info(`[Auto-Assign] وجدنا ${supervisorsResult.rows.length} مسؤول نشط`);

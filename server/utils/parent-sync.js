@@ -2,6 +2,40 @@ const pool = require('../db');
 const { createNotification } = require('../routes/notifications');
 const logger = require('./logger');
 
+let parentOrdersColumnsCache = null;
+let bookingsColumnsCache = null;
+let deliveryOrdersColumnsCache = null;
+
+async function getTableColumns(tableName) {
+    const cacheRef = tableName === 'parent_orders'
+        ? parentOrdersColumnsCache
+        : tableName === 'bookings'
+            ? bookingsColumnsCache
+            : deliveryOrdersColumnsCache;
+
+    if (cacheRef) return cacheRef;
+
+    const result = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1`,
+        [tableName]
+    );
+
+    const cols = new Set(result.rows.map((row) => row.column_name));
+    if (tableName === 'parent_orders') parentOrdersColumnsCache = cols;
+    if (tableName === 'bookings') bookingsColumnsCache = cols;
+    if (tableName === 'delivery_orders') deliveryOrdersColumnsCache = cols;
+    return cols;
+}
+
+function pickColumn(cols, candidates) {
+    for (const c of candidates) {
+        if (cols.has(c)) return c;
+    }
+    return null;
+}
+
 // Strict Application State ENUMS mapping UI/DB states effectively against Database Enum types
 const OrderStates = {
     // Rejection / Cancel States
@@ -24,12 +58,35 @@ const OrderStates = {
 async function syncParentOrderStatus(parentId, io) {
     if (!parentId) return;
 
+    const parentCols = await getTableColumns('parent_orders');
+    const bookingCols = await getTableColumns('bookings');
+    const deliveryCols = await getTableColumns('delivery_orders');
+
+    const parentStatusCol = pickColumn(parentCols, ['status', 'order_status', 'state']);
+    const parentUserCol = pickColumn(parentCols, ['user_id', 'customer_id']);
+    const parentUpdatedAtCol = pickColumn(parentCols, ['updated_at']);
+    const bookingStatusCol = pickColumn(bookingCols, ['status', 'order_status', 'state']);
+    const bookingParentCol = pickColumn(bookingCols, ['parent_order_id', 'parent_id']);
+    const bookingDeliveryCol = pickColumn(bookingCols, ['halan_order_id', 'delivery_order_id']);
+    const deliveryStatusCol = pickColumn(deliveryCols, ['status', 'order_status', 'state']);
+
+    if (!parentStatusCol || !bookingParentCol) {
+        logger.warn('[ParentSync] Missing required columns in parent_orders/bookings; skipping sync');
+        return;
+    }
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
         // 1. Lock Parent Order row to prevent race conditions during sync
-        const parentRes = await client.query('SELECT status, user_id FROM parent_orders WHERE id = $1 FOR UPDATE', [parentId]);
+        const parentRes = await client.query(
+            `SELECT ${parentStatusCol} AS status, ${parentUserCol ? parentUserCol : 'NULL'} AS user_id
+             FROM parent_orders
+             WHERE id = $1
+             FOR UPDATE`,
+            [parentId]
+        );
         if (parentRes.rows.length === 0) {
             await client.query('ROLLBACK');
             return;
@@ -38,14 +95,18 @@ async function syncParentOrderStatus(parentId, io) {
         const parentUserId = parentRes.rows[0].user_id;
 
         // 2. Fetch all sub-orders (bookings) + delivery status
-        const result = await client.query(`
-            SELECT 
-                b.status as booking_status,
-                d.status as delivery_status
-            FROM bookings b
-            LEFT JOIN delivery_orders d ON b.halan_order_id = d.id
-            WHERE b.parent_order_id = $1
-        `, [parentId]);
+        const bookingStatusSelect = bookingStatusCol ? `b.${bookingStatusCol}` : `NULL`;
+        const deliveryJoin = bookingDeliveryCol ? `LEFT JOIN delivery_orders d ON b.${bookingDeliveryCol} = d.id` : ``;
+        const deliveryStatusSelect = deliveryStatusCol ? `d.${deliveryStatusCol}` : `NULL`;
+        const result = await client.query(
+            `SELECT
+                ${bookingStatusSelect} as booking_status,
+                ${deliveryStatusSelect} as delivery_status
+             FROM bookings b
+             ${deliveryJoin}
+             WHERE b.${bookingParentCol} = $1`,
+            [parentId]
+        );
 
         // 3. The Validation Query: Count totals (Exclude cancelled/rejected)
         const activeRows = result.rows.filter(row => {
@@ -101,7 +162,10 @@ async function syncParentOrderStatus(parentId, io) {
         // Update Global Status if different
         if (newGlobalStatus !== currentParentStatus) {
             logger.info(`[ParentSync] Updating Global Status: ${currentParentStatus} -> ${newGlobalStatus} (accepted ${total_accepted}/${total_required})`);
-            await client.query('UPDATE parent_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newGlobalStatus, parentId]);
+            const updateSql = parentUpdatedAtCol
+                ? `UPDATE parent_orders SET ${parentStatusCol} = $1, ${parentUpdatedAtCol} = CURRENT_TIMESTAMP WHERE id = $2`
+                : `UPDATE parent_orders SET ${parentStatusCol} = $1 WHERE id = $2`;
+            await client.query(updateSql, [newGlobalStatus, parentId]);
 
             if (io) {
                 io.emit('order-status-changed', { orderId: `P${parentId}`, status: newGlobalStatus });
