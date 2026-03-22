@@ -1,6 +1,7 @@
 const pool = require('../db');
 
 let bookingsColumnsCache = null;
+let parentOrdersColumnsCache = null;
 
 async function getBookingsColumns() {
     if (bookingsColumnsCache) return bookingsColumnsCache;
@@ -13,6 +14,19 @@ async function getBookingsColumns() {
 
     bookingsColumnsCache = new Set(result.rows.map((row) => row.column_name));
     return bookingsColumnsCache;
+}
+
+async function getParentOrdersColumns() {
+    if (parentOrdersColumnsCache) return parentOrdersColumnsCache;
+
+    const result = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'parent_orders'`
+    );
+
+    parentOrdersColumnsCache = new Set(result.rows.map((row) => row.column_name));
+    return parentOrdersColumnsCache;
 }
 
 class BookingRepository {
@@ -46,12 +60,35 @@ class BookingRepository {
     }
 
     async createParentOrder(userId, finalPrice, discount, prizeId, detailsStr, addressJson, client = pool) {
-        const query = `
-            INSERT INTO parent_orders (user_id, total_price, discount_amount, prize_id, status, details, address_info)
-            VALUES ($1, $2, $3, $4, 'pending', $5, $6)
-            RETURNING id
-        `;
-        const params = [userId, finalPrice, discount, prizeId || null, detailsStr, addressJson];
+        const cols = await getParentOrdersColumns();
+        const insertCols = [];
+        const values = [];
+        const params = [];
+
+        const pushColumn = (column, value) => {
+            insertCols.push(column);
+            params.push(value);
+            values.push(`$${params.length}`);
+        };
+
+        if (cols.has('user_id')) pushColumn('user_id', userId);
+
+        if (cols.has('total_price')) {
+            pushColumn('total_price', finalPrice);
+        } else if (cols.has('total_amount')) {
+            pushColumn('total_amount', finalPrice);
+        }
+
+        if (cols.has('discount_amount')) pushColumn('discount_amount', discount || 0);
+        if (cols.has('prize_id')) pushColumn('prize_id', prizeId || null);
+        if (cols.has('status')) pushColumn('status', 'pending');
+        if (cols.has('details')) pushColumn('details', detailsStr || null);
+        if (cols.has('address_info')) pushColumn('address_info', addressJson || null);
+
+        const query = insertCols.length > 0
+            ? `INSERT INTO parent_orders (${insertCols.join(', ')}) VALUES (${values.join(', ')}) RETURNING id`
+            : 'INSERT INTO parent_orders DEFAULT VALUES RETURNING id';
+
         const result = await client.query(query, params);
         return result.rows[0].id;
     }
