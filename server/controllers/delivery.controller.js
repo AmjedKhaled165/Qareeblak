@@ -261,6 +261,16 @@ exports.assignCourier = catchAsync(async (req, res, next) => {
     res.status(200).json({ success: true, message: 'تم تعيين المندوب بنجاح', data: order });
 });
 
+exports.updateCourierPricing = catchAsync(async (req, res, next) => {
+    const userId = req.user.id || req.user.userId;
+    const role = req.user.role || req.user.type;
+    const { id } = req.params;
+    const io = req.app.get('io');
+
+    const order = await deliveryService.updateCourierPricing(id, userId, role, req.body, io);
+    res.status(200).json({ success: true, message: 'تم حفظ التعديلات بنجاح', data: order });
+});
+
 exports.updateOrderMeta = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;

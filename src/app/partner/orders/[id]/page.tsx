@@ -164,6 +164,26 @@ export default function OrderDetailsPage({ params }: PageProps) {
                             found.items = JSON.parse(found.items);
                         } catch { found.items = []; }
                     }
+
+                    // Parse sub-order items defensively (some responses send stringified JSON or null)
+                    if (Array.isArray(found.sub_orders)) {
+                        found.sub_orders = found.sub_orders.map((sub: any) => {
+                            let parsedSubItems = sub?.items;
+                            if (typeof parsedSubItems === 'string') {
+                                try {
+                                    parsedSubItems = JSON.parse(parsedSubItems);
+                                } catch {
+                                    parsedSubItems = [];
+                                }
+                            }
+
+                            return {
+                                ...sub,
+                                items: Array.isArray(parsedSubItems) ? parsedSubItems : []
+                            };
+                        });
+                    }
+
                     setOrder(found);
                     setSelectedCourierId(found?.courier_id ? String(found.courier_id) : '');
 
@@ -550,11 +570,25 @@ export default function OrderDetailsPage({ params }: PageProps) {
                             <div className="space-y-4">
                                 <h3 className="font-bold text-slate-800 dark:text-slate-100 px-1">تفاصيل المتاجر</h3>
                                 {order.sub_orders.map((sub) => {
-                                    const isReady = sub.status === 'ready_for_pickup' || sub.status === 'picked_up' || sub.status === 'delivered';
+                                    const globalReady = order.status === 'ready_for_pickup' || order.status === 'picked_up' || order.status === 'in_transit' || order.status === 'delivered';
+                                    const isReady = globalReady || sub.status === 'ready_for_pickup' || sub.status === 'picked_up' || sub.status === 'in_transit' || sub.status === 'delivered';
                                     const statusLabel = isReady ? 'تم التجهيز' : 'جاري التجهيز';
                                     const badgeColor = isReady
                                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                         : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+                                    const subItems = Array.isArray(sub.items)
+                                        ? sub.items
+                                        : (() => {
+                                            if (typeof sub.items !== 'string') return [];
+                                            try {
+                                                const parsed = JSON.parse(sub.items);
+                                                return Array.isArray(parsed) ? parsed : [];
+                                            } catch {
+                                                return [];
+                                            }
+                                        })();
+                                    const fallbackOrderItems = Array.isArray(order.items) ? order.items : [];
+                                    const displayItems = subItems.length > 0 ? subItems : fallbackOrderItems;
 
                                     return (
                                         <div key={sub.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
@@ -575,14 +609,14 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
                                             {/* Provider Items */}
                                             <div className="space-y-3">
-                                                {sub.items.map((item, idx) => (
+                                                {displayItems.map((item, idx) => (
                                                     <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-8 h-8 bg-white dark:bg-slate-600 rounded flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 text-sm border dark:border-slate-500">
                                                                 {item.quantity}x
                                                             </div>
                                                             <div>
-                                                                <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.name}</p>
+                                                                <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.name || item.product_name || 'منتج'}</p>
                                                                 {item.notes && <p className="text-xs text-slate-500 dark:text-slate-400">{item.notes}</p>}
                                                             </div>
                                                         </div>
@@ -591,6 +625,11 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                         </span>
                                                     </div>
                                                 ))}
+                                                {displayItems.length === 0 && (
+                                                    <div className="text-center text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                                                        لا توجد عناصر متاحة لهذا المتجر حالياً
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     );

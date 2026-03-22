@@ -309,6 +309,70 @@ class DeliveryService {
         }
     }
 
+    async updateCourierPricing(orderId, userId, role, payload, io) {
+        const normalizedRole = String(role || '').toLowerCase();
+        const isCourier = normalizedRole === 'courier' || normalizedRole === 'partner_courier';
+        const isAdminLike = ['admin', 'owner', 'partner_owner', 'supervisor', 'partner_supervisor'].includes(normalizedRole);
+
+        if (!isCourier && !isAdminLike) {
+            throw new AppError('غير مصرح لك بتعديل رسوم التوصيل', 403);
+        }
+
+        const currentOrder = await deliveryRepo.getOrderByIdSecure(orderId, { userId, role });
+        if (!currentOrder) {
+            throw new AppError('الطلب غير موجود أو غير مصرح لك', 404);
+        }
+
+        if (isCourier && Number(currentOrder.courier_id || 0) !== Number(userId)) {
+            throw new AppError('لا يمكنك تعديل طلب غير مسند إليك', 403);
+        }
+
+        const deliveryFee = Number(payload.deliveryFee);
+        const notes = payload.notes == null ? null : String(payload.notes);
+        if (!Number.isFinite(deliveryFee) || deliveryFee < 0) {
+            throw new AppError('رسوم التوصيل غير صالحة', 400);
+        }
+
+        const updates = {
+            delivery_fee: deliveryFee,
+            notes
+        };
+
+        const before = {
+            delivery_fee: Number(currentOrder.delivery_fee || 0),
+            notes: currentOrder.notes || null
+        };
+
+        const after = {
+            delivery_fee: deliveryFee,
+            notes
+        };
+
+        const updated = await deliveryRepo.updateCourierPricing(orderId, updates, {
+            changedBy: userId,
+            before,
+            after
+        });
+
+        if (io) {
+            io.emit('order-updated', {
+                orderId: Number(orderId),
+                updates: {
+                    delivery_fee: deliveryFee,
+                    notes,
+                    is_modified_by_courier: true
+                }
+            });
+            io.emit('booking-updated', {
+                halanOrderId: Number(orderId),
+                deliveryFee,
+                notes
+            });
+        }
+
+        return updated;
+    }
+
     async updateOrderMeta(orderId, userId, role, payload, io) {
         const normalizedRole = String(role || '').toLowerCase();
         const isOwner = normalizedRole === 'owner' || normalizedRole === 'partner_owner';

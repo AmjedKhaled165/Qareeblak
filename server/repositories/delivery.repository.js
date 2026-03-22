@@ -247,6 +247,57 @@ class DeliveryRepository {
         return result.rows[0];
     }
 
+    async updateCourierPricing(id, updates, meta = {}) {
+        const cols = await getDeliveryOrdersColumns();
+        const setClauses = [];
+        const params = [];
+
+        const push = (expr, value) => {
+            params.push(value);
+            setClauses.push(`${expr} = $${params.length}`);
+        };
+
+        if (Object.prototype.hasOwnProperty.call(updates, 'delivery_fee') && cols.has('delivery_fee')) {
+            push('delivery_fee', updates.delivery_fee);
+        }
+        if (Object.prototype.hasOwnProperty.call(updates, 'notes') && cols.has('notes')) {
+            push('notes', updates.notes);
+        }
+
+        if (cols.has('courier_modifications')) {
+            push('courier_modifications', JSON.stringify({
+                changedBy: meta.changedBy || null,
+                before: meta.before || null,
+                after: meta.after || null,
+                at: new Date().toISOString()
+            }));
+        }
+        if (cols.has('is_modified_by_courier')) {
+            setClauses.push('is_modified_by_courier = true');
+        }
+        if (cols.has('courier_modified_at')) {
+            setClauses.push('courier_modified_at = NOW()');
+        }
+        if (cols.has('updated_at')) {
+            setClauses.push('updated_at = NOW()');
+        }
+
+        if (setClauses.length === 0) {
+            return this.getOrderById(id);
+        }
+
+        params.push(id);
+        const query = `
+            UPDATE delivery_orders
+            SET ${setClauses.join(', ')}
+            WHERE id = $${params.length}
+            RETURNING *
+        `;
+
+        const result = await pool.query(query, params);
+        return result.rows[0] || null;
+    }
+
     async getLinkedBookings(orderId) {
         const result = await pool.query(
             `SELECT id, parent_order_id, status

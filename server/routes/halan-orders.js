@@ -10,7 +10,8 @@ const {
     createDeliveryOrderSchema,
     statusUpdateSchema,
     assignCourierSchema,
-    updateOrderMetaSchema
+    updateOrderMetaSchema,
+    courierPricingSchema
 } = require('../validations/delivery.validation');
 
 const { verifyToken, isPartnerOrAdmin } = require('../middleware/auth');
@@ -43,6 +44,9 @@ router.post('/:id/auto-assign', deliveryController.autoAssign);
 
 // Manual Assign Courier (Owner/Supervisor)
 router.patch('/:id/assign-courier', validate(assignCourierSchema), deliveryController.assignCourier);
+
+// Courier updates delivery fee and notes
+router.patch('/:id/courier-pricing', validate(courierPricingSchema), deliveryController.updateCourierPricing);
 
 // Owner-only metadata updates (source/supervisor)
 router.patch('/:id/meta', validate(updateOrderMetaSchema), deliveryController.updateOrderMeta);
