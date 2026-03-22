@@ -354,6 +354,13 @@ exports.updateOrder = catchAsync(async (req, res, next) => {
     if (req.body.status !== undefined) safeData.status = String(req.body.status);
     if (req.body.courier_id !== undefined) safeData.courier_id = req.body.courier_id ? parseInt(req.body.courier_id) : null;
     if (req.body.source !== undefined) safeData.source = req.body.source;
+    if (req.body.delivery_fee !== undefined) {
+        const parsedFee = Number(req.body.delivery_fee);
+        if (!Number.isFinite(parsedFee) || parsedFee < 0) {
+            return next(new AppError('سعر التوصيل غير صالح', 400));
+        }
+        safeData.delivery_fee = parsedFee;
+    }
 
     if (Object.keys(safeData).length === 0) {
         return next(new AppError('لا توجد بيانات صالحة للتحديث', 400));
