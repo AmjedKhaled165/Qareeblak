@@ -39,14 +39,41 @@ const statusUpdateSchema = z.object({
     longitude: z.number().optional()
 });
 
+const positiveIntFromUnknown = z.preprocess((value) => {
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return undefined;
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) ? parsed : value;
+    }
+    return value;
+}, z.number().int().positive());
+
+const normalizeSource = (value) => {
+    if (value == null) return value;
+    const text = String(value).trim().toLowerCase();
+    if (!text) return undefined;
+    if (text.includes('qareeblak') || text.includes('قريبلك')) return 'qareeblak';
+    if (text.includes('manual') || text.includes('يدوي')) return 'manual';
+    if (text.includes('whatsapp') || text.includes('واتس') || text.includes('وتس')) return 'whatsapp';
+    if (text.includes('maintenance') || text.includes('صيانة')) return 'maintenance';
+    return text;
+};
+
 const assignCourierSchema = z.object({
-    courierId: z.number().int().positive(),
+    courierId: positiveIntFromUnknown.optional(),
+    courier_id: positiveIntFromUnknown.optional(),
     notes: z.string().optional()
+}).transform((val) => ({
+    courierId: val.courierId ?? val.courier_id,
+    notes: val.notes
+})).refine((val) => Number.isInteger(val.courierId) && val.courierId > 0, {
+    message: 'معرف المندوب مطلوب ويجب أن يكون رقماً صحيحاً'
 });
 
 const updateOrderMetaSchema = z.object({
-    supervisor_id: z.union([z.number().int().positive(), z.null()]).optional(),
-    source: z.enum(['qareeblak', 'manual', 'whatsapp', 'maintenance']).optional()
+    supervisor_id: z.union([positiveIntFromUnknown, z.null()]).optional(),
+    source: z.preprocess(normalizeSource, z.enum(['qareeblak', 'manual', 'whatsapp', 'maintenance'])).optional()
 }).refine((val) => Object.keys(val).length > 0, {
     message: 'يجب إرسال حقل واحد على الأقل للتحديث'
 });

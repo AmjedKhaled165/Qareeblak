@@ -47,6 +47,8 @@ interface Booking {
     lastUpdatedBy?: 'provider' | 'customer';
     courierName?: string;
     courierPhone?: string;
+    courier_name?: string;
+    courier_phone?: string;
     userPhone?: string;
 }
 
@@ -150,6 +152,8 @@ export function OrderDetailModal({
     const isPending = booking.status === 'pending' || booking.status === 'pending_appointment' || booking.status === 'customer_rescheduled';
     const isConfirmed = booking.status === 'confirmed';
     const isArchived = booking.status === 'completed' || booking.status === 'rejected' || booking.status === 'cancelled';
+    const courierDisplayName = booking.courierName || booking.courier_name || '';
+    const courierDisplayPhone = booking.courierPhone || booking.courier_phone || '';
     
     // Phone Privacy Rules:
     // Maintenance/Plumbing providers → ALWAYS show phone
@@ -266,33 +270,33 @@ export function OrderDetailModal({
                     )}
 
                     {/* --- Courier Section --- */}
-                    {booking.courierName && (
-                        <div className="bg-violet-50 dark:bg-violet-900/20 rounded-2xl p-5 border border-violet-200/50 dark:border-violet-800/30">
-                            <h3 className="text-xs font-black text-violet-600 dark:text-violet-400 mb-4 font-cairo flex items-center gap-2">
-                                <Glyph symbol="🚚" className="text-sm" /> بيانات المندوب (دليفري)
-                            </h3>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                        <p className="font-black text-lg text-foreground font-cairo">{booking.courierName}</p>
-                                        {booking.courierPhone && (
-                                            <a href={`tel:${booking.courierPhone}`} className="flex items-center gap-2 text-sm font-bold text-violet-600 hover:underline mt-1 transition-colors">
-                                                <Glyph symbol="📞" className="text-sm" />
-                                                <span dir="ltr">{booking.courierPhone}</span>
-                                            </a>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    {booking.courierPhone && (
-                                        <a href={`tel:${booking.courierPhone}`} className="p-3 bg-violet-500/10 text-violet-500 rounded-xl hover:bg-violet-500/20 transition-all border border-violet-500/20" title="اتصال بالمندوب">
-                                            <Glyph symbol="📞" className="text-base" />
+                    <div className="bg-violet-50 dark:bg-violet-900/20 rounded-2xl p-5 border border-violet-200/50 dark:border-violet-800/30">
+                        <h3 className="text-xs font-black text-violet-600 dark:text-violet-400 mb-4 font-cairo flex items-center gap-2">
+                            <Glyph symbol="🚚" className="text-sm" /> بيانات المندوب (دليفري)
+                        </h3>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="font-black text-lg text-foreground font-cairo">{courierDisplayName || 'غير معين'}</p>
+                                    {courierDisplayPhone ? (
+                                        <a href={`tel:${courierDisplayPhone}`} className="flex items-center gap-2 text-sm font-bold text-violet-600 hover:underline mt-1 transition-colors">
+                                            <Glyph symbol="📞" className="text-sm" />
+                                            <span dir="ltr">{courierDisplayPhone}</span>
                                         </a>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground mt-1">لم يتم تعيين رقم للمندوب بعد</p>
                                     )}
                                 </div>
                             </div>
+                            <div className="flex gap-2">
+                                {courierDisplayPhone && (
+                                    <a href={`tel:${courierDisplayPhone}`} className="p-3 bg-violet-500/10 text-violet-500 rounded-xl hover:bg-violet-500/20 transition-all border border-violet-500/20" title="اتصال بالمندوب">
+                                        <Glyph symbol="📞" className="text-base" />
+                                    </a>
+                                )}
+                            </div>
                         </div>
-                    )}
+                    </div>
 
                     {/* --- Appointment Card (Maintenance Only) --- */}
                     {isMaintenance && booking.appointmentDate && (

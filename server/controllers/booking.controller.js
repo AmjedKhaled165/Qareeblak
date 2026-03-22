@@ -101,7 +101,9 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
 
 exports.getProviderBookings = catchAsync(async (req, res, next) => {
     const { providerId } = req.params;
-    const { lastId, limit } = req.query; // Validated via zod
+    const { lastId, limit, page } = req.query; // Validated via zod
+    const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    const safePage = Math.max(Number(page) || 1, 1);
 
     // Optional Check: Is the caller actually this provider or an admin?
     const pUserId = await bookingRepo.getUserIdByProviderId(providerId);
@@ -109,16 +111,17 @@ exports.getProviderBookings = catchAsync(async (req, res, next) => {
         throw new AppError('لا تملك صلاحيات استعراض حجوزات هذا المقدم', 403);
     }
 
-    const { records } = await bookingRepo.getBookingsByProvider(providerId, limit, lastId);
+    const { records } = await bookingRepo.getBookingsByProvider(providerId, safeLimit, lastId, safePage);
 
     const nextLastId = records.length > 0 ? records[records.length - 1].id : null;
-    const hasMore = records.length === limit;
+    const hasMore = records.length === safeLimit;
 
     res.status(200).json({
         bookings: records,
         pagination: {
             nextLastId,
-            limit,
+            limit: safeLimit,
+            page: safePage,
             hasMore
         }
     });
@@ -126,22 +129,25 @@ exports.getProviderBookings = catchAsync(async (req, res, next) => {
 
 exports.getUserBookings = catchAsync(async (req, res, next) => {
     const { userId } = req.params;
-    const { lastId, limit } = req.query;
+    const { lastId, limit, page } = req.query;
+    const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    const safePage = Math.max(Number(page) || 1, 1);
 
     if (String(userId) !== String(req.user.id) && req.user.role !== 'admin' && req.user.user_type !== 'admin') {
         throw new AppError('غير مصرح لك بالوصول لطلبات مستخدم آخر', 403);
     }
 
-    const { records } = await bookingRepo.getBookingsByUser(userId, limit, lastId);
+    const { records } = await bookingRepo.getBookingsByUser(userId, safeLimit, lastId, safePage);
 
     const nextLastId = records.length > 0 ? records[records.length - 1].id : null;
-    const hasMore = records.length === limit;
+    const hasMore = records.length === safeLimit;
 
     res.status(200).json({
         bookings: records,
         pagination: {
             nextLastId,
-            limit,
+            limit: safeLimit,
+            page: safePage,
             hasMore
         }
     });

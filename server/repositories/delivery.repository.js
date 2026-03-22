@@ -1,8 +1,23 @@
 const pool = require('../db');
 
+let deliveryOrdersColumnsCache = null;
+
+async function getDeliveryOrdersColumns() {
+    if (deliveryOrdersColumnsCache) return deliveryOrdersColumnsCache;
+
+    const result = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'delivery_orders'`
+    );
+
+    deliveryOrdersColumnsCache = new Set(result.rows.map((row) => row.column_name));
+    return deliveryOrdersColumnsCache;
+}
+
 class DeliveryRepository {
     async beginTransaction() {
-        const client = await pool.pool.connect();
+        const client = await pool.connect();
         await client.query('BEGIN');
         return client;
     }
@@ -131,14 +146,59 @@ class DeliveryRepository {
         return result.rows[0];
     }
 
+    async getOrderByIdSecure(id, { userId, role }) {
+        const normalizedRole = String(role || '').toLowerCase();
+        const isAdmin = ['admin', 'owner', 'partner_owner'].includes(normalizedRole);
+
+        if (isAdmin) {
+            return this.getOrderById(id);
+        }
+
+        const isCourier = ['courier', 'partner_courier'].includes(normalizedRole);
+        const isSupervisor = ['supervisor', 'partner_supervisor'].includes(normalizedRole);
+
+        const params = [id];
+        const conditions = ['o.id = $1'];
+
+        if (isCourier) {
+            params.push(userId);
+            conditions.push(`(
+                o.courier_id = $2
+                OR (o.courier_id IS NULL AND o.status IN ('pending', 'ready_for_pickup'))
+            )`);
+        } else if (isSupervisor) {
+            params.push(userId);
+            conditions.push('o.supervisor_id = $2');
+        } else {
+            return null;
+        }
+
+        const query = `
+            SELECT o.*, 
+                   c.name as courier_name,
+                   c.phone as courier_phone,
+                   s.name as supervisor_name
+            FROM delivery_orders o
+            LEFT JOIN users c ON o.courier_id = c.id
+            LEFT JOIN users s ON o.supervisor_id = s.id
+            WHERE ${conditions.join(' AND ')}
+            LIMIT 1
+        `;
+
+        const result = await pool.query(query, params);
+        return result.rows[0] || null;
+    }
+
     async updateOrderAtomic(id, expectedStatus, updates, client = pool) {
         // [ENTERPRISE] Atomic Compare-and-Swap
         const fields = Object.keys(updates);
         const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
         const params = [...Object.values(updates), id];
+        const cols = await getDeliveryOrdersColumns();
+        const updatedAtClause = cols.has('updated_at') ? ', updated_at = NOW()' : '';
 
         // If expectedStatus is provided, enforce it in the WHERE clause
-        let query = `UPDATE delivery_orders SET ${setClause}, updated_at = NOW() WHERE id = $${params.length}`;
+        let query = `UPDATE delivery_orders SET ${setClause}${updatedAtClause} WHERE id = $${params.length}`;
         if (expectedStatus) {
             params.push(expectedStatus);
             query += ` AND status = $${params.length}`;
@@ -174,13 +234,48 @@ class DeliveryRepository {
 
     async updateOrder(id, data) {
         const fields = Object.keys(data);
+        if (fields.length === 0) return null;
+
         const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
         const params = Object.values(data);
         params.push(id);
+        const cols = await getDeliveryOrdersColumns();
+        const updatedAtClause = cols.has('updated_at') ? ', updated_at = NOW()' : '';
 
-        const query = `UPDATE delivery_orders SET ${setClause}, updated_at = NOW() WHERE id = $${params.length} RETURNING *`;
+        const query = `UPDATE delivery_orders SET ${setClause}${updatedAtClause} WHERE id = $${params.length} RETURNING *`;
         const result = await pool.query(query, params);
         return result.rows[0];
+    }
+
+    async getLinkedBookings(orderId) {
+        const result = await pool.query(
+            `SELECT id, parent_order_id, status
+             FROM bookings
+             WHERE CAST(halan_order_id AS TEXT) = CAST($1 AS TEXT)`,
+            [String(orderId)]
+        );
+        return result.rows || [];
+    }
+
+    async softDelete(id) {
+        const cols = await getDeliveryOrdersColumns();
+
+        if (cols.has('is_deleted')) {
+            const setClauses = ['is_deleted = true'];
+            if (cols.has('updated_at')) {
+                setClauses.push('updated_at = NOW()');
+            }
+
+            await pool.query(
+                `UPDATE delivery_orders
+                 SET ${setClauses.join(', ')}
+                 WHERE id = $1`,
+                [id]
+            );
+            return;
+        }
+
+        await pool.query('DELETE FROM delivery_orders WHERE id = $1', [id]);
     }
 
     async addHistory(orderId, status, userId, notes, latitude = null, longitude = null, client = pool) {

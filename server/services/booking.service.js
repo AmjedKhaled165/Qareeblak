@@ -284,42 +284,61 @@ class BookingService {
         }
 
         if (halanOrderId) {
-            const deliveryOrder = await bookingRepo.checkDeliveryOrderType(halanOrderId);
+            try {
+                const deliveryOrder = await bookingRepo.checkDeliveryOrderType(halanOrderId);
 
-            const isManualOrder = deliveryOrder && (
-                deliveryOrder.order_type === 'manual' ||
-                (deliveryOrder.source && !deliveryOrder.source.includes('qareeblak'))
-            );
-            const alreadyHasCourier = deliveryOrder && !!deliveryOrder.courier_id;
+                const isManualOrder = deliveryOrder && (
+                    deliveryOrder.order_type === 'manual' ||
+                    (deliveryOrder.source && !deliveryOrder.source.includes('qareeblak'))
+                );
+                const alreadyHasCourier = deliveryOrder && !!deliveryOrder.courier_id;
 
-            let halanStatus = null;
-            if (status === 'confirmed') halanStatus = 'pending';
-            if (status === 'completed') halanStatus = 'ready_for_pickup';
-            if (status === 'cancelled') halanStatus = 'cancelled';
+                let halanStatus = null;
+                if (status === 'confirmed') halanStatus = 'pending';
+                if (status === 'completed') halanStatus = 'ready_for_pickup';
+                if (status === 'cancelled') halanStatus = 'cancelled';
 
-            if (halanStatus) {
-                if (isManualOrder || alreadyHasCourier) {
-                    await bookingRepo.updateDeliveryOrderStatus(halanOrderId, halanStatus);
-                    if (io) io.emit('order-status-changed', { orderId: halanOrderId, status: halanStatus });
-                } else if (status === 'completed') {
-                    try {
-                        const courier = await performAutoAssign(halanOrderId, bookingInfo.provider_id, io, 'ready_for_pickup');
-                        if (!courier) {
+                const emitHalanStatus = (nextStatus) => {
+                    if (!io || !nextStatus) return;
+                    const orderIdNum = Number(halanOrderId);
+                    io.emit('order-status-changed', { orderId: orderIdNum, status: nextStatus });
+                    io.emit('order-updated', { orderId: orderIdNum, status: nextStatus });
+                    io.emit('booking-updated', { halanOrderId: orderIdNum, status: nextStatus });
+                };
+
+                if (halanStatus) {
+                    if (isManualOrder || alreadyHasCourier) {
+                        await bookingRepo.updateDeliveryOrderStatus(halanOrderId, halanStatus);
+                        emitHalanStatus(halanStatus);
+                    } else if (status === 'completed') {
+                        try {
+                            const courier = await performAutoAssign(halanOrderId, bookingInfo.provider_id, io, 'ready_for_pickup');
+                            if (!courier) {
+                                await bookingRepo.updateDeliveryOrderStatus(halanOrderId, halanStatus);
+                            }
+                            emitHalanStatus('ready_for_pickup');
+                        } catch (e) {
+                            logger.error('Auto assign failed', e);
                             await bookingRepo.updateDeliveryOrderStatus(halanOrderId, halanStatus);
-                            if (io) io.emit('order-status-changed', { orderId: halanOrderId, status: halanStatus });
+                            emitHalanStatus(halanStatus);
                         }
-                    } catch (e) {
-                        logger.error('Auto assign failed', e);
+                    } else {
+                        await bookingRepo.updateDeliveryOrderStatus(halanOrderId, halanStatus);
+                        emitHalanStatus(halanStatus);
                     }
-                } else if (halanStatus) {
-                    await bookingRepo.updateDeliveryOrderStatus(halanOrderId, halanStatus);
-                    if (io) io.emit('order-status-changed', { orderId: halanOrderId, status: halanStatus });
                 }
+            } catch (halanSyncError) {
+                // Do not fail provider status update because of Halan sync side-effects.
+                logger.error(`Failed to sync halan status for booking ${id} / order ${halanOrderId}`, halanSyncError);
             }
         }
 
         if (bookingInfo.parent_order_id) {
-            await syncParentOrderStatus(bookingInfo.parent_order_id, io);
+            try {
+                await syncParentOrderStatus(bookingInfo.parent_order_id, io);
+            } catch (parentSyncError) {
+                logger.error(`Failed to sync parent order ${bookingInfo.parent_order_id} for booking ${id}`, parentSyncError);
+            }
         }
 
         // 💸 Financial Calculation for Admin & Provider (Only on completion)

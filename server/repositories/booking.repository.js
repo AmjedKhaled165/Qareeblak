@@ -2,6 +2,8 @@ const pool = require('../db');
 
 let bookingsColumnsCache = null;
 let parentOrdersColumnsCache = null;
+let deliveryOrdersColumnsCache = null;
+let usersColumnsCache = null;
 
 async function getBookingsColumns() {
     if (bookingsColumnsCache) return bookingsColumnsCache;
@@ -27,6 +29,32 @@ async function getParentOrdersColumns() {
 
     parentOrdersColumnsCache = new Set(result.rows.map((row) => row.column_name));
     return parentOrdersColumnsCache;
+}
+
+async function getDeliveryOrdersColumns() {
+    if (deliveryOrdersColumnsCache) return deliveryOrdersColumnsCache;
+
+    const result = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'delivery_orders'`
+    );
+
+    deliveryOrdersColumnsCache = new Set(result.rows.map((row) => row.column_name));
+    return deliveryOrdersColumnsCache;
+}
+
+async function getUsersColumns() {
+    if (usersColumnsCache) return usersColumnsCache;
+
+    const result = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'users'`
+    );
+
+    usersColumnsCache = new Set(result.rows.map((row) => row.column_name));
+    return usersColumnsCache;
 }
 
 class BookingRepository {
@@ -208,8 +236,10 @@ class BookingRepository {
         return newDOrderId;
     }
 
-    async getBookingsByProvider(providerId, limit, lastId) {
+    async getBookingsByProvider(providerId, limit, lastId, page = 1) {
         const cols = await getBookingsColumns();
+        const deliveryCols = await getDeliveryOrdersColumns();
+        const userCols = await getUsersColumns();
         const userNameExpr = cols.has('user_name')
             ? 'b.user_name'
             : (cols.has('customer_name') ? 'b.customer_name' : `'عميل'`);
@@ -223,15 +253,24 @@ class BookingRepository {
         const halanOrderExpr = cols.has('halan_order_id') ? 'b.halan_order_id' : 'NULL';
         const userIdExpr = cols.has('user_id') ? 'b.user_id' : 'NULL';
 
-        const courierIdExpr = cols.has('halan_order_id') ? 'd.courier_id' : 'NULL';
-        const courierNameExpr = cols.has('halan_order_id') ? 'c.name' : 'NULL';
-        const courierPhoneExpr = cols.has('halan_order_id') ? 'c.phone' : 'NULL';
-        const joinDelivery = cols.has('halan_order_id') 
-            ? 'LEFT JOIN delivery_orders d ON b.halan_order_id = d.id LEFT JOIN users c ON d.courier_id = c.id' 
+        const hasHalanOrder = cols.has('halan_order_id');
+        const hasDeliveryCourier = deliveryCols.has('courier_id');
+        const hasUsersPhone = userCols.has('phone');
+
+        const courierIdExpr = (hasHalanOrder && hasDeliveryCourier) ? 'd.courier_id' : 'NULL';
+        const courierNameExpr = (hasHalanOrder && hasDeliveryCourier) ? 'c.name' : 'NULL';
+        const courierPhoneExpr = (hasHalanOrder && hasDeliveryCourier && hasUsersPhone) ? 'c.phone' : 'NULL';
+
+        const joinDelivery = (hasHalanOrder && hasDeliveryCourier)
+            ? 'LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT) LEFT JOIN users c ON d.courier_id = c.id'
             : '';
+
+        const userPhoneExpr = hasUsersPhone ? 'u.phone' : 'NULL';
+        const joinUser = cols.has('user_id') ? 'LEFT JOIN users u ON CAST(b.user_id AS TEXT) = CAST(u.id AS TEXT)' : '';
 
         let query;
         let params;
+        const offset = Math.max((Number(page) - 1) * Number(limit), 0);
 
         if (lastId) {
             query = `
@@ -247,19 +286,19 @@ class BookingRepository {
                        ${courierIdExpr} AS "courierId",
                        ${courierNameExpr} AS "courierName",
                        ${courierPhoneExpr} AS "courierPhone",
-                       u.phone AS "userPhone",
+                       ${userPhoneExpr} AS "userPhone",
                        ${dateExpr} AS date,
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType",
                        ${parentOrderExpr} AS "parentOrderId"
                 FROM bookings b
                 ${joinDelivery}
-                LEFT JOIN users u ON b.user_id = u.id
-                WHERE b.provider_id = $1 AND b.id < $2
+                ${joinUser}
+                WHERE CAST(b.provider_id AS TEXT) = $1 AND b.id < $2
                 ORDER BY b.id DESC
                 LIMIT $3
             `;
-            params = [providerId, lastId, limit];
+            params = [String(providerId), lastId, limit];
         } else {
             query = `
                 SELECT b.id,
@@ -274,19 +313,20 @@ class BookingRepository {
                        ${courierIdExpr} AS "courierId",
                        ${courierNameExpr} AS "courierName",
                        ${courierPhoneExpr} AS "courierPhone",
-                       u.phone AS "userPhone",
+                       ${userPhoneExpr} AS "userPhone",
                        ${dateExpr} AS date,
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType",
                        ${parentOrderExpr} AS "parentOrderId"
                 FROM bookings b
                 ${joinDelivery}
-                LEFT JOIN users u ON b.user_id = u.id
-                WHERE b.provider_id = $1
+                ${joinUser}
+                WHERE CAST(b.provider_id AS TEXT) = $1
                 ORDER BY b.id DESC
                 LIMIT $2
+                OFFSET $3
             `;
-            params = [providerId, limit];
+            params = [String(providerId), limit, offset];
         }
 
         const result = await pool.query(query, params);
@@ -295,7 +335,7 @@ class BookingRepository {
         return { records: result.rows };
     }
 
-    async getBookingsByUser(userId, limit, lastId) {
+    async getBookingsByUser(userId, limit, lastId, page = 1) {
         const cols = await getBookingsColumns();
         const userNameExpr = cols.has('user_name')
             ? 'b.user_name'
@@ -312,6 +352,7 @@ class BookingRepository {
 
         let query;
         let params;
+        const offset = Math.max((Number(page) - 1) * Number(limit), 0);
 
         if (lastId) {
             query = `
@@ -331,11 +372,11 @@ class BookingRepository {
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType"
                 FROM bookings b
-                WHERE b.user_id = $1 AND b.id < $2
+                WHERE CAST(b.user_id AS TEXT) = $1 AND b.id < $2
                 ORDER BY id DESC
                 LIMIT $3
             `;
-            params = [userId, lastId, limit];
+            params = [String(userId), lastId, limit];
         } else {
             query = `
                 SELECT b.id,
@@ -354,11 +395,12 @@ class BookingRepository {
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType"
                 FROM bookings b
-                WHERE b.user_id = $1
+                WHERE CAST(b.user_id AS TEXT) = $1
                 ORDER BY id DESC
                 LIMIT $2
+                OFFSET $3
             `;
-            params = [userId, limit];
+            params = [String(userId), limit, offset];
         }
 
         const result = await pool.query(query, params);
@@ -430,16 +472,31 @@ class BookingRepository {
     }
 
     async updateDeliveryOrderStatus(deliveryOrderId, status) {
+        const deliveryCols = await getDeliveryOrdersColumns();
+        const setClauses = ['status = $1'];
+        const params = [status, String(deliveryOrderId)];
+
+        if (deliveryCols.has('updated_at')) {
+            setClauses.push('updated_at = CURRENT_TIMESTAMP');
+        }
+
         await pool.query(
-            'UPDATE delivery_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-            [status, deliveryOrderId]
+            `UPDATE delivery_orders SET ${setClauses.join(', ')} WHERE CAST(id AS TEXT) = $2`,
+            params
         );
     }
 
     async checkDeliveryOrderType(halanOrderId) {
+        const deliveryCols = await getDeliveryOrdersColumns();
+        const orderTypeExpr = deliveryCols.has('order_type') ? 'order_type' : 'NULL AS order_type';
+        const courierIdExpr = deliveryCols.has('courier_id') ? 'courier_id' : 'NULL AS courier_id';
+        const sourceExpr = deliveryCols.has('source') ? 'source' : 'NULL AS source';
+
         const result = await pool.query(
-            'SELECT order_type, courier_id, source FROM delivery_orders WHERE id = $1',
-            [halanOrderId]
+            `SELECT ${orderTypeExpr}, ${courierIdExpr}, ${sourceExpr}
+             FROM delivery_orders
+             WHERE CAST(id AS TEXT) = $1`,
+            [String(halanOrderId)]
         );
         return result.rows[0];
     }

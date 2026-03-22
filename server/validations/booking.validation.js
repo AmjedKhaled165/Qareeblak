@@ -49,7 +49,8 @@ const acceptAppointmentSchema = z.object({
 
 const getBookingsQuerySchema = z.object({
     lastId: z.string().regex(/^\d+$/).transform(Number).optional().nullable(),
-    limit: z.string().regex(/^\d+$/).transform(val => Math.min(Number(val), 100)).optional().default("20")
+    limit: z.string().regex(/^\d+$/).transform(val => Math.min(Math.max(Number(val), 1), 100)).optional().default("20"),
+    page: z.string().regex(/^\d+$/).transform(val => Math.max(Number(val), 1)).optional().default("1")
 });
 
 const validateIdParam = z.object({

@@ -298,38 +298,61 @@ export default function ProviderDashboard() {
         );
     }, [currentUser, bookings, myProviderProfile, optimisticStatuses]);
 
+    // Keep overview/counts populated even when global store hasn't hydrated provider bookings yet.
+    const overviewBookings = useMemo(() => {
+        if (myBookings.length > 0) {
+            return myBookings;
+        }
+        if (optimisticStatuses.size === 0) {
+            return paginatedBookings;
+        }
+        return paginatedBookings.map((b: Booking) =>
+            optimisticStatuses.has(b.id) ? { ...b, status: optimisticStatuses.get(b.id) as Booking['status'] } : b
+        );
+    }, [myBookings, paginatedBookings, optimisticStatuses]);
+
     const myServices = providerServices.length > 0
         ? providerServices
         : (myProviderProfile?.services || []);
     const myReviews = myProviderProfile?.reviewsList || [];
 
     // Server-side paginated bookings fetch
-    const fetchPaginatedBookings = useCallback(async () => {
+    const fetchPaginatedBookings = useCallback(async (requestedPage?: number) => {
         if (!providerId) return;
+
+        const pageToLoad = Math.max(1, Number(requestedPage ?? currentPage) || 1);
 
         setBookingsLoading(true);
         setBookingsError(null);
 
         try {
-            const response = await bookingsApi.getByProvider(providerId, currentPage, ordersPerPage);
+            const response = await bookingsApi.getByProvider(providerId, pageToLoad, ordersPerPage);
+            const payload: any = (response && typeof response === 'object' && 'bookings' in (response as any))
+                ? response
+                : ((response as any)?.data && (response as any).data.bookings
+                    ? (response as any).data
+                    : null);
 
-            if (response && response.bookings) {
-                // Backend returns { bookings: [...], pagination: {...} }
-                const normalizedBookings = (response.bookings || []).map((b: any) => ({
+            if (payload && Array.isArray(payload.bookings)) {
+                const normalizedBookings = (payload.bookings || []).map((b: any) => ({
                     ...b,
                     id: String(b?.id ?? '')
                 }));
                 setPaginatedBookings(normalizedBookings);
-                setTotalBookings(response.pagination.total);
-                setTotalPages(response.pagination.totalPages);
+                const totalFromApi = Number(payload?.pagination?.total);
+                const pagesFromApi = Number(payload?.pagination?.totalPages);
+                setTotalBookings(Number.isFinite(totalFromApi) && totalFromApi > 0 ? totalFromApi : normalizedBookings.length);
+                setTotalPages(Number.isFinite(pagesFromApi) && pagesFromApi > 0 ? pagesFromApi : Math.max(1, Math.ceil(normalizedBookings.length / ordersPerPage)));
             } else {
                 // Fallback: Backend might return array directly (backward compatibility)
                 const bookingsArray = Array.isArray(response)
                     ? response.map((b: any) => ({ ...b, id: String(b?.id ?? '') }))
-                    : [];
+                    : (Array.isArray((response as any)?.data)
+                        ? (response as any).data.map((b: any) => ({ ...b, id: String(b?.id ?? '') }))
+                        : []);
                 setPaginatedBookings(bookingsArray);
                 setTotalBookings(bookingsArray.length);
-                setTotalPages(Math.ceil(bookingsArray.length / ordersPerPage));
+                setTotalPages(Math.max(1, Math.ceil(bookingsArray.length / ordersPerPage)));
             }
         } catch (error) {
             console.error('Failed to fetch paginated bookings:', error);
@@ -360,8 +383,15 @@ export default function ProviderDashboard() {
 
     // Fetch paginated bookings when provider ID or page changes
     useEffect(() => {
-        if (isInitialized && providerId && activeTab === 'orders') {
-            fetchPaginatedBookings();
+        if (!isInitialized || !providerId) return;
+
+        if (activeTab === 'overview') {
+            fetchPaginatedBookings(1);
+            return;
+        }
+
+        if (activeTab === 'orders') {
+            fetchPaginatedBookings(currentPage);
         }
     }, [isInitialized, providerId, currentPage, activeTab, fetchPaginatedBookings]);
 
@@ -1211,7 +1241,10 @@ export default function ProviderDashboard() {
                     <Button
                         variant={activeTab === 'overview' ? 'secondary' : 'ghost'}
                         className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all ${activeTab === 'overview' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
-                        onClick={() => setActiveTab('overview')}
+                        onClick={() => {
+                            setCurrentPage(1);
+                            setActiveTab('overview');
+                        }}
                     >
                         <LayoutDashboard className="w-5 h-5" />
                         نظرة عامة
@@ -1222,7 +1255,7 @@ export default function ProviderDashboard() {
                         onClick={() => setActiveTab('orders')}
                     >
                         <ShoppingBag className="w-5 h-5" />
-                        الطلبات ({myBookings.filter((b: Booking) => b.status === 'pending').length})
+                        الطلبات ({overviewBookings.filter((b: Booking) => b.status === 'pending').length})
                     </Button>
                     <Button
                         variant={activeTab === 'services' ? 'secondary' : 'ghost'}
@@ -1301,7 +1334,7 @@ export default function ProviderDashboard() {
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground font-bold font-cairo">الطلبات الجديدة</p>
-                                            <h3 className="text-4xl font-black text-foreground mt-1">{myBookings.filter((b: Booking) => ['pending', 'new', 'جديد'].includes(b.status)).length}</h3>
+                                            <h3 className="text-4xl font-black text-foreground mt-1">{overviewBookings.filter((b: Booking) => ['pending', 'new', 'جديد'].includes(b.status)).length}</h3>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -1313,7 +1346,7 @@ export default function ProviderDashboard() {
                                         <div>
                                             <p className="text-sm text-muted-foreground font-bold font-cairo">إجمالي المبيعات</p>
                                             <h3 className="text-4xl font-black text-foreground mt-1">
-                                                {myBookings
+                                                {overviewBookings
                                                     .filter((b: Booking) => {
                                                         const s = String(b.status || '').toLowerCase().trim();
                                                         return [
@@ -1380,7 +1413,7 @@ export default function ProviderDashboard() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border/50 font-medium font-cairo">
-                                                {myBookings.slice(0, 5).map((booking: Booking, i: number) => (
+                                                {overviewBookings.slice(0, 5).map((booking: Booking, i: number) => (
                                                     <tr key={i} className="hover:bg-muted/20 transition-all group">
                                                         <td className="px-10 py-6 font-black text-foreground text-lg">{booking.userName}</td>
                                                         <td className="px-10 py-6 text-muted-foreground">{booking.serviceName}</td>
@@ -1401,7 +1434,7 @@ export default function ProviderDashboard() {
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {myBookings.length === 0 && (
+                                                {overviewBookings.length === 0 && (
                                                     <tr><td colSpan={3} className="text-center py-20 text-muted-foreground font-bold">لا توجد طلبات بعد</td></tr>
                                                 )}
                                             </tbody>

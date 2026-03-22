@@ -139,8 +139,24 @@ class DeliveryService {
 
         const updated = await deliveryRepo.updateOrder(id, data);
 
+        if (!updated) {
+            throw new AppError('لا توجد بيانات قابلة للتحديث', 400);
+        }
+
         if (io) {
             io.emit('order-updated', { orderId: id, updates: data });
+
+            if (Object.prototype.hasOwnProperty.call(data, 'status')) {
+                io.emit('order-status-changed', { orderId: id, status: data.status });
+
+                const linkedBookings = await deliveryRepo.getLinkedBookings(id);
+                for (const b of linkedBookings) {
+                    io.emit('booking-updated', { id: b.id, status: data.status, halanOrderId: Number(id) });
+                    if (b.parent_order_id) {
+                        await syncParentOrderStatus(b.parent_order_id, io);
+                    }
+                }
+            }
         }
         return updated;
     }

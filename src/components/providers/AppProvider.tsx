@@ -221,6 +221,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
             const userType = user.user_type || user.type;
 
+             // Booking endpoints are authenticated with qareeblak token only.
+            const qareeblakToken = typeof window !== 'undefined' ? localStorage.getItem('qareeblak_token') : null;
+            if (!qareeblakToken) {
+                // In partner/halan-only sessions (or expired customer sessions), skip silently.
+                return;
+            }
+
             if (userType === 'admin') {
                 // Admin: get all recent bookings (paginated, newest first)
                 const result = await apiCall('/bookings?limit=50');
@@ -232,7 +239,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
             // Providers: skip — their bookings are loaded per-page in the dashboard
 
-        } catch (error) {
+        } catch (error: any) {
+            const message = String(error?.message || '');
+            const isAuthError =
+                message.includes('انتهت صلاحية الجلسة') ||
+                message.includes('عدم التفويض') ||
+                message.includes('Unauthorized') ||
+                message.includes('401');
+
+            if (isAuthError && typeof window !== 'undefined') {
+                // Expired qareeblak session: clear only qareeblak artifacts and stop noisy retries.
+                localStorage.removeItem('qareeblak_token');
+                localStorage.removeItem('qareeblak_user');
+                localStorage.removeItem('user');
+
+                if (!localStorage.getItem('halan_token')) {
+                    setCurrentUser(null);
+                }
+
+                setBookings([]);
+                return;
+            }
+
             console.error("Failed to load user bookings:", error);
             setBookings([]);
         }
