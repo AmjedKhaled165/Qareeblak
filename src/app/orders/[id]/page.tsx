@@ -334,7 +334,7 @@ export default function OrderTrackingPage() {
             },
             {
                 id: 'ready',
-                label: 'تم استلام من المطعم',
+                label: 'جاري التوصيل',
                 description: 'وجبتك جاهزة للاستلام',
                 icon: Package,
                 isCompleted: ['ready_for_pickup', 'picked_up', 'in_transit', 'delivered'].includes(order.halanStatus),

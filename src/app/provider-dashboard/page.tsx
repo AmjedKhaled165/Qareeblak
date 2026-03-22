@@ -396,8 +396,17 @@ export default function ProviderDashboard() {
     }, [isInitialized, providerId, currentPage, activeTab, fetchPaginatedBookings]);
 
     useEffect(() => {
-        if (isInitialized && providerId) {
-            fetchProviderServices(providerId);
+        if (!isInitialized || !providerId) return;
+
+        fetchProviderServices(providerId);
+
+        const socket = (window as any).__qareeblak_socket;
+        if (socket) {
+            const handleUpdate = () => fetchProviderServices(providerId);
+            socket.on('services_updated', handleUpdate);
+            return () => {
+                socket.off('services_updated', handleUpdate);
+            };
         }
     }, [isInitialized, providerId, fetchProviderServices]);
 
@@ -1352,7 +1361,7 @@ export default function ProviderDashboard() {
                                                         return [
                                                             'completed', 'delivered', 'picked_up', 'in_transit',
                                                             'تم التجهيز', 'مكتمل', 'تم التوصيل', 'مكتملة',
-                                                            'arkived', 'archived', 'تم استلام من المطعم', 'مع المندوب'
+                                                            'arkived', 'archived', 'جاري التوصيل', 'مع المندوب'
                                                         ].includes(s);
                                                     })
                                                     .reduce((sum: number, b: Booking) => {
@@ -1726,7 +1735,7 @@ export default function ProviderDashboard() {
                                                                 </div>
                                                                 <p className="text-sm font-bold text-destructive">{bookingsError}</p>
                                                                 <button
-                                                                    onClick={fetchPaginatedBookings}
+                                                                    onClick={() => fetchPaginatedBookings()}
                                                                     className="px-4 py-2 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors"
                                                                 >
                                                                     إعادة المحاولة

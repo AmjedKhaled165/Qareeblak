@@ -55,9 +55,38 @@ async function ensureCoreTables(query) {
             id SERIAL PRIMARY KEY,
             provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
             name VARCHAR(255),
+            description TEXT,
+            price DECIMAL(10, 2),
+            image VARCHAR(255),
+            has_offer BOOLEAN DEFAULT false,
+            offer_type VARCHAR(50),
+            discount_percent DECIMAL(5, 2),
+            bundle_count INTEGER,
+            bundle_free_count INTEGER,
+            offer_end_date TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `);
+
+    // Dynamically add columns for existing databases
+    const newServicesColumns = [
+        'description TEXT',
+        'price DECIMAL(10, 2)',
+        'image VARCHAR(255)',
+        'has_offer BOOLEAN DEFAULT false',
+        'offer_type VARCHAR(50)',
+        'discount_percent DECIMAL(5, 2)',
+        'bundle_count INTEGER',
+        'bundle_free_count INTEGER',
+        'offer_end_date TIMESTAMP'
+    ];
+    for (const colDef of newServicesColumns) {
+        const colName = colDef.split(' ')[0];
+        try {
+            await query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS ${colName} ${colDef.substring(colName.length + 1)}`);
+        } catch(e) { /* ignore if already exists */ }
+    }
+
 
     await query(`
         CREATE TABLE IF NOT EXISTS bookings (

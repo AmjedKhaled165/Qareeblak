@@ -232,6 +232,14 @@ class DeliveryRepository {
         return result.rows[0];
     }
 
+    async getLinkedBookings(halanOrderId) {
+        const result = await pool.query(
+            'SELECT id, parent_order_id FROM bookings WHERE CAST(halan_order_id AS TEXT) = $1',
+            [String(halanOrderId)]
+        );
+        return result.rows;
+    }
+
     async updateOrder(id, data) {
         const fields = Object.keys(data);
         if (fields.length === 0) return null;

@@ -321,7 +321,7 @@ export default function TrackOrderPage() {
             step: 2
         },
         'تم التجهيز': {
-            label: 'تم استلام من المطعم',
+            label: 'جاري التوصيل',
             icon: Store,
             color: 'text-indigo-500',
             bgColor: 'bg-indigo-500',
@@ -335,7 +335,7 @@ export default function TrackOrderPage() {
             step: 5
         },
         picked_up: {
-            label: 'تم استلام من المطعم',
+            label: 'جاري التوصيل',
             icon: Store,
             color: 'text-violet-500',
             bgColor: 'bg-violet-500',
@@ -762,7 +762,7 @@ export default function TrackOrderPage() {
                                     { step: 1, label: 'تم استلام الطلب', icon: Package },
                                     { step: 2, label: 'جاري التحضير', icon: ChefHat },
                                     { step: 3, label: 'تم التحضير', icon: ChefHat },
-                                    { step: 4, label: 'تم استلام من المطعم', icon: Store },
+                                    { step: 4, label: 'جاري التوصيل', icon: Store },
                                     { step: 5, label: 'تم التوصيل', icon: CheckCircle },
                                 ].map((item, index, array) => {
                                     const StepIcon = item.icon;

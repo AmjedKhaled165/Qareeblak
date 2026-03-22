@@ -404,6 +404,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             socket.on('booking-updated', refreshBookings);
             socket.on('order-status-changed', refreshBookings);
             socket.on('order-updated', refreshBookings);
+            socket.on('services_updated', loadProviders);
 
             // Store globally so other effects can emit to it
             (window as any).__qareeblak_socket = socket;
