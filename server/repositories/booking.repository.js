@@ -94,13 +94,55 @@ class BookingRepository {
     }
 
     async createBookingItem(paramsArray, client = pool) {
-        const query = `
-            INSERT INTO bookings 
-            (user_id, provider_id, user_name, service_name, provider_name, price, discount_amount, details, items, status, parent_order_id, bundle_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10, $11)
-            RETURNING id
-        `;
-        const result = await client.query(query, paramsArray);
+        const [
+            userId,
+            providerId,
+            userName,
+            serviceName,
+            providerName,
+            price,
+            discountAmount,
+            details,
+            items,
+            parentOrderId,
+            bundleId
+        ] = paramsArray;
+
+        const cols = await getBookingsColumns();
+        const insertCols = [];
+        const values = [];
+        const params = [];
+
+        const pushColumn = (column, value) => {
+            insertCols.push(column);
+            params.push(value);
+            values.push(`$${params.length}`);
+        };
+
+        if (cols.has('user_id')) pushColumn('user_id', userId);
+        if (cols.has('provider_id')) pushColumn('provider_id', providerId);
+
+        if (cols.has('user_name')) {
+            pushColumn('user_name', userName);
+        } else if (cols.has('customer_name')) {
+            pushColumn('customer_name', userName);
+        }
+
+        if (cols.has('service_name')) pushColumn('service_name', serviceName);
+        if (cols.has('provider_name')) pushColumn('provider_name', providerName);
+        if (cols.has('price')) pushColumn('price', price);
+        if (cols.has('discount_amount')) pushColumn('discount_amount', discountAmount || 0);
+        if (cols.has('details')) pushColumn('details', details || null);
+        if (cols.has('items')) pushColumn('items', items || '[]');
+        if (cols.has('status')) pushColumn('status', 'pending');
+        if (cols.has('parent_order_id')) pushColumn('parent_order_id', parentOrderId || null);
+        if (cols.has('bundle_id')) pushColumn('bundle_id', bundleId || null);
+
+        const query = insertCols.length > 0
+            ? `INSERT INTO bookings (${insertCols.join(', ')}) VALUES (${values.join(', ')}) RETURNING id`
+            : 'INSERT INTO bookings DEFAULT VALUES RETURNING id';
+
+        const result = await client.query(query, params);
         return result.rows[0].id;
     }
 
