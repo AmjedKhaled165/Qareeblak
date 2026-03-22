@@ -2,8 +2,6 @@
 
 نظام موحد لخدمات Qareeblak (الخدمات المحلية) و Halan (توصيل الطلبات)
 
----
-
 ## 🚀 Quick Start (تشغيل سريع)
 
 ### 💻 Frontend (Next.js)
@@ -17,39 +15,42 @@ npm run dev
 ```bash
 cd server
 npm install
-node index.js
+npm start
 ```
 يعمل على: [http://localhost:5000](http://localhost:5000)
 
 ### ⚡ Performance Optimization (تهيئة الأداء)
-لتحسين أداء قاعدة البيانات (تسريع الاستعلامات 50 ضعفاً):
+لتحسين أداء قاعدة البيانات:
 ```bash
 cd server
 node migrations/add-performance-indexes.js
 ```
 
----
+## 📱 WhatsApp Integration (ربط واتساب)
+يعتمد النظام على **Evolution API** لإرسال الفواتير للعملاء على الواتساب تلقائياً عند تحول حالة الطلب إلى "تم التوصيل". 
+
+لتشغيل الخدمة محلياً (Local):
+1. قم بتشغيل Evolution API على البورت `8080`.
+2. تأكد من تطابق `EVOLUTION_API_KEY` و `EVOLUTION_API_URL` في ملف `.env` في السيرفر مع إعدادات Evolution.
 
 ## 📁 هيكل المشروع (Project Structure)
 
-```
+```text
 Qareeblak/
 ├── src/                          # Next.js Frontend
 │   ├── components/
 │   │   ├── features/             # Chat, Bookings
 │   │   └── ui/                   # Reusable components
 │   └── app/                      # Routes & Pages
-├── server/                        # Backend API (Node.js)
+├── server/                       # Backend API (Node.js)
 │   ├── routes/                   # API Endpoints
 │   ├── migrations/               # DB Scripts
 │   └── index.js                  # Main server entry
-├── halan/                         # Halan Mobile (React Native)
+├── halan/                        # Halan Mobile (React Native)
 │   ├── app/                      # Mobile Screens
 │   └── utils/                    # Location & API services
-└── public/                        # Static assets
+└── public/                       # Static assets
 ```
-
----
 
 ## ⚡ Performance & Query Optimization
 
@@ -57,10 +58,6 @@ Qareeblak/
 1. **Database Indexes**: إضافة فهارس لكل من `bookings`, `providers`, `users` لتسريع البحث.
 2. **Server-Side Pagination**: جميع قوائم الطلبات تستخدم التنقل الصفحي (Pagination) لتقليل حجم البيانات المنقولة بنسبة 90%.
 3. **Optimized Queries**: اختيار الأعمدة المطلوبة فقط في الاستعلامات بدلاً من `SELECT *`.
-
-للمزيد من التفاصيل، يمكن مراجعة سكربتات التهيئة في `server/migrations/`.
-
----
 
 ## 📱 Halan Mobile App (تطبيق المندوب)
 
@@ -76,16 +73,12 @@ npm install
 npm start
 ```
 
----
-
 ## ⚖️ Terms and Conditions (الشروط والأحكام)
 
 **Qareeblak Marketplace** هو منصة وسيطة تربط مقدمي الخدمات المستقلين بالعملاء.
 - **Providers**: مقدمو الخدمة هم متعاقدون مستقلون ومسؤولون عن جودة خدماتهم.
 - **Liability**: المنصة غير مسؤولة عن أي أضرار ناتجة عن الخدمة المقدمة من قبل أطراف ثالثة.
 - **Cancellations**: قد يتم تطبيق رسوم إلغاء في حال الإلغاء قبل الموعد بمدة قصيرة.
-
----
 
 ## ✅ Status
 

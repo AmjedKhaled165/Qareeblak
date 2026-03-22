@@ -701,6 +701,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                             <input
                                                                 type="text"
                                                                 value={item.name}
+                                                                title="اسم المنتج"
+                                                                placeholder="اسم المنتج"
                                                                 onChange={(e) => updateItemName(index, e.target.value)}
                                                                 onFocus={() => {
                                                                     if (item.name.trim()) {
@@ -799,6 +801,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                 <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">ملاحظات المنتج</label>
                                                 <input
                                                     type="text"
+                                                    title="ملاحظات المنتج"
                                                     placeholder="مثال: كبير، بدون بصل..."
                                                     value={item.notes || ''}
                                                     onChange={(e) => updateItemNotes(index, e.target.value)}

@@ -345,13 +345,10 @@ export default function DriverTrackingPage() {
         <div className="flex flex-col h-[100dvh] w-full bg-slate-100 dark:bg-slate-950 overflow-hidden" dir="rtl">
             {/* Header */}
             <div
-                className="p-6 pt-10 rounded-b-[30px] shadow-lg flex-shrink-0 z-10 relative"
-                style={{
-                    background: 'linear-gradient(135deg, #624AF2 0%, #504DFF 100%)'
-                }}
+                className="p-6 pt-10 rounded-b-[30px] shadow-lg flex-shrink-0 z-10 relative bg-gradient-to-br from-[#624AF2] to-[#504DFF]"
             >
                 <div className="flex items-center gap-3 mb-6">
-                    <button onClick={() => router.back()} className="p-2">
+                    <button onClick={() => router.back()} className="p-2" aria-label="العودة" title="العودة">
                         <ArrowRight className="w-6 h-6 text-white" />
                     </button>
                     <div className="flex-1">
@@ -363,6 +360,8 @@ export default function DriverTrackingPage() {
                         <button
                             onClick={handleCallDriver}
                             className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
+                            aria-label="الاتصال بالمندوب"
+                            title="الاتصال بالمندوب"
                         >
                             <Phone className="w-5 h-5 text-white" />
                         </button>
@@ -399,7 +398,7 @@ export default function DriverTrackingPage() {
                         <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor()} ${connectionStatus === 'connecting' ? 'animate-pulse' : ''}`} />
                         <span className="text-white/90 text-xs font-medium">{getStatusText()}</span>
                         {connectionStatus === 'disconnected' && (
-                            <button onClick={connectSocket} className="mr-1">
+                            <button onClick={connectSocket} className="mr-1" aria-label="إعادة الاتصال" title="إعادة الاتصال">
                                 <RefreshCw className="w-3 h-3 text-white/80" />
                             </button>
                         )}
@@ -438,6 +437,8 @@ export default function DriverTrackingPage() {
                             <div className="absolute top-4 left-4 z-[1000]">
                                 <button
                                     onClick={() => setIsFollowing(true)}
+                                    aria-label="تتبع المندوب"
+                                    title="تتبع المندوب"
                                     className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all ${isFollowing
                                         ? 'bg-violet-600 text-white'
                                         : 'bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200'

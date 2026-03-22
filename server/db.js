@@ -18,10 +18,19 @@ if (process.env.DATABASE_URL) {
 
 const databaseUrl = process.env.DATABASE_URL;
 
-// Detect remote/cloud DB — Neon.tech, Supabase, or any production env requires SSL
+// Detect environments that require TLS for DB traffic.
 const isProduction = process.env.NODE_ENV === 'production';
 const allowDegradedStartup = process.env.ALLOW_DB_DEGRADED_STARTUP === 'true';
-const isRemoteDb = databaseUrl.includes('neon.tech') || databaseUrl.includes('supabase') || isProduction;
+const dbSslFlag = String(process.env.DB_SSL || '').toLowerCase();
+const forceSslFromEnv = dbSslFlag === 'true' || dbSslFlag === '1' || dbSslFlag === 'yes';
+const hasSslModeRequire = /sslmode=require/i.test(databaseUrl);
+const isManagedCloudDb =
+    databaseUrl.includes('neon.tech') ||
+    databaseUrl.includes('supabase') ||
+    databaseUrl.includes('postgres.database.azure.com') ||
+    databaseUrl.includes('aivencloud.com') ||
+    databaseUrl.includes('rds.amazonaws.com');
+const shouldUseSsl = isProduction || forceSslFromEnv || hasSslModeRequire || isManagedCloudDb;
 
 // Safety mechanism for multi-core scaling (PM2 Cluster)
 const totalCpus = os.cpus().length || 4;
@@ -52,7 +61,7 @@ const pool = new Pool({
     statement_timeout: DB_STATEMENT_TIMEOUT_MS,
     idle_in_transaction_session_timeout: DB_IDLE_IN_TX_TIMEOUT_MS,
     maxUses: 7500, // Close idle connections after usage to prevent memory leaks
-    ...(isRemoteDb && { ssl: { rejectUnauthorized: false } })
+    ...(shouldUseSsl && { ssl: { rejectUnauthorized: false } })
 });
 
 // 📊 [Big Tech Tier] Database Instrumentation

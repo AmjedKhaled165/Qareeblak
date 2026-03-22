@@ -126,19 +126,9 @@ textarea {
 /* Smooth scroll for all browsers including Safari */
 html {
   scroll-behavior: smooth;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
 }
 
-/* iOS momentum scrolling for overflowing containers */
-[class*="overflow-auto"],
-[class*="overflow-y-auto"],
-[class*="overflow-x-auto"],
-[class*="overflow-scroll"] {
-  -webkit-overflow-scrolling: touch;
-}
 
-/* Ensure touch targets are responsive */
 button,
 a,
 [role="button"] {
