@@ -7,6 +7,7 @@ import { useState } from "react";
 export function TrackingGuard({ children }: { children: React.ReactNode }) {
     const { isTracking, isExpired, userRole, startTracking } = useCourierTracking();
     const [isActivating, setIsActivating] = useState(false);
+    const [activationError, setActivationError] = useState<string | null>(null);
 
     // Only block couriers
     if (userRole !== 'courier') return <>{children}</>;
@@ -16,8 +17,12 @@ export function TrackingGuard({ children }: { children: React.ReactNode }) {
 
     // Show activation overlay
     const handleActivate = async () => {
+        setActivationError(null);
         setIsActivating(true);
-        await startTracking();
+        const ok = await startTracking();
+        if (!ok) {
+            setActivationError('تعذر تنشيط الموقع بسرعة. تأكد من السماح بالموقع وجرّب مرة أخرى.');
+        }
         setIsActivating(false);
     };
 
@@ -52,6 +57,9 @@ export function TrackingGuard({ children }: { children: React.ReactNode }) {
                             </>
                         )}
                     </button>
+                    {activationError && (
+                        <p className="mt-3 text-sm text-red-400 text-right">{activationError}</p>
+                    )}
                     <p className="mt-4 text-xs text-slate-400 text-center">
                         لا يمكن استخدام التطبيق بدون تفعيل الموقع
                     </p>
