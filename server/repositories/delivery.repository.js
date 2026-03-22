@@ -25,13 +25,18 @@ class DeliveryRepository {
         const conditions = [];
 
         // Security: Mandatory filtering for non-admins
-        const isAdmin = role === 'admin' || role === 'owner';
+        // partner_owner should have owner-level visibility (all orders).
+        const isAdmin = role === 'admin' || role === 'owner' || role === 'partner_owner';
 
         if (!isAdmin) {
             if (role === 'courier' || role === 'partner_courier') {
                 params.push(userId);
-                conditions.push(`o.courier_id = $${params.length}`);
-            } else if (role === 'supervisor' || role === 'partner_supervisor' || role === 'partner_owner') {
+                const courierParamIdx = params.length;
+                conditions.push(`(
+                    o.courier_id = $${courierParamIdx}
+                    OR (o.courier_id IS NULL AND o.status IN ('pending', 'ready_for_pickup'))
+                )`);
+            } else if (role === 'supervisor' || role === 'partner_supervisor') {
                 params.push(userId);
                 conditions.push(`o.supervisor_id = $${params.length}`);
             } else {
