@@ -140,6 +140,40 @@ export default function OrderDetailsPage({ params }: PageProps) {
         }
     }, [orderId]);
 
+    useEffect(() => {
+        const socket = (window as any).__qareeblak_socket;
+        if (!socket || !orderId) return;
+
+        const currentOrderId = Number(orderId);
+        if (!Number.isFinite(currentOrderId)) return;
+
+        const shouldRefreshForPayload = (payload: any) => {
+            const payloadOrderId = Number(payload?.orderId || payload?.halanOrderId || payload?.id);
+            if (!Number.isFinite(payloadOrderId)) return true;
+            return payloadOrderId === currentOrderId;
+        };
+
+        const handleRealtimeOrderUpdate = (payload: any) => {
+            if (shouldRefreshForPayload(payload)) {
+                fetchOrder(true);
+            }
+        };
+
+        socket.on('order-updated', handleRealtimeOrderUpdate);
+        socket.on('order-status-changed', handleRealtimeOrderUpdate);
+        socket.on('booking-updated', handleRealtimeOrderUpdate);
+        socket.on('order-assigned', handleRealtimeOrderUpdate);
+        socket.on('order-published', handleRealtimeOrderUpdate);
+
+        return () => {
+            socket.off('order-updated', handleRealtimeOrderUpdate);
+            socket.off('order-status-changed', handleRealtimeOrderUpdate);
+            socket.off('booking-updated', handleRealtimeOrderUpdate);
+            socket.off('order-assigned', handleRealtimeOrderUpdate);
+            socket.off('order-published', handleRealtimeOrderUpdate);
+        };
+    }, [orderId]);
+
     const fetchProducts = async () => {
         try {
             const data = await apiCall('/halan/products');

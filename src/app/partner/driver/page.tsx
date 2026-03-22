@@ -108,6 +108,35 @@ export default function DriverDashboard() {
         return () => clearInterval(interval);
     }, []);
 
+    useEffect(() => {
+        const socket = (window as any).__qareeblak_socket;
+        if (!socket) return;
+
+        const handleRealtimeOrderUpdate = (eventData: any) => {
+            const changedOrderId = Number(eventData?.orderId || eventData?.halanOrderId || eventData?.id);
+            if (!Number.isFinite(changedOrderId)) {
+                fetchActiveOrders();
+                return;
+            }
+
+            fetchActiveOrders();
+        };
+
+        socket.on('order-updated', handleRealtimeOrderUpdate);
+        socket.on('order-status-changed', handleRealtimeOrderUpdate);
+        socket.on('booking-updated', handleRealtimeOrderUpdate);
+        socket.on('order-assigned', handleRealtimeOrderUpdate);
+        socket.on('order-published', handleRealtimeOrderUpdate);
+
+        return () => {
+            socket.off('order-updated', handleRealtimeOrderUpdate);
+            socket.off('order-status-changed', handleRealtimeOrderUpdate);
+            socket.off('booking-updated', handleRealtimeOrderUpdate);
+            socket.off('order-assigned', handleRealtimeOrderUpdate);
+            socket.off('order-published', handleRealtimeOrderUpdate);
+        };
+    }, []);
+
     const fetchActiveOrders = async () => {
         try {
             // Fetch ALL orders from the system - same endpoint the owner uses

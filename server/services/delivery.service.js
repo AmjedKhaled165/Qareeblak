@@ -7,6 +7,32 @@ const { syncParentOrderStatus } = require('../utils/parent-sync');
 const whatsappRoutes = require('../routes/whatsapp');
 
 class DeliveryService {
+    _emitOrderSync(io, orderId, { status, updates = {}, extraBooking = {} } = {}) {
+        if (!io) return;
+
+        const normalizedOrderId = Number(orderId);
+        const payloadUpdates = { ...updates };
+        if (status && !Object.prototype.hasOwnProperty.call(payloadUpdates, 'status')) {
+            payloadUpdates.status = status;
+        }
+
+        io.emit('order-updated', {
+            orderId: normalizedOrderId,
+            updates: payloadUpdates,
+            status: status || payloadUpdates.status
+        });
+
+        if (status) {
+            io.emit('order-status-changed', { orderId: normalizedOrderId, status });
+        }
+
+        io.emit('booking-updated', {
+            halanOrderId: normalizedOrderId,
+            status: status || payloadUpdates.status,
+            ...extraBooking
+        });
+    }
+
     async getOrders(reqUser, query) {
         const { status, courierId, supervisorId, search, source, page = 1, limit = 50 } = query;
         const offset = (page - 1) * limit;
@@ -68,7 +94,7 @@ class DeliveryService {
         await deliveryRepo.addHistory(orderId, 'cancelled', null, payload?.reason || 'تم إلغاء الطلب من العميل');
 
         if (io) {
-            io.emit('order-status-changed', { orderId: Number(orderId), status: 'cancelled' });
+            this._emitOrderSync(io, orderId, { status: 'cancelled', updates: { status: 'cancelled' } });
             const linkedBookings = await deliveryRepo.getLinkedBookings(orderId);
             for (const b of linkedBookings) {
                 io.emit('booking-updated', { id: b.id, status: 'cancelled', halanOrderId: Number(orderId) });
@@ -97,8 +123,7 @@ class DeliveryService {
         await deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `قام العميل بحذف منتج من الطلب (index: ${itemIndex})`);
 
         if (io) {
-            io.emit('order-updated', { orderId: Number(orderId), updates: { items } });
-            io.emit('booking-updated', { halanOrderId: Number(orderId), items });
+            this._emitOrderSync(io, orderId, { updates: { items }, extraBooking: { items } });
         }
 
         return updated;
@@ -137,8 +162,7 @@ class DeliveryService {
         await deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `أضاف العميل ${normalized.length} منتج/منتجات للطلب`);
 
         if (io) {
-            io.emit('order-updated', { orderId: Number(orderId), updates: { items: merged } });
-            io.emit('booking-updated', { halanOrderId: Number(orderId), items: merged });
+            this._emitOrderSync(io, orderId, { updates: { items: merged }, extraBooking: { items: merged } });
         }
 
         return { order: updated, items: merged };
@@ -264,10 +288,9 @@ class DeliveryService {
         }
 
         if (io) {
-            io.emit('order-updated', { orderId: id, updates: data });
+            this._emitOrderSync(io, id, { status: data.status, updates: data });
 
             if (Object.prototype.hasOwnProperty.call(data, 'status')) {
-                io.emit('order-status-changed', { orderId: id, status: data.status });
 
                 const linkedBookings = await deliveryRepo.getLinkedBookings(id);
                 for (const b of linkedBookings) {
@@ -293,7 +316,7 @@ class DeliveryService {
 
         // Notify via Sockets
         if (io) {
-            io.emit('order-status-changed', { orderId: id, status });
+            this._emitOrderSync(io, id, { status, updates: { status } });
             const bookings = await deliveryRepo.getLinkedBookings(id);
             for (const b of bookings) {
                 io.emit('booking-updated', { id: b.id, status });
@@ -401,8 +424,11 @@ class DeliveryService {
 
             if (io) {
                 io.emit('order-assigned', { orderId: Number(orderId), courierId });
-                io.emit('order-status-changed', { orderId: Number(orderId), status: nextStatus });
-                io.emit('booking-updated', { halanOrderId: Number(orderId), status: nextStatus });
+                this._emitOrderSync(io, orderId, {
+                    status: nextStatus,
+                    updates: { status: nextStatus, courier_id: courierId },
+                    extraBooking: { courierId }
+                });
             }
 
             return updatedRes.rows[0] || null;
@@ -460,18 +486,17 @@ class DeliveryService {
         });
 
         if (io) {
-            io.emit('order-updated', {
-                orderId: Number(orderId),
+            this._emitOrderSync(io, orderId, {
                 updates: {
                     delivery_fee: deliveryFee,
+                    deliveryFee,
                     notes,
                     is_modified_by_courier: true
+                },
+                extraBooking: {
+                    deliveryFee,
+                    notes
                 }
-            });
-            io.emit('booking-updated', {
-                halanOrderId: Number(orderId),
-                deliveryFee,
-                notes
             });
         }
 
@@ -493,48 +518,9 @@ class DeliveryService {
 
         if (io) {
             io.emit('order-published', { orderId: Number(orderId) });
-            io.emit('order-status-changed', { orderId: Number(orderId), status: targetStatus });
-            io.emit('order-updated', { orderId: Number(orderId), updates: { status: targetStatus } });
-            io.emit('booking-updated', { halanOrderId: Number(orderId), status: targetStatus });
+            this._emitOrderSync(io, orderId, { status: targetStatus, updates: { status: targetStatus } });
         }
 
-        return updated;
-    }
-
-    async updateCourierPricing(orderId, userId, role, payload, io) {
-        const normalizedRole = String(role || '').toLowerCase();
-        // Allow couriers, owners and admins to update pricing
-        if (!['courier', 'partner_courier', 'owner', 'partner_owner', 'admin'].includes(normalizedRole)) {
-            throw new AppError('غير مصرح لك بتعديل التسعير', 403);
-        }
-
-        const { deliveryFee, notes } = payload;
-        
-        const deliveryRepoReq = require('../repositories/delivery.repository');
-        
-        // Wait, did the user define updateCourierPricing in repository? I am implementing it too. 
-        const updated = await deliveryRepoReq.updateCourierPricing(orderId, { deliveryFee, notes });
-
-        if (!updated) {
-            throw new AppError('لا توجد بيانات قابلة للتحديث', 400);
-        }
-
-        if (io) {
-            io.emit('order-updated', {
-                orderId: Number(orderId),
-                updates: {
-                    delivery_fee: deliveryFee,
-                    notes,
-                    is_modified_by_courier: true
-                }
-            });
-            // Also notify halanOrderId listeners for provider dashboard
-            io.emit('booking-updated', {
-                halanOrderId: Number(orderId),
-                deliveryFee,
-                notes
-            });
-        }
         return updated;
     }
 
@@ -595,8 +581,7 @@ class DeliveryService {
         );
 
         if (io) {
-            io.emit('order-updated', { orderId: Number(orderId) });
-            io.emit('booking-updated', { halanOrderId: Number(orderId) });
+            this._emitOrderSync(io, orderId, { updates: payload || {} });
         }
 
         return orderRes.rows[0] || updatedRes.rows[0];
