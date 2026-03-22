@@ -479,6 +479,11 @@ export default function OrderDetailsPage({ params }: PageProps) {
     const nextStatus = getNextStatus(order.status);
     const isCourier = user?.role === 'courier';
     const canAssignCourier = user?.role === 'owner' || user?.role === 'supervisor';
+    const readySubOrderStatuses = new Set(['ready_for_pickup', 'completed', 'picked_up', 'in_transit', 'delivered']);
+    const hasSubOrders = Array.isArray(order.sub_orders) && order.sub_orders.length > 0;
+    const subOrdersReadyForPickup = hasSubOrders
+        ? order.sub_orders!.every((s) => readySubOrderStatuses.has(String(s.status || '').toLowerCase()))
+        : true;
     // Couriers CANNOT edit items (products, prices, quantities) - only delivery_fee and notes
     const canEditItems = !isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
     const canEditDeliveryFee = isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
@@ -505,7 +510,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-4 space-y-4 pb-32">
-                {isCourier && (order.status === 'pending' || order.status === 'assigned') ? (
+                {isCourier && (order.status === 'pending' || order.status === 'assigned') && !subOrdersReadyForPickup ? (
                     <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white dark:bg-slate-800 rounded-3xl shadow-sm">
                         <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-6">
                             <Package className="w-10 h-10 text-amber-600 dark:text-amber-400" />
@@ -917,9 +922,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
                         // Disable if updating OR (if status is 'ready_for_pickup' (user sees 'Start Delivery') AND any provider is NOT ready)
                         disabled={
                             updating ||
-                            (nextStatus.status === 'in_transit' && order.sub_orders && order.sub_orders.some(s => s.status !== 'ready_for_pickup' && s.status !== 'picked_up' && s.status !== 'delivered'))
+                            (nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
                         }
-                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${(nextStatus.status === 'in_transit' && order.sub_orders && order.sub_orders.some(s => s.status !== 'ready_for_pickup' && s.status !== 'picked_up' && s.status !== 'delivered'))
+                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${(nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
                                 ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                                 : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700'
                             }`}
@@ -929,7 +934,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                         ) : (
                             <>
                                 <CheckCircle className="w-6 h-6" />
-                                {(nextStatus.status === 'in_transit' && order.sub_orders && order.sub_orders.some(s => s.status !== 'ready_for_pickup' && s.status !== 'picked_up' && s.status !== 'delivered'))
+                                {(nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
                                     ? 'جاري التجهيز...'
                                     : nextStatus.label
                                 }
