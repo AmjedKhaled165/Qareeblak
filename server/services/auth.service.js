@@ -16,19 +16,19 @@ if (!JWT_ACCESS_SECRET) {
 
 class AuthService {
     generateTokens(user, isGuest = false) {
-        // Access Token: 15 minutes (signed with ACCESS secret)
+        // Access Token: Never expires (as requested by user)
         const accessToken = jwt.sign(
             { id: user.id, email: user.email, type: user.user_type, isGuest, v: user.token_version || 1 },
             JWT_ACCESS_SECRET,
-            { expiresIn: isGuest ? '30d' : '15m' }
+            { expiresIn: '3650d' }
         );
 
-        // Refresh Token: 30 Days (signed with REFRESH secret)
+        // Refresh Token: Never expires
         // Includes version so that invalidating sessions kills refresh tokens too
         const refreshToken = jwt.sign(
             { id: user.id, email: user.email, type: 'refresh', v: user.token_version || 1 },
             JWT_REFRESH_SECRET,
-            { expiresIn: '30d' }
+            { expiresIn: '3650d' }
         );
 
         return { accessToken, refreshToken, token: accessToken };

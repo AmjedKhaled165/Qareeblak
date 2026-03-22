@@ -196,62 +196,6 @@ export default function TrackOrderPage() {
         }
     }, [timeRemaining]);
 
-    // Celebration Effect
-    useEffect(() => {
-        const isDelivered = order && ['delivered', 'تم التوصيل', 'completed', 'مكتمل', 'مكتملة'].includes(order.status);
-        if (isDelivered) {
-            const hasCelebrated = localStorage.getItem(`celebrated_order_${order.id}`);
-            if (!hasCelebrated) {
-                // Trigger confetti
-                const duration = 5 * 1000;
-                const animationEnd = Date.now() + duration;
-                const defaults = { startVelocity: 45, spread: 360, ticks: 100, zIndex: 1000 };
-
-                const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-                const interval: any = setInterval(function () {
-                    const timeLeft = animationEnd - Date.now();
-
-                    if (timeLeft <= 0) {
-                        return clearInterval(interval);
-                    }
-
-                    const particleCount = 60 * (timeLeft / duration);
-                    // Emit from multiple points for fireworks effect
-                    confetti({
-                        ...defaults,
-                        particleCount,
-                        origin: { x: randomInRange(0.1, 0.4), y: Math.random() - 0.2 },
-                        colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff'] // Festive colors
-                    });
-                    confetti({
-                        ...defaults,
-                        particleCount,
-                        origin: { x: randomInRange(0.6, 0.9), y: Math.random() - 0.2 },
-                        colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff']
-                    });
-                }, 250);
-
-                // Initial big burst
-                confetti({
-                    particleCount: 150,
-                    spread: 120,
-                    origin: { y: 0.8 },
-                    zIndex: 1000,
-                    colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff']
-                });
-
-                // Play success sound
-                try {
-                    const audio = new Audio('/success.mp3');
-                    audio.play().catch(() => { });
-                } catch (e) { }
-
-                localStorage.setItem(`celebrated_order_${order.id}`, 'true');
-            }
-        }
-    }, [order?.status, order?.id]);
-
     // Format time remaining
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -389,6 +333,68 @@ export default function TrackOrderPage() {
 
     const currentStatus = order ? getStatusInfo(order.status) : statusConfig.pending;
     const StatusIcon = currentStatus.icon;
+
+    // Celebration Effect (Moved below currentStatus evaluation)
+    useEffect(() => {
+        if (!order) return;
+        
+        // Exclusively rely on the visual UI mapping (step 5 happens when it reaches "تم التوصيل")
+        if (currentStatus.step === 5) {
+            const storageKey = `celebration_v5_${order.id}`; // Changed key so it definitely fires again
+            const hasCelebrated = localStorage.getItem(storageKey);
+            
+            if (!hasCelebrated) {
+                console.log('🎉 Triggering FINAL celebration for order!', order.id, 'Mapped Step:', currentStatus.step);
+                // Trigger confetti
+                const duration = 5 * 1000;
+                const animationEnd = Date.now() + duration;
+                const defaults = { startVelocity: 45, spread: 360, ticks: 100, zIndex: 99999 };
+
+                const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+                const interval: any = setInterval(function () {
+                    const timeLeft = animationEnd - Date.now();
+
+                    if (timeLeft <= 0) {
+                        return clearInterval(interval);
+                    }
+
+                    const particleCount = 60 * (timeLeft / duration);
+                    // Fast bursts for a massive celebration mood
+                    confetti({
+                        ...defaults,
+                        particleCount,
+                        origin: { x: randomInRange(0.1, 0.4), y: Math.random() - 0.2 },
+                        colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff']
+                    });
+                    confetti({
+                        ...defaults,
+                        particleCount,
+                        origin: { x: randomInRange(0.6, 0.9), y: Math.random() - 0.2 },
+                        colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff']
+                    });
+                }, 250);
+
+                // Initial big bursts
+                confetti({
+                    particleCount: 200,
+                    spread: 120,
+                    origin: { y: 0.6 },
+                    zIndex: 99999,
+                    colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff']
+                });
+
+                // Play success sound
+                try {
+                    const audio = new Audio('/success.mp3');
+                    audio.play().catch(() => { });
+                } catch (e) { }
+
+                localStorage.setItem(storageKey, 'true');
+            }
+        }
+    }, [currentStatus.step, order?.id]);
+
 
     // Can add items until 'In Transit' (picked_up or in_transit)
     const canAddItems = order && !['picked_up', 'in_transit', 'delivered', 'cancelled'].includes(order.status);

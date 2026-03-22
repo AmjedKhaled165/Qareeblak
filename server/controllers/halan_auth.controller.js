@@ -113,7 +113,7 @@ exports.login = catchAsync(async (req, res) => {
     const token = jwt.sign(
         { id: user.id, role, username },
         JWT_SECRET,
-        { expiresIn: '30d' }
+        { expiresIn: '3650d' }
     );
 
     res.json({
