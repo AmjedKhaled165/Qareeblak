@@ -70,7 +70,6 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                     });
                 }
             });
-            toast(`تم إضافة ${cartItemsCount} منتجات لسلة المشتريات`, "success");
         } else {
             const serviceName = selectedServiceType || "حجز خدمة";
             addToGlobalCart({
@@ -81,7 +80,6 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                 providerId: provider.id,
                 providerName: provider.name
             });
-            toast(`تم إضافة "${serviceName}" لسلة المشتريات`, "success");
         }
         handleClose();
     };

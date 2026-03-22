@@ -223,7 +223,6 @@ export default function ProviderProfile() {
                 price: service.price,
                 quantity: 1
             });
-            toast(`تم إضافة "${service.name}" للسلة!`, "success");
             return;
         }
 
@@ -237,8 +236,6 @@ export default function ProviderProfile() {
             providerName: provider.name,
             image: service.image
         });
-
-        toast(`تم إضافة "${service.name}" لسلة المشتريات`, "success");
     };
 
     // Calculate cart total for current order (modification mode)
@@ -251,10 +248,7 @@ export default function ProviderProfile() {
         const success = await submitInfoCart(addToOrderId, provider.id);
         setIsSubmitting(false);
         if (success) {
-            toast("تم تحديث الطلب بنجاح!", "success");
             router.push(`/track/${addToOrderId}`);
-        } else {
-            toast("حدث خطأ في تحديث الطلب", "error");
         }
     };
 
