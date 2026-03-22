@@ -109,12 +109,16 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         }
 
         const result = await db.query(
-            `SELECT b.id, b.parent_order_id, b.status, b.items, b.price, b.provider_name,
+            `SELECT b.id, b.parent_order_id, b.status,
+                    COALESCE(d.status, b.status) AS effective_status,
+                    b.items, b.price, b.provider_name,
                     b.booking_date, b.created_at, b.details,
+                    b.halan_order_id,
                     COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
                     u.phone AS customer_phone
              FROM bookings b
              LEFT JOIN users u ON u.id = b.user_id
+             LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
              WHERE b.parent_order_id = $1
              ORDER BY b.id ASC`,
             [parentId]
@@ -126,7 +130,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         const subOrders = result.rows.map((r) => ({
             id: r.id,
             provider_name: r.provider_name,
-            status: r.status,
+            status: r.effective_status || r.status,
             price: Number(r.price || 0),
             items: parseItems(r.items)
         }));
@@ -138,7 +142,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             customer_phone: first.customer_phone || '',
             delivery_address: first.details || 'غير متاح',
             pickup_address: '',
-            status: first.status || 'pending',
+            status: first.effective_status || first.status || 'pending',
             items: subOrders.flatMap((s) => s.items),
             delivery_fee: 0,
             notes: first.details || '',
@@ -157,12 +161,16 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
     }
 
     const result = await db.query(
-        `SELECT b.id, b.parent_order_id, b.status, b.items, b.price, b.provider_name,
+        `SELECT b.id, b.parent_order_id, b.status,
+            COALESCE(d.status, b.status) AS effective_status,
+            b.items, b.price, b.provider_name,
                 b.booking_date, b.created_at, b.details,
+            b.halan_order_id,
                 COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
                 u.phone AS customer_phone
          FROM bookings b
          LEFT JOIN users u ON u.id = b.user_id
+         LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
          WHERE b.id = $1
          LIMIT 1`,
         [bookingId]
@@ -178,7 +186,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         customer_phone: booking.customer_phone || '',
         delivery_address: booking.details || 'غير متاح',
         pickup_address: '',
-        status: booking.status || 'pending',
+        status: booking.effective_status || booking.status || 'pending',
         items: parseItems(booking.items),
         delivery_fee: 0,
         notes: booking.details || '',
