@@ -164,6 +164,50 @@ class BookingRepository {
         );
     }
 
+    async createDeliveryOrderForBooking(bookingInfo) {
+        let phone = '';
+        if (bookingInfo.user_id) {
+            const userRes = await pool.query('SELECT phone FROM users WHERE id = $1', [bookingInfo.user_id]);
+            if (userRes.rows.length > 0) phone = userRes.rows[0].phone || '';
+        }
+
+        const orderNum = `HLN-${Date.now().toString(36).toUpperCase()}`;
+        const itemsStr = typeof bookingInfo.items === 'string' ? bookingInfo.items : JSON.stringify(bookingInfo.items || []);
+        const details = bookingInfo.details || '';
+        
+        let address = 'عنوان العميل';
+        if (details.includes('العنوان:')) {
+            const match = details.match(/العنوان:\s*([^|]+)/);
+            if (match) address = match[1].trim();
+        }
+
+        const query = `
+            INSERT INTO delivery_orders 
+            (order_number, customer_name, customer_phone, delivery_address, status, notes, items, source, order_type)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING id
+        `;
+        const params = [
+            orderNum, bookingInfo.user_name || 'عميل Qareeblak', phone, address,
+            'pending', details, itemsStr, 'qareeblak', 'app'
+        ];
+
+        const dResult = await pool.query(query, params);
+        const newDOrderId = dResult.rows[0].id;
+
+        await pool.query('UPDATE bookings SET halan_order_id = $1 WHERE id = $2', [newDOrderId, bookingInfo.id]);
+
+        try {
+            const { performAutoAssign } = require('../utils/driver-assignment');
+            // 'assigned' targetStatus matches the normal checkout flow
+            await performAutoAssign(newDOrderId, bookingInfo.user_id || 1, null, 'assigned');
+        } catch (e) {
+            console.error('AutoAssign failed for legacy booking', e);
+        }
+
+        return newDOrderId;
+    }
+
     async getBookingsByProvider(providerId, limit, lastId) {
         const cols = await getBookingsColumns();
         const userNameExpr = cols.has('user_name')
@@ -193,13 +237,20 @@ class BookingRepository {
                       ${detailsExpr} AS details,
                       ${itemsExpr} AS items,
                       ${halanOrderExpr} AS "halanOrderId",
+                       d.courier_id AS "courierId",
+                       c.name AS "courierName",
+                       c.phone AS "courierPhone",
+                       u.phone AS "userPhone",
                        ${dateExpr} AS date,
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType",
                        ${parentOrderExpr} AS "parentOrderId"
                 FROM bookings b
+                LEFT JOIN delivery_orders d ON b.halan_order_id = d.id
+                LEFT JOIN users c ON d.courier_id = c.id
+                LEFT JOIN users u ON b.user_id = u.id
                 WHERE b.provider_id = $1 AND b.id < $2
-                ORDER BY id DESC
+                ORDER BY b.id DESC
                 LIMIT $3
             `;
             params = [providerId, lastId, limit];
@@ -214,13 +265,20 @@ class BookingRepository {
                       ${detailsExpr} AS details,
                       ${itemsExpr} AS items,
                       ${halanOrderExpr} AS "halanOrderId",
+                       d.courier_id AS "courierId",
+                       c.name AS "courierName",
+                       c.phone AS "courierPhone",
+                       u.phone AS "userPhone",
                        ${dateExpr} AS date,
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType",
                        ${parentOrderExpr} AS "parentOrderId"
                 FROM bookings b
+                LEFT JOIN delivery_orders d ON b.halan_order_id = d.id
+                LEFT JOIN users c ON d.courier_id = c.id
+                LEFT JOIN users u ON b.user_id = u.id
                 WHERE b.provider_id = $1
-                ORDER BY id DESC
+                ORDER BY b.id DESC
                 LIMIT $2
             `;
             params = [providerId, limit];

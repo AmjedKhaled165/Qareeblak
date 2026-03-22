@@ -45,6 +45,9 @@ interface Booking {
     appointmentDate?: string;
     appointmentType?: string;
     lastUpdatedBy?: 'provider' | 'customer';
+    courierName?: string;
+    courierPhone?: string;
+    userPhone?: string;
 }
 
 interface OrderDetailModalProps {
@@ -138,7 +141,8 @@ export function OrderDetailModal({
     if (!isOpen) return null;
 
     const details = booking.details || "";
-    const phone = extractPhone(details);
+    // use booking.userPhone if available, else extract from details
+    const phone = booking.userPhone || extractPhone(details);
     const address = extractAddress(details);
     const price = getBookingPrice(booking);
     const isMaintenance = booking.appointmentType === 'maintenance';
@@ -258,7 +262,35 @@ export function OrderDetailModal({
                                 <Glyph symbol="📍" className="text-sm" /> العنوان
                             </h3>
                             <p className="text-foreground font-bold text-base leading-relaxed mb-4">{address}</p>
+                        </div>
+                    )}
 
+                    {/* --- Courier Section --- */}
+                    {booking.courierName && (
+                        <div className="bg-violet-50 dark:bg-violet-900/20 rounded-2xl p-5 border border-violet-200/50 dark:border-violet-800/30">
+                            <h3 className="text-xs font-black text-violet-600 dark:text-violet-400 mb-4 font-cairo flex items-center gap-2">
+                                <Glyph symbol="🚚" className="text-sm" /> بيانات المندوب (دليفري)
+                            </h3>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="text-right">
+                                        <p className="font-black text-lg text-foreground font-cairo">{booking.courierName}</p>
+                                        {booking.courierPhone && (
+                                            <a href={`tel:${booking.courierPhone}`} className="flex items-center gap-2 text-sm font-bold text-violet-600 hover:underline mt-1 transition-colors">
+                                                <Glyph symbol="📞" className="text-sm" />
+                                                <span dir="ltr">{booking.courierPhone}</span>
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    {booking.courierPhone && (
+                                        <a href={`tel:${booking.courierPhone}`} className="p-3 bg-violet-500/10 text-violet-500 rounded-xl hover:bg-violet-500/20 transition-all border border-violet-500/20" title="اتصال بالمندوب">
+                                            <Glyph symbol="📞" className="text-base" />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
 
