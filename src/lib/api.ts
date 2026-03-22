@@ -221,17 +221,9 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
                 qareeblakTokenExists: !!qareeblakToken
             });
 
-            // If /auth/me fails with 401, the persisted session is stale/invalid.
-            // Clear stale local session to stop repeated unauthorized polling loops.
-            if (cleanEndpoint === 'auth/me' && typeof window !== 'undefined') {
-                localStorage.removeItem('qareeblak_token');
-                localStorage.removeItem('qareeblak_user');
-                localStorage.removeItem('user');
-                // Clear partner artifacts too to stop mixed-session loops.
-                localStorage.removeItem('halan_token');
-                localStorage.removeItem('halan_user');
-            }
-
+            // For 401 errors, don't automatically clear tokens
+            // Only explicit logout should clear authentication
+            // This prevents accidental logout on transient auth errors
             throw new Error(data?.error || data?.message || `عدم التفويض - يرجى تسجيل الدخول`);
         } else if (response.status === 429) {
             throw new Error(data?.error || data?.message || '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.');

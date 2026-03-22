@@ -240,29 +240,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             // Providers: skip — their bookings are loaded per-page in the dashboard
 
         } catch (error: any) {
-            const message = String(error?.message || '');
-            const isAuthError =
-                message.includes('انتهت صلاحية الجلسة') ||
-                message.includes('عدم التفويض') ||
-                message.includes('Unauthorized') ||
-                message.includes('401');
-
-            if (isAuthError && typeof window !== 'undefined') {
-                // Expired qareeblak session: clear only qareeblak artifacts and stop noisy retries.
-                localStorage.removeItem('qareeblak_token');
-                localStorage.removeItem('qareeblak_user');
-                localStorage.removeItem('user');
-
-                if (!localStorage.getItem('halan_token')) {
-                    setCurrentUser(null);
-                }
-
-                setBookings([]);
-                return;
-            }
-
+            // Don't automatically clear tokens on transient errors
+            // Only explicit logout via logout button should clear authentication
             console.error("Failed to load user bookings:", error);
-            setBookings([]);
+            // Silently fail - keep session active for retry on socket events
+            return;
         }
     }, []);
 
@@ -351,12 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
             // Real-time booking updates — keep this above any early returns
             // to avoid temporal dead zone access before initialization.
-            const refreshBookings = () => {
-                const u = currentUserRef.current;
-                if (u?.id) loadUserBookings(u);
-            };
-
-            // Load providers AND user in parallel (they're independent)
+                // Load providers AND user in parallel (they're independent)
             const [, user] = await Promise.all([
                 loadProviders(),
                 loadCurrentUser(),
@@ -368,7 +345,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsInitialized(true);
             setIsLoading(false);
 
-            // ✅ FIXED: Socket.io with Auth Token
+            // ✅ Socket.io for real-time updates (NO polling to prevent auto-logout)
             // Backend requires token via verifySocketToken middleware
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
             const socketUrl = apiUrl.replace(/\/api$/, '');
@@ -380,8 +357,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 : localStorage.getItem('qareeblak_token');
 
             if (!token) {
-                // No authenticated session yet; skip socket bootstrap and rely on HTTP flows.
-                pollInterval = setInterval(refreshBookings, 120000);
+                // No authenticated session yet; skip socket bootstrap
                 return;
             }
 
@@ -401,16 +377,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 }
             });
 
-            socket.on('booking-updated', refreshBookings);
-            socket.on('order-status-changed', refreshBookings);
-            socket.on('order-updated', refreshBookings);
+            // Real-time updates via socket events only (no polling to prevent auto-logout)
+            socket.on('booking-updated', () => {
+                const u = currentUserRef.current;
+                if (u?.id) loadUserBookings(u);
+            });
+            socket.on('order-status-changed', () => {
+                const u = currentUserRef.current;
+                if (u?.id) loadUserBookings(u);
+            });
+            socket.on('order-updated', () => {
+                const u = currentUserRef.current;
+                if (u?.id) loadUserBookings(u);
+            });
             socket.on('services_updated', loadProviders);
 
             // Store globally so other effects can emit to it
             (window as any).__qareeblak_socket = socket;
-
-            // Polling fallback (2-min interval, uses ref for fresh user data)
-            pollInterval = setInterval(refreshBookings, 120000);
         };
 
         initialize();
