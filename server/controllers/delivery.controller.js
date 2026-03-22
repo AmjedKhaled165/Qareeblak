@@ -237,6 +237,26 @@ exports.updateStatus = catchAsync(async (req, res, next) => {
     res.status(200).json({ success: true, message: 'تم تحديث حالة الطلب بنجاح' });
 });
 
+exports.assignCourier = catchAsync(async (req, res, next) => {
+    const userId = req.user.id || req.user.userId;
+    const role = req.user.role || req.user.type;
+    const { id } = req.params;
+    const io = req.app.get('io');
+
+    const order = await deliveryService.assignCourier(id, userId, role, req.body, io);
+    res.status(200).json({ success: true, message: 'تم تعيين المندوب بنجاح', data: order });
+});
+
+exports.updateOrderMeta = catchAsync(async (req, res, next) => {
+    const userId = req.user.id || req.user.userId;
+    const role = req.user.role || req.user.type;
+    const { id } = req.params;
+    const io = req.app.get('io');
+
+    const order = await deliveryService.updateOrderMeta(id, userId, role, req.body, io);
+    res.status(200).json({ success: true, message: 'تم تحديث بيانات الطلب', data: order });
+});
+
 exports.softDelete = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     await deliveryRepo.softDelete(id);
@@ -250,5 +270,63 @@ exports.autoAssign = catchAsync(async (req, res, next) => {
     const io = req.app.get('io');
 
     const result = await performAutoAssign(id, userId, io);
-    res.status(200).json({ success: true, message: `تم تعيين الطلب للمندوب ${result.name}`, courier: result });
+    res.status(200).json({ success: true, message: `تم تعيين الطلب للمسؤول ${result ? result.name : ''}`, supervisor: result });
+});
+
+exports.updateOrder = catchAsync(async (req, res, next) => {
+    const safeData = {};
+    if (req.body.courier_id !== undefined) safeData.courier_id = req.body.courier_id ? parseInt(req.body.courier_id) : null;
+    if (req.body.supervisor_id !== undefined) safeData.supervisor_id = req.body.supervisor_id ? parseInt(req.body.supervisor_id) : null;
+    if (req.body.source !== undefined) safeData.source = req.body.source;
+
+    if (Object.keys(safeData).length === 0) {
+        return next(new AppError('لا توجد بيانات صالحة للتحديث', 400));
+    }
+
+    const io = req.app.get('io');
+    const updatedOrder = await deliveryService.updateOrder(
+        req.params.id,
+        req.user.id || req.user.userId,
+        req.user.role || req.user.type,
+        safeData,
+        io
+    );
+
+    res.status(200).json({
+        status: 'success',
+        data: updatedOrder
+    });
+});
+
+exports.assignCourier = catchAsync(async (req, res, next) => {
+    const safeData = { courier_id: req.body.courierId || null };
+    const io = req.app.get('io');
+    const updatedOrder = await deliveryService.updateOrder(
+        req.params.id,
+        req.user.id || req.user.userId,
+        req.user.role || req.user.type,
+        safeData,
+        io
+    );
+    res.status(200).json({ status: 'success', data: updatedOrder });
+});
+
+exports.updateMeta = catchAsync(async (req, res, next) => {
+    const safeData = {};
+    if (req.body.supervisor_id !== undefined) safeData.supervisor_id = req.body.supervisor_id ? parseInt(req.body.supervisor_id) : null;
+    if (req.body.source !== undefined) safeData.source = req.body.source;
+
+    if (Object.keys(safeData).length === 0) {
+        return next(new AppError('لا توجد بيانات صالحة للتحديث', 400));
+    }
+
+    const io = req.app.get('io');
+    const updatedOrder = await deliveryService.updateOrder(
+        req.params.id,
+        req.user.id || req.user.userId,
+        req.user.role || req.user.type,
+        safeData,
+        io
+    );
+    res.status(200).json({ status: 'success', data: updatedOrder });
 });

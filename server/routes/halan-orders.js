@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 
@@ -8,7 +8,9 @@ const deliveryController = require('../controllers/delivery.controller');
 const {
     validate,
     createDeliveryOrderSchema,
-    statusUpdateSchema
+    statusUpdateSchema,
+    assignCourierSchema,
+    updateOrderMetaSchema
 } = require('../validations/delivery.validation');
 
 const { verifyToken, isPartnerOrAdmin } = require('../middleware/auth');
@@ -30,8 +32,21 @@ router.get('/:id', deliveryController.getOrder);
 // Create New Order (Supports Normal & Split Mode)
 router.post('/', validate(createDeliveryOrderSchema), deliveryController.createOrder);
 
+// Update Generic Fields
+router.put('/:id', deliveryController.updateOrder);
+
+// User-refactored PATCH Updates
+router.patch('/:id/assign-courier', deliveryController.assignCourier);
+router.patch('/:id/meta', deliveryController.updateMeta);
+
 // Auto-Assign Courier
 router.post('/:id/auto-assign', deliveryController.autoAssign);
+
+// Manual Assign Courier (Owner/Supervisor)
+router.patch('/:id/assign-courier', validate(assignCourierSchema), deliveryController.assignCourier);
+
+// Owner-only metadata updates (source/supervisor)
+router.patch('/:id/meta', validate(updateOrderMetaSchema), deliveryController.updateOrderMeta);
 
 // Update Status (Generic)
 router.patch('/:id/status', validate(statusUpdateSchema), deliveryController.updateStatus);

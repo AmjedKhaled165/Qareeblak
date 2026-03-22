@@ -57,20 +57,44 @@ interface UserOption {
     id: number;
     name: string;
     username: string;
+    supervisorIds?: number[];
+    isAvailable?: boolean;
 }
 
+const normalizeSourceKey = (source?: string) => {
+    const value = String(source || '').toLowerCase();
+    if (value.includes('qareeblak')) return 'qareeblak';
+    if (value.includes('whatsapp') || value.includes('واتس') || value.includes('وتس')) return 'whatsapp';
+    if (value.includes('maintenance') || value.includes('صيانة')) return 'maintenance';
+    if (value.includes('manual') || value.includes('يدوي')) return 'manual';
+    return value || 'unknown';
+};
+
+const mapSourceLabel = (source: string | undefined) => {
+    const normalized = normalizeSourceKey(source);
+    switch (normalized) {
+        case 'qareeblak': return 'قريبلك';
+        case 'manual': return 'يدوي';
+        case 'whatsapp': return 'وتس';
+        case 'maintenance': return 'صيانة';
+        default: return source || 'غير محدد';
+    }
+};
+
 // Order Details Modal Component
-function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => void }) {
+function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }: { order: Order; drivers: UserOption[]; managers: UserOption[]; onClose: () => void; onUpdateOrder: (id: number, payload: any) => Promise<void> }) {
     const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
     const editHistory = typeof order.edit_history === 'string' ? JSON.parse(order.edit_history || '[]') : (order.edit_history || []);
 
-    const getSourceLabel = (source: string | undefined) => {
-        switch (source) {
-            case 'qareeblak': return 'قريبلك';
-            case 'manual': return 'يدوي';
-            case 'whatsapp': return 'واتساب';
-            case 'maintenance': return 'صيانة';
-            default: return source || 'غير محدد';
+    const getSourceLabel = (source: string | undefined) => mapSourceLabel(source);
+
+    const getSourceColor = (source: string | undefined) => {
+        switch (normalizeSourceKey(source)) {
+            case 'qareeblak': return 'text-emerald-700 dark:text-emerald-400';
+            case 'manual': return 'text-blue-700 dark:text-blue-400';
+            case 'whatsapp': return 'text-green-700 dark:text-green-400';
+            case 'maintenance': return 'text-orange-700 dark:text-orange-400';
+            default: return 'text-slate-700 dark:text-slate-400';
         }
     };
 
@@ -100,9 +124,21 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
                                     <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">معدل</span>
                                 )}
                             </div>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded-full mt-1 border border-slate-200 dark:border-slate-700">
-                                المصدر: {getSourceLabel(order.source)}
-                            </span>
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className="text-xs font-bold text-slate-500">المصدر:</span>
+                                <select 
+                                    className={`text-xs font-bold rounded-lg px-2 py-1 outline-none border border-slate-200 dark:border-slate-700 ${getSourceColor(order.source)} bg-white dark:bg-slate-800`}
+                                    value={order.source || ''}
+                                    onChange={(e) => onUpdateOrder(order.id, { source: e.target.value })}
+                                    title="تحديث مصدر الطلب"
+                                    aria-label="تحديث مصدر الطلب"
+                                >
+                                    <option value="qareeblak">قريبلك</option>
+                                    <option value="manual">يدوي</option>
+                                    <option value="whatsapp">وتس</option>
+                                    <option value="maintenance">صيانة</option>
+                                </select>
+                            </div>
                         </div>
                         <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full" title="إغلاق التنبيه" aria-label="إغلاق نافذة تفاصيل الطلب">
                             <X className="w-5 h-5" />
@@ -135,15 +171,22 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
                         </div>
 
                         {/* Driver & Manager Info */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                             <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-4">
                                 <h3 className="font-bold text-xs text-violet-600 dark:text-violet-400 mb-2 flex items-center gap-1">
                                     <Truck className="w-3 h-3" />
                                     المندوب
                                 </h3>
-                                <p className="text-slate-800 dark:text-slate-200 font-medium">
-                                    {order.courier_name || 'غير معين'}
-                                </p>
+                                <select 
+                                    className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-violet-200 dark:border-violet-700 outline-none focus:ring-2 focus:ring-violet-500"
+                                    value={order.courier_id || ''}
+                                    onChange={(e) => onUpdateOrder(order.id, { courier_id: e.target.value || null })}
+                                    title="تعيين المندوب"
+                                    aria-label="تعيين المندوب"
+                                >
+                                    <option value="">غير معين</option>
+                                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                </select>
                             </div>
 
                             <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4">
@@ -151,8 +194,25 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
                                     <UserCheck className="w-3 h-3" />
                                     المسؤول
                                 </h3>
-                                <p className="text-slate-800 dark:text-slate-200 font-medium">
-                                    {order.supervisor_name || 'غير محدد'}
+                                <select 
+                                    className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-indigo-200 dark:border-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={order.supervisor_id || ''}
+                                    onChange={(e) => onUpdateOrder(order.id, { supervisor_id: e.target.value || null })}
+                                    title="تعيين المسؤول"
+                                    aria-label="تعيين المسؤول"
+                                >
+                                    <option value="">غير محدد</option>
+                                    {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
+                                <h3 className="font-bold text-xs text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                                    <Globe className="w-3 h-3" />
+                                    المصدر
+                                </h3>
+                                <p className="text-slate-800 dark:text-slate-200 font-medium text-sm">
+                                    {getSourceLabel(order.source)}
                                 </p>
                             </div>
                         </div>
@@ -423,22 +483,49 @@ export default function OwnerAllOrdersPage() {
     };
 
     const getSourceLabel = (source: string | undefined) => {
-        switch (source) {
-            case 'qareeblak': return 'قريبلك';
-            case 'manual': return 'يدوي';
-            case 'whatsapp': return 'واتساب';
-            case 'maintenance': return 'صيانة';
-            default: return source || 'غير محدد';
-        }
+        return mapSourceLabel(source);
     };
 
     const getSourceColor = (source: string | undefined) => {
-        switch (source) {
+        switch (normalizeSourceKey(source)) {
             case 'qareeblak': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
             case 'manual': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
             case 'whatsapp': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
             case 'maintenance': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
             default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400';
+        }
+    };
+
+    const handleUpdateOrder = async (id: number, payload: any) => {
+        try {
+            if (Object.prototype.hasOwnProperty.call(payload, 'courier_id')) {
+                await apiCall(`/halan/orders/${id}/assign-courier`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ courierId: payload.courier_id })
+                });
+            } else {
+                await apiCall(`/halan/orders/${id}/meta`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(payload)
+                });
+            }
+            
+            // Update modal state so user sees change immediately
+            if (selectedOrder && selectedOrder.id === id) {
+                const updatedOrder = { ...selectedOrder, ...payload };
+                if (payload.courier_id !== undefined) {
+                    updatedOrder.courier_name = drivers.find(d => d.id == payload.courier_id)?.name || null;
+                }
+                if (payload.supervisor_id !== undefined) {
+                    updatedOrder.supervisor_name = managers.find(m => m.id == payload.supervisor_id)?.name || null;
+                }
+                setSelectedOrder(updatedOrder);
+            }
+            
+            // Refresh list in background
+            fetchOrders();
+        } catch (e) {
+            console.error('Failed to update order', e);
         }
     };
 
@@ -557,7 +644,7 @@ export default function OwnerAllOrdersPage() {
                             <option value="all">كل المصادر</option>
                             <option value="qareeblak">قريبلك</option>
                             <option value="manual">يدوي</option>
-                            <option value="whatsapp">واتساب</option>
+                            <option value="whatsapp">وتس</option>
                             <option value="maintenance">صيانة</option>
                         </select>
                         <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -590,7 +677,7 @@ export default function OwnerAllOrdersPage() {
                                     className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden"
                                 >
                                     {/* Source Indicator Strip */}
-                                    <div className={`absolute top-0 right-0 bottom-0 w-1 ${order.source === 'qareeblak' ? 'bg-emerald-500' : order.source === 'manual' ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                                    <div className={`absolute top-0 right-0 bottom-0 w-1 ${normalizeSourceKey(order.source) === 'qareeblak' ? 'bg-emerald-500' : normalizeSourceKey(order.source) === 'manual' ? 'bg-blue-500' : normalizeSourceKey(order.source) === 'whatsapp' ? 'bg-green-500' : 'bg-slate-300'}`} />
 
                                     {/* Edited Badge */}
                                     {order.is_edited && (
@@ -669,6 +756,8 @@ export default function OwnerAllOrdersPage() {
                             onClick={() => setPage(p => Math.max(1, p - 1))}
                             disabled={page === 1}
                             className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            title="الصفحة السابقة"
+                            aria-label="الصفحة السابقة"
                         >
                             <ChevronRight className="w-5 h-5" />
                         </button>
@@ -681,6 +770,8 @@ export default function OwnerAllOrdersPage() {
                             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                             disabled={page === totalPages}
                             className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            title="الصفحة التالية"
+                            aria-label="الصفحة التالية"
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </button>
@@ -692,7 +783,10 @@ export default function OwnerAllOrdersPage() {
             {selectedOrder && (
                 <OrderDetailsModal
                     order={selectedOrder}
+                    drivers={drivers}
+                    managers={managers}
                     onClose={() => setSelectedOrder(null)}
+                    onUpdateOrder={handleUpdateOrder}
                 />
             )}
         </div>

@@ -39,6 +39,18 @@ const statusUpdateSchema = z.object({
     longitude: z.number().optional()
 });
 
+const assignCourierSchema = z.object({
+    courierId: z.number().int().positive(),
+    notes: z.string().optional()
+});
+
+const updateOrderMetaSchema = z.object({
+    supervisor_id: z.union([z.number().int().positive(), z.null()]).optional(),
+    source: z.enum(['qareeblak', 'manual', 'whatsapp', 'maintenance']).optional()
+}).refine((val) => Object.keys(val).length > 0, {
+    message: 'يجب إرسال حقل واحد على الأقل للتحديث'
+});
+
 const courierPricingSchema = z.object({
     deliveryFee: z.number().nonnegative('رسوم التوصيل يجب أن تكون رقماً موجباً'),
     notes: z.string().optional()
@@ -57,6 +69,8 @@ module.exports = {
     createDeliveryOrderSchema,
     updateDeliveryOrderSchema,
     statusUpdateSchema,
+    assignCourierSchema,
+    updateOrderMetaSchema,
     courierPricingSchema,
     validate
 };

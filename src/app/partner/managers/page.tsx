@@ -182,6 +182,30 @@ export default function ManagersPage() {
     };
 
 
+    const handleToggleAvailability = async (manager: any) => {
+        if (!isOwner) return;
+
+        const next = !Boolean(manager.isAvailable);
+        setManagers((prev) => prev.map((m) => (m.id === manager.id ? { ...m, isAvailable: next } : m)));
+
+        try {
+            await apiCall(`/halan/users/${manager.id}/availability`, {
+                method: 'PATCH',
+                body: JSON.stringify({ isAvailable: next })
+            });
+        } catch (error) {
+            // Rollback optimistic change on failure
+            setManagers((prev) => prev.map((m) => (m.id === manager.id ? { ...m, isAvailable: !next } : m)));
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: 'تعذر تحديث حالة المسؤول',
+                type: 'error'
+            });
+        }
+    };
+
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100" dir="rtl">
             {/* Header */}
@@ -270,6 +294,22 @@ export default function ManagersPage() {
                                     </a>
                                 )}
                                 <div className="flex-1" />
+                                {isOwner && (
+                                    <label className="inline-flex items-center gap-2 cursor-pointer select-none" title="تشغيل أو إيقاف المسؤول">
+                                        <span className={`text-xs font-bold ${manager.isAvailable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
+                                            {manager.isAvailable ? 'شغال' : 'مقفول'}
+                                        </span>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(manager.isAvailable)}
+                                            onChange={() => handleToggleAvailability(manager)}
+                                            className="sr-only"
+                                        />
+                                        <span className={`w-11 h-6 rounded-full p-1 transition-colors ${manager.isAvailable ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                            <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${manager.isAvailable ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        </span>
+                                    </label>
+                                )}
                                 {isOwner && (
                                     <button
                                         onClick={(e) => {

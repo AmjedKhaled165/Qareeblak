@@ -223,6 +223,13 @@ class BookingRepository {
         const halanOrderExpr = cols.has('halan_order_id') ? 'b.halan_order_id' : 'NULL';
         const userIdExpr = cols.has('user_id') ? 'b.user_id' : 'NULL';
 
+        const courierIdExpr = cols.has('halan_order_id') ? 'd.courier_id' : 'NULL';
+        const courierNameExpr = cols.has('halan_order_id') ? 'c.name' : 'NULL';
+        const courierPhoneExpr = cols.has('halan_order_id') ? 'c.phone' : 'NULL';
+        const joinDelivery = cols.has('halan_order_id') 
+            ? 'LEFT JOIN delivery_orders d ON b.halan_order_id = d.id LEFT JOIN users c ON d.courier_id = c.id' 
+            : '';
+
         let query;
         let params;
 
@@ -237,17 +244,16 @@ class BookingRepository {
                       ${detailsExpr} AS details,
                       ${itemsExpr} AS items,
                       ${halanOrderExpr} AS "halanOrderId",
-                       d.courier_id AS "courierId",
-                       c.name AS "courierName",
-                       c.phone AS "courierPhone",
+                       ${courierIdExpr} AS "courierId",
+                       ${courierNameExpr} AS "courierName",
+                       ${courierPhoneExpr} AS "courierPhone",
                        u.phone AS "userPhone",
                        ${dateExpr} AS date,
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType",
                        ${parentOrderExpr} AS "parentOrderId"
                 FROM bookings b
-                LEFT JOIN delivery_orders d ON b.halan_order_id = d.id
-                LEFT JOIN users c ON d.courier_id = c.id
+                ${joinDelivery}
                 LEFT JOIN users u ON b.user_id = u.id
                 WHERE b.provider_id = $1 AND b.id < $2
                 ORDER BY b.id DESC
@@ -265,17 +271,16 @@ class BookingRepository {
                       ${detailsExpr} AS details,
                       ${itemsExpr} AS items,
                       ${halanOrderExpr} AS "halanOrderId",
-                       d.courier_id AS "courierId",
-                       c.name AS "courierName",
-                       c.phone AS "courierPhone",
+                       ${courierIdExpr} AS "courierId",
+                       ${courierNameExpr} AS "courierName",
+                       ${courierPhoneExpr} AS "courierPhone",
                        u.phone AS "userPhone",
                        ${dateExpr} AS date,
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType",
                        ${parentOrderExpr} AS "parentOrderId"
                 FROM bookings b
-                LEFT JOIN delivery_orders d ON b.halan_order_id = d.id
-                LEFT JOIN users c ON d.courier_id = c.id
+                ${joinDelivery}
                 LEFT JOIN users u ON b.user_id = u.id
                 WHERE b.provider_id = $1
                 ORDER BY b.id DESC

@@ -48,6 +48,9 @@ interface Order {
     courier_modifications?: any;
     order_type?: string; // 'app' | 'manual'
     source?: string;
+    courier_id?: number | null;
+    courier_name?: string;
+    supervisor_id?: number | null;
     sub_orders?: {
         id: number;
         provider_id: number;
@@ -71,6 +74,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
     const [updating, setUpdating] = useState(false);
     const [saving, setSaving] = useState(false);
     const [allProducts, setAllProducts] = useState<any[]>([]);
+    const [drivers, setDrivers] = useState<any[]>([]);
+    const [selectedCourierId, setSelectedCourierId] = useState<string>('');
+    const [assigningCourier, setAssigningCourier] = useState(false);
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [focusedProductIndex, setFocusedProductIndex] = useState<number | null>(null);
 
@@ -108,7 +114,16 @@ export default function OrderDetailsPage({ params }: PageProps) {
             router.push('/login/partner');
             return;
         }
-        setUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser);
+        setUser(parsed);
+
+        if (parsed.role !== 'courier') {
+            apiCall('/halan/users?role=courier')
+                .then((res) => {
+                    if (res?.success) setDrivers((res.data || []).filter((d: any) => d.isAvailable !== false));
+                })
+                .catch((e) => console.error('Error fetching couriers:', e));
+        }
     }, []);
 
     useEffect(() => {
@@ -150,6 +165,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                         } catch { found.items = []; }
                     }
                     setOrder(found);
+                    setSelectedCourierId(found?.courier_id ? String(found.courier_id) : '');
 
                     // Initialize/Refresh editable fields ONLY if not currently editing OR it's a fresh load
                     if (!isPolling || !hasChangesRef.current) {
@@ -201,6 +217,42 @@ export default function OrderDetailsPage({ params }: PageProps) {
             console.error('Error updating order:', error);
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleAssignCourier = async () => {
+        if (!order || !selectedCourierId || assigningCourier) return;
+        setAssigningCourier(true);
+        try {
+            const data = await apiCall(`/halan/orders/${order.id}/assign-courier`, {
+                method: 'PATCH',
+                body: JSON.stringify({ courierId: Number(selectedCourierId) })
+            });
+
+            if (data?.success) {
+                const newCourierName = data?.data?.courier_name || drivers.find((d) => d.id === Number(selectedCourierId))?.name || order.courier_name;
+                setOrder({
+                    ...order,
+                    courier_id: Number(selectedCourierId),
+                    courier_name: newCourierName,
+                    status: data?.data?.status || order.status
+                });
+                setModalState({
+                    isOpen: true,
+                    title: 'تم بنجاح',
+                    message: 'تم تعيين المندوب بنجاح',
+                    type: 'success'
+                });
+            }
+        } catch (error: any) {
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: error?.message || 'فشل تعيين المندوب',
+                type: 'error'
+            });
+        } finally {
+            setAssigningCourier(false);
         }
     };
 
@@ -372,6 +424,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
     const nextStatus = getNextStatus(order.status);
     const isCourier = user?.role === 'courier';
+    const canAssignCourier = user?.role === 'owner' || user?.role === 'supervisor';
     // Couriers CANNOT edit items (products, prices, quantities) - only delivery_fee and notes
     const canEditItems = !isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
     const canEditDeliveryFee = isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
@@ -446,6 +499,34 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                 </div>
                             </div>
                         </div>
+
+                        {canAssignCourier && (
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
+                                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">تعيين المندوب</h3>
+                                <div className="flex items-center gap-3">
+                                    <select
+                                        value={selectedCourierId}
+                                        onChange={(e) => setSelectedCourierId(e.target.value)}
+                                        className="flex-1 bg-slate-50 dark:bg-slate-700 rounded-xl py-3 px-3 border dark:border-slate-600"
+                                        title="اختيار مندوب للتعيين"
+                                        aria-label="اختيار مندوب للتعيين"
+                                    >
+                                        <option value="">اختر مندوب</option>
+                                        {drivers.map((driver) => (
+                                            <option key={driver.id} value={driver.id}>{driver.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={handleAssignCourier}
+                                        disabled={!selectedCourierId || assigningCourier}
+                                        className="px-5 py-3 rounded-xl bg-violet-600 text-white font-bold disabled:opacity-50"
+                                    >
+                                        {assigningCourier ? 'جاري...' : 'تعيين'}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">المندوب الحالي: {order.courier_name || 'غير معين'}</p>
+                            </div>
+                        )}
 
                         {/* Addresses */}
                         <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">

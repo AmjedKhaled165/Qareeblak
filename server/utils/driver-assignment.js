@@ -37,47 +37,30 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
             }
         }
 
-        // 1. PRIORITY: Get ONLINE couriers with capacity (for App orders)
-        let couriersResult = await pool.query(`
-            SELECT * FROM (
-                SELECT u.id, u.name, u.username, u.max_active_orders,
-                       COALESCE((
-                           SELECT COUNT(*) FROM delivery_orders d 
-                           WHERE d.courier_id = u.id 
-                           AND d.status IN ('pending', 'assigned', 'ready_for_pickup', 'picked_up', 'in_transit')
-                           AND d.is_deleted = false
-                       ), 0)::int as active_orders
-                FROM users u
-                WHERE (u.role IN ('courier', 'partner_courier') OR u.user_type IN ('courier', 'partner_courier')) 
-                AND (u.is_online = true OR u.is_available = true)
-            ) sub
-            WHERE sub.active_orders < COALESCE(sub.max_active_orders, 10)
+        // Pick supervisors who are explicitly active only.
+        const supervisorsResult = await pool.query(`
+            SELECT u.id, u.name, u.username, u.max_active_orders,
+                   COALESCE((
+                       SELECT COUNT(*) FROM delivery_orders d
+                       WHERE d.supervisor_id = u.id
+                       AND d.status IN ('pending', 'assigned', 'ready_for_pickup', 'picked_up', 'in_transit')
+                       AND COALESCE(d.is_deleted, false) = false
+                   ), 0)::int as active_orders,
+                   COALESCE((
+                       SELECT COUNT(*) FROM delivery_orders d2
+                       WHERE d2.supervisor_id = u.id
+                       AND DATE(d2.created_at) = CURRENT_DATE
+                       AND COALESCE(d2.is_deleted, false) = false
+                   ), 0)::int as today_orders
+            FROM users u
+            WHERE COALESCE(u.user_type, u.role, '') IN ('supervisor', 'partner_supervisor', 'manager')
+            AND COALESCE(u.is_available, false) = true
         `);
 
-        logger.info(`[Auto-Assign] وجدنا ${couriersResult.rows.length} مندوب متاح ونشط`);
+        logger.info(`[Auto-Assign] وجدنا ${supervisorsResult.rows.length} مسؤول نشط`);
 
-        // 2. FALLBACK: If no online couriers with capacity, try any available courier
-        if (couriersResult.rows.length === 0) {
-            logger.warn(`[Auto-Assign] ⚠️ لا يوجد مناديب نشطين، جاري البحث عن أي مندوب متاح...`);
-            couriersResult = await pool.query(`
-                SELECT id, name, username FROM users 
-                WHERE (role IN ('courier', 'partner_courier') OR user_type IN ('courier', 'partner_courier')) 
-                AND is_available = true
-            `);
-        }
-
-        // 3. LAST RESORT: Any courier in the system
-        if (couriersResult.rows.length === 0) {
-            logger.warn(`[Auto-Assign] ⚠️ لا يوجد مناديب متاحين، سنختار من جميع المناديب...`);
-            couriersResult = await pool.query(`
-                SELECT id, name, username FROM users 
-                WHERE (role IN ('courier', 'partner_courier') OR user_type IN ('courier', 'partner_courier'))
-            `);
-            logger.info(`[Auto-Assign] إجمالي المناديب في النظام: ${couriersResult.rows.length}`);
-        }
-
-        if (couriersResult.rows.length === 0) {
-            logger.error(`[Auto-Assign] ❌ لا يوجد أي مناديب في النظام!`);
+        if (supervisorsResult.rows.length === 0) {
+            logger.error(`[Auto-Assign] ❌ لا يوجد أي مسؤول في النظام!`);
             return null;
         }
 
@@ -85,34 +68,46 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
         try {
             await client.query('BEGIN');
 
-            const courierIds = couriersResult.rows.map(c => c.id);
-            // [ENTERPRISE HARDENING] Sort to prevent deadlocks and lock ALL candidate couriers or just the one we select?
-            // Locking the entire pool of candidates is safer for load balancing.
+            const supervisorIds = supervisorsResult.rows.map(s => s.id);
             const lockRes = await client.query(`
-                SELECT id, name, max_active_orders FROM users 
+                SELECT id, name, max_active_orders FROM users
                 WHERE id = ANY($1::int[]) 
                 FOR UPDATE
-            `, [courierIds]);
+            `, [supervisorIds]);
 
-            // Re-calculate workload for locked couriers to get the TRUE state
             const workloadResult = await client.query(`
-                SELECT courier_id, COUNT(*) as active_orders
+                SELECT supervisor_id, COUNT(*) as active_orders
                 FROM delivery_orders
-                WHERE courier_id = ANY($1::int[])
+                WHERE supervisor_id = ANY($1::int[])
                 AND status IN ('pending', 'assigned', 'ready_for_pickup', 'picked_up', 'in_transit')
-                AND is_deleted = false
-                GROUP BY courier_id
-            `, [courierIds]);
+                AND COALESCE(is_deleted, false) = false
+                GROUP BY supervisor_id
+            `, [supervisorIds]);
+
+            const todayLoadResult = await client.query(`
+                SELECT supervisor_id, COUNT(*) as today_orders
+                FROM delivery_orders
+                WHERE supervisor_id = ANY($1::int[])
+                AND DATE(created_at) = CURRENT_DATE
+                AND COALESCE(is_deleted, false) = false
+                GROUP BY supervisor_id
+            `, [supervisorIds]);
 
             const workloadMap = workloadResult.rows.reduce((map, row) => {
-                map[row.courier_id] = parseInt(row.active_orders) || 0;
+                map[row.supervisor_id] = parseInt(row.active_orders) || 0;
                 return map;
             }, {});
 
-            const candidates = lockRes.rows.map(c => ({
-                ...c,
-                active_orders: workloadMap[c.id] || 0
-            })).filter(c => c.active_orders < (c.max_active_orders || 10));
+            const todayMap = todayLoadResult.rows.reduce((map, row) => {
+                map[row.supervisor_id] = parseInt(row.today_orders) || 0;
+                return map;
+            }, {});
+
+            const candidates = lockRes.rows.map(s => ({
+                ...s,
+                active_orders: workloadMap[s.id] || 0,
+                today_orders: todayMap[s.id] || 0
+            })).filter(s => s.active_orders < (s.max_active_orders || 100));
 
             if (candidates.length === 0) {
                 await client.query('ROLLBACK');
@@ -120,34 +115,34 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
                 return null;
             }
 
-            // Pick candidate with lowest workload
-            const minWorkload = Math.min(...candidates.map(c => c.active_orders));
-            const bestCouriers = candidates.filter(c => c.active_orders === minWorkload);
-            const selectedCourier = bestCouriers[Math.floor(Math.random() * bestCouriers.length)];
+            // Strategy: prefer the most productive active supervisors today, then random tie-break.
+            const maxTodayOrders = Math.max(...candidates.map(c => c.today_orders || 0));
+            const topToday = candidates.filter(c => (c.today_orders || 0) === maxTodayOrders);
+            const selectedSupervisor = topToday[Math.floor(Math.random() * topToday.length)];
 
-            logger.info(`[Auto-Assign] 🎯 تم اختيار المندوب: ${selectedCourier.name} (الحمل الحالي: ${selectedCourier.active_orders} طلبات)`);
+            logger.info(`[Auto-Assign] 🎯 تم اختيار المسؤول: ${selectedSupervisor.name}`);
 
-            // 4. Assign order to selected courier
+            // 4. Assign order to selected supervisor
             await client.query(`
                 UPDATE delivery_orders 
-                SET courier_id = $1, 
+                SET supervisor_id = $1, 
                     status = $3,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = $2
-            `, [selectedCourier.id, orderId, targetStatus]);
+            `, [selectedSupervisor.id, orderId, targetStatus]);
 
             await client.query('COMMIT');
 
-            // Add to order history after successful commit.
-            const assignedLoad = Number(selectedCourier.active_orders || 0) + 1;
+            // Add to order history
+            const assignedLoad = Number(selectedSupervisor.active_orders || 0) + 1;
             await pool.query(`
                 INSERT INTO order_history (order_id, status, changed_by, notes)
                 VALUES ($1, 'assigned', $2, $3)
-            `, [orderId, userId || null, `تم التعيين تلقائياً للمندوب ${selectedCourier.name} (الحمل: ${assignedLoad} طلبات)`]);
+            `, [orderId, userId || null, `تم التعيين التلقائي للمسؤول ${selectedSupervisor.name}`]);
 
             // Emit socket events so owner/courier dashboards refresh immediately.
             if (appIo) {
-                appIo.emit('order-assigned', { orderId, courierId: selectedCourier.id, courierName: selectedCourier.name });
+                appIo.emit('order-assigned', { orderId, supervisorId: selectedSupervisor.id, supervisorName: selectedSupervisor.name });
                 appIo.emit('order-status-changed', { orderId, status: targetStatus });
                 appIo.emit('booking-updated', { halanOrderId: orderId, status: targetStatus });
             }
@@ -162,7 +157,7 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
                 logger.error(`[Auto-Assign] Failed to sync parent status: ${e.message}`);
             }
 
-            return selectedCourier;
+            return selectedSupervisor;
 
         } catch (txnError) {
             await client.query('ROLLBACK');
