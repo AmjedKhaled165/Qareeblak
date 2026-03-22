@@ -59,7 +59,7 @@ exports.checkout = catchAsync(async (req, res, next) => {
     const { userId, items, addressInfo, userPrizeId, promoCode, useWallet } = req.body;
 
     const authenticatedUser = req.user.id;
-    if (String(userId) !== String(authenticatedUser)) {
+    if (userId !== undefined && userId !== null && String(userId) !== String(authenticatedUser)) {
         throw new AppError('Unauthorized checkout attempt', 403);
     }
 
