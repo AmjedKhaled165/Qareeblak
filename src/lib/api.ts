@@ -66,6 +66,19 @@ export interface ApiResponse<T = any> {
 function getAuthToken(endpoint: string): string | null {
     if (typeof window === 'undefined') return null;
 
+    // Public auth routes must never include Authorization headers.
+    const isPublicAuthEndpoint = [
+        '/auth/login',
+        '/auth/register',
+        '/auth/guest-login',
+        '/auth/google-sync',
+        '/halan/auth/login'
+    ].some((publicPath) => endpoint.includes(publicPath));
+
+    if (isPublicAuthEndpoint) {
+        return null;
+    }
+
     // Prioritize halan_token for partner/admin endpoints
     const isHalanEndpoint = endpoint.includes('/halan') ||
         endpoint.includes('/providers') ||
@@ -85,8 +98,7 @@ function getAuthToken(endpoint: string): string | null {
         token = localStorage.getItem('qareeblak_token');
     }
     
-    const isPublicHalanLogin = endpoint.includes('/halan/auth/login');
-    if (!token && endpoint.includes('/halan') && !isPublicHalanLogin) {
+    if (!token && endpoint.includes('/halan')) {
         console.warn('[API] ⚠️ No token found for Halan endpoint:', endpoint);
     }
     

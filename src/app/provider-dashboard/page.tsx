@@ -313,12 +313,18 @@ export default function ProviderDashboard() {
 
             if (response && response.bookings) {
                 // Backend returns { bookings: [...], pagination: {...} }
-                setPaginatedBookings(response.bookings);
+                const normalizedBookings = (response.bookings || []).map((b: any) => ({
+                    ...b,
+                    id: String(b?.id ?? '')
+                }));
+                setPaginatedBookings(normalizedBookings);
                 setTotalBookings(response.pagination.total);
                 setTotalPages(response.pagination.totalPages);
             } else {
                 // Fallback: Backend might return array directly (backward compatibility)
-                const bookingsArray = Array.isArray(response) ? response : [];
+                const bookingsArray = Array.isArray(response)
+                    ? response.map((b: any) => ({ ...b, id: String(b?.id ?? '') }))
+                    : [];
                 setPaginatedBookings(bookingsArray);
                 setTotalBookings(bookingsArray.length);
                 setTotalPages(Math.ceil(bookingsArray.length / ordersPerPage));
@@ -587,7 +593,7 @@ export default function ProviderDashboard() {
             socket.on('new_booking', () => {
                 console.log('[ProviderDashboard] New booking received!');
                 if (fetchPaginatedBookings) {
-                    fetchPaginatedBookings(String(providerId), true);
+                    fetchPaginatedBookings();
                 } else {
                     window.location.reload();
                 }
