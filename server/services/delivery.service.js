@@ -287,6 +287,16 @@ class DeliveryService {
                 throw new AppError('لا يمكن الاستلام قبل أن يقوم كل مقدم خدمة بتجهيز طلبه', 400);
             }
         }
+        const deliverTransitions = ['delivered', 'تم التوصيل'];
+        if (isCourier && deliverTransitions.includes(nextStatus)) {
+            const hasIncomingFee = Object.prototype.hasOwnProperty.call(data || {}, 'delivery_fee');
+            const incomingFee = hasIncomingFee ? Number(data.delivery_fee) : NaN;
+            const currentFee = Number(currentOrder?.delivery_fee || 0);
+            const effectiveFee = Number.isFinite(incomingFee) ? incomingFee : currentFee;
+            if (!(effectiveFee > 0)) {
+                throw new AppError('لا يمكن تحديد تم التوصيل قبل تسجيل سعر التوصيل وحفظه', 400);
+            }
+        }
 
         const updated = await deliveryRepo.updateOrder(id, data);
 
@@ -342,6 +352,13 @@ class DeliveryService {
             const allReady = await deliveryRepo.areAllLinkedBookingsReady(id);
             if (!allReady) {
                 throw new AppError('لا يمكن الاستلام قبل أن يقوم كل مقدم خدمة بتجهيز طلبه', 400);
+            }
+        }
+        const deliverTransitions = ['delivered', 'تم التوصيل'];
+        if (isCourier && deliverTransitions.includes(nextStatus)) {
+            const currentFee = Number(currentOrder?.delivery_fee || 0);
+            if (!(currentFee > 0)) {
+                throw new AppError('لا يمكن تحديد تم التوصيل قبل تسجيل سعر التوصيل وحفظه', 400);
             }
         }
 

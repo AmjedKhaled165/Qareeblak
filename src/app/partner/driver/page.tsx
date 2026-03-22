@@ -79,6 +79,8 @@ export default function DriverDashboard() {
     });
 
     const [activeOrders, setActiveOrders] = useState<Order[]>([]);
+    const [deliveryFeeInputs, setDeliveryFeeInputs] = useState<Record<number, string>>({});
+    const [savingDeliveryFee, setSavingDeliveryFee] = useState<Record<number, boolean>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [view, setView] = useState<'list' | 'map'>('list');
 
@@ -170,6 +172,18 @@ export default function DriverDashboard() {
                 active.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
                 setActiveOrders(active);
+                setDeliveryFeeInputs((prev) => {
+                    const next: Record<number, string> = {};
+                    active.forEach((order: any) => {
+                        if (Object.prototype.hasOwnProperty.call(prev, order.id)) {
+                            next[order.id] = prev[order.id];
+                            return;
+                        }
+                        const fee = Number(order.delivery_fee || 0);
+                        next[order.id] = fee > 0 ? String(fee) : '';
+                    });
+                    return next;
+                });
             }
         } catch (error) {
             console.error('Error fetching orders:', error);
@@ -266,6 +280,19 @@ export default function DriverDashboard() {
 
     const handleDeliverOrder = async (orderId: number, e: React.MouseEvent) => {
         e.stopPropagation();
+
+        const currentOrder = activeOrders.find((o) => o.id === orderId);
+        const savedFee = Number(currentOrder?.delivery_fee || 0);
+        if (!(savedFee > 0)) {
+            setModalState({
+                isOpen: true,
+                title: 'سعر التوصيل مطلوب',
+                message: 'من فضلك اكتب سعر التوصيل واضغط حفظ التغييرات قبل تم التوصيل.',
+                type: 'warning'
+            });
+            return;
+        }
+
         try {
             const result = await apiCall(`/halan/orders/${orderId}`, {
                 method: 'PUT',
@@ -296,6 +323,56 @@ export default function DriverDashboard() {
                 message: error.message || 'حدث خطأ أثناء تحديث الطلب',
                 type: 'error'
             });
+        }
+    };
+
+    const handleSaveDeliveryFee = async (orderId: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const rawValue = (deliveryFeeInputs[orderId] || '').trim();
+        const fee = Number(rawValue);
+
+        if (!Number.isFinite(fee) || fee <= 0) {
+            setModalState({
+                isOpen: true,
+                title: 'قيمة غير صحيحة',
+                message: 'اكتب سعر توصيل صحيح أكبر من صفر.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        setSavingDeliveryFee((prev) => ({ ...prev, [orderId]: true }));
+        try {
+            const result = await apiCall(`/halan/orders/${orderId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ delivery_fee: fee })
+            });
+
+            if (result.success) {
+                setModalState({
+                    isOpen: true,
+                    title: 'تم الحفظ',
+                    message: 'تم حفظ سعر التوصيل بنجاح.',
+                    type: 'success'
+                });
+                setActiveOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, delivery_fee: fee } : o)));
+            } else {
+                setModalState({
+                    isOpen: true,
+                    title: 'خطأ',
+                    message: result.error || 'تعذر حفظ سعر التوصيل',
+                    type: 'error'
+                });
+            }
+        } catch (error: any) {
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: error.message || 'تعذر حفظ سعر التوصيل',
+                type: 'error'
+            });
+        } finally {
+            setSavingDeliveryFee((prev) => ({ ...prev, [orderId]: false }));
         }
     };
 
@@ -592,14 +669,42 @@ export default function DriverDashboard() {
                                                 </motion.button>
                                             )}
                                             {order.status === 'picked_up' && (
-                                                <motion.button
-                                                    onClick={(e) => handleDeliverOrder(order.id, e)}
-                                                    whileHover={{ scale: 1.05 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/30 text-sm"
-                                                >
-                                                    تم التوصيل
-                                                </motion.button>
+                                                <div className="flex-1 flex flex-col gap-2">
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            step="1"
+                                                            value={deliveryFeeInputs[order.id] ?? ''}
+                                                            onChange={(e) => setDeliveryFeeInputs((prev) => ({ ...prev, [order.id]: e.target.value }))}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="flex-1 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"
+                                                            placeholder="سعر التوصيل"
+                                                        />
+                                                        <motion.button
+                                                            onClick={(e) => handleSaveDeliveryFee(order.id, e)}
+                                                            whileHover={{ scale: 1.03 }}
+                                                            whileTap={{ scale: 0.97 }}
+                                                            disabled={Boolean(savingDeliveryFee[order.id])}
+                                                            className={`px-3 py-2 rounded-xl font-bold text-sm transition-all ${savingDeliveryFee[order.id] ? 'bg-slate-500 text-slate-200 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'}`}
+                                                        >
+                                                            {savingDeliveryFee[order.id] ? 'جاري الحفظ...' : 'حفظ'}
+                                                        </motion.button>
+                                                    </div>
+                                                    <motion.button
+                                                        onClick={(e) => handleDeliverOrder(order.id, e)}
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        disabled={!(Number(order.delivery_fee || 0) > 0)}
+                                                        className={`flex-1 font-bold py-3 rounded-xl transition-all text-sm ${Number(order.delivery_fee || 0) > 0
+                                                            ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                                            : 'bg-slate-500/40 text-slate-300 cursor-not-allowed'
+                                                            }`}
+                                                        title={Number(order.delivery_fee || 0) > 0 ? 'تم التوصيل' : 'احفظ سعر التوصيل أولاً'}
+                                                    >
+                                                        تم التوصيل
+                                                    </motion.button>
+                                                </div>
                                             )}
                                         </div>
                                     </motion.div>
