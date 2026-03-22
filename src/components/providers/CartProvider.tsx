@@ -110,9 +110,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         setIsLoadingCart(true);
         try {
+            const checkoutItems = globalCart.map((item) => ({
+                providerId: Number(item.providerId),
+                providerName: item.providerName,
+                price: Number(item.price),
+                quantity: Math.max(1, Number(item.quantity) || 1),
+                name: item.name
+            }));
+
+            const hasInvalidItem = checkoutItems.some((item) =>
+                !Number.isInteger(item.providerId) ||
+                item.providerId <= 0 ||
+                typeof item.providerName !== 'string' ||
+                item.providerName.trim().length === 0 ||
+                Number.isNaN(item.price) ||
+                item.price < 0 ||
+                typeof item.name !== 'string' ||
+                item.name.trim().length === 0
+            );
+
+            if (hasInvalidItem) {
+                toast("تعذر إتمام الطلب بسبب بيانات غير مكتملة في السلة", "error");
+                return false;
+            }
+
             const result = await bookingsApi.checkout({
                 userId,
-                items: globalCart,
+                items: checkoutItems,
                 addressInfo,
                 userPrizeId
             });
