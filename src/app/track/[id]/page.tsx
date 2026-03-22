@@ -156,7 +156,12 @@ export default function TrackOrderPage() {
             const cleanId = String(trackingId).replace('P', '');
 
             // Refresh if tracking this specific booking OR if tracking the parent of this booking
-            if (String(data.id) === cleanId || String(data.parentId) === cleanId || String(data.id) === String(trackingId)) {
+            if (
+                String(data.id) === cleanId ||
+                String(data.parentId) === cleanId ||
+                String(data.id) === String(trackingId) ||
+                Boolean(data.halanOrderId)
+            ) {
                 console.log('Detected booking update for tracked order, refreshing...');
                 fetchOrder();
             }

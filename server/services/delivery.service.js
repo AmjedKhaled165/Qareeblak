@@ -301,6 +301,17 @@ class DeliveryService {
                 }
             }
         }
+
+        const normalizedStatus = String(data?.status || '').trim().toLowerCase();
+        const isDelivered = ['delivered', 'تم التوصيل'].includes(normalizedStatus);
+        if (isDelivered && typeof whatsappRoutes.sendOrderInvoice === 'function') {
+            try {
+                await whatsappRoutes.sendOrderInvoice(id);
+            } catch (err) {
+                logger.error(`Failed to send WhatsApp invoice for delivered order #${id} from updateOrder:`, err.message || err);
+            }
+        }
+
         return updated;
     }
 

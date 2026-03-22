@@ -114,11 +114,15 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
                     b.items, b.price, b.provider_name,
                     b.booking_date, b.created_at, b.details,
                     b.halan_order_id,
+                    d.courier_id,
+                    c.name AS courier_name,
+                    c.phone AS courier_phone,
                     COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
                     u.phone AS customer_phone
              FROM bookings b
              LEFT JOIN users u ON u.id = b.user_id
              LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
+             LEFT JOIN users c ON c.id = d.courier_id
              WHERE b.parent_order_id = $1
              ORDER BY b.id ASC`,
             [parentId]
@@ -132,7 +136,9 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             provider_name: r.provider_name,
             status: r.effective_status || r.status,
             price: Number(r.price || 0),
-            items: parseItems(r.items)
+            items: parseItems(r.items),
+            courier_name: r.courier_name || undefined,
+            courier_phone: r.courier_phone || undefined
         }));
 
         const order = {
@@ -149,6 +155,8 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             created_at: first.booking_date || first.created_at,
             total_price: subOrders.reduce((sum, s) => sum + Number(s.price || 0), 0),
             is_parent: true,
+            courier_name: first.courier_name || undefined,
+            courier_phone: first.courier_phone || undefined,
             sub_orders: subOrders
         };
 
@@ -166,11 +174,15 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             b.items, b.price, b.provider_name,
                 b.booking_date, b.created_at, b.details,
             b.halan_order_id,
+                d.courier_id,
+                c.name AS courier_name,
+                c.phone AS courier_phone,
                 COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
                 u.phone AS customer_phone
          FROM bookings b
          LEFT JOIN users u ON u.id = b.user_id
          LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
+         LEFT JOIN users c ON c.id = d.courier_id
          WHERE b.id = $1
          LIMIT 1`,
         [bookingId]
@@ -193,7 +205,9 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         created_at: booking.booking_date || booking.created_at,
         total_price: Number(booking.price || 0),
         is_parent: false,
-        provider_name: booking.provider_name
+        provider_name: booking.provider_name,
+        courier_name: booking.courier_name || undefined,
+        courier_phone: booking.courier_phone || undefined
     };
 
     return res.status(200).json({ success: true, order });

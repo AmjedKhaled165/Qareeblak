@@ -65,6 +65,42 @@ function formatWhatsAppNumber(phone) {
     return cleaned;
 }
 
+function extractPhoneCandidates(rawText) {
+    if (!rawText) return [];
+
+    const normalized = String(rawText);
+    const matches = normalized.match(/(?:\+?2)?01\d{9}|\b20\d{10}\b/g) || [];
+    return matches.map((p) => p.replace(/\D/g, ''));
+}
+
+function resolveCustomerPhone(order) {
+    const direct = [
+        order.customer_phone,
+        order.phone,
+        order.customerPhone
+    ].map((v) => (v == null ? '' : String(v).trim())).filter(Boolean);
+
+    if (direct.length > 0) {
+        return direct[0];
+    }
+
+    const textSources = [
+        order.notes,
+        order.delivery_address,
+        order.pickup_address,
+        order.customer_name
+    ];
+
+    for (const source of textSources) {
+        const candidates = extractPhoneCandidates(source);
+        if (candidates.length > 0) {
+            return candidates[0];
+        }
+    }
+
+    return null;
+}
+
 /**
  * Format date in Arabic
  */
@@ -199,14 +235,22 @@ async function sendOrderInvoice(orderId) {
             phone: order.courier_phone
         };
 
+        const customerPhone = resolveCustomerPhone(order);
+        if (!customerPhone) {
+            logger.error(`Cannot send invoice for order #${orderId}: customer phone not found in order fields`);
+            return { success: false, error: 'Customer phone not found' };
+        }
+
+        order.customer_phone = customerPhone;
+
         const invoiceMessage = generateInvoiceMessage(order, courier, items);
 
         // Send to customer
-        const result = await sendWhatsAppMessage(order.customer_phone, invoiceMessage);
+        const result = await sendWhatsAppMessage(customerPhone, invoiceMessage);
 
         // Log the invoice sending
         if (result.success) {
-            logger.info(`ðŸ“§ Invoice sent for order #${orderId} to ${order.customer_phone}`);
+            logger.info(`ðŸ“§ Invoice sent for order #${orderId} to ${customerPhone}`);
         }
 
         return result;
