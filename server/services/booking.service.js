@@ -35,6 +35,7 @@ class BookingService {
         const client = await bookingRepo.beginTransaction();
         const vault = require('../utils/vault');
         const { WalletService, PromoService } = require('./loyalty.service');
+        let transactionCommitted = false;
 
         try {
             // [ENTERPRISE SECURITY PATCH] Zero-Trust Client Pricing — Batch Version
@@ -134,15 +135,24 @@ class BookingService {
             if (validatedPrizeId) await bookingRepo.markPrizeAsUsed(bookingIds[0], validatedPrizeId, client);
 
             await client.query('COMMIT');
+            transactionCommitted = true;
             client.release();
 
             const resData = { parentId, bookingIds, finalPrice, walletUsed: walletDeduction };
-            if (idempotencyLockAcquired) await redisClient.set(`idempotency:checkout:${idempotencyKey}`, JSON.stringify(resData), 'EX', 86400);
+            if (idempotencyLockAcquired) {
+                try {
+                    await redisClient.set(`idempotency:checkout:${idempotencyKey}`, JSON.stringify(resData), { EX: 86400 });
+                } catch (cacheError) {
+                    logger.warn(`Failed to persist checkout idempotency key ${idempotencyKey}: ${cacheError.message}`);
+                }
+            }
 
             return resData;
         } catch (error) {
-            await client.query('ROLLBACK');
-            client.release();
+            if (!transactionCommitted) {
+                await client.query('ROLLBACK');
+                client.release();
+            }
             if (idempotencyLockAcquired) await redisClient.del(`idempotency:checkout:${idempotencyKey}`);
             throw error;
         } finally {
