@@ -51,11 +51,11 @@ class DeliveryRepository {
         }
 
         if (status === 'deleted') {
-            conditions.push(`o.is_deleted = true`);
+            conditions.push(`COALESCE(o.is_deleted, false) = true`);
         } else if (status === 'edited') {
-            conditions.push(`o.is_edited = true AND o.is_deleted = false`);
+            conditions.push(`o.is_edited = true AND COALESCE(o.is_deleted, false) = false`);
         } else {
-            conditions.push(`o.is_deleted = false`);
+            conditions.push(`COALESCE(o.is_deleted, false) = false`);
             if (status && status !== 'all') {
                 params.push(status);
                 conditions.push(`o.status = $${params.length}`);

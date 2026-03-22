@@ -174,6 +174,10 @@ class BookingRepository {
         const appointmentDateExpr = cols.has('appointment_date') ? 'b.appointment_date' : 'NULL';
         const appointmentTypeExpr = cols.has('appointment_type') ? 'b.appointment_type' : 'NULL';
         const parentOrderExpr = cols.has('parent_order_id') ? 'b.parent_order_id' : 'NULL';
+        const detailsExpr = cols.has('details') ? 'b.details' : 'NULL';
+        const itemsExpr = cols.has('items') ? 'b.items' : "'[]'::text";
+        const halanOrderExpr = cols.has('halan_order_id') ? 'b.halan_order_id' : 'NULL';
+        const userIdExpr = cols.has('user_id') ? 'b.user_id' : 'NULL';
 
         let query;
         let params;
@@ -181,10 +185,14 @@ class BookingRepository {
         if (lastId) {
             query = `
                 SELECT b.id,
+                      ${userIdExpr} AS "userId",
                        ${userNameExpr} AS "userName",
                        ${serviceNameExpr} AS "serviceName",
                        b.status,
                        b.price,
+                      ${detailsExpr} AS details,
+                      ${itemsExpr} AS items,
+                      ${halanOrderExpr} AS "halanOrderId",
                        ${dateExpr} AS date,
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType",
@@ -198,10 +206,14 @@ class BookingRepository {
         } else {
             query = `
                 SELECT b.id,
+                      ${userIdExpr} AS "userId",
                        ${userNameExpr} AS "userName",
                        ${serviceNameExpr} AS "serviceName",
                        b.status,
                        b.price,
+                      ${detailsExpr} AS details,
+                      ${itemsExpr} AS items,
+                      ${halanOrderExpr} AS "halanOrderId",
                        ${dateExpr} AS date,
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType",
