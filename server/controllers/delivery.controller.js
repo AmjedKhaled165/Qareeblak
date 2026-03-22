@@ -297,36 +297,3 @@ exports.updateOrder = catchAsync(async (req, res, next) => {
         data: updatedOrder
     });
 });
-
-exports.assignCourier = catchAsync(async (req, res, next) => {
-    const safeData = { courier_id: req.body.courierId || null };
-    const io = req.app.get('io');
-    const updatedOrder = await deliveryService.updateOrder(
-        req.params.id,
-        req.user.id || req.user.userId,
-        req.user.role || req.user.type,
-        safeData,
-        io
-    );
-    res.status(200).json({ status: 'success', data: updatedOrder });
-});
-
-exports.updateMeta = catchAsync(async (req, res, next) => {
-    const safeData = {};
-    if (req.body.supervisor_id !== undefined) safeData.supervisor_id = req.body.supervisor_id ? parseInt(req.body.supervisor_id) : null;
-    if (req.body.source !== undefined) safeData.source = req.body.source;
-
-    if (Object.keys(safeData).length === 0) {
-        return next(new AppError('لا توجد بيانات صالحة للتحديث', 400));
-    }
-
-    const io = req.app.get('io');
-    const updatedOrder = await deliveryService.updateOrder(
-        req.params.id,
-        req.user.id || req.user.userId,
-        req.user.role || req.user.type,
-        safeData,
-        io
-    );
-    res.status(200).json({ status: 'success', data: updatedOrder });
-});

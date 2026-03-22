@@ -35,10 +35,6 @@ router.post('/', validate(createDeliveryOrderSchema), deliveryController.createO
 // Update Generic Fields
 router.put('/:id', deliveryController.updateOrder);
 
-// User-refactored PATCH Updates
-router.patch('/:id/assign-courier', deliveryController.assignCourier);
-router.patch('/:id/meta', deliveryController.updateMeta);
-
 // Auto-Assign Courier
 router.post('/:id/auto-assign', deliveryController.autoAssign);
 

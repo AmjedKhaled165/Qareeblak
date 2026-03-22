@@ -499,14 +499,22 @@ export default function OwnerAllOrdersPage() {
     const handleUpdateOrder = async (id: number, payload: any) => {
         try {
             if (Object.prototype.hasOwnProperty.call(payload, 'courier_id')) {
+                const courierId = Number(payload.courier_id);
+                if (!Number.isInteger(courierId) || courierId <= 0) {
+                    return;
+                }
                 await apiCall(`/halan/orders/${id}/assign-courier`, {
                     method: 'PATCH',
-                    body: JSON.stringify({ courierId: payload.courier_id })
+                    body: JSON.stringify({ courierId })
                 });
             } else {
+                const metaPayload: any = { ...payload };
+                if (Object.prototype.hasOwnProperty.call(metaPayload, 'supervisor_id')) {
+                    metaPayload.supervisor_id = metaPayload.supervisor_id ? Number(metaPayload.supervisor_id) : null;
+                }
                 await apiCall(`/halan/orders/${id}/meta`, {
                     method: 'PATCH',
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(metaPayload)
                 });
             }
             

@@ -236,8 +236,7 @@ class DeliveryService {
             await client.query(
                 `UPDATE delivery_orders
                  SET courier_id = $1,
-                     status = $2,
-                     updated_at = CURRENT_TIMESTAMP
+                     status = $2
                  WHERE id = $3`,
                 [courierId, nextStatus, orderId]
             );
@@ -316,7 +315,7 @@ class DeliveryService {
         values.push(orderId);
         const updatedRes = await db.query(
             `UPDATE delivery_orders
-             SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+             SET ${fields.join(', ')}
              WHERE id = $${values.length}
              RETURNING *`,
             values
