@@ -213,11 +213,9 @@ class DeliveryService {
             orderNumber, ...data, courierId, status: 'pending', items: data.finalItems, source: data.effectiveSource
         });
 
-        if (!courierId && data.effectiveOrderType === 'app') {
-            try {
-                await performAutoAssign(order.id, userId, null); // io handled in controller
-            } catch (e) { logger.error('Auto-assign failed', e); }
-        }
+        try {
+            await performAutoAssign(order.id, userId, null); // io handled in controller
+        } catch (e) { logger.error('Auto-assign failed', e); }
 
         return await deliveryRepo.getOrderById(order.id);
     }
@@ -264,11 +262,9 @@ class DeliveryService {
 
             await deliveryRepo.commitTransaction(client);
 
-            if (!courierId) {
-                try {
-                    await performAutoAssign(deliveryOrder.id, userId, null);
-                } catch (e) { logger.error('Auto-assign failed in split mode', e); }
-            }
+            try {
+                await performAutoAssign(deliveryOrder.id, userId, null);
+            } catch (e) { logger.error('Auto-assign failed in split mode', e); }
 
             return await deliveryRepo.getOrderById(deliveryOrder.id);
         } catch (error) {

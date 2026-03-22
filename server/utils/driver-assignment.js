@@ -3,11 +3,10 @@ const { syncParentOrderStatus } = require('./parent-sync');
 const logger = require('./logger');
 
 /**
- * Automatically assigns an order to an available courier.
- * 
- * For APP orders: Selects a RANDOM active courier (is_online=true, active_orders < max_limit).
- * For MANUAL orders: This should NOT be called (courier is already assigned by creator).
- * Fallback: If no online couriers, falls back to any available courier with lowest workload.
+ * Automatically assigns an order to an available supervisor.
+ *
+ * Runs for newly-created orders that do not yet have a supervisor.
+ * The selected supervisor is chosen from active supervisors according to workload strategy.
  * 
  * @param {number|string} orderId - The ID of the order (halan_order_id)
  * @param {number|string} userId - The ID of the user triggering the action (for history)
@@ -19,21 +18,27 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
     logger.info(`[Auto-Assign] 🔍 بدء البحث عن مندوب للطلب #${orderId}...`);
 
     try {
-        // GUARD: Check if this is a manual order — skip auto-assign entirely
-        const orderCheck = await pool.query('SELECT order_type, courier_id, source FROM delivery_orders WHERE id = $1', [orderId]);
+        // GUARD: avoid re-assigning supervisor if it already exists on the order
+        const orderCheck = await pool.query('SELECT supervisor_id, status FROM delivery_orders WHERE id = $1', [orderId]);
         if (orderCheck.rows.length > 0) {
             const order = orderCheck.rows[0];
-            const isManual = order.order_type === 'manual' || (order.source && !order.source.includes('qareeblak'));
+            if (order.supervisor_id) {
+                logger.info(`[Auto-Assign] ⏭️ Order #${orderId} already has supervisor #${order.supervisor_id}.`);
 
-            // If manual AND already has a courier, skip completely
-            if (isManual && order.courier_id) {
-                logger.info(`[Auto-Assign] ⏭️ Manual order #${orderId} already has courier #${order.courier_id}. Skipping.`);
-                // Just update status if needed
+                if (targetStatus && order.status !== targetStatus) {
+                    await pool.query(
+                        'UPDATE delivery_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+                        [targetStatus, orderId]
+                    );
+                }
+
+                return null;
+            }
+            if (targetStatus && order.status !== targetStatus) {
                 await pool.query(
                     'UPDATE delivery_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
                     [targetStatus, orderId]
                 );
-                return null;
             }
         }
 

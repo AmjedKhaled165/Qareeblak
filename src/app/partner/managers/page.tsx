@@ -305,8 +305,8 @@ export default function ManagersPage() {
                                             onChange={() => handleToggleAvailability(manager)}
                                             className="sr-only"
                                         />
-                                        <span className={`w-11 h-6 rounded-full p-1 transition-colors ${manager.isAvailable ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                                            <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${manager.isAvailable ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        <span className={`relative inline-block w-11 h-6 rounded-full transition-colors ${manager.isAvailable ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                            <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${manager.isAvailable ? 'left-1' : 'right-1'}`} />
                                         </span>
                                     </label>
                                 )}

@@ -85,6 +85,7 @@ const mapSourceLabel = (source: string | undefined) => {
 function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }: { order: Order; drivers: UserOption[]; managers: UserOption[]; onClose: () => void; onUpdateOrder: (id: number, payload: any) => Promise<void> }) {
     const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
     const editHistory = typeof order.edit_history === 'string' ? JSON.parse(order.edit_history || '[]') : (order.edit_history || []);
+    const resolvedSupervisorName = order.supervisor_name || (order.supervisor_id ? (managers.find((m) => Number(m.id) === Number(order.supervisor_id))?.name || null) : null);
 
     const getSourceLabel = (source: string | undefined) => mapSourceLabel(source);
 
@@ -194,16 +195,13 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                                     <UserCheck className="w-3 h-3" />
                                     المسؤول
                                 </h3>
-                                <select 
-                                    className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-indigo-200 dark:border-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
-                                    value={order.supervisor_id || ''}
-                                    onChange={(e) => onUpdateOrder(order.id, { supervisor_id: e.target.value || null })}
-                                    title="تعيين المسؤول"
-                                    aria-label="تعيين المسؤول"
+                                <div
+                                    className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-indigo-200 dark:border-indigo-700"
+                                    title="تعيين المسؤول يتم تلقائيا"
+                                    aria-label="المسؤول المحدد تلقائيا"
                                 >
-                                    <option value="">غير محدد</option>
-                                    {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                </select>
+                                    {resolvedSupervisorName || 'يتم التعيين تلقائيا'}
+                                </div>
                             </div>
 
                             <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
@@ -509,9 +507,7 @@ export default function OwnerAllOrdersPage() {
                 });
             } else {
                 const metaPayload: any = { ...payload };
-                if (Object.prototype.hasOwnProperty.call(metaPayload, 'supervisor_id')) {
-                    metaPayload.supervisor_id = metaPayload.supervisor_id ? Number(metaPayload.supervisor_id) : null;
-                }
+                delete metaPayload.supervisor_id;
                 await apiCall(`/halan/orders/${id}/meta`, {
                     method: 'PATCH',
                     body: JSON.stringify(metaPayload)
@@ -523,9 +519,6 @@ export default function OwnerAllOrdersPage() {
                 const updatedOrder = { ...selectedOrder, ...payload };
                 if (payload.courier_id !== undefined) {
                     updatedOrder.courier_name = drivers.find(d => d.id == payload.courier_id)?.name || null;
-                }
-                if (payload.supervisor_id !== undefined) {
-                    updatedOrder.supervisor_name = managers.find(m => m.id == payload.supervisor_id)?.name || null;
                 }
                 setSelectedOrder(updatedOrder);
             }
