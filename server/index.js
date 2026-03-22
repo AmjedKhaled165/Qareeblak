@@ -1,5 +1,10 @@
 require('newrelic');
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Always prefer server/.env even if process starts from workspace root.
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config();
 
 // 🛰️ [Big Tech Step] Initialize Tracing FIRST (Before any other imports)
 require('./tracing');

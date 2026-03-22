@@ -306,7 +306,12 @@ class DeliveryService {
         const isDelivered = ['delivered', 'تم التوصيل'].includes(normalizedStatus);
         if (isDelivered && typeof whatsappRoutes.sendOrderInvoice === 'function') {
             try {
-                await whatsappRoutes.sendOrderInvoice(id);
+                const invoiceResult = await whatsappRoutes.sendOrderInvoice(id);
+                if (invoiceResult?.success) {
+                    logger.info(`WhatsApp invoice sent successfully for delivered order #${id} (updateOrder)`);
+                } else {
+                    logger.error(`WhatsApp invoice failed for delivered order #${id} (updateOrder):`, invoiceResult?.error || 'unknown error');
+                }
             } catch (err) {
                 logger.error(`Failed to send WhatsApp invoice for delivered order #${id} from updateOrder:`, err.message || err);
             }
@@ -340,7 +345,12 @@ class DeliveryService {
         const isDelivered = ['delivered', 'تم التوصيل'].includes(normalizedStatus);
         if (isDelivered && typeof whatsappRoutes.sendOrderInvoice === 'function') {
             try {
-                await whatsappRoutes.sendOrderInvoice(id);
+                const invoiceResult = await whatsappRoutes.sendOrderInvoice(id);
+                if (invoiceResult?.success) {
+                    logger.info(`WhatsApp invoice sent successfully for delivered order #${id} (updateStatus)`);
+                } else {
+                    logger.error(`WhatsApp invoice failed for delivered order #${id} (updateStatus):`, invoiceResult?.error || 'unknown error');
+                }
             } catch (err) {
                 logger.error(`Failed to send WhatsApp invoice for delivered order #${id}:`, err.message || err);
             }

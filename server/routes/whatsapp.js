@@ -159,6 +159,11 @@ ${itemsList}
  * Send WhatsApp message via Evolution API
  */
 async function sendWhatsAppMessage(phone, message) {
+    if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
+        logger.error('WhatsApp config missing: EVOLUTION_API_URL or EVOLUTION_API_KEY is not set');
+        return { success: false, error: 'WhatsApp config missing' };
+    }
+
     const formattedPhone = formatWhatsAppNumber(phone);
     if (!formattedPhone) {
         logger.error('Invalid phone number:', phone);
@@ -251,6 +256,8 @@ async function sendOrderInvoice(orderId) {
         // Log the invoice sending
         if (result.success) {
             logger.info(`ðŸ“§ Invoice sent for order #${orderId} to ${customerPhone}`);
+        } else {
+            logger.error(`Invoice send failed for order #${orderId}:`, result.error);
         }
 
         return result;
