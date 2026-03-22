@@ -15,18 +15,23 @@ async function getTableColumns(tableName) {
 
     if (cacheRef) return cacheRef;
 
-    const result = await pool.query(
-        `SELECT column_name
-         FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = $1`,
-        [tableName]
-    );
+    try {
+        const result = await pool.query(
+            `SELECT column_name
+             FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = $1`,
+            [tableName]
+        );
 
-    const cols = new Set(result.rows.map((row) => row.column_name));
-    if (tableName === 'parent_orders') parentOrdersColumnsCache = cols;
-    if (tableName === 'bookings') bookingsColumnsCache = cols;
-    if (tableName === 'delivery_orders') deliveryOrdersColumnsCache = cols;
-    return cols;
+        const cols = new Set(result.rows.map((row) => row.column_name));
+        if (tableName === 'parent_orders') parentOrdersColumnsCache = cols;
+        if (tableName === 'bookings') bookingsColumnsCache = cols;
+        if (tableName === 'delivery_orders') deliveryOrdersColumnsCache = cols;
+        return cols;
+    } catch (error) {
+        logger.error(`[ParentSync] Failed to fetch columns for ${tableName}: ${error.message}`);
+        return new Set(); // Return empty set on error to prevent null references
+    }
 }
 
 function pickColumn(cols, candidates) {
@@ -70,8 +75,15 @@ async function syncParentOrderStatus(parentId, io) {
     const bookingDeliveryCol = pickColumn(bookingCols, ['halan_order_id', 'delivery_order_id']);
     const deliveryStatusCol = pickColumn(deliveryCols, ['status', 'order_status', 'state']);
 
-    if (!parentStatusCol || !bookingParentCol) {
-        logger.warn('[ParentSync] Missing required columns in parent_orders/bookings; skipping sync');
+    // Fallback to safe defaults if columns not found
+    if (!parentStatusCol) {
+        logger.warn(`[ParentSync] No status column found in parent_orders for ID ${parentId}. Using 'status' fallback.`);
+        // If no columns detected, assume standard schema
+        return;
+    }
+
+    if (!bookingParentCol) {
+        logger.warn(`[ParentSync] No parent link column found in bookings for ID ${parentId}. Skipping sync.`);
         return;
     }
 
@@ -80,8 +92,10 @@ async function syncParentOrderStatus(parentId, io) {
         await client.query('BEGIN');
 
         // 1. Lock Parent Order row to prevent race conditions during sync
+        const parentStatusColForSelect = parentStatusCol || 'status'; // Safe fallback
+        const parentUserColForSelect = parentUserCol || 'NULL::integer'; 
         const parentRes = await client.query(
-            `SELECT ${parentStatusCol} AS status, ${parentUserCol ? parentUserCol : 'NULL'} AS user_id
+            `SELECT ${parentStatusColForSelect} AS status, ${parentUserCol ? parentUserCol : 'NULL'} AS user_id
              FROM parent_orders
              WHERE id = $1
              FOR UPDATE`,
@@ -95,16 +109,22 @@ async function syncParentOrderStatus(parentId, io) {
         const parentUserId = parentRes.rows[0].user_id;
 
         // 2. Fetch all sub-orders (bookings) + delivery status
-        const bookingStatusSelect = bookingStatusCol ? `b.${bookingStatusCol}` : `NULL`;
-        const deliveryJoin = bookingDeliveryCol ? `LEFT JOIN delivery_orders d ON b.${bookingDeliveryCol} = d.id` : ``;
-        const deliveryStatusSelect = deliveryStatusCol ? `d.${deliveryStatusCol}` : `NULL`;
+        const bookingStatusColForSelect = bookingStatusCol || 'status';
+        const bookingParentColForSelect = bookingParentCol || 'parent_order_id';
+        const deliveryStatusColForSelect = deliveryStatusCol || 'status';
+        const bookingDeliveryColForSelect = bookingDeliveryCol || 'halan_order_id';
+        
+        const bookingStatusSelect = `b.${bookingStatusColForSelect}`;
+        const deliveryJoin = `LEFT JOIN delivery_orders d ON b.${bookingDeliveryColForSelect} = d.id`;
+        const deliveryStatusSelect = `d.${deliveryStatusColForSelect}`;
+        
         const result = await client.query(
             `SELECT
                 ${bookingStatusSelect} as booking_status,
                 ${deliveryStatusSelect} as delivery_status
              FROM bookings b
              ${deliveryJoin}
-             WHERE b.${bookingParentCol} = $1`,
+             WHERE b.${bookingParentColForSelect} = $1`,
             [parentId]
         );
 
@@ -162,9 +182,9 @@ async function syncParentOrderStatus(parentId, io) {
         // Update Global Status if different
         if (newGlobalStatus !== currentParentStatus) {
             logger.info(`[ParentSync] Updating Global Status: ${currentParentStatus} -> ${newGlobalStatus} (accepted ${total_accepted}/${total_required})`);
-            const updateSql = parentUpdatedAtCol
-                ? `UPDATE parent_orders SET ${parentStatusCol} = $1, ${parentUpdatedAtCol} = CURRENT_TIMESTAMP WHERE id = $2`
-                : `UPDATE parent_orders SET ${parentStatusCol} = $1 WHERE id = $2`;
+            const parentStatusColForUpdate = parentStatusCol || 'status';
+            const parentUpdatedAtColForUpdate = parentUpdatedAtCol ? `, ${parentUpdatedAtCol} = CURRENT_TIMESTAMP` : ``;
+            const updateSql = `UPDATE parent_orders SET ${parentStatusColForUpdate} = $1${parentUpdatedAtColForUpdate} WHERE id = $2`;
             await client.query(updateSql, [newGlobalStatus, parentId]);
 
             if (io) {
@@ -193,7 +213,8 @@ async function syncParentOrderStatus(parentId, io) {
         await client.query('COMMIT');
     } catch (e) {
         await client.query('ROLLBACK');
-        logger.error(`[ParentSync] Transaction Error: ${e.message}`);
+        logger.error(`[ParentSync] Transaction Error for order #${parentId}: ${e.message}`);
+        logger.error(`[ParentSync] Error details - Stack: ${e.stack}`);
     } finally {
         client.release();
     }
