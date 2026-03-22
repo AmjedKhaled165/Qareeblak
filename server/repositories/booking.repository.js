@@ -324,6 +324,7 @@ class BookingRepository {
 
     async updateBookingStatusAtomic(id, expectedStatuses, targetStatus, price, client = pool) {
         // [ENTERPRISE] Compare-and-Swap Atomic Update
+        const cols = await getBookingsColumns();
         const params = [targetStatus, id];
         let query = 'UPDATE bookings SET status = $1';
 
@@ -332,7 +333,11 @@ class BookingRepository {
             query += `, price = $${params.length}`;
         }
 
-        query += `, updated_at = NOW() WHERE id = $2`;
+        if (cols.has('updated_at')) {
+            query += `, updated_at = NOW()`;
+        }
+
+        query += ` WHERE id = $2`;
 
         if (expectedStatuses) {
             const statusArray = Array.isArray(expectedStatuses) ? expectedStatuses : [expectedStatuses];

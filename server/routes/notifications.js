@@ -92,6 +92,31 @@ router.patch('/read-all', async (req, res, next) => {
 });
 
 // ==========================================
+// POST /api/notifications
+// Create a notification for a specific user (internal app usage)
+// ==========================================
+router.post('/', async (req, res, next) => {
+    try {
+        const { userId, message, type, relatedId } = req.body || {};
+
+        if (!userId || !message || !type) {
+            return next(new AppError('بيانات الإشعار غير مكتملة', 400));
+        }
+
+        const io = req.app.get('io');
+        const notification = await createNotification(userId, message, type, relatedId || null, io);
+
+        if (!notification) {
+            return next(new AppError('تعذر إنشاء الإشعار', 500));
+        }
+
+        res.status(201).json({ success: true, data: notification });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ==========================================
 // Helper: Create a notification (used internally by other routes)
 // ==========================================
 async function createNotification(userId, message, type, referenceId = null, io = null) {

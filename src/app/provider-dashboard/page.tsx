@@ -170,7 +170,8 @@ export default function ProviderDashboard() {
     const handleAcceptWithPrice = async (price: number) => {
         if (!selectedBookingId) return;
         // Proceed to confirm with the estimated price
-        await handleOrderStatus(selectedBookingId, 'confirmed', price);
+        const accepted = await handleOrderStatus(selectedBookingId, 'confirmed', price);
+        if (!accepted) return;
 
         // Send notification to customer
         const booking = myBookings.find((b: Booking) => b.id === selectedBookingId);
@@ -242,7 +243,8 @@ export default function ProviderDashboard() {
             setIsPriceEstimationOpen(true);
         } else {
             // Accept the order and IMMEDIATELY reload to reveal phone
-            await handleOrderStatus(booking.id, 'confirmed');
+            const accepted = await handleOrderStatus(booking.id, 'confirmed');
+            if (!accepted) return;
 
             // Send notification to customer
             try {
@@ -1027,12 +1029,15 @@ export default function ProviderDashboard() {
         setIsServiceModalOpen(true);
     };
 
-    const handleOrderStatus = async (bookingId: string, status: 'confirmed' | 'completed' | 'rejected', price?: number) => {
+    const handleOrderStatus = async (bookingId: string, status: 'confirmed' | 'completed' | 'rejected', price?: number): Promise<boolean> => {
         // ⚡ OPTIMISTIC UI: Snap the UI to the new status immediately
         const prevStatus = (myBookings.find((b: Booking) => b.id === bookingId) as any)?.status;
         setOptimisticStatuses(prev => new Map(prev).set(bookingId, status));
         try {
-            await updateBookingStatus(bookingId, status, price);
+            const statusUpdated = await updateBookingStatus(bookingId, status, price);
+            if (!statusUpdated) {
+                throw new Error('BOOKING_STATUS_UPDATE_FAILED');
+            }
             // On success, clear the optimistic override (real store data will take over)
             setOptimisticStatuses(prev => { const m = new Map(prev); m.delete(bookingId); return m; });
 
@@ -1048,7 +1053,7 @@ export default function ProviderDashboard() {
                 } else {
                     toast("تم رفض الطلب", "info");
                 }
-                return;
+                return true;
             }
 
             // When provider accepts order (confirmed), handle differently based on order type
@@ -1073,7 +1078,7 @@ export default function ProviderDashboard() {
                                 console.error('Failed to sync manual order status:', e);
                             }
                             toast(`تم قبول الطلب! اضغط 'تم التجهيز' عند الانتهاء.`, "success");
-                            return;
+                            return true;
                         }
 
                         // ═══════════════════════════════════════════════════════
@@ -1137,14 +1142,14 @@ export default function ProviderDashboard() {
                             await updateBookingStatus(bookingId, 'confirmed');
 
                             toast(`تم قبول الطلب! اضغط 'تم التجهيز' عند الانتهاء لإرساله للمناديب`, "success");
-                            return;
+                            return true;
                         }
                     }
                 } catch (halanError) {
                     console.error('Halan integration error:', halanError);
                 }
                 toast("تم قبول الطلب - جاري التنفيذ", "success");
-                return;
+                return true;
             }
 
             // When provider marks order ready (completed preparation)
@@ -1168,17 +1173,19 @@ export default function ProviderDashboard() {
                     }
                 }
                 toast("تم إتمام الطلب - جاهز للاستلام من المندوب", "success");
-                return;
+                return true;
             }
 
             // Rejected status
             toast("تم رفض الطلب", "info");
+            return true;
         } catch (error) {
             // Rollback optimistic update on failure
             if (prevStatus) {
                 setOptimisticStatuses(prev => new Map(prev).set(bookingId, prevStatus));
             }
             toast("حدث خطأ في تحديث الطلب", "error");
+            return false;
         } finally {
             if (activeTab === 'orders' && providerId) {
                 fetchPaginatedBookings();
