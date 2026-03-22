@@ -19,6 +19,9 @@ const { verifyToken, isPartnerOrAdmin } = require('../middleware/auth');
 // Public customer tracking endpoints (phone/user based)
 router.post('/customer-orders', globalLimiter, deliveryController.getCustomerOrdersPublic);
 router.get('/track/:id', globalLimiter, deliveryController.trackOrderPublic);
+router.post('/:id/customer-cancel', globalLimiter, deliveryController.customerCancel);
+router.post('/:id/customer-remove-item', globalLimiter, deliveryController.customerRemoveItem);
+router.post('/:id/customer-add-items-bulk', globalLimiter, deliveryController.customerAddItemsBulk);
 
 router.use(verifyToken);
 router.use(isPartnerOrAdmin);
@@ -41,6 +44,9 @@ router.put('/:id', deliveryController.updateOrder);
 
 // Auto-Assign Courier
 router.post('/:id/auto-assign', deliveryController.autoAssign);
+
+// Publish ready order to courier pool
+router.post('/:id/publish', deliveryController.publishOrder);
 
 // Manual Assign Courier (Owner/Supervisor)
 router.patch('/:id/assign-courier', validate(assignCourierSchema), deliveryController.assignCourier);

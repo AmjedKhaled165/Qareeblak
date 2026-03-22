@@ -39,6 +39,111 @@ class DeliveryService {
         return await deliveryRepo.getCourierHistory(courierId, normalizedPeriod);
     }
 
+    _parseItems(rawItems) {
+        if (!rawItems) return [];
+        if (Array.isArray(rawItems)) return rawItems;
+        if (typeof rawItems === 'string') {
+            try {
+                const parsed = JSON.parse(rawItems);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (_) {
+                return [];
+            }
+        }
+        return [];
+    }
+
+    async customerCancel(orderId, payload, io) {
+        const currentOrder = await deliveryRepo.getOrderById(orderId);
+        if (!currentOrder) {
+            throw new AppError('الطلب غير موجود', 404);
+        }
+
+        const blockedStatuses = new Set(['delivered', 'cancelled', 'picked_up', 'in_transit']);
+        if (blockedStatuses.has(String(currentOrder.status || '').toLowerCase())) {
+            throw new AppError('لا يمكن إلغاء الطلب بعد خروجه للتوصيل', 400);
+        }
+
+        const updated = await deliveryRepo.updateOrder(orderId, { status: 'cancelled' });
+        await deliveryRepo.addHistory(orderId, 'cancelled', null, payload?.reason || 'تم إلغاء الطلب من العميل');
+
+        if (io) {
+            io.emit('order-status-changed', { orderId: Number(orderId), status: 'cancelled' });
+            const linkedBookings = await deliveryRepo.getLinkedBookings(orderId);
+            for (const b of linkedBookings) {
+                io.emit('booking-updated', { id: b.id, status: 'cancelled', halanOrderId: Number(orderId) });
+                if (b.parent_order_id) {
+                    await syncParentOrderStatus(b.parent_order_id, io);
+                }
+            }
+        }
+
+        return updated;
+    }
+
+    async customerRemoveItem(orderId, itemIndex, io) {
+        const currentOrder = await deliveryRepo.getOrderById(orderId);
+        if (!currentOrder) {
+            throw new AppError('الطلب غير موجود', 404);
+        }
+
+        const items = this._parseItems(currentOrder.items);
+        if (!Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= items.length) {
+            throw new AppError('العنصر المطلوب غير موجود', 400);
+        }
+
+        items.splice(itemIndex, 1);
+        const updated = await deliveryRepo.updateOrder(orderId, { items });
+        await deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `قام العميل بحذف منتج من الطلب (index: ${itemIndex})`);
+
+        if (io) {
+            io.emit('order-updated', { orderId: Number(orderId), updates: { items } });
+            io.emit('booking-updated', { halanOrderId: Number(orderId), items });
+        }
+
+        return updated;
+    }
+
+    async customerAddItemsBulk(orderId, items, providerId, io) {
+        const currentOrder = await deliveryRepo.getOrderById(orderId);
+        if (!currentOrder) {
+            throw new AppError('الطلب غير موجود', 404);
+        }
+
+        const incoming = Array.isArray(items) ? items : [];
+        if (incoming.length === 0) {
+            throw new AppError('لا توجد منتجات لإضافتها', 400);
+        }
+
+        const normalized = incoming
+            .map((item) => ({
+                name: String(item?.name || item?.product_name || '').trim(),
+                quantity: Math.max(1, Number(item?.quantity || 1)),
+                price: Math.max(0, Number(item?.price || item?.unit_price || 0)),
+                notes: item?.notes ? String(item.notes) : undefined,
+                providerId: providerId ? Number(providerId) : (item?.providerId ? Number(item.providerId) : undefined),
+                providerName: item?.providerName ? String(item.providerName) : undefined
+            }))
+            .filter((item) => item.name.length > 0);
+
+        if (normalized.length === 0) {
+            throw new AppError('بيانات المنتجات غير صالحة', 400);
+        }
+
+        const currentItems = this._parseItems(currentOrder.items);
+        const merged = [...currentItems, ...normalized];
+
+        const updated = await deliveryRepo.updateOrder(orderId, { items: merged });
+        await deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `أضاف العميل ${normalized.length} منتج/منتجات للطلب`);
+
+        if (io) {
+            io.emit('order-updated', { orderId: Number(orderId), updates: { items: merged } });
+            io.emit('booking-updated', { halanOrderId: Number(orderId), items: merged });
+        }
+
+        return { order: updated, items: merged };
+    }
+
     async createOrder(userId, role, orderData) {
         const {
             customerName, customerPhone, pickupAddress, deliveryAddress,
@@ -370,6 +475,66 @@ class DeliveryService {
             });
         }
 
+        return updated;
+    }
+
+    async publishOrder(orderId, userId, role, io) {
+        const currentOrder = await deliveryRepo.getOrderByIdSecure(orderId, { userId, role });
+        if (!currentOrder) {
+            throw new AppError('الطلب غير موجود أو غير مصرح لك', 404);
+        }
+
+        const currentStatus = String(currentOrder.status || '').toLowerCase();
+        const targetStatus = ['pending', 'assigned'].includes(currentStatus)
+            ? 'ready_for_pickup'
+            : currentOrder.status;
+
+        const updated = await deliveryRepo.updateOrder(orderId, { status: targetStatus });
+
+        if (io) {
+            io.emit('order-published', { orderId: Number(orderId) });
+            io.emit('order-status-changed', { orderId: Number(orderId), status: targetStatus });
+            io.emit('order-updated', { orderId: Number(orderId), updates: { status: targetStatus } });
+            io.emit('booking-updated', { halanOrderId: Number(orderId), status: targetStatus });
+        }
+
+        return updated;
+    }
+
+    async updateCourierPricing(orderId, userId, role, payload, io) {
+        const normalizedRole = String(role || '').toLowerCase();
+        // Allow couriers, owners and admins to update pricing
+        if (!['courier', 'partner_courier', 'owner', 'partner_owner', 'admin'].includes(normalizedRole)) {
+            throw new AppError('غير مصرح لك بتعديل التسعير', 403);
+        }
+
+        const { deliveryFee, notes } = payload;
+        
+        const deliveryRepoReq = require('../repositories/delivery.repository');
+        
+        // Wait, did the user define updateCourierPricing in repository? I am implementing it too. 
+        const updated = await deliveryRepoReq.updateCourierPricing(orderId, { deliveryFee, notes });
+
+        if (!updated) {
+            throw new AppError('لا توجد بيانات قابلة للتحديث', 400);
+        }
+
+        if (io) {
+            io.emit('order-updated', {
+                orderId: Number(orderId),
+                updates: {
+                    delivery_fee: deliveryFee,
+                    notes,
+                    is_modified_by_courier: true
+                }
+            });
+            // Also notify halanOrderId listeners for provider dashboard
+            io.emit('booking-updated', {
+                halanOrderId: Number(orderId),
+                deliveryFee,
+                notes
+            });
+        }
         return updated;
     }
 

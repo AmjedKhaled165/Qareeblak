@@ -191,6 +191,26 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
     return res.status(200).json({ success: true, order });
 });
 
+exports.customerCancel = catchAsync(async (req, res) => {
+    const io = req.app.get('io');
+    const order = await deliveryService.customerCancel(req.params.id, req.body || {}, io);
+    return res.status(200).json({ success: true, message: 'تم إلغاء الطلب بنجاح', order });
+});
+
+exports.customerRemoveItem = catchAsync(async (req, res) => {
+    const io = req.app.get('io');
+    const itemIndex = Number(req.body?.itemIndex);
+    const order = await deliveryService.customerRemoveItem(req.params.id, itemIndex, io);
+    return res.status(200).json({ success: true, message: 'تم حذف المنتج بنجاح', order });
+});
+
+exports.customerAddItemsBulk = catchAsync(async (req, res) => {
+    const io = req.app.get('io');
+    const { items = [], providerId = null } = req.body || {};
+    const result = await deliveryService.customerAddItemsBulk(req.params.id, items, providerId, io);
+    return res.status(200).json({ success: true, message: 'تمت إضافة المنتجات بنجاح', ...result });
+});
+
 exports.getOrders = catchAsync(async (req, res, next) => {
     const result = await deliveryService.getOrders(req.user, req.query);
     res.status(200).json({
@@ -295,6 +315,16 @@ exports.autoAssign = catchAsync(async (req, res, next) => {
 
     const result = await performAutoAssign(id, userId, io);
     res.status(200).json({ success: true, message: `تم تعيين الطلب للمسؤول ${result ? result.name : ''}`, supervisor: result });
+});
+
+exports.publishOrder = catchAsync(async (req, res, next) => {
+    const userId = req.user.id || req.user.userId;
+    const role = req.user.role || req.user.type;
+    const { id } = req.params;
+    const io = req.app.get('io');
+
+    const order = await deliveryService.publishOrder(id, userId, role, io);
+    res.status(200).json({ success: true, message: 'تم نشر الطلب للمناديب', data: order });
 });
 
 exports.updateOrder = catchAsync(async (req, res, next) => {
