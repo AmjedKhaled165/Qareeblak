@@ -146,13 +146,18 @@ class BookingService {
             if (addressInfo) {
                 const orderNum = `HLN-APP-${Date.now().toString(36).toUpperCase()}`;
                 const notes = addressInfo.notes || `طلب مجمع #${parentId}`;
+                const pickupAddress = Object.values(grouped)
+                    .map((g) => g.providerName)
+                    .filter(Boolean)
+                    .join(' | ') || 'مقدم الخدمة';
                 
                 const dResult = await client.query(`
                     INSERT INTO delivery_orders 
-                    (order_number, customer_name, customer_phone, delivery_address, delivery_lat, delivery_lng, status, notes, items, source, order_type)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
+                    (order_number, customer_name, customer_phone, pickup_address, delivery_address, delivery_lat, delivery_lng, status, notes, items, source, order_type)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id
                 `, [
                     orderNum, addressInfo.name || 'عميل Qareeblak', addressInfo.phone || '', 
+                    pickupAddress,
                     addressInfo.address || addressInfo.street || 'بدون عنوان',
                     addressInfo.lat || null, addressInfo.lng || null,
                     'pending', notes, JSON.stringify(items), 'qareeblak', 'app'
