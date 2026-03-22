@@ -76,7 +76,8 @@ exports.checkout = catchAsync(async (req, res, next) => {
         userPrizeId,
         promoCode,
         useWallet,
-        idempotencyKey
+        idempotencyKey,
+        io: req.app.get('io')
     });
 
     logger.info(`✅ [Elite] Checkout completed Parent: ${checkoutResult.parentId} for User: ${authenticatedUser}`);

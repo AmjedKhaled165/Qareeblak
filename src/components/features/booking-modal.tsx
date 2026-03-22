@@ -324,7 +324,7 @@ export function BookingModal({ provider, open, onOpenChange }: BookingModalProps
                                     سيقوم {provider.name} {isOrder ? "بتجهيز طلبك فوراً" : "بالتواصل معك"} خلال دقائق.
                                 </p>
                                 <div className="p-4 bg-slate-50 rounded-lg text-sm text-slate-600 mt-6">
-                                    رقم الطلب: #{newBookingId ? newBookingId.substring(0, 8) : 'PENDING'}
+                                    رقم الطلب: #{newBookingId ? String(newBookingId).substring(0, 8) : 'PENDING'}
                                 </div>
                             </div>
                         )}

@@ -184,7 +184,7 @@ export function OrderDetailModal({
                         </div>
                         <div className="text-right">
                             <h2 className="text-xl font-black font-cairo text-foreground">
-                                طلب #{booking.id.substring(0, 8)}
+                                طلب #{String(booking.id).substring(0, 8)}
                             </h2>
                             <p className="text-sm font-bold text-muted-foreground mt-0.5">
                                 {booking.serviceName}

@@ -583,6 +583,20 @@ export default function ProviderDashboard() {
                 console.log('[ProviderDashboard] Services updated by server! Refreshing...');
                 fetchProviderServices(String(providerId));
             });
+
+            socket.on('new_booking', () => {
+                console.log('[ProviderDashboard] New booking received!');
+                if (fetchPaginatedBookings) {
+                    fetchPaginatedBookings(String(providerId), true);
+                } else {
+                    window.location.reload();
+                }
+                toast("لديك طلب جديد، يرجى تفقد قائمة الطلبات", "success");
+                try {
+                    const audio = new Audio('/notification.mp3');
+                    audio.play().catch(e => console.log('Audio play blocked'));
+                } catch (e) { }
+            });
         } catch (err) {
             console.error('[ProviderDashboard] Global Socket setup failed:', err);
         }
@@ -590,7 +604,7 @@ export default function ProviderDashboard() {
         return () => {
             if (socket) socket.disconnect();
         };
-    }, [providerId, isInitialized, fetchProviderServices]);
+    }, [providerId, isInitialized, fetchProviderServices, fetchPaginatedBookings]);
 
     // Auto-fetch consultations on mount and periodically
     // Auto-fetch consultations on mount and periodically
@@ -676,7 +690,7 @@ export default function ProviderDashboard() {
             myBookings.forEach(booking => {
                 const prev = prevBookingsRef.current.find(b => b.id === booking.id);
                 if (prev && prev.status !== booking.status && booking.status === 'cancelled') {
-                    toast(`تنبيه: تم إلغاء الطلب #${booking.id.substring(0, 8)} بواسطة العميل`, "error");
+                    toast(`تنبيه: تم إلغاء الطلب #${String(booking.id).substring(0, 8)} بواسطة العميل`, "error");
 
                     try {
                         const audio = new Audio('/notification.mp3');
@@ -1683,7 +1697,7 @@ export default function ProviderDashboard() {
                                                             className="hover:bg-muted/30 transition-all cursor-pointer group"
                                                             onClick={() => setSelectedOrderModal(booking)}
                                                         >
-                                                            <td className="px-8 py-6 font-mono text-muted-foreground/60 text-xs">#{booking.id.substring(0, 8)}</td>
+                                                            <td className="px-8 py-6 font-mono text-muted-foreground/60 text-xs">#{String(booking.id).substring(0, 8)}</td>
                                                             <td className="px-8 py-6">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm border border-primary/20 shrink-0">

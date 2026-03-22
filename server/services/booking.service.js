@@ -141,10 +141,52 @@ class BookingService {
             }
 
             if (validatedPrizeId) await bookingRepo.markPrizeAsUsed(bookingIds[0], validatedPrizeId, client);
+            // 🚀 [HALAN INTEGRATION] Auto-create Delivery Order for Qareeblak Orders
+            let halanOrderId = null;
+            if (addressInfo) {
+                const orderNum = `HLN-APP-${Date.now().toString(36).toUpperCase()}`;
+                const notes = addressInfo.notes || `طلب مجمع #${parentId}`;
+                
+                const dResult = await client.query(`
+                    INSERT INTO delivery_orders 
+                    (order_number, customer_name, customer_phone, delivery_address, delivery_lat, delivery_lng, status, notes, items, source, order_type)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
+                `, [
+                    orderNum, addressInfo.name || 'عميل Qareeblak', addressInfo.phone || '', 
+                    addressInfo.address || addressInfo.street || 'بدون عنوان',
+                    addressInfo.lat || null, addressInfo.lng || null,
+                    'pending', notes, JSON.stringify(items), 'qareeblak', 'app'
+                ]);
+                
+                halanOrderId = dResult.rows[0].id;
+                
+                // Link all bookings in this parent to the new halan_order_id
+                await client.query(`UPDATE bookings SET halan_order_id = $1 WHERE parent_order_id = $2`, [halanOrderId, parentId]);
+            }
 
             await client.query('COMMIT');
             transactionCommitted = true;
             client.release();
+
+            // 📢 [REALTIME NOTIFICATIONS] Inform providers via socket
+            if (options.io) {
+                for (const pId of Object.keys(grouped)) {
+                    options.io.to(`provider-${pId}`).emit('new_booking', {
+                        parentId,
+                        message: 'لديك طلب جديد!'
+                    });
+                }
+            }
+
+            // 🚚 [AUTO ASSIGN] Trigger courier assignment after commit
+            if (halanOrderId) {
+                try {
+                    const { performAutoAssign } = require('../utils/driver-assignment');
+                    await performAutoAssign(halanOrderId, Object.keys(grouped)[0], options.io, 'pending');
+                } catch (assignError) {
+                    logger.error(`[Halan AutoAssign] Failed for order ${halanOrderId}`, assignError);
+                }
+            }
 
             const resData = { parentId, bookingIds, finalPrice, walletUsed: walletDeduction };
             if (idempotencyLockAcquired) {
