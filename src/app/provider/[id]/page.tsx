@@ -413,7 +413,7 @@ export default function ProviderProfile() {
                                                         <img
                                                             src={service.image}
                                                             alt={service.name}
-                                                            className="w-full h-full object-cover"
+                                                            className="w-full h-full object-contain p-2"
                                                         />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center">
