@@ -281,6 +281,17 @@ class DeliveryService {
         const currentOrder = await deliveryRepo.getOrderByIdSecure(id, { userId, role });
         if (!currentOrder) throw new AppError('Order not found or unauthorized', 404);
 
+        const normalizedRole = String(role || '').toLowerCase();
+        const isCourier = ['courier', 'partner_courier'].includes(normalizedRole);
+        const nextStatus = String(data?.status || '').trim().toLowerCase();
+        const pickupTransitions = ['picked_up', 'in_transit'];
+        if (isCourier && pickupTransitions.includes(nextStatus)) {
+            const allReady = await deliveryRepo.areAllLinkedBookingsReady(id);
+            if (!allReady) {
+                throw new AppError('لا يمكن الاستلام قبل أن يقوم كل مقدم خدمة بتجهيز طلبه', 400);
+            }
+        }
+
         const updated = await deliveryRepo.updateOrder(id, data);
 
         if (!updated) {
@@ -326,6 +337,17 @@ class DeliveryService {
         // Secure access check
         const currentOrder = await deliveryRepo.getOrderByIdSecure(id, { userId, role });
         if (!currentOrder) throw new AppError('Order not found or unauthorized', 404);
+
+        const normalizedRole = String(role || '').toLowerCase();
+        const isCourier = ['courier', 'partner_courier'].includes(normalizedRole);
+        const nextStatus = String(status || '').trim().toLowerCase();
+        const pickupTransitions = ['picked_up', 'in_transit'];
+        if (isCourier && pickupTransitions.includes(nextStatus)) {
+            const allReady = await deliveryRepo.areAllLinkedBookingsReady(id);
+            if (!allReady) {
+                throw new AppError('لا يمكن الاستلام قبل أن يقوم كل مقدم خدمة بتجهيز طلبه', 400);
+            }
+        }
 
         await deliveryRepo.updateOrder(id, { status });
         await deliveryRepo.addHistory(id, status, userId, notes || `تم تحديث الحالة إلى: ${status}`, latitude, longitude);

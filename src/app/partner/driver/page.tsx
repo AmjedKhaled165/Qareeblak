@@ -50,6 +50,7 @@ interface Order {
     delivery_fee: number;
     items?: any;
     courier_id?: number | null;
+    providers_ready_for_pickup?: boolean;
 }
 
 const MAP_CENTER = { lat: 27.269, lng: 31.307 }; // New Assiut Center
@@ -217,6 +218,19 @@ export default function DriverDashboard() {
 
     const handlePickupOrder = async (orderId: number, e: React.MouseEvent) => {
         e.stopPropagation();
+
+        const currentOrder = activeOrders.find((o) => o.id === orderId);
+        const isReady = currentOrder?.providers_ready_for_pickup !== false;
+        if (!isReady) {
+            setModalState({
+                isOpen: true,
+                title: 'غير متاح الآن',
+                message: 'لا يمكن الاستلام قبل أن يقوم كل مقدم خدمة بتجهيز طلبه.',
+                type: 'warning'
+            });
+            return;
+        }
+
         try {
             const result = await apiCall(`/halan/orders/${orderId}`, {
                 method: 'PUT',
@@ -567,9 +581,14 @@ export default function DriverDashboard() {
                                                     onClick={(e) => handlePickupOrder(order.id, e)}
                                                     whileHover={{ scale: 1.05 }}
                                                     whileTap={{ scale: 0.95 }}
-                                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/30 text-sm"
+                                                    disabled={order.providers_ready_for_pickup === false}
+                                                    className={`flex-1 font-bold py-3 rounded-xl transition-all text-sm ${order.providers_ready_for_pickup === false
+                                                        ? 'bg-slate-500/40 text-slate-300 cursor-not-allowed'
+                                                        : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                                                        }`}
+                                                    title={order.providers_ready_for_pickup === false ? 'انتظر حتى كل مقدم خدمة يعمل تم التجهيز' : 'تم الاستلام'}
                                                 >
-                                                    تم الاستلام
+                                                    {order.providers_ready_for_pickup === false ? 'بانتظار تجهيز كل المتاجر' : 'تم الاستلام'}
                                                 </motion.button>
                                             )}
                                             {order.status === 'picked_up' && (

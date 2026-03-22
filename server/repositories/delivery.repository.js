@@ -107,6 +107,11 @@ class DeliveryRepository {
         params.push(Math.min(limit, 50));
         const query = `
             SELECT o.*, 
+                   COALESCE((
+                       SELECT bool_and(b.status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed'))
+                       FROM bookings b
+                       WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
+                   ), true) AS providers_ready_for_pickup,
                    c.name as courier_name,
                    s.name as supervisor_name
             FROM delivery_orders o
@@ -307,6 +312,17 @@ class DeliveryRepository {
             [String(orderId)]
         );
         return result.rows || [];
+    }
+
+    async areAllLinkedBookingsReady(orderId) {
+        const result = await pool.query(
+            `SELECT COALESCE(bool_and(status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed')), true) AS all_ready
+             FROM bookings
+             WHERE CAST(halan_order_id AS TEXT) = CAST($1 AS TEXT)`,
+            [String(orderId)]
+        );
+
+        return Boolean(result.rows?.[0]?.all_ready);
     }
 
     async softDelete(id) {
