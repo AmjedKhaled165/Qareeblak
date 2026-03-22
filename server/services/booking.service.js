@@ -11,10 +11,7 @@ class BookingService {
     async checkoutTransaction(userId, items, addressInfo, options = {}) {
         const { userPrizeId, promoCode, useWallet, idempotencyKey } = options;
 
-        const lockValue = await redisClient.set(`lock:checkout:user:${userId}`, 'LOCKED', {
-            NX: true,
-            PX: 30000
-        });
+        const lockValue = await redisClient.set(`lock:checkout:user:${userId}`, 'LOCKED', 'PX', 30000, 'NX');
 
         if (!lockValue && !idempotencyKey) {
             throw new AppError('Process in progress. Please wait.', 429);
@@ -23,7 +20,7 @@ class BookingService {
         let idempotencyLockAcquired = false;
         if (idempotencyKey && redisClient && redisClient.status === 'ready') {
             const redisKey = `idempotency:checkout:${idempotencyKey}`;
-            const isNew = await redisClient.set(redisKey, 'PROCESSING', { NX: true, EX: 30 });
+            const isNew = await redisClient.set(redisKey, 'PROCESSING', 'EX', 30, 'NX');
             if (!isNew) {
                 const existingVal = await redisClient.get(redisKey);
                 if (existingVal === 'PROCESSING') throw new AppError('Processing...', 429);
@@ -141,7 +138,7 @@ class BookingService {
             const resData = { parentId, bookingIds, finalPrice, walletUsed: walletDeduction };
             if (idempotencyLockAcquired) {
                 try {
-                    await redisClient.set(`idempotency:checkout:${idempotencyKey}`, JSON.stringify(resData), { EX: 86400 });
+                    await redisClient.set(`idempotency:checkout:${idempotencyKey}`, JSON.stringify(resData), 'EX', 86400);
                 } catch (cacheError) {
                     logger.warn(`Failed to persist checkout idempotency key ${idempotencyKey}: ${cacheError.message}`);
                 }
