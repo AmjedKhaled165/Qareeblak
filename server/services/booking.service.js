@@ -11,7 +11,14 @@ class BookingService {
     async checkoutTransaction(userId, items, addressInfo, options = {}) {
         const { userPrizeId, promoCode, useWallet, idempotencyKey } = options;
 
-        const lockValue = await redisClient.set(`lock:checkout:user:${userId}`, 'LOCKED', 'PX', 30000, 'NX');
+        let lockValue = 'LOCKED';
+        try {
+            if (redisClient && redisClient.status === 'ready') {
+                lockValue = await redisClient.set(`lock:checkout:user:${userId}`, 'LOCKED', 'PX', 30000, 'NX');
+            }
+        } catch (redisErr) {
+            logger.warn(`Checkout lock skipped for user ${userId}: ${redisErr.message}`);
+        }
 
         if (!lockValue && !idempotencyKey) {
             throw new AppError('Process in progress. Please wait.', 429);
@@ -19,14 +26,18 @@ class BookingService {
 
         let idempotencyLockAcquired = false;
         if (idempotencyKey && redisClient && redisClient.status === 'ready') {
-            const redisKey = `idempotency:checkout:${idempotencyKey}`;
-            const isNew = await redisClient.set(redisKey, 'PROCESSING', 'EX', 30, 'NX');
-            if (!isNew) {
-                const existingVal = await redisClient.get(redisKey);
-                if (existingVal === 'PROCESSING') throw new AppError('Processing...', 429);
-                if (existingVal) return JSON.parse(existingVal);
+            try {
+                const redisKey = `idempotency:checkout:${idempotencyKey}`;
+                const isNew = await redisClient.set(redisKey, 'PROCESSING', 'EX', 30, 'NX');
+                if (!isNew) {
+                    const existingVal = await redisClient.get(redisKey);
+                    if (existingVal === 'PROCESSING') throw new AppError('Processing...', 429);
+                    if (existingVal) return JSON.parse(existingVal);
+                }
+                idempotencyLockAcquired = true;
+            } catch (redisErr) {
+                logger.warn(`Checkout idempotency lock skipped for key ${idempotencyKey}: ${redisErr.message}`);
             }
-            idempotencyLockAcquired = true;
         }
 
         const client = await bookingRepo.beginTransaction();
@@ -150,10 +161,22 @@ class BookingService {
                 await client.query('ROLLBACK');
                 client.release();
             }
-            if (idempotencyLockAcquired) await redisClient.del(`idempotency:checkout:${idempotencyKey}`);
+            if (idempotencyLockAcquired) {
+                try {
+                    await redisClient.del(`idempotency:checkout:${idempotencyKey}`);
+                } catch (redisErr) {
+                    logger.warn(`Failed to clear idempotency key ${idempotencyKey}: ${redisErr.message}`);
+                }
+            }
             throw error;
         } finally {
-            await redisClient.del(`lock:checkout:user:${userId}`);
+            try {
+                if (redisClient && redisClient.status === 'ready') {
+                    await redisClient.del(`lock:checkout:user:${userId}`);
+                }
+            } catch (redisErr) {
+                logger.warn(`Failed to release checkout lock for user ${userId}: ${redisErr.message}`);
+            }
         }
     }
 

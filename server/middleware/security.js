@@ -19,7 +19,13 @@ const createStore = () => {
     // If Redis is already connected, use it
     if (redisClient.status === 'ready') {
         return new RedisStore({
-            sendCommand: (...args) => redisClient.call(...args)
+            sendCommand: async (...args) => {
+                const [command, ...rest] = args;
+                if (Array.isArray(command)) {
+                    return redisClient.call(command[0], ...command.slice(1));
+                }
+                return redisClient.call(command, ...rest);
+            }
         });
     }
 
