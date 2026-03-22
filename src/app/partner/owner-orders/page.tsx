@@ -453,7 +453,7 @@ export default function OwnerAllOrdersPage() {
                     <div>
                         <h1 className="text-xl font-bold text-white">كل الطلبات</h1>
                         <p className="text-white/80 text-sm">
-                            {totalOrders > 0 ? `إجمالي ${totalOrders} طلب` : 'جاري التحميل...'}
+                            {isLoading ? 'جاري التحميل...' : totalOrders > 0 ? `إجمالي ${totalOrders} طلب` : 'لا توجد طلبات'}
                         </p>
                     </div>
                     <button
