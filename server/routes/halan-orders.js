@@ -13,6 +13,10 @@ const {
 
 const { verifyToken, isPartnerOrAdmin } = require('../middleware/auth');
 
+// Public customer tracking endpoints (phone/user based)
+router.post('/customer-orders', globalLimiter, deliveryController.getCustomerOrdersPublic);
+router.get('/track/:id', globalLimiter, deliveryController.trackOrderPublic);
+
 router.use(verifyToken);
 router.use(isPartnerOrAdmin);
 router.use(globalLimiter);

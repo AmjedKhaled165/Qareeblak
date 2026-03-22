@@ -104,7 +104,7 @@ export default function TrackSearchPage() {
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        fetchOrders(phone);
+        fetchOrders(phone, (currentUser as any)?.id || (currentUser as any)?.userId);
     };
 
     // Status helpers
