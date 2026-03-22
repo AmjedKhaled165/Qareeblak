@@ -1553,8 +1553,8 @@ export default function ProviderDashboard() {
                                 {myServices.map((service: any) => (
                                     <Card key={service.id} className="group hover:border-primary/50 transition-all overflow-hidden bg-card border-border/50 rounded-[2rem] shadow-xl flex flex-col">
                                         {service.image && (
-                                            <div className="h-44 w-full overflow-hidden bg-muted/60 relative p-2">
-                                                <img src={service.image} alt={service.name} className="w-full h-full object-contain" />
+                                            <div className="h-44 w-full overflow-hidden bg-muted relative">
+                                                <img src={service.image} alt={service.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
                                                 <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                             </div>
                                         )}
