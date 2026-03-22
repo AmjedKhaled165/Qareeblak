@@ -111,6 +111,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         const result = await db.query(
             `SELECT b.id, b.parent_order_id, b.status,
                     COALESCE(d.status, b.status) AS effective_status,
+                    p.status AS parent_status,
                     b.items, b.price, b.provider_name,
                     b.booking_date, b.created_at, b.details,
                     b.halan_order_id,
@@ -122,6 +123,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
              FROM bookings b
              LEFT JOIN users u ON u.id = b.user_id
              LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
+             LEFT JOIN parent_orders p ON p.id = b.parent_order_id
              LEFT JOIN users c ON c.id = d.courier_id
              WHERE b.parent_order_id = $1
              ORDER BY b.id ASC`,
@@ -148,7 +150,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             customer_phone: first.customer_phone || '',
             delivery_address: first.details || 'غير متاح',
             pickup_address: '',
-            status: first.effective_status || first.status || 'pending',
+            status: first.parent_status || first.status || 'pending',
             items: subOrders.flatMap((s) => s.items),
             delivery_fee: 0,
             notes: first.details || '',

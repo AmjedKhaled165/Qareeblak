@@ -82,32 +82,25 @@ async function syncParentOrderStatus(parentId, io) {
         // Debug Log requested by user
         logger.info(`[ParentSync] Order ID: ${parentId} Required: ${total_required} Current Prepared: ${countReady}`);
 
-        // 4. The If/Else Guard (Gatekeeper)
-        if (total_accepted < total_required) {
-            logger.info(`[ParentSync] Gatekeeper: Only ${total_accepted}/${total_required} providers accepted. Waiting for others...`);
-            // Do NOT change the Global Order Status. Return/Exit.
-            await client.query('COMMIT');
-            return;
-        }
+        // 4. Compute global status
+        // Business rule:
+        // - confirmed starts as soon as ANY provider accepts
+        // - higher stages remain strict and require ALL active providers
+        let newGlobalStatus = 'pending';
 
-        // IF total_accepted == total_required:
-        // ONLY NOW, determine the new global status.
-        // We know at least everyone is confirmed (In Preparation).
-
-        let newGlobalStatus = 'confirmed'; // "In Preparation"
-
-        // Check for higher statuses (Strict ALL required for these too)
-        if (countDelivered === total_required) {
+        if (total_required > 0 && countDelivered === total_required) {
             newGlobalStatus = 'delivered';
-        } else if (countPickedUp === total_required) {
+        } else if (total_required > 0 && countPickedUp === total_required) {
             newGlobalStatus = 'picked_up';
-        } else if (countReady === total_required) {
+        } else if (total_required > 0 && countReady === total_required) {
             newGlobalStatus = 'ready_for_pickup';
+        } else if (total_accepted > 0) {
+            newGlobalStatus = 'confirmed';
         }
 
         // Update Global Status if different
         if (newGlobalStatus !== currentParentStatus) {
-            logger.info(`[ParentSync] All Providers Agreed! Updating Global Status: ${currentParentStatus} -> ${newGlobalStatus}`);
+            logger.info(`[ParentSync] Updating Global Status: ${currentParentStatus} -> ${newGlobalStatus} (accepted ${total_accepted}/${total_required})`);
             await client.query('UPDATE parent_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newGlobalStatus, parentId]);
 
             if (io) {

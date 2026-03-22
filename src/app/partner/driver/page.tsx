@@ -106,8 +106,11 @@ export default function DriverDashboard() {
 
         fetchActiveOrders();
 
-        // Poll for orders every 3 seconds
-        const interval = setInterval(fetchActiveOrders, 3000);
+        // Poll less frequently and only while tab is visible to reduce backend pressure.
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+            fetchActiveOrders();
+        }, 10000);
         return () => clearInterval(interval);
     }, []);
 
