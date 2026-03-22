@@ -182,7 +182,7 @@ class BookingService {
             if (halanOrderId) {
                 try {
                     const { performAutoAssign } = require('../utils/driver-assignment');
-                    await performAutoAssign(halanOrderId, Object.keys(grouped)[0], options.io, 'pending');
+                    await performAutoAssign(halanOrderId, Object.keys(grouped)[0], options.io, 'assigned');
                 } catch (assignError) {
                     logger.error(`[Halan AutoAssign] Failed for order ${halanOrderId}`, assignError);
                 }

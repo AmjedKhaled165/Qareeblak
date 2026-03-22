@@ -137,6 +137,31 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
             `, [selectedCourier.id, orderId, targetStatus]);
 
             await client.query('COMMIT');
+
+            // Add to order history after successful commit.
+            const assignedLoad = Number(selectedCourier.active_orders || 0) + 1;
+            await pool.query(`
+                INSERT INTO order_history (order_id, status, changed_by, notes)
+                VALUES ($1, 'assigned', $2, $3)
+            `, [orderId, userId || null, `تم التعيين تلقائياً للمندوب ${selectedCourier.name} (الحمل: ${assignedLoad} طلبات)`]);
+
+            // Emit socket events so owner/courier dashboards refresh immediately.
+            if (appIo) {
+                appIo.emit('order-assigned', { orderId, courierId: selectedCourier.id, courierName: selectedCourier.name });
+                appIo.emit('order-status-changed', { orderId, status: targetStatus });
+                appIo.emit('booking-updated', { halanOrderId: orderId, status: targetStatus });
+            }
+
+            // Sync parent order state for grouped orders linked to this delivery order.
+            try {
+                const parentCheck = await pool.query('SELECT parent_order_id FROM bookings WHERE halan_order_id = $1 LIMIT 1', [orderId]);
+                if (parentCheck.rows.length > 0 && parentCheck.rows[0].parent_order_id) {
+                    await syncParentOrderStatus(parentCheck.rows[0].parent_order_id, appIo);
+                }
+            } catch (e) {
+                logger.error(`[Auto-Assign] Failed to sync parent status: ${e.message}`);
+            }
+
             return selectedCourier;
 
         } catch (txnError) {
@@ -145,32 +170,6 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
         } finally {
             client.release();
         }
-
-        // 5. Add to order history
-        await pool.query(`
-            INSERT INTO order_history (order_id, status, changed_by, notes)
-            VALUES ($1, 'assigned', $2, $3)
-        `, [orderId, userId || null, `تم التعيين تلقائياً للمندوب ${selectedCourier.name} (الحمل: ${courierLoad} طلبات)`]);
-
-        // 6. Emit socket event
-        if (appIo) {
-            appIo.emit('order-assigned', { orderId, courierId: selectedCourier.id, courierName: selectedCourier.name });
-            appIo.emit('order-status-changed', { orderId, status: targetStatus });
-            // Also emit generic update so dashboards refresh
-            appIo.emit('booking-updated', { halanOrderId: orderId, status: targetStatus });
-        }
-
-        // SYNC: Update parent order status if this is part of a grouped order
-        try {
-            const parentCheck = await pool.query('SELECT parent_order_id FROM bookings WHERE halan_order_id = $1', [orderId]);
-            if (parentCheck.rows.length > 0 && parentCheck.rows[0].parent_order_id) {
-                await syncParentOrderStatus(parentCheck.rows[0].parent_order_id, appIo);
-            }
-        } catch (e) {
-            logger.error(`[Auto-Assign] Failed to sync parent status: ${e.message}`);
-        }
-
-        return selectedCourier;
 
     } catch (error) {
         logger.error(`[Auto-Assign] ❌ Critical Error: ${error.message}`);

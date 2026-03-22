@@ -72,7 +72,11 @@ export default function OrderTrackingPage() {
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const [editingItem, setEditingItem] = useState<{ id: string; quantity: number } | null>(null);
 
-    const orderId = params.id as string;
+    const orderId = useMemo(() => {
+        const raw = params?.id;
+        if (Array.isArray(raw)) return String(raw[0] || '');
+        return String(raw || '');
+    }, [params]);
 
     // ==================== VALIDATION LOGIC ====================
     /**
