@@ -198,13 +198,14 @@ export default function TrackOrderPage() {
 
     // Celebration Effect
     useEffect(() => {
-        if (order?.status === 'delivered') {
+        const isDelivered = order && ['delivered', 'تم التوصيل', 'completed', 'مكتمل', 'مكتملة'].includes(order.status);
+        if (isDelivered) {
             const hasCelebrated = localStorage.getItem(`celebrated_order_${order.id}`);
             if (!hasCelebrated) {
                 // Trigger confetti
-                const duration = 3 * 1000;
+                const duration = 5 * 1000;
                 const animationEnd = Date.now() + duration;
-                const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+                const defaults = { startVelocity: 45, spread: 360, ticks: 100, zIndex: 1000 };
 
                 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
@@ -215,18 +216,30 @@ export default function TrackOrderPage() {
                         return clearInterval(interval);
                     }
 
-                    const particleCount = 50 * (timeLeft / duration);
+                    const particleCount = 60 * (timeLeft / duration);
+                    // Emit from multiple points for fireworks effect
                     confetti({
                         ...defaults,
                         particleCount,
-                        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+                        origin: { x: randomInRange(0.1, 0.4), y: Math.random() - 0.2 },
+                        colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff'] // Festive colors
                     });
                     confetti({
                         ...defaults,
                         particleCount,
-                        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+                        origin: { x: randomInRange(0.6, 0.9), y: Math.random() - 0.2 },
+                        colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff']
                     });
                 }, 250);
+
+                // Initial big burst
+                confetti({
+                    particleCount: 150,
+                    spread: 120,
+                    origin: { y: 0.8 },
+                    zIndex: 1000,
+                    colors: ['#8b5cf6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#ffffff']
+                });
 
                 // Play success sound
                 try {
