@@ -149,16 +149,9 @@ export default function DriverDashboard() {
 
                 const active = response.data.filter((o: any) => {
                     const isSelf = currentUser && o.courier_id === currentUser.id;
-                    const isUnassigned = !o.courier_id;
 
-                    // Driver should see:
-                    // 1. Orders assigned to them that are not yet delivered
-                    // 2. Unassigned orders that are waiting for a driver (pending or ready_for_pickup)
-                    const isBroadcastStatus = ['pending', 'ready_for_pickup'].includes(o.status);
-                    const isOngoingStatus = ['assigned', 'picked_up', 'in_transit'].includes(o.status);
-
-                    return (isSelf && o.status !== 'delivered' && o.status !== 'cancelled') ||
-                        (isUnassigned && isBroadcastStatus);
+                    // Driver should only see orders assigned to them.
+                    return isSelf && o.status !== 'delivered' && o.status !== 'cancelled';
                 }).map((o: any) => {
                     // Parse items safely
                     let items = o.items;

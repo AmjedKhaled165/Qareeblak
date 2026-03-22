@@ -46,11 +46,7 @@ class DeliveryRepository {
         if (!isAdmin) {
             if (role === 'courier' || role === 'partner_courier') {
                 params.push(userId);
-                const courierParamIdx = params.length;
-                conditions.push(`(
-                    o.courier_id = $${courierParamIdx}
-                    OR (o.courier_id IS NULL AND o.status IN ('pending', 'ready_for_pickup'))
-                )`);
+                conditions.push(`o.courier_id = $${params.length}`);
             } else if (role === 'supervisor' || role === 'partner_supervisor') {
                 params.push(userId);
                 conditions.push(`o.supervisor_id = $${params.length}`);
@@ -162,10 +158,7 @@ class DeliveryRepository {
 
         if (isCourier) {
             params.push(userId);
-            conditions.push(`(
-                o.courier_id = $2
-                OR (o.courier_id IS NULL AND o.status IN ('pending', 'ready_for_pickup'))
-            )`);
+            conditions.push(`o.courier_id = $2`);
         } else if (isSupervisor) {
             params.push(userId);
             conditions.push('o.supervisor_id = $2');

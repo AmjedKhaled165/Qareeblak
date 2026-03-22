@@ -353,7 +353,6 @@ exports.updateOrder = catchAsync(async (req, res, next) => {
     const safeData = {};
     if (req.body.status !== undefined) safeData.status = String(req.body.status);
     if (req.body.courier_id !== undefined) safeData.courier_id = req.body.courier_id ? parseInt(req.body.courier_id) : null;
-    if (req.body.supervisor_id !== undefined) safeData.supervisor_id = req.body.supervisor_id ? parseInt(req.body.supervisor_id) : null;
     if (req.body.source !== undefined) safeData.source = req.body.source;
 
     if (Object.keys(safeData).length === 0) {

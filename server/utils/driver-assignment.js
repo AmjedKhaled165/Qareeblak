@@ -115,10 +115,16 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
                 return null;
             }
 
-            // Strategy: prefer the most productive active supervisors today, then random tie-break.
-            const maxTodayOrders = Math.max(...candidates.map(c => c.today_orders || 0));
-            const topToday = candidates.filter(c => (c.today_orders || 0) === maxTodayOrders);
-            const selectedSupervisor = topToday[Math.floor(Math.random() * topToday.length)];
+            // Strategy: most orders today first, then currently most active workload, then stable by id.
+            const selectedSupervisor = [...candidates].sort((a, b) => {
+                const todayDiff = Number(b.today_orders || 0) - Number(a.today_orders || 0);
+                if (todayDiff !== 0) return todayDiff;
+
+                const activeDiff = Number(b.active_orders || 0) - Number(a.active_orders || 0);
+                if (activeDiff !== 0) return activeDiff;
+
+                return Number(a.id || 0) - Number(b.id || 0);
+            })[0];
 
             logger.info(`[Auto-Assign] 🎯 تم اختيار المسؤول: ${selectedSupervisor.name}`);
 

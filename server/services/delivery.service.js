@@ -542,23 +542,12 @@ class DeliveryService {
             throw new AppError('غير مصرح لك بتعديل بيانات الطلب', 403);
         }
 
+        if (Object.prototype.hasOwnProperty.call(payload, 'supervisor_id')) {
+            throw new AppError('تحديد المسؤول يتم تلقائيا ولا يمكن تعديله يدويا', 400);
+        }
+
         const fields = [];
         const values = [];
-
-        if (Object.prototype.hasOwnProperty.call(payload, 'supervisor_id')) {
-            const supervisorId = payload.supervisor_id === null ? null : Number(payload.supervisor_id);
-            if (supervisorId !== null) {
-                const supervisorRes = await db.query(
-                    `SELECT id FROM users WHERE id = $1 AND COALESCE(user_type, '') IN ('supervisor', 'partner_supervisor')`,
-                    [supervisorId]
-                );
-                if (!supervisorRes.rows.length) {
-                    throw new AppError('المسؤول غير موجود', 404);
-                }
-            }
-            values.push(supervisorId);
-            fields.push(`supervisor_id = $${values.length}`);
-        }
 
         if (Object.prototype.hasOwnProperty.call(payload, 'source')) {
             values.push(payload.source);
