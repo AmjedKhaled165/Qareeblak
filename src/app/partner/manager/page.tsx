@@ -56,7 +56,7 @@ export default function ManagerDashboard() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
-    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -155,7 +155,7 @@ export default function ManagerDashboard() {
 
             // Calculate stats
             const filteredOrders = orders.filter((o: any) => isDateInPeriod(o.created_at, period));
-            const deliveredOrders = filteredOrders.filter((o: any) => o.status === 'delivered');
+            const deliveredOrders = filteredOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
             const totalFees = deliveredOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
             const totalSales = deliveredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
 
@@ -175,9 +175,9 @@ export default function ManagerDashboard() {
                 drivers: drivers.map((d: any) => ({
                     ...d,
                     name_ar: d.name,
-                    delivered: filteredOrders.filter((o: any) => o.courier_id === d.id && o.status === 'delivered').length,
+                    delivered: filteredOrders.filter((o: any) => o.courier_id === d.id && ['delivered', 'تم التوصيل'].includes(o.status)).length,
                     delivery_fees: filteredOrders
-                        .filter((o: any) => o.courier_id === d.id && o.status === 'delivered')
+                        .filter((o: any) => o.courier_id === d.id && ['delivered', 'تم التوصيل'].includes(o.status))
                         .reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0)
                 }))
             });

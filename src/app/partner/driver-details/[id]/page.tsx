@@ -295,14 +295,14 @@ export default function DriverDetailsPage() {
     // Calculate stats
     const stats = {
         totalOrders: orders.length,
-        deliveredOrders: orders.filter(o => o.status === 'delivered').length,
-        totalSales: orders.filter(o => o.status === 'delivered').reduce((sum, o) => {
+        deliveredOrders: orders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status)).length,
+        totalSales: orders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status)).reduce((sum, o) => {
             const items = typeof o.items === 'string' ? JSON.parse(o.items || '[]') : (o.items || []);
             const itemsTotal = items.reduce((iSum: number, item: any) => iSum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
             const deliFee = parseFloat(o.delivery_fee?.toString() || '0');
             return sum + (itemsTotal + deliFee);
         }, 0),
-        totalDeliveryFees: orders.filter(o => o.status === 'delivered').reduce((sum, o) => sum + Number(o.delivery_fee || 0), 0),
+        totalDeliveryFees: orders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status)).reduce((sum, o) => sum + Number(o.delivery_fee || 0), 0),
     };
 
     if (isLoading) {

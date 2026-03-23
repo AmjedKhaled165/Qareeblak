@@ -104,7 +104,7 @@ export default function OwnerDashboard() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
-    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -196,7 +196,7 @@ export default function OwnerDashboard() {
 
             // Calculate global stats (filtered by period)
             const filteredOrders = orders.filter((o: any) => isDateInPeriod(o.created_at, period));
-            const deliveredOrders = filteredOrders.filter((o: any) => o.status === 'delivered');
+            const deliveredOrders = filteredOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
             const totalFees = deliveredOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
             const totalSales = deliveredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
 
@@ -215,7 +215,7 @@ export default function OwnerDashboard() {
                     Number(o.supervisor_id) === Number(m.id)
                 );
 
-                const mDelivered = managerOrders.filter((o: any) => o.status === 'delivered');
+                const mDelivered = managerOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
                 const managerFees = mDelivered.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
                 const managerSales = mDelivered.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
 
@@ -234,7 +234,7 @@ export default function OwnerDashboard() {
                     total_delivery_fees: totalFees,
                     total_sales: totalSales,
                     delivered: deliveredOrders.length,
-                    total_orders: orders.length,
+                    total_orders: filteredOrders.length,
                     qareeblak_delivery_revenue: qareeblakDeliveryRevenue,
                     qareeblak_orders_count: qareeblakOrders.length
                 },

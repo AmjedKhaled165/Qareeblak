@@ -132,7 +132,7 @@ export default function DriverTrackingPage() {
             const ordersData = await apiCall(`/halan/orders?courierId=${driverId}`);
             if (ordersData.success) {
                 const orders = ordersData.data;
-                const deliveredOrders = orders.filter((o: any) => o.status === 'delivered');
+                const deliveredOrders = orders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
 
                 setDriverStats({
                     totalOrders: orders.length,

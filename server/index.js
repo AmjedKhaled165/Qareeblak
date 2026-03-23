@@ -1,10 +1,17 @@
-require('newrelic');
 const path = require('path');
 const dotenv = require('dotenv');
 
 // Always prefer server/.env even if process starts from workspace root.
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
+
+const shouldEnableNewRelic =
+    String(process.env.NEW_RELIC_ENABLED || '').toLowerCase() === 'true' ||
+    (process.env.NODE_ENV === 'production' && Boolean(process.env.NEW_RELIC_LICENSE_KEY));
+
+if (shouldEnableNewRelic) {
+    require('newrelic');
+}
 
 // 🛰️ [Big Tech Step] Initialize Tracing FIRST (Before any other imports)
 require('./tracing');

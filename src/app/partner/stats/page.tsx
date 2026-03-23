@@ -19,7 +19,7 @@ export default function DriverStatsPage() {
     const [user, setUser] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
     const [ordersList, setOrdersList] = useState<any[]>([]);
-    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
     const [isLoading, setIsLoading] = useState(true);
 
     const periods = [
@@ -52,10 +52,10 @@ export default function DriverStatsPage() {
                 setOrdersList(orders);
 
                 // Calculate stats
-                const delivered = orders.filter((o: any) => o.status === 'delivered').length;
+                const delivered = orders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status)).length;
                 const pending = orders.filter((o: any) => ['pending', 'assigned', 'picked_up', 'in_transit'].includes(o.status)).length;
                 const totalEarnings = orders
-                    .filter((o: any) => o.status === 'delivered')
+                    .filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status))
                     .reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
 
                 const calculatedStats = {
@@ -186,14 +186,14 @@ export default function DriverStatsPage() {
                         <div className="pt-2 pb-8">
                             <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-4 px-2">تفاصيل الطلبات المكتملة</h3>
                             <div className="space-y-3">
-                                {ordersList.filter((o: any) => o.status === 'delivered').length === 0 ? (
+                                {ordersList.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status)).length === 0 ? (
                                     <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
                                         <Package className="w-10 h-10 mx-auto text-slate-300 mb-2" />
                                         <p className="text-slate-500 text-sm">لا توجد طلبات مكتملة في هذه الفترة</p>
                                     </div>
                                 ) : (
                                     ordersList
-                                        .filter((o: any) => o.status === 'delivered')
+                                        .filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status))
                                         .map((order: any, idx: number) => (
                                             <motion.div
                                                 key={order.id}

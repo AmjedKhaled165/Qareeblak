@@ -609,8 +609,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
                             <div className="space-y-4">
                                 <h3 className="font-bold text-slate-800 dark:text-slate-100 px-1">تفاصيل المتاجر</h3>
                                 {order.sub_orders.map((sub) => {
-                                    const globalReady = order.status === 'ready_for_pickup' || order.status === 'picked_up' || order.status === 'in_transit' || order.status === 'delivered';
-                                    const isReady = globalReady || sub.status === 'ready_for_pickup' || sub.status === 'picked_up' || sub.status === 'in_transit' || sub.status === 'delivered';
+                                    const globalReady = ['ready_for_pickup', 'جاهز للاستلام'].includes(order.status) || ['picked_up', 'تم الاستلام من المطعم'].includes(order.status) || ['in_transit', 'جاري التوصيل'].includes(order.status) || ['delivered', 'تم التوصيل'].includes(order.status);
+                                    const isReady = globalReady || ['ready_for_pickup', 'جاهز للاستلام'].includes(sub.status) || ['picked_up', 'تم الاستلام من المطعم'].includes(sub.status) || ['in_transit', 'جاري التوصيل'].includes(sub.status) || ['delivered', 'تم التوصيل'].includes(sub.status);
                                     const statusLabel = isReady ? 'تم التجهيز' : 'جاري التجهيز';
                                     const badgeColor = isReady
                                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
@@ -947,7 +947,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                 )}
 
                 {/* Delivered Success */}
-                {order.status === 'delivered' && (
+                {['delivered', 'تم التوصيل'].includes(order.status) && (
                     <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-xl text-center">
                         <CheckCircle className="w-8 h-8 mx-auto text-green-600 dark:text-green-400 mb-1" />
                         <p className="text-green-700 dark:text-green-300 font-bold">تم التوصيل بنجاح</p>

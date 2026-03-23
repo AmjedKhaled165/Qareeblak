@@ -353,8 +353,8 @@ export default function OrderTrackingPage() {
                 label: 'تم التوصيل',
                 description: 'بالهناء والشفاء! نتمنى لك يوماً سعيداً',
                 icon: CheckCircle2,
-                isCompleted: order.halanStatus === 'delivered',
-                isActive: order.halanStatus === 'delivered'
+                isCompleted: ['delivered', 'تم التوصيل'].includes(order.halanStatus || ''),
+                isActive: ['delivered', 'تم التوصيل'].includes(order.halanStatus || '')
             }
         ];
 

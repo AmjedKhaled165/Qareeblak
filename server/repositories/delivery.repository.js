@@ -49,7 +49,15 @@ class DeliveryRepository {
                 conditions.push(`o.courier_id = $${params.length}`);
             } else if (role === 'supervisor' || role === 'partner_supervisor') {
                 params.push(userId);
-                conditions.push(`o.supervisor_id = $${params.length}`);
+                conditions.push(`(
+                    o.supervisor_id = $${params.length}
+                    OR EXISTS (
+                        SELECT 1
+                        FROM courier_supervisors cs
+                        WHERE cs.supervisor_id = $${params.length}
+                          AND cs.courier_id = o.courier_id
+                    )
+                )`);
             } else {
                 conditions.push('1=0');
             }
@@ -166,7 +174,15 @@ class DeliveryRepository {
             conditions.push(`o.courier_id = $2`);
         } else if (isSupervisor) {
             params.push(userId);
-            conditions.push('o.supervisor_id = $2');
+            conditions.push(`(
+                o.supervisor_id = $2
+                OR EXISTS (
+                    SELECT 1
+                    FROM courier_supervisors cs
+                    WHERE cs.supervisor_id = $2
+                      AND cs.courier_id = o.courier_id
+                )
+            )`);
         } else {
             return null;
         }

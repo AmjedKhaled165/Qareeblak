@@ -227,7 +227,7 @@ export default function OrdersPage() {
     // Client-side filtering for status groups
     const filteredOrders = orders.filter(order => {
         // If courier, hide delivered orders (they go to stats/history)
-        if (isCourier && order.status === 'delivered') return false;
+        if (isCourier && ['delivered', 'تم التوصيل'].includes(order.status)) return false;
 
         if (filter === 'all') return true;
         if (filter === 'cancelled' || filter === 'edited') return true; // Already filtered by backend
@@ -235,13 +235,13 @@ export default function OrdersPage() {
         // Custom groupings
         if (filter === 'pending') {
             // Pending Tab: "Waiting" + "Assigned" (Driver hasn't accepted yet)
-            return order.status === 'pending' || order.status === 'assigned';
+            return ['pending', 'جاري تحضير الطلب', 'assigned', 'تم تعيين المندوب'].includes(order.status);
         }
         if (filter === 'in_transit') {
             // In Delivery Tab: "Picked Up" + "In Transit"
-            return order.status === 'picked_up' || order.status === 'in_transit';
+            return ['picked_up', 'تم الاستلام من المطعم', 'in_transit', 'جاري التوصيل'].includes(order.status);
         }
-        if (filter === 'delivered') return order.status === 'delivered';
+        if (filter === 'delivered') return ['delivered', 'تم التوصيل'].includes(order.status);
 
         return true;
     });

@@ -157,7 +157,7 @@ export default function DriverDashboard() {
                     const isSelf = currentUser && o.courier_id === currentUser.id;
 
                     // Driver should only see orders assigned to them.
-                    return isSelf && o.status !== 'delivered' && o.status !== 'cancelled';
+                    return isSelf && !['delivered', 'تم التوصيل'].includes(o.status) && !['cancelled', 'ملغي'].includes(o.status);
                 }).map((o: any) => {
                     // Parse items safely
                     let items = o.items;
@@ -203,7 +203,7 @@ export default function DriverDashboard() {
         try {
             // Find current status to avoid status regression (Stage 3 -> Stage 2)
             const currentOrder = activeOrders.find(o => o.id === orderId);
-            const newStatus = currentOrder?.status === 'ready_for_pickup' ? 'ready_for_pickup' : 'assigned';
+            const newStatus = ['ready_for_pickup', 'جاهز للاستلام'].includes(currentOrder?.status || '') ? 'ready_for_pickup' : 'assigned';
 
             const result = await apiCall(`/halan/orders/${orderId}`, {
                 method: 'PUT',
@@ -646,7 +646,7 @@ export default function DriverDashboard() {
 
                                         {/* Action Buttons for Courier */}
                                         <div className="flex gap-3 pt-4 border-t border-white/5">
-                                            {(order.status === 'pending' || order.status === 'ready_for_pickup') && !order.courier_id && (
+                                            {(['pending', 'جاري تحضير الطلب'].includes(order.status) || ['ready_for_pickup', 'جاهز للاستلام'].includes(order.status)) && !order.courier_id && (
                                                 <motion.button
                                                     onClick={(e) => handleAcceptOrder(order.id, e)}
                                                     whileHover={{ scale: 1.05 }}
@@ -656,7 +656,7 @@ export default function DriverDashboard() {
                                                     قبول واستلام الطلب
                                                 </motion.button>
                                             )}
-                                            {(order.status === 'assigned' || (order.status === 'ready_for_pickup' && order.courier_id)) && (
+                                            {(['assigned', 'تم تعيين المندوب'].includes(order.status) || (['ready_for_pickup', 'جاهز للاستلام'].includes(order.status) && order.courier_id)) && (
                                                 <motion.button
                                                     onClick={(e) => handlePickupOrder(order.id, e)}
                                                     whileHover={{ scale: 1.05 }}
@@ -671,7 +671,7 @@ export default function DriverDashboard() {
                                                     {order.providers_ready_for_pickup === false ? 'بانتظار تجهيز كل المتاجر' : 'تم الاستلام'}
                                                 </motion.button>
                                             )}
-                                            {order.status === 'picked_up' && (
+                                            {['picked_up', 'تم الاستلام من المطعم'].includes(order.status) && (
                                                 <div className="flex-1 flex flex-col gap-2">
                                                     <div className="flex gap-2">
                                                         <input
