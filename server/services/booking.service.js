@@ -150,18 +150,70 @@ class BookingService {
                     .map((g) => g.providerName)
                     .filter(Boolean)
                     .join(' | ') || 'مقدم الخدمة';
-                
-                const dResult = await client.query(`
-                    INSERT INTO delivery_orders 
-                    (order_number, customer_name, customer_phone, pickup_address, delivery_address, delivery_lat, delivery_lng, status, notes, items, source, order_type)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id
-                `, [
-                    orderNum, addressInfo.name || 'عميل Qareeblak', addressInfo.phone || '', 
-                    pickupAddress,
-                    addressInfo.address || addressInfo.street || 'بدون عنوان',
-                    addressInfo.lat || null, addressInfo.lng || null,
-                    'pending', notes, JSON.stringify(items), 'qareeblak', 'app'
-                ]);
+
+                const userResult = await client.query(
+                    `SELECT name, phone FROM users WHERE id = $1 LIMIT 1`,
+                    [userId]
+                );
+                const userProfile = userResult.rows[0] || {};
+
+                const composedAddress = [addressInfo.area, addressInfo.city, addressInfo.governorate]
+                    .map((part) => String(part || '').trim())
+                    .filter(Boolean)
+                    .join(' - ');
+
+                const customerName = String(
+                    addressInfo.name ||
+                    addressInfo.customerName ||
+                    userProfile.name ||
+                    'عميل'
+                ).trim();
+                const customerPhone = String(
+                    addressInfo.phone ||
+                    userProfile.phone ||
+                    ''
+                ).trim();
+                const deliveryAddress = String(
+                    addressInfo.address ||
+                    addressInfo.street ||
+                    addressInfo.fullAddress ||
+                    addressInfo.location ||
+                    addressInfo.formattedAddress ||
+                    addressInfo.details ||
+                    composedAddress ||
+                    'العنوان غير محدد'
+                ).trim();
+
+                let dResult;
+                try {
+                    dResult = await client.query(`
+                        INSERT INTO delivery_orders 
+                        (order_number, customer_name, customer_phone, customer_id, pickup_address, delivery_address, delivery_lat, delivery_lng, status, notes, items, source, order_type)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id
+                    `, [
+                        orderNum, customerName, customerPhone, userId,
+                        pickupAddress,
+                        deliveryAddress,
+                        addressInfo.lat || null, addressInfo.lng || null,
+                        'pending', notes, JSON.stringify(items), 'qareeblak', 'app'
+                    ]);
+                } catch (insertErr) {
+                    if (insertErr && insertErr.code !== '42703') {
+                        throw insertErr;
+                    }
+
+                    dResult = await client.query(`
+                        INSERT INTO delivery_orders 
+                        (order_number, customer_name, customer_phone, pickup_address, delivery_address, delivery_lat, delivery_lng, status, notes, items, source, order_type)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id
+                    `, [
+                        orderNum, customerName, customerPhone,
+                        pickupAddress,
+                        deliveryAddress,
+                        addressInfo.lat || null, addressInfo.lng || null,
+                        'pending', notes, JSON.stringify(items), 'qareeblak', 'app'
+                    ]);
+                }
                 
                 halanOrderId = dResult.rows[0].id;
                 
