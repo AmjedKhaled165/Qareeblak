@@ -177,7 +177,10 @@ export default function UsersCustomersPage() {
                                 : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                         }`}
                     >
-                        <tab.icon className={`w-4 h-4 ${activeTab === tab.key ? "text-indigo-600" : ""}`} />
+                        {(() => {
+                            const TabIcon = tab.icon as any;
+                            return <TabIcon className={`w-4 h-4 ${activeTab === tab.key ? "text-indigo-600" : ""}`} />;
+                        })()}
                         <span className="hidden sm:inline">{tab.label}</span>
                     </button>
                 ))}
@@ -468,7 +471,10 @@ function InfoField({ icon: Icon, label, value }: { icon: React.ElementType; labe
     return (
         <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
             <div className="flex items-center gap-1.5 mb-1">
-                <Icon className="w-3.5 h-3.5 text-slate-400" />
+                {(() => {
+                    const FieldIcon = Icon as any;
+                    return <FieldIcon className="w-3.5 h-3.5 text-slate-400" />;
+                })()}
                 <span className="text-[10px] font-semibold text-slate-400 uppercase">{label}</span>
             </div>
             <p className="text-sm font-medium text-slate-800 dark:text-white">{value}</p>

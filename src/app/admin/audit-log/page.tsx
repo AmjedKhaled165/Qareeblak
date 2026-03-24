@@ -202,7 +202,10 @@ export default function AuditLogPage() {
                                         <div className="flex items-start gap-3">
                                             {/* Action Icon */}
                                             <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${colorClass}`}>
-                                                <Icon className="w-4 h-4" />
+                                                {(() => {
+                                                    const ActionIcon = Icon as any;
+                                                    return <ActionIcon className="w-4 h-4" />;
+                                                })()}
                                             </div>
 
                                             {/* Body */}

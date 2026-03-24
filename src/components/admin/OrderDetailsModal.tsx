@@ -261,7 +261,10 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                                         : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                                 }`}
                             >
-                                <tab.icon className="w-3.5 h-3.5" />
+                                {(() => {
+                                    const Icon = tab.icon as any;
+                                    return <Icon className="w-3.5 h-3.5" />;
+                                })()}
                                 {tab.label}
                             </button>
                         ))}

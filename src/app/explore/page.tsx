@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, SlidersHorizontal, Utensils, Wrench, Pill, Car, ShoppingBag, ShoppingCart } from "lucide-react";
+import { Search, SlidersHorizontal, Utensils, Wrench, Pill, Car, ShoppingBag, ShoppingCart, Star } from "lucide-react";
 import { useState, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";

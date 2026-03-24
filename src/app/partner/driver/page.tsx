@@ -574,7 +574,7 @@ export default function DriverDashboard() {
                                 طلبات نشطة ({activeOrders.length})
                             </h2>
                             <button
-                                onClick={fetchActiveOrders}
+                                onClick={() => fetchActiveOrders()}
                                 title="تحديث الطلبات"
                                 className="p-2.5 rounded-2xl bg-muted border border-border hover:bg-muted/80 transition-all"
                             >

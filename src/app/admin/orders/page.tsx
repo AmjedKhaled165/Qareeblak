@@ -409,7 +409,10 @@ export default function OrdersPage() {
                                                 <span
                                                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusCfg.color}`}
                                                 >
-                                                    <StatusIcon className="w-3 h-3" />
+                                                    {(() => {
+                                                        const SvgIcon = StatusIcon as any;
+                                                        return <SvgIcon className="w-3 h-3" />;
+                                                    })()}
                                                     {statusCfg.label}
                                                 </span>
                                             </td>
