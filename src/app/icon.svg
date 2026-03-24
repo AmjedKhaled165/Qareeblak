@@ -1,0 +1,6 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Gold ring - centered, thick stroke for visibility at small sizes -->
+  <circle cx="50" cy="50" r="38" stroke="#F5B816" stroke-width="14" fill="#1a0a3c"/>
+  <!-- Purple/white arrow - bold and centered -->
+  <path d="M 22 18 L 50 36 L 82 50 L 50 64 L 22 82 L 38 64 L 46 50 L 38 36 Z" fill="#ffffff"/>
+</svg>

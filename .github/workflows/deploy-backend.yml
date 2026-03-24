@@ -1,0 +1,66 @@
+name: Build and Deploy Backend
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase owner for GHCR tag
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/qareeblak-backend:latest
+            ghcr.io/${{ env.OWNER_LC }}/qareeblak-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trigger Coolify Backend Deployment
+        if: success()
+        run: |
+          WEBHOOK="${{ secrets.COOLIFY_BACKEND_WEBHOOK }}"
+          if [ -z "$WEBHOOK" ]; then
+            echo "::warning::COOLIFY_BACKEND_WEBHOOK is empty. Skipping deploy trigger."
+            exit 0
+          fi
+
+          HTTP_CODE=$(curl -k -sS -o /tmp/coolify_backend_resp.txt -w "%{http_code}" \
+            -X GET "$WEBHOOK" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" || true)
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Coolify backend trigger succeeded (HTTP $HTTP_CODE)."
+            exit 0
+          fi
+
+          echo "::warning::Coolify backend trigger failed with HTTP $HTTP_CODE. Check webhook secret or permissions."
+          head -c 300 /tmp/coolify_backend_resp.txt || true
