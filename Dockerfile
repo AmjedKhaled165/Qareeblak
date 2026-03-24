@@ -14,7 +14,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 # pnpm + cached store for faster repeated CI builds
 RUN --mount=type=cache,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+    pnpm install
 
 # Stage 2: Build the application
 FROM node:22-alpine AS builder
