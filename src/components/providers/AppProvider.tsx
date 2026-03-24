@@ -326,7 +326,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // ================= INITIALIZE =================
     useEffect(() => {
-        let pollInterval: NodeJS.Timeout;
+        let pollInterval: NodeJS.Timeout | undefined;
         let socket: any;
 
         const initialize = async () => {
