@@ -210,7 +210,7 @@ export default function JoinPage() {
 
                                 <div className="pt-4">
                                     <Button
-                                        className="w-full h-16 rounded-[1.25rem] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xl font-bold shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] font-cairo border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1"
+                                        className="w-full h-16 rounded-[1.25rem] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xl font-bold shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] font-cairo border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1 btn-3d"
                                         onClick={handleSubmit}
                                         disabled={isLoading}
                                     >

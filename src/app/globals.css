@@ -106,6 +106,122 @@ body {
   }
 }
 
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+
 dotlottie-player {
   pointer-events: none;
+}
+
+/* --- Premium 3D Interactive Utilities --- */
+
+/* Tactile 3D Button */
+.btn-3d {
+  @apply relative transition-all duration-200 ease-out shadow-[0_4px_0_0_rgba(0,0,0,0.2)] active:translate-y-[4px] active:scale-[0.98] active:shadow-none hover:scale-[1.02] hover:brightness-110;
+}
+
+.dark .btn-3d {
+  @apply shadow-[0_4px_0_0_rgba(255,255,255,0.1)];
+}
+
+/* Card Hover Lift & Glow */
+.card-hover {
+  @apply transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-primary/20 dark:hover:shadow-primary/10 hover:border-primary/30;
+}
+
+/* Animated Underline for Links */
+.link-hover {
+  @apply relative transition-colors duration-300;
+}
+
+.link-hover::after {
+  content: '';
+  @apply absolute bottom-0 left-1/2 w-0 h-[2px] bg-primary transition-all duration-300 -translate-x-1/2;
+}
+
+.link-hover:hover::after {
+  @apply w-full;
+}
+
+/* Pop Hover for Small Elements */
+.pop-hover {
+  @apply transition-transform duration-200 hover:scale-[1.05] active:scale-[0.95];
+}
+
+/* Premium Glass effect enhancement */
+.glass-premium {
+  @apply bg-white/10 backdrop-blur-xl border border-white/20 shadow-xl;
+}
+
+.dark .glass-premium {
+  @apply bg-black/40 border-white/5;
+}
+
+/* ── GPU-Accelerated Background Blob Animations ── */
+/* Use these CSS classes instead of framer-motion repeat:Infinity for blobs */
+
+@keyframes blob-drift-1 {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  33%       { transform: translate(30px,-40px) scale(1.06); }
+  66%       { transform: translate(-20px,20px) scale(0.96); }
+}
+
+@keyframes blob-drift-2 {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  33%       { transform: translate(-30px,40px) scale(1.04); }
+  66%       { transform: translate(20px,-20px) scale(0.97); }
+}
+
+@keyframes blob-drift-3 {
+  0%, 100% { transform: translate(-50px,-50px) scale(1); }
+  50%       { transform: translate(50px,50px) scale(1.05); }
+}
+
+@keyframes blob-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-16px); }
+}
+
+@keyframes float-logo {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-5px); }
+}
+
+.blob-1 {
+  animation: blob-drift-1 16s ease-in-out infinite;
+  will-change: transform;
+}
+.blob-2 {
+  animation: blob-drift-2 20s ease-in-out infinite;
+  will-change: transform;
+}
+.blob-3 {
+  animation: blob-drift-3 22s ease-in-out infinite;
+  will-change: transform;
+}
+.blob-spin {
+  animation: blob-spin 30s linear infinite;
+  will-change: transform;
+}
+.float-logo {
+  animation: float-logo 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Page transition smoothness */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent layout shift jank from animations */
+.no-overflow {
+  overflow: hidden;
 }

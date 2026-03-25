@@ -45,7 +45,7 @@ export function MobileBottomNav() {
                         key={item.href}
                         href={item.href}
                         className={cn(
-                            "flex flex-col items-center gap-1 transition-all duration-300",
+                            "flex flex-col items-center gap-1 transition-all duration-300 pop-hover",
                             isActive ? "text-primary scale-110" : "text-muted-foreground"
                         )}
                     >

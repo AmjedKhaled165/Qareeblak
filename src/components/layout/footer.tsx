@@ -48,12 +48,12 @@ export function Footer() {
                 <div className="lg:col-span-2 space-y-6">
                     <h3 className="text-lg font-bold text-white uppercase tracking-wider">روابط سريعة</h3>
                     <ul className="space-y-3 font-medium text-slate-400">
-                        <li><Link href="/" className="hover:text-primary transition-colors inline-block hover:translate-x-[-4px] duration-200">الرئيسية</Link></li>
-                        <li><Link href="/explore" className="hover:text-primary transition-colors inline-block hover:translate-x-[-4px] duration-200">كل الخدمات</Link></li>
+                        <li><Link href="/" className="hover:text-primary transition-colors inline-block hover:translate-x-[-4px] duration-200 link-hover">الرئيسية</Link></li>
+                        <li><Link href="/explore" className="hover:text-primary transition-colors inline-block hover:translate-x-[-4px] duration-200 link-hover">كل الخدمات</Link></li>
                         {currentUser?.type !== 'provider' && (
-                            <li><Link href="/join" className="hover:text-primary transition-colors inline-block hover:translate-x-[-4px] duration-200">سجل نشاطك مجاناً</Link></li>
+                            <li><Link href="/join" className="hover:text-primary transition-colors inline-block hover:translate-x-[-4px] duration-200 link-hover">سجل نشاطك مجاناً</Link></li>
                         )}
-                        <li><Link href="/wheel" className="hover:text-orange-400 text-orange-500 transition-colors inline-block hover:translate-x-[-4px] duration-200">عجلة الحظ 🎁</Link></li>
+                        <li><Link href="/wheel" className="hover:text-orange-400 text-orange-500 transition-colors inline-block hover:translate-x-[-4px] duration-200 link-hover">عجلة الحظ 🎁</Link></li>
                     </ul>
                 </div>
 
@@ -102,7 +102,7 @@ export function Footer() {
                         </li>
                         <li className="flex items-start gap-3">
                             <MapPin className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                            <span>أسيوط الجديدة، الحي الثاني، أمام الميدان الرئيسي</span>
+                            <span>أسيوط الجديدة</span>
                         </li>
                     </ul>
                 </div>

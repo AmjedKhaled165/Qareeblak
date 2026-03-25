@@ -63,7 +63,7 @@ export default function HomeClient() {
           </div>
           <Button
             variant="secondary"
-            className="w-full sm:w-auto font-bold bg-white text-emerald-700 hover:bg-emerald-50 transition-colors rounded-xl"
+            className="w-full sm:w-auto font-bold bg-white text-emerald-700 hover:bg-emerald-50 transition-colors rounded-xl btn-3d"
             onClick={() => router.push(`/track/${addToOrderId}`)}
           >
             إنهاء وإرسال الطلب
@@ -133,19 +133,12 @@ export default function HomeClient() {
                 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 dark:text-white font-cairo leading-[1.1] md:leading-[1.1]"
               >
                 كل خدمات مدينتك.. <br className="hidden md:block" />
-                <motion.span 
-                  animate={{ 
-                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                  }}
-                  transition={{ 
-                    duration: 5, 
-                    repeat: Infinity, 
-                    ease: "linear" 
-                  }}
-                  className="text-transparent bg-clip-text bg-[length:200%_auto] bg-gradient-to-l from-primary via-fuchsia-500 to-indigo-600 py-2 inline-block drop-shadow-sm"
+                <span 
+                  className="text-transparent bg-clip-text bg-gradient-to-l from-primary via-fuchsia-500 to-indigo-600 py-2 inline-block drop-shadow-sm"
+                  style={{ backgroundSize: "200% auto", animation: "gradient-shift 5s linear infinite" }}
                 >
                   بضغطة زر واحدة 🚀
-                </motion.span>
+                </span>
               </motion.h1>
             </motion.div>
 
@@ -185,7 +178,7 @@ export default function HomeClient() {
                 </div>
                 <Button
                   onClick={() => goToExplore()}
-                  className="w-full sm:w-auto h-14 md:h-16 px-10 text-lg font-bold rounded-[1.5rem] bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-500 text-white shadow-lg shadow-primary/30 transition-transform active:scale-95 font-cairo shrink-0"
+                  className="w-full sm:w-auto h-14 md:h-16 px-10 text-lg font-bold rounded-[1.5rem] bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-500 text-white shadow-lg shadow-primary/30 transition-transform active:scale-95 font-cairo shrink-0 btn-3d"
                 >
                   ابحث الآن
                 </Button>
@@ -199,7 +192,7 @@ export default function HomeClient() {
                 <button
                   key={idx}
                   onClick={() => goToExplore({ query: term })}
-                  className="px-4 py-1.5 rounded-full bg-slate-200/50 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-primary transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
+                  className="px-4 py-1.5 rounded-full bg-slate-200/50 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-primary transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 pop-hover"
                 >
                   {term}
                 </button>
@@ -230,7 +223,7 @@ export default function HomeClient() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: i * 0.15, ease: "easeOut" }}
                 viewport={{ once: true }}
-                className="flex flex-col items-center space-y-5 p-6 rounded-[2rem] hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors group"
+                className="flex flex-col items-center space-y-5 p-6 rounded-[2rem] hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors group card-hover"
               >
                 <div className={`w-20 h-20 bg-${feature.color}-500/10 text-${feature.color}-600 dark:text-${feature.color}-400 rounded-3xl flex items-center justify-center shadow-sm border border-${feature.color}-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
                   <feature.icon className="w-10 h-10" />
@@ -268,9 +261,9 @@ export default function HomeClient() {
                 key={i}
                 className="relative z-10 flex flex-col items-center group"
               >
-                <div className="w-24 h-24 bg-white dark:bg-slate-900 border-[8px] border-slate-50 dark:border-slate-950 shadow-xl rounded-[2.5rem] flex items-center justify-center mb-6 relative group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                <div className="w-24 h-24 bg-white dark:bg-slate-900 border-[8px] border-slate-50 dark:border-slate-950 shadow-xl rounded-[2.5rem] flex items-center justify-center mb-6 relative group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 card-hover">
                   <item.icon className="w-10 h-10 text-primary" />
-                  <div className="absolute -top-3 -right-3 w-10 h-10 rounded-2xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-[0_4px_15px_rgba(79,70,229,0.4)] font-cairo z-20">
+                  <div className="absolute -top-3 -right-3 w-10 h-10 rounded-2xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-[0_4px_15px_rgba(79,70,229,0.4)] font-cairo z-20 btn-3d">
                     {item.step}
                   </div>
                 </div>
@@ -294,7 +287,7 @@ export default function HomeClient() {
               <p className="text-slate-500 text-xl font-cairo font-medium">كل ما تحتاجه من خدمات في مكان واحد بضغطة زر</p>
             </div>
             <Link href="/explore">
-              <Button variant="outline" className="h-14 px-8 rounded-2xl font-cairo font-bold hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-lg transition-all active:scale-95 group">
+              <Button variant="outline" className="h-14 px-8 rounded-2xl font-cairo font-bold hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-lg transition-all active:scale-95 group pop-hover">
                 تصفح جميع الخدمات <ChevronLeft className="w-5 h-5 mr-1 group-hover:translate-x-[-4px] transition-transform" />
               </Button>
             </Link>
@@ -312,7 +305,7 @@ export default function HomeClient() {
                 className="h-full"
               >
                 <Link href={`/explore?category=${cat.name}${addToOrderId ? `&addToOrderId=${addToOrderId}` : ""}`} className="block h-full group">
-                  <div className={`relative p-8 md:p-10 rounded-[2.5rem] border-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg transition-all duration-500 h-full flex flex-col items-center justify-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-2xl border-slate-100 dark:border-slate-800 hover:border-primary/40 dark:hover:border-primary/40 group-hover:bg-white dark:group-hover:bg-slate-900`}>
+                  <div className={`relative p-8 md:p-10 rounded-[2.5rem] border-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg transition-all duration-500 h-full flex flex-col items-center justify-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-2xl border-slate-100 dark:border-slate-800 hover:border-primary/40 dark:hover:border-primary/40 group-hover:bg-white dark:group-hover:bg-slate-900 card-hover`}>
                     
                     {/* Floating Orb behind icon on hover */}
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-primary/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -358,7 +351,7 @@ export default function HomeClient() {
             >
               <Link href="/wheel">
                 <Button
-                  className="bg-[#FED330] hover:bg-[#F7B731] text-indigo-950 font-bold text-lg px-8 h-12 rounded-xl shadow-[0_4px_15px_rgba(254,211,48,0.4)] active:scale-95 transition-all font-cairo border-b-2 border-yellow-600 active:border-b-0 active:translate-y-px"
+                  className="bg-[#FED330] hover:bg-[#F7B731] text-indigo-950 font-bold text-lg px-8 h-12 rounded-xl shadow-[0_4px_15px_rgba(254,211,48,0.4)] active:scale-95 transition-all font-cairo border-b-2 border-yellow-600 active:border-b-0 active:translate-y-px btn-3d"
                 >
                   العب الآن 🎡
                 </Button>
@@ -380,7 +373,7 @@ export default function HomeClient() {
               
               {/* Text & Call to Action (Right Side) */}
               <div className="flex-1 w-full text-center lg:text-right space-y-6 z-10 mt-8 lg:mt-0">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 font-bold text-sm shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 font-bold text-sm shadow-sm border border-slate-200 dark:border-slate-800">
                   <Store className="w-4 h-4" />
                   انضم لشركاء منصة قريبلك
                 </div>
@@ -399,7 +392,7 @@ export default function HomeClient() {
                 <div className="pt-2 flex justify-center lg:justify-start">
                   <Button
                     onClick={() => router.push('/join')}
-                    className="h-14 px-10 text-xl font-bold rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all hover:-translate-y-1 font-cairo"
+                    className="h-14 px-10 text-xl font-bold rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all hover:-translate-y-1 font-cairo btn-3d"
                   >
                     سجل حسابك مجاناً 🚀
                   </Button>
@@ -412,10 +405,9 @@ export default function HomeClient() {
                 <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-violet-400 rounded-full blur-[80px] opacity-10 dark:opacity-20 animate-pulse" />
                 
                 {/* Floating Mockup Card 1 */}
-                <motion.div 
-                  animate={{ y: [-8, 8, -8] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute top-[10%] left-[10%] md:left-[20%] w-[260px] md:w-[320px] bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-2xl shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 z-20"
+                <div 
+                  className="absolute top-[10%] left-[10%] md:left-[20%] w-[260px] md:w-[320px] bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-2xl shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 z-20 card-hover"
+                  style={{ animation: "float-y 4s ease-in-out infinite", willChange: "transform" }}
                 >
                   <div className="flex gap-4 items-center mb-4">
                     <div className="w-14 h-14 bg-orange-50 dark:bg-orange-900/20 rounded-xl flex items-center justify-center">
@@ -435,13 +427,12 @@ export default function HomeClient() {
                   </div>
                   <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-700/50 rounded-full mb-3" />
                   <div className="h-2.5 w-2/3 bg-slate-100 dark:bg-slate-700/50 rounded-full" />
-                </motion.div>
+                </div>
 
                 {/* Floating Mockup Card 2 */}
-                <motion.div 
-                  animate={{ y: [8, -8, 8] }}
-                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                  className="absolute bottom-[5%] right-[5%] md:right-[10%] w-[240px] md:w-[280px] bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-5 shadow-2xl shadow-violet-500/10 border border-slate-100 dark:border-slate-700 z-30"
+                <div 
+                  className="absolute bottom-[5%] right-[5%] md:right-[10%] w-[240px] md:w-[280px] bg-white/95 dark:bg-slate-800/95 rounded-2xl p-5 shadow-2xl shadow-violet-500/10 border border-slate-100 dark:border-slate-700 z-30 card-hover"
+                  style={{ animation: "float-y 5s ease-in-out 1s infinite", animationDirection: "reverse", willChange: "transform" }}
                 >
                   <div className="flex justify-between items-center mb-5">
                     <div className="text-base font-bold text-slate-800 dark:text-slate-200 font-cairo">طلب جديد 🔔</div>
@@ -457,7 +448,7 @@ export default function HomeClient() {
                   <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 text-center text-sm font-bold text-indigo-600 dark:text-indigo-400 font-cairo">
                     قبول الطلب
                   </div>
-                </motion.div>
+                </div>
                 
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 bg-gradient-to-br from-indigo-500/10 to-violet-500/10 rounded-full -z-10 border border-slate-200/50 dark:border-slate-700/50" />
               </div>

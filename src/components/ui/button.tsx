@@ -2,12 +2,12 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = {
-    default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md",
-    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-md",
-    outline: "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-    ghost: "hover:bg-accent hover:text-accent-foreground",
-    link: "text-primary underline-offset-4 hover:underline",
+    default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md btn-3d",
+    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-md btn-3d",
+    outline: "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground pop-hover",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 btn-3d",
+    ghost: "hover:bg-accent hover:text-accent-foreground pop-hover",
+    link: "text-primary underline-offset-4 hover:underline link-hover",
 }
 
 const buttonSizes = {

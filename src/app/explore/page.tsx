@@ -238,7 +238,7 @@ function ExploreContent() {
                             <button
                                 onClick={() => setSortBy(prev => prev === "default" ? "top-rated" : "default")}
                                 className={cn(
-                                    "px-5 h-14 rounded-2xl font-bold text-sm flex items-center gap-2 border transition-all",
+                                    "px-5 h-14 rounded-2xl font-bold text-sm flex items-center gap-2 border transition-all pop-hover",
                                     sortBy === "top-rated" 
                                     ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200 dark:border-amber-800/50 shadow-inner" 
                                     : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -248,7 +248,7 @@ function ExploreContent() {
                                 الأعلى تقييم
                             </button>
                             <Button
-                                className="h-14 w-14 shrink-0 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 hover:text-indigo-600"
+                                className="h-14 w-14 shrink-0 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 hover:text-indigo-600 pop-hover"
                                 variant="outline"
                                 onClick={() => {
                                     setActiveCategory('all');
@@ -270,7 +270,7 @@ function ExploreContent() {
                             key={cat.id}
                             onClick={() => setActiveCategory(cat.id)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm font-bold border",
+                                "flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm font-bold border pop-hover",
                                 activeCategory === cat.id
                                     ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 hover:bg-primary/90"
                                     : "bg-card text-muted-foreground border-border hover:bg-accent hover:text-foreground"
@@ -316,7 +316,7 @@ function ExploreContent() {
                 {/* Load More */}
                 {!isLoading && visibleCount < filteredProviders.length && (
                     <div className="mt-12 text-center">
-                        <Button onClick={handleLoadMore} variant="outline" className="px-8 py-6 rounded-full font-bold shadow-sm hover:shadow-md transition-shadow">عرض المزيد</Button>
+                        <Button onClick={handleLoadMore} variant="outline" className="px-8 py-6 rounded-full font-bold shadow-sm hover:shadow-md transition-shadow btn-3d">عرض المزيد</Button>
                     </div>
                 )}
             </div>
