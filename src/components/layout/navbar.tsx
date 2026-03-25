@@ -265,6 +265,7 @@ export function Navbar() {
                             {[
                                 { label: 'الرئيسية', href: '/', icon: Home },
                                 { label: 'تصفح الخدمات', href: '/explore', icon: Search },
+                                ...(!currentUser ? [{ label: 'تسجيل الدخول', href: '/login', icon: UserCircle }] : []),
                                 { label: 'عجلة الحظ', href: '/wheel', icon: Gift, highlight: true },
                                 { label: 'تتبع طلبك', href: '/track', icon: Briefcase }
                             ].map((item, i) => (
