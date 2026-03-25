@@ -80,7 +80,7 @@ export default function RootLayout({
       >
         <ToastProvider>
           <CartProvider>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
               <AppProvider>
                 <ConfirmProvider>
                   <SmoothScroll>
