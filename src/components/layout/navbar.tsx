@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/components/providers/AppProvider"
 import { useCartStore } from "@/components/providers/CartProvider"
 import { UserCircle, LogOut, Menu, X, Home, Search, Briefcase, ShoppingCart, Gift } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { CartModal } from "@/components/features/cart-modal";
 import { NotificationBell } from "@/components/features/notification-bell";
@@ -16,18 +16,25 @@ export function Navbar() {
     // Destructure logout directly from the hook - FIXING THE CRASH
     const { currentUser, logout } = useAppStore();
     const { globalCart } = useCartStore();
+    const router = useRouter();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [halanUser, setHalanUser] = useState<any>(null);
+    const lastScrolledRef = useRef(false);
     const pathname = usePathname();
 
     useEffect(() => {
         const handleScroll = () => {
-            setScrolled(window.scrollY > 20);
+            const nextScrolled = window.scrollY > 20;
+            if (nextScrolled !== lastScrolledRef.current) {
+                lastScrolledRef.current = nextScrolled;
+                setScrolled(nextScrolled);
+            }
         };
         window.addEventListener('scroll', handleScroll);
+        handleScroll();
         
         // Check if there is a logged in Halan Partner
         const storedUser = localStorage.getItem('halan_user');
@@ -41,6 +48,15 @@ export function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    useEffect(() => {
+        // Warm up key routes for near-instant navigation.
+        router.prefetch('/');
+        router.prefetch('/explore');
+        router.prefetch('/track');
+        router.prefetch('/wheel');
+        router.prefetch('/login');
+    }, [router]);
+
     // Hide Navbar on partner routes
     if (pathname?.startsWith('/partner')) {
         return null;
@@ -48,7 +64,9 @@ export function Navbar() {
 
     const handleLogout = () => {
         logout();
-        window.location.reload();
+        setIsUserMenuOpen(false);
+        setIsMobileMenuOpen(false);
+        router.push('/');
     };
 
     return (
@@ -112,13 +130,13 @@ export function Navbar() {
                     <ThemeToggle />
 
                     {/* Notification Bell - visible for all logged in users */}
-                    {currentUser && <NotificationBell />}
+                    {currentUser && <div className="pop-hover"><NotificationBell /></div>}
 
                     {/* Cart Trigger */}
                     {currentUser?.type !== 'provider' && (
                         <button
                             onClick={() => setIsCartOpen(true)}
-                            className="relative p-2.5 text-foreground hover:bg-accent rounded-full transition-colors group"
+                            className="relative p-2.5 text-foreground hover:bg-accent rounded-full transition-colors group pop-hover"
                             aria-label="سلة التسوق"
                         >
                             <ShoppingCart className="w-6 h-6" />
@@ -217,7 +235,7 @@ export function Navbar() {
                     {/* Add Request CTA */}
                     {currentUser?.type !== 'provider' && (
                         <Link href="/explore">
-                            <Button size="lg" className="bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-500 text-white shadow-lg shadow-primary/25 hidden sm:flex rounded-2xl h-12 px-6 font-bold font-cairo active:scale-95 transition-all">
+                            <Button size="lg" className="bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-500 text-white shadow-lg shadow-primary/25 hidden sm:flex rounded-2xl h-12 px-6 font-bold font-cairo active:scale-95 transition-all btn-3d">
                                 أضف طلبك
                             </Button>
                         </Link>
