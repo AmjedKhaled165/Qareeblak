@@ -56,8 +56,9 @@ export default function UserLoginPage() {
         }
 
         return () => {
-            if (cardRef.current?.vanillaTilt) {
-                cardRef.current.vanillaTilt.destroy();
+            const cardEl = cardRef.current as any;
+            if (cardEl?.vanillaTilt) {
+                cardEl.vanillaTilt.destroy();
             }
         };
     }, []);

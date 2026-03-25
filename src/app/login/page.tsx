@@ -50,8 +50,10 @@ export default function LoginPage() {
         }
 
         return () => {
-            if (customerCardRef.current?.vanillaTilt) customerCardRef.current.vanillaTilt.destroy();
-            if (providerCardRef.current?.vanillaTilt) providerCardRef.current.vanillaTilt.destroy();
+            const customerEl = customerCardRef.current as any;
+            const providerEl = providerCardRef.current as any;
+            if (customerEl?.vanillaTilt) customerEl.vanillaTilt.destroy();
+            if (providerEl?.vanillaTilt) providerEl.vanillaTilt.destroy();
         };
     }, []);
 
