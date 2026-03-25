@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -12,11 +12,13 @@ import { Label } from "@/components/ui/label";
 import { ArrowRight, Mail, Lock, User, Loader2, Phone, CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import VanillaTilt from "vanilla-tilt";
 
 export default function UserLoginPage() {
     const router = useRouter();
     const { loginUser, registerUser, sendRegisterOtp, googleLogin, isInitialized, currentUser } = useAppStore();
     const { toast } = useToast();
+    const cardRef = useRef<HTMLDivElement>(null);
 
     // TABS: "login" or "register" or "otp"
     const [activeTab, setActiveTab] = useState<"login" | "register" | "otp">("login");
@@ -40,6 +42,25 @@ export default function UserLoginPage() {
             router.push('/');
         }
     }, [isInitialized, currentUser, router]);
+
+    // ================= INITIALIZE 3D TILT EFFECT =================
+    useEffect(() => {
+        if (cardRef.current) {
+            VanillaTilt.init(cardRef.current, {
+                max: 12,
+                speed: 400,
+                scale: 1.03,
+                transition: true,
+                easing: "cubic-bezier(.03,.98,.52,.99)"
+            });
+        }
+
+        return () => {
+            if (cardRef.current?.vanillaTilt) {
+                cardRef.current.vanillaTilt.destroy();
+            }
+        };
+    }, []);
 
     // Validation Helpers
     const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -191,24 +212,67 @@ export default function UserLoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
-            <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-primary/10 rounded-full blur-[100px] z-0" />
-            <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-secondary/10 rounded-full blur-[100px] z-0" />
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 dark:from-slate-950 dark:via-blue-950 dark:to-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            {/* Animated Background Shapes with Glassmorphism */}
+            
+            {/* Large Blob 1 - Top Right */}
+            <motion.div
+                animate={{
+                    x: [0, 30, -20, 0],
+                    y: [0, -40, 20, 0],
+                }}
+                transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-[-10%] right-[-10%] w-96 h-96 rounded-full blur-[100px] z-0 opacity-60"
+                style={{
+                    background: "linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(147, 51, 234) 100%)",
+                }}
+            />
+
+            {/* Large Blob 2 - Bottom Left */}
+            <motion.div
+                animate={{
+                    x: [0, -30, 20, 0],
+                    y: [0, 40, -20, 0],
+                }}
+                transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute bottom-[-10%] left-[-10%] w-96 h-96 rounded-full blur-[100px] z-0 opacity-60"
+                style={{
+                    background: "linear-gradient(135deg, rgb(165, 142, 251) 0%, rgb(234, 179, 8) 100%)",
+                }}
+            />
+
+            {/* Small Floating Shape - Center-Left */}
+            <motion.div
+                animate={{
+                    rotate: [0, 360],
+                    x: [0, 50, -50, 0],
+                }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="absolute left-[10%] top-[30%] w-64 h-64 rounded-full blur-[80px] z-0 opacity-40"
+                style={{
+                    background: "linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(59, 130, 246) 100%)",
+                }}
+            />
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md relative z-10"
+                ref={cardRef}
+                style={{
+                    transformStyle: "preserve-3d",
+                    perspective: "1000px",
+                } as React.CSSProperties}
             >
-                <Card className="w-full shadow-2xl border-border/50 bg-card rounded-[2.5rem] overflow-hidden">
-                    <div className="p-6 pb-2 flex justify-end">
+                <Card className="w-full shadow-2xl border-white/40 dark:border-white/10 bg-gradient-to-br from-white/90 to-white/70 dark:from-slate-900/60 dark:to-slate-800/40 backdrop-blur-2xl rounded-[2.5rem] overflow-hidden relative before:absolute before:inset-0 before:rounded-[2.5rem] before:bg-gradient-to-br before:from-primary/5 before:via-transparent before:to-secondary/5 before:opacity-0 before:hover:opacity-100 before:transition-opacity before:duration-300">
+                    <div className="p-6 pb-2 flex justify-end relative z-20">
                         <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-cairo font-bold">
                             الرجوع للرئيسية
                             <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>
 
-                    <CardHeader className="text-center space-y-2 pb-6 pt-4">
+                    <CardHeader className="text-center space-y-2 pb-6 pt-4 relative z-20">
                         <div className="flex justify-center mb-3">
                             <img 
                                 src="/Qareeblak_Logo_rbg.png?v=20260321" 
@@ -228,7 +292,7 @@ export default function UserLoginPage() {
 
                     {/* Custom Tabs Header */}
                     {activeTab !== "otp" && (
-                    <div className="flex border-b border-border/50 mb-6 mx-8">
+                    <div className="flex border-b border-border/50 mb-6 mx-8 relative z-20">
                         <button
                             onClick={() => { setActiveTab("login"); setError(null); }}
                             className={`flex-1 pb-3 text-sm font-bold transition-all border-b-2 font-cairo ${activeTab === "login"
@@ -250,7 +314,7 @@ export default function UserLoginPage() {
                     </div>
                     )}
 
-                    <CardContent className="space-y-6 px-8 pb-8">
+                    <CardContent className="space-y-6 px-8 pb-8 relative z-20">
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={activeTab}
@@ -299,7 +363,7 @@ export default function UserLoginPage() {
                                         <div className="relative">
                                             <User className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
                                             <Input
-                                                className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground text-right"
+                                                className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground text-right transition-all duration-200 hover:border-primary/50 focus:border-primary focus:shadow-lg focus:shadow-primary/20 relative group after:absolute after:inset-0 after:rounded-xl after:bg-gradient-to-r after:from-primary/0 after:via-primary/10 after:to-primary/0 after:opacity-0 after:group-focus-within:opacity-100 after:transition-opacity after:duration-300"
                                                 placeholder="أحمد محمد"
                                                 value={name}
                                                 onChange={(e) => { setName(e.target.value); setError(null); }}
@@ -314,7 +378,7 @@ export default function UserLoginPage() {
                                         <div className="relative">
                                             <Phone className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
                                             <Input
-                                                className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground text-right"
+                                                className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground text-right transition-all duration-200 hover:border-primary/50 focus:border-primary focus:shadow-lg focus:shadow-primary/20 relative group after:absolute after:inset-0 after:rounded-xl after:bg-gradient-to-r after:from-primary/0 after:via-primary/10 after:to-primary/0 after:opacity-0 after:group-focus-within:opacity-100 after:transition-opacity after:duration-300"
                                                 placeholder="01012345678"
                                                 value={phone}
                                                 onChange={(e) => {
@@ -331,7 +395,7 @@ export default function UserLoginPage() {
                                     <div className="relative">
                                         <Mail className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground text-right"
+                                            className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground text-right transition-all duration-200 hover:border-primary/50 focus:border-primary focus:shadow-lg focus:shadow-primary/20 relative group after:absolute after:inset-0 after:rounded-xl after:bg-gradient-to-r after:from-primary/0 after:via-primary/10 after:to-primary/0 after:opacity-0 after:group-focus-within:opacity-100 after:transition-opacity after:duration-300"
                                             placeholder="name@example.com"
                                             value={email}
                                             onChange={(e) => { setEmail(e.target.value); setError(null); }}
@@ -344,7 +408,7 @@ export default function UserLoginPage() {
                                     <div className="relative">
                                         <Lock className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
                                         <PasswordInput
-                                            className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground text-right"
+                                            className="pr-10 h-12 rounded-xl bg-background border-border/50 text-foreground text-right transition-all duration-200 hover:border-primary/50 focus:border-primary focus:shadow-lg focus:shadow-primary/20 relative group after:absolute after:inset-0 after:rounded-xl after:bg-gradient-to-r after:from-primary/0 after:via-primary/10 after:to-primary/0 after:opacity-0 after:group-focus-within:opacity-100 after:transition-opacity after:duration-300"
                                             placeholder="••••••••"
                                             value={password}
                                             onChange={(e) => { setPassword(e.target.value); setError(null); }}
@@ -379,13 +443,14 @@ export default function UserLoginPage() {
 
                                 {/* Action Button */}
                                 <Button
-                                    className="w-full bg-primary hover:bg-primary/90 text-white text-lg h-14 rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95 font-bold font-cairo mt-2"
+                                    className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white text-lg h-14 rounded-2xl shadow-lg shadow-primary/30 transition-all active:scale-95 font-bold font-cairo mt-2 relative overflow-hidden group"
                                     onClick={activeTab === "login" ? handleLogin : handleRegister}
                                     disabled={isLoading}
                                 >
-                                    {isLoading ? <Loader2 className="animate-spin" /> : (
+                                    <span className="relative z-10">{isLoading ? <Loader2 className="animate-spin mx-auto" /> : (
                                         activeTab === "login" ? "دخول" : "متابعة وإنشاء حساب"
-                                    )}
+                                    )}</span>
+                                    <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                                 </Button>
 
                                 {/* Divider */}
@@ -397,7 +462,7 @@ export default function UserLoginPage() {
                                 {/* Google Button */}
                                 <Button
                                     variant="outline"
-                                    className="w-full gap-3 h-14 rounded-2xl border-border/50 hover:bg-muted/50 transition-all font-bold font-cairo"
+                                    className="w-full gap-3 h-14 rounded-2xl border-border/50 hover:bg-muted/50 transition-all font-bold font-cairo relative overflow-hidden group"
                                     onClick={handleGoogle}
                                     disabled={isLoading}
                                 >
@@ -424,7 +489,7 @@ export default function UserLoginPage() {
                                         <div className="space-y-2 text-right">
                                             <Label className="text-sm font-bold text-foreground/80 mr-1">رمز التحقق</Label>
                                             <Input
-                                                className="h-14 rounded-2xl bg-background border-border/50 text-foreground text-center text-2xl tracking-[0.5em] font-bold"
+                                                className="h-14 rounded-2xl bg-background border-border/50 text-foreground text-center text-2xl tracking-[0.5em] font-bold transition-all duration-200 hover:border-primary/50 focus:border-primary focus:shadow-lg focus:shadow-primary/20"
                                                 placeholder="123456"
                                                 maxLength={6}
                                                 value={otp}
@@ -437,11 +502,12 @@ export default function UserLoginPage() {
                                         
                                         <div className="flex gap-3">
                                             <Button
-                                                className="flex-1 bg-primary hover:bg-primary/90 text-white text-lg h-14 rounded-2xl shadow-lg transition-all active:scale-95 font-bold font-cairo"
+                                                className="flex-1 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white text-lg h-14 rounded-2xl shadow-lg shadow-primary/30 transition-all active:scale-95 font-bold font-cairo relative overflow-hidden group"
                                                 onClick={handleVerifyOtp}
                                                 disabled={isLoading || otp.length < 4}
                                             >
-                                                {isLoading ? <Loader2 className="animate-spin mx-auto" /> : "تأكيد وإنشاء الحساب"}
+                                                <span className="relative z-10">{isLoading ? <Loader2 className="animate-spin mx-auto" /> : "تأكيد وإنشاء الحساب"}</span>
+                                                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                                             </Button>
                                         </div>
                                         

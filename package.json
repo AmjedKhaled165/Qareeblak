@@ -38,6 +38,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "three": "^0.183.2",
+    "vanilla-tilt": "^1.8.1",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
