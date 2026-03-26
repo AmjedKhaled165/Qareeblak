@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Settings, LogOut, Package, Clock, CheckCircle, TrendingUp, DollarSign, User, MapPin, Search, Filter, Plus, Users, RefreshCw, BarChart3, ListOrdered, Bike, ShoppingBag } from "lucide-react";
@@ -104,9 +104,12 @@ export default function OwnerDashboard() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
+    const [rawUsers, setRawUsers] = useState<any[]>([]);
+    const [rawOrders, setRawOrders] = useState<any[]>([]);
     const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const isFetchingRef = useRef(false);
 
     const periods = [
         { key: 'today', label: 'اليوم' },
@@ -114,15 +117,104 @@ export default function OwnerDashboard() {
         { key: 'month', label: 'هذا الشهر' },
     ];
 
-    useEffect(() => {
+    const buildStatsFromData = useCallback((users: any[], orders: any[], selectedPeriod: 'today' | 'week' | 'month') => {
+        const managers = users.filter((u: any) => u.role === 'supervisor');
+        const drivers = users.filter((u: any) => u.role === 'courier');
+
+        const getGrandTotal = (o: any) => {
+            let items: any[] = [];
+            try {
+                items = typeof o.items === 'string' ? JSON.parse(o.items || '[]') : (o.items || []);
+            } catch {
+                items = [];
+            }
+            const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+            const deliFee = parseFloat(o.delivery_fee?.toString() || '0');
+            return itemsTotal + deliFee;
+        };
+
+        const isDateInPeriod = (dateString: string, p: string) => {
+            const date = new Date(dateString);
+            const start = new Date();
+            start.setHours(0, 0, 0, 0);
+
+            if (p === 'today') {
+                return date >= start;
+            }
+            if (p === 'week') {
+                const day = start.getDay();
+                const diff = (day + 1) % 7;
+                start.setDate(start.getDate() - diff);
+                return date >= start;
+            }
+            if (p === 'month') {
+                start.setDate(1);
+                return date >= start;
+            }
+            return true;
+        };
+
+        const filteredOrders = orders.filter((o: any) => isDateInPeriod(o.created_at, selectedPeriod));
+        const deliveredOrders = filteredOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
+        const totalFees = deliveredOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
+        const totalSales = deliveredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
+
+        const qareeblakOrders = deliveredOrders.filter((o: any) => o.source === 'qareeblak');
+        const qareeblakDeliveryRevenue = qareeblakOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
+
+        const managersWithStats = managers.map((m: any) => {
+            const assignedDrivers = drivers.filter((d: any) =>
+                (d.isAvailable) &&
+                (d.supervisorIds || []).map((id: any) => Number(id)).includes(Number(m.id))
+            );
+
+            const managerOrders = filteredOrders.filter((o: any) => Number(o.supervisor_id) === Number(m.id));
+            const mDelivered = managerOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
+            const managerFees = mDelivered.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
+            const managerSales = mDelivered.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
+
+            return {
+                ...m,
+                manager_name: m.name,
+                driver_count: assignedDrivers.length,
+                total_orders: managerOrders.length,
+                delivery_fees: managerFees,
+                sales: managerSales
+            };
+        });
+
+        return {
+            summary: {
+                total_delivery_fees: totalFees,
+                total_sales: totalSales,
+                delivered: deliveredOrders.length,
+                total_orders: filteredOrders.length,
+                qareeblak_delivery_revenue: qareeblakDeliveryRevenue,
+                qareeblak_orders_count: qareeblakOrders.length
+            },
+            managers: managersWithStats,
+            driversCount: drivers.length
+        };
+    }, []);
+
+    const fetchStats = useCallback(async ({ showBlockingLoader = false }: { showBlockingLoader?: boolean } = {}) => {
+        if (isFetchingRef.current) return;
+
+        isFetchingRef.current = true;
+
+        if (showBlockingLoader && !stats) {
+            setIsLoading(true);
+        }
+
         const storedUser = localStorage.getItem('halan_user');
         if (!storedUser) {
             router.push('/login/partner');
+            isFetchingRef.current = false;
             return;
         }
         const userData = JSON.parse(storedUser);
         const normalizedRole = String(userData.role || '').replace(/^partner_/, '');
-        setUser(userData);
+        setUser((prev: any) => prev || userData);
 
         // Only owner can access this page
         if (normalizedRole !== 'owner') {
@@ -131,27 +223,12 @@ export default function OwnerDashboard() {
             } else {
                 router.push('/partner/manager');
             }
+            isFetchingRef.current = false;
             return;
         }
 
-        fetchStats();
-    }, []);
-
-    useEffect(() => {
-        const normalizedRole = String(user?.role || '').replace(/^partner_/, '');
-        if (user && normalizedRole === 'owner') {
-            setIsLoading(true);
-            fetchStats();
-
-            // Auto-refresh every 10 seconds
-            const interval = setInterval(fetchStats, 10000);
-            return () => clearInterval(interval);
-        }
-    }, [period, user]);
-
-    const fetchStats = async () => {
         try {
-            // Fire both API calls in parallel — was sequential, doubled latency
+            // Fire both API calls in parallel.
             const [usersData, ordersData] = await Promise.all([
                 apiCall('/halan/users'),
                 apiCall('/halan/orders'),
@@ -159,88 +236,9 @@ export default function OwnerDashboard() {
 
             const users = usersData.success ? usersData.data : [];
             const orders = ordersData.success ? ordersData.data : [];
-
-            // Separate managers (supervisors) and drivers (couriers)
-            const managers = users.filter((u: any) => u.role === 'supervisor');
-            const drivers = users.filter((u: any) => u.role === 'courier');
-
-            // Helper to calculate grand total per order
-            const getGrandTotal = (o: any) => {
-                const items = typeof o.items === 'string' ? JSON.parse(o.items || '[]') : (o.items || []);
-                const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
-                const deliFee = parseFloat(o.delivery_fee?.toString() || '0');
-                return itemsTotal + deliFee;
-            };
-
-            // Helper to date filter
-            const isDateInPeriod = (dateString: string, p: string) => {
-                const date = new Date(dateString);
-                const start = new Date();
-                start.setHours(0, 0, 0, 0); // Start of today (00:00:00)
-
-                if (p === 'today') {
-                    return date >= start;
-                }
-                if (p === 'week') {
-                    const day = start.getDay();
-                    const diff = (day + 1) % 7; // Start on Saturday
-                    start.setDate(start.getDate() - diff);
-                    return date >= start;
-                }
-                if (p === 'month') {
-                    start.setDate(1);
-                    return date >= start;
-                }
-                return true;
-            };
-
-            // Calculate global stats (filtered by period)
-            const filteredOrders = orders.filter((o: any) => isDateInPeriod(o.created_at, period));
-            const deliveredOrders = filteredOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
-            const totalFees = deliveredOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
-            const totalSales = deliveredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
-
-            // Calculate Qareeblak delivery revenue (only delivery fees from Qareeblak orders)
-            const qareeblakOrders = deliveredOrders.filter((o: any) => o.source === 'qareeblak');
-            const qareeblakDeliveryRevenue = qareeblakOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
-
-            // Create managers data with their stats
-            const managersWithStats = managers.map((m: any) => {
-                const assignedDrivers = drivers.filter((d: any) =>
-                    (d.isAvailable) &&
-                    (d.supervisorIds || []).map((id: any) => Number(id)).includes(Number(m.id))
-                );
-
-                const managerOrders = filteredOrders.filter((o: any) =>
-                    Number(o.supervisor_id) === Number(m.id)
-                );
-
-                const mDelivered = managerOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
-                const managerFees = mDelivered.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
-                const managerSales = mDelivered.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
-
-                return {
-                    ...m,
-                    manager_name: m.name,
-                    driver_count: assignedDrivers.length,
-                    total_orders: managerOrders.length,
-                    delivery_fees: managerFees,
-                    sales: managerSales
-                };
-            });
-
-            setStats({
-                summary: {
-                    total_delivery_fees: totalFees,
-                    total_sales: totalSales,
-                    delivered: deliveredOrders.length,
-                    total_orders: filteredOrders.length,
-                    qareeblak_delivery_revenue: qareeblakDeliveryRevenue,
-                    qareeblak_orders_count: qareeblakOrders.length
-                },
-                managers: managersWithStats,
-                driversCount: drivers.length
-            });
+            setRawUsers(users);
+            setRawOrders(orders);
+            setStats(buildStatsFromData(users, orders, period));
 
         } catch (error: any) {
             console.error('Error fetching stats:', error);
@@ -251,8 +249,30 @@ export default function OwnerDashboard() {
         } finally {
             setIsLoading(false);
             setRefreshing(false);
+            isFetchingRef.current = false;
         }
-    };
+    }, [period, router, buildStatsFromData]);
+
+    useEffect(() => {
+        fetchStats({ showBlockingLoader: true });
+        // Initial remote load only.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        // Auto-refresh without blocking UI
+        const interval = setInterval(() => {
+            fetchStats({ showBlockingLoader: false });
+        }, 60000);
+        return () => clearInterval(interval);
+    }, [fetchStats]);
+
+    useEffect(() => {
+        // Recompute instantly on period switch with cached data (no extra network).
+        if (rawUsers.length > 0 && rawOrders.length > 0) {
+            setStats(buildStatsFromData(rawUsers, rawOrders, period));
+        }
+    }, [period, rawUsers, rawOrders, buildStatsFromData]);
 
     const handleLogout = () => {
         localStorage.removeItem('halan_token');
@@ -262,7 +282,7 @@ export default function OwnerDashboard() {
 
     const onRefresh = () => {
         setRefreshing(true);
-        fetchStats();
+        fetchStats({ showBlockingLoader: false });
     };
 
     if (!user) return null;
