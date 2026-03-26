@@ -97,7 +97,7 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
                         <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-800 p-1 shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-700 rotate-3 transition-transform duration-500 group-hover:rotate-0">
                             <div className="w-full h-full rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
                                 {provider.image ? (
-                                    <img src={provider.image} alt={providerName} className="w-full h-full object-cover" />
+                                    <img src={provider.image} alt={providerName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                 ) : (
                                     <span className={`text-3xl font-black ${
                                         providerCategory.includes("مطعم") ? "text-orange-500" : 

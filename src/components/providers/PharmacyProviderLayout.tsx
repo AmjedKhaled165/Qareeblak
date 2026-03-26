@@ -151,6 +151,8 @@ export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps
                     <img
                         src={provider.image_url}
                         alt={provider.name}
+                        loading="lazy"
+                        decoding="async"
                         className="absolute inset-0 w-full h-full object-cover opacity-30"
                     />
                 )}
@@ -160,7 +162,7 @@ export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps
                     <div className="flex items-end gap-4">
                         <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-2xl shadow-lg flex items-center justify-center overflow-hidden">
                             {provider.image_url ? (
-                                <img src={provider.image_url} alt={provider.name} className="w-full h-full object-cover" />
+                                <img src={provider.image_url} alt={provider.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                             ) : (
                                 <Pill className="w-10 h-10 text-emerald-600" />
                             )}

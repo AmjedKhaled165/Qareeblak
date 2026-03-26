@@ -471,7 +471,7 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                                             )}
                                             {msg.image_url && (
                                                 <div className="mb-2 cursor-pointer relative group" onClick={() => setZoomedImage(msg.image_url)}>
-                                                    <img src={msg.image_url} alt="صورة" className="rounded-lg max-h-64 w-auto border-2 border-white/20" />
+                                                    <img src={msg.image_url} alt="صورة" loading="lazy" decoding="async" className="rounded-lg max-h-64 w-auto border-2 border-white/20" />
                                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg flex items-center justify-center">
                                                         <Maximize2 className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition" />
                                                     </div>
