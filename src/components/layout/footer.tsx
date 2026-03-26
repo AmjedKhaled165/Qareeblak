@@ -28,7 +28,7 @@ export function Footer() {
                     <div className="flex items-center gap-3">
                         <div className="bg-white p-2 rounded-xl shadow-lg">
                             <img 
-                                src="/Qareeblak_Logo_rbg.png?v=20260321" 
+                                src="/Qareeblak_Logo_rbg.png?v=20260327" 
                                 alt="قريبلك" 
                                 className="w-10 h-10 object-contain"
                             />

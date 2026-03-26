@@ -145,7 +145,7 @@ export default function ProviderLogin() {
                 <div className="absolute inset-0 rounded-full bg-primary/30 blur-xl scale-125 animate-pulse" />
                 <div className="relative w-full h-full rounded-3xl bg-gradient-to-br from-indigo-600/30 to-violet-600/20 border border-indigo-500/30 flex items-center justify-center shadow-2xl shadow-indigo-500/20">
                   <img
-                    src="/Qareeblak_Logo_rbg.png?v=20260321"
+                    src="/Qareeblak_Logo_rbg.png?v=20260327"
                     alt="قريبلك"
                     width={60}
                     height={60}

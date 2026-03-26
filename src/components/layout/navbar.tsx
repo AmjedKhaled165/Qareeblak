@@ -89,7 +89,7 @@ export function Navbar() {
                             scrolled ? "scale-90" : "scale-100 shadow-xl"
                         }`}>
                             <img 
-                                src="/Qareeblak_Logo_rbg.png?v=20260321" 
+                                src="/Qareeblak_Logo_rbg.png?v=20260327" 
                                 alt="قريبلك" 
                                 className="h-10 md:h-12 w-auto object-contain transition-all duration-500"
                             />
