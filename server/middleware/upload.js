@@ -3,47 +3,88 @@ const path = require('path');
 const fs = require('fs').promises;
 const { v2: cloudinary } = require('cloudinary');
 
-/**
- * Middleware to optimize uploaded images (local disk storage path)
- * Auto-resizes to 800px max width, converts to webp, and compresses.
- */
+// ─────────────────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────────────────
+const IMAGE_CONFIG = {
+    maxWidth: 800,          // Resize to max 800px width
+    quality: 80,            // WebP quality (0-100)
+    format: 'webp',         // Output format
+};
+
+// ─────────────────────────────────────────────────────────────────
+// HELPER: Process buffer with sharp (for memoryStorage path)
+// ─────────────────────────────────────────────────────────────────
+const processBuffer = async (buffer) => {
+    return await sharp(buffer)
+        .resize({ width: IMAGE_CONFIG.maxWidth, withoutEnlargement: true })
+        .webp({ quality: IMAGE_CONFIG.quality })
+        .toBuffer();
+};
+
+// ─────────────────────────────────────────────────────────────────
+// HELPER: Process file on disk (for diskStorage path)
+// ─────────────────────────────────────────────────────────────────
+const processFile = async (file) => {
+    const outputPath = file.path.replace(path.extname(file.path), '.webp');
+
+    await sharp(file.path)
+        .resize({ width: IMAGE_CONFIG.maxWidth, withoutEnlargement: true })
+        .webp({ quality: IMAGE_CONFIG.quality })
+        .toFile(outputPath);
+
+    // Delete original to save space
+    try { await fs.unlink(file.path); } catch (_) { /* ignore */ }
+
+    file.path = outputPath;
+    file.mimetype = 'image/webp';
+    file.filename = path.basename(outputPath);
+};
+
+// ─────────────────────────────────────────────────────────────────
+// MIDDLEWARE 1: optimizeImage  — works on disk storage
+// Use AFTER multer with diskStorage.
+// ─────────────────────────────────────────────────────────────────
 const optimizeImage = async (req, res, next) => {
     if (!req.file && !req.files) return next();
 
-    const processImage = async (file) => {
-        const outputPath = file.path.replace(path.extname(file.path), '.webp');
-
-        await sharp(file.path)
-            .resize({ width: 800, withoutEnlargement: true })
-            .webp({ quality: 80 })
-            .toFile(outputPath);
-
-        // Delete original file to save space
-        await fs.unlink(file.path);
-
-        // Update file info for next middleware
-        file.path = outputPath;
-        file.mimetype = 'image/webp';
-    };
-
     try {
         if (req.file) {
-            await processImage(req.file);
+            await processFile(req.file);
         } else if (req.files) {
-            await Promise.all(Object.values(req.files).flat().map(processImage));
+            const files = Array.isArray(req.files)
+                ? req.files
+                : Object.values(req.files).flat();
+            await Promise.all(files.map(processFile));
         }
         next();
     } catch (error) {
-        console.error('Image optimization failed:', error);
-        next(); // Proceed anyway, just log the failure
+        console.error('[Sharp] Image optimization failed:', error.message);
+        next(); // Proceed anyway – don't block the upload
     }
 };
 
-/**
- * Middleware to upload image buffer to Cloudinary (memoryStorage path)
- * Requires: multer configured with memoryStorage and CLOUDINARY_* env vars set.
- * Attaches req.file.cloudinaryUrl and req.file.cloudinaryPublicId to the request.
- */
+// ─────────────────────────────────────────────────────────────────
+// MIDDLEWARE 2: optimizeBuffer  — works on memoryStorage (buffer)
+// Use BEFORE uploadToCloudinary when multer uses memoryStorage.
+// ─────────────────────────────────────────────────────────────────
+const optimizeBuffer = async (req, res, next) => {
+    if (!req.file?.buffer) return next();
+
+    try {
+        req.file.buffer = await processBuffer(req.file.buffer);
+        req.file.mimetype = 'image/webp';
+        req.file.originalname = req.file.originalname.replace(/\.\w+$/, '.webp');
+        next();
+    } catch (error) {
+        console.error('[Sharp] Buffer optimization failed:', error.message);
+        next(); // Proceed anyway
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────
+// MIDDLEWARE 3: uploadToCloudinary  — memoryStorage → Cloudinary
+// ─────────────────────────────────────────────────────────────────
 const uploadToCloudinary = async (req, res, next) => {
     if (!req.file) return next();
 
@@ -52,9 +93,9 @@ const uploadToCloudinary = async (req, res, next) => {
             const stream = cloudinary.uploader.upload_stream(
                 {
                     folder: 'qareeblak/chat',
-                    format: 'webp',
-                    quality: 'auto:good',
-                    transformation: [{ width: 800, crop: 'limit' }]
+                    format: 'webp',          // Cloudinary also enforces WebP
+                    quality: 'auto:good',    // Cloudinary secondary compression
+                    transformation: [{ width: IMAGE_CONFIG.maxWidth, crop: 'limit' }]
                 },
                 (error, result) => {
                     if (error) return reject(error);
@@ -68,9 +109,9 @@ const uploadToCloudinary = async (req, res, next) => {
         req.file.cloudinaryPublicId = result.public_id;
         next();
     } catch (error) {
-        console.error('Cloudinary upload failed:', error);
+        console.error('[Cloudinary] Upload failed:', error.message);
         next(error);
     }
 };
 
-module.exports = { optimizeImage, uploadToCloudinary };
+module.exports = { optimizeImage, optimizeBuffer, uploadToCloudinary };

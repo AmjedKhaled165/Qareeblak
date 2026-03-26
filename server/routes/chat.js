@@ -5,7 +5,7 @@ const router = express.Router();
 // Middleware
 const { verifyToken } = require('../middleware/auth');
 const upload = require('../config/multer');
-const { uploadToCloudinary } = require('../middleware/upload');
+const { optimizeImage, uploadToCloudinary } = require('../middleware/upload');
 const { globalLimiter, chatLimiter } = require('../middleware/security');
 
 // Controllers
@@ -38,7 +38,7 @@ router.get('/:consultationId', validate(validateParams, 'params'), chatControlle
 router.post('/:consultationId/messages', chatLimiter, validate(validateParams, 'params'), validate(sendMessageSchema), chatController.sendMessage);
 
 // Upload Image Message (Validations done via multer config directly)
-router.post('/:consultationId/upload', chatLimiter, validate(validateParams, 'params'), upload.single('image'), uploadToCloudinary, chatController.uploadImage);
+router.post('/:consultationId/upload', chatLimiter, validate(validateParams, 'params'), upload.single('image'), optimizeImage, uploadToCloudinary, chatController.uploadImage);
 
 // Mark Messages As Read
 router.put('/:consultationId/read', validate(validateParams, 'params'), chatController.markAsRead);

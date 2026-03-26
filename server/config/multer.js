@@ -65,12 +65,12 @@ if (process.env.CLOUDINARY_CLOUD_NAME) {
 
 // File filter (strictly safe images only against XSS)
 const fileFilter = (req, file, cb) => {
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 
     if (allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('هذا النوع من الملفات غير مسموح به. مسموح فقط بـ JPG, PNG, WEBP.'), false);
+        cb(new Error('هذا النوع من الملفات غير مسموح به. مسموح فقط بـ JPG, PNG, WEBP, AVIF.'), false);
     }
 };
 
