@@ -10,8 +10,8 @@ const multerS3 = require('multer-s3');
 let s3;
 let storage;
 
-if (process.env.CLOUDINARY_CLOUD_NAME) {
-    // Cloudinary path: hold file in RAM buffer, uploadToCloudinary middleware in upload.js handles the actual upload
+if (process.env.CLOUDINARY_CLOUD_NAME || process.env.AZURE_CONNECTION_STRING) {
+    // Cloudinary/Azure path: hold file in RAM buffer so we can optimize then upload directly to object storage
     storage = multer.memoryStorage();
 } else if (process.env.AWS_REGION && process.env.AWS_S3_BUCKET_NAME) {
     s3 = new S3Client({
@@ -29,6 +29,7 @@ if (process.env.CLOUDINARY_CLOUD_NAME) {
         bucket: process.env.AWS_S3_BUCKET_NAME,
         acl: 'public-read',
         contentType: multerS3.AUTO_CONTENT_TYPE,
+        cacheControl: 'public, max-age=2592000', // Caching for 1 month
         metadata: function (req, file, cb) {
             cb(null, { fieldName: file.fieldname });
         },
