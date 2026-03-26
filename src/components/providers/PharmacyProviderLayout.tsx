@@ -234,6 +234,8 @@ export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps
                                                         <img
                                                             src={service.image_url}
                                                             alt={service.name}
+                                                            loading="lazy"
+                                                            decoding="async"
                                                             className="w-full h-full object-cover"
                                                         />
                                                     ) : (

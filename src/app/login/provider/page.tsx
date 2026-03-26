@@ -18,7 +18,7 @@ import { apiCall } from "@/lib/api";
 export default function ProviderLogin() {
   const router = useRouter();
   const { toast } = useToast();
-  const { loginUser, isInitialized, currentUser } = useAppStore();
+  const { loginUser, logout, isInitialized, currentUser } = useAppStore();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -71,9 +71,15 @@ export default function ProviderLogin() {
           else router.push('/partner/dashboard');
           return;
         }
-      } catch (halanErr) { /* ignore */ }
       const success = await loginUser(identifier, password);
       if (success) {
+        const userType = success.type || success.user_type;
+        if (userType === 'customer') {
+          logout();
+          setError("هذا الحساب مسجل كعميل، الرجاء الدخول من بوابة العملاء.");
+          return;
+        }
+
         toast("أهلاً بك في لوحة تحكم مقدمي الخدمات! 💼", "success");
         router.push("/provider-dashboard");
       } else {

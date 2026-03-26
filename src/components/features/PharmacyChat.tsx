@@ -887,6 +887,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                         <img
                             src={zoomedImage}
                             alt="صورة مكبرة"
+                            loading="lazy"
+                            decoding="async"
                             className="max-w-full max-h-full object-contain rounded-lg"
                         />
                     </motion.div>

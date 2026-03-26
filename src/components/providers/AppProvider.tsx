@@ -88,7 +88,7 @@ interface AppContextType {
     isLoading: boolean;
 
     // Auth actions
-    loginUser: (email: string, password: string) => Promise<boolean>;
+    loginUser: (email: string, password: string) => Promise<User | false>;
     logout: () => void;
     sendRegisterOtp: (email: string) => Promise<boolean>;
     registerUser: (name: string, email: string, password: string, phone: string, otp: string) => Promise<boolean>;
@@ -415,7 +415,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, [currentUser]);
 
     // ================= AUTH ACTIONS =================
-    const loginUser = async (email: string, password: string): Promise<boolean> => {
+    const loginUser = async (email: string, password: string): Promise<User | false> => {
         try {
             setIsLoading(true);
             const result = await authApi.login(email, password);
@@ -438,7 +438,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
 
             await Promise.all([loadProviders(), loadUserBookings(user)]);
-            return true;
+            return user;
         } catch (error) {
             console.error("Login failed:", error);
             toast("البريد الإلكتروني أو كلمة المرور غير صحيحة", "error");

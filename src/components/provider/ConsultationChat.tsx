@@ -674,6 +674,8 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                             <img
                                 src={zoomedImage}
                                 alt="صورة مكبرة"
+                                loading="lazy"
+                                decoding="async"
                                 className="max-w-full max-h-[80vh] object-contain rounded-lg"
                             />
                             <p className="text-white mt-4 text-sm opacity-75">📷 صورة الروشتة من العميل</p>

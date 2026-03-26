@@ -40,3 +40,6 @@ server/uploads/
 
 # Temp files from Claude sessions
 tmpclaude-*
+
+# Sentry Config File
+.env.sentry-build-plugin

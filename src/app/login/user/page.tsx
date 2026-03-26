@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function UserLoginPage() {
   const router = useRouter();
-  const { loginUser, registerUser, sendRegisterOtp, googleLogin, isInitialized, currentUser } = useAppStore();
+  const { loginUser, logout, registerUser, sendRegisterOtp, googleLogin, isInitialized, currentUser } = useAppStore();
   const { toast } = useToast();
 
 
@@ -108,6 +108,14 @@ export default function UserLoginPage() {
       setIsLoading(false);
 
       if (result) {
+        const userType = result.type || result.user_type;
+        if (userType === 'provider' || userType === 'admin') {
+          logout();
+          setError("عذراً، هذا الحساب مسجل كمقدم خدمة أو إدارة. الرجاء الدخول من بوابة الشركاء.");
+          setErrorType("OTHER");
+          return;
+        }
+
         toast("تم تسجيل الدخول بنجاح! نورتنا ❤️", "success");
         router.push("/");
       } else {
