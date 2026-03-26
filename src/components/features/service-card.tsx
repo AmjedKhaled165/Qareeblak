@@ -75,7 +75,7 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
             <div className="relative h-full flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_40px_-15px_rgba(0,0,0,0.3)] overflow-hidden transition-all duration-300 group-hover:shadow-[0_20px_60px_-15px_rgba(79,70,229,0.15)] group-hover:border-indigo-100 dark:group-hover:border-indigo-500/30">
                 
                 {/* Premium Abstract Header */}
-                <div className="relative h-32 w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
+                <div className="relative h-24 sm:h-32 w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
                     <div className="absolute inset-0 opacity-40 mix-blend-multiply dark:mix-blend-screen">
                         {/* Dynamic category-based blobs */}
                         <div className={`absolute -top-10 -left-10 w-40 h-40 rounded-full blur-[40px] ${

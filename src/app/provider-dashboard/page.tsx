@@ -1317,7 +1317,7 @@ export default function ProviderDashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-6 md:p-10 md:mr-64 transition-all w-full min-h-screen">
+            <main className="flex-1 p-4 md:p-10 md:mr-64 transition-all w-full min-h-screen pb-28 md:pb-10">
                 {/* Glowing background orbs */}
                 <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -z-10" />
                 <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px] -z-10" />
@@ -1337,20 +1337,20 @@ export default function ProviderDashboard() {
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
                             <div className="grid gap-6 md:grid-cols-3">
                                 <Card className="bg-card border-border/50 shadow-xl rounded-[2.5rem] overflow-hidden group hover:border-primary/50 transition-all">
-                                    <CardContent className="p-8 flex items-center gap-6">
-                                        <div className="p-5 bg-primary/10 rounded-2xl text-primary transition-colors group-hover:bg-primary/20">
-                                            <ShoppingBag className="w-10 h-10" />
+                                    <CardContent className="p-4 md:p-8 flex items-center gap-4 md:gap-6">
+                                        <div className="p-3 md:p-5 bg-primary/10 rounded-2xl text-primary transition-colors group-hover:bg-primary/20">
+                                            <ShoppingBag className="w-7 h-7 md:w-10 md:h-10" />
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground font-bold font-cairo">الطلبات الجديدة</p>
-                                            <h3 className="text-4xl font-black text-foreground mt-1">{overviewBookings.filter((b: Booking) => ['pending', 'new', 'جديد'].includes(b.status)).length}</h3>
+                                            <h3 className="text-2xl md:text-4xl font-black text-foreground mt-1">{overviewBookings.filter((b: Booking) => ['pending', 'new', 'جديد'].includes(b.status)).length}</h3>
                                         </div>
                                     </CardContent>
                                 </Card>
                                 <Card className="bg-card border-border/50 shadow-xl rounded-[2.5rem] overflow-hidden group hover:border-secondary/50 transition-all">
-                                    <CardContent className="p-8 flex items-center gap-6">
-                                        <div className="p-5 bg-secondary/10 rounded-2xl text-secondary transition-colors group-hover:bg-secondary/20">
-                                            <TrendingUp className="w-10 h-10" />
+                                    <CardContent className="p-4 md:p-8 flex items-center gap-4 md:gap-6">
+                                        <div className="p-3 md:p-5 bg-secondary/10 rounded-2xl text-secondary transition-colors group-hover:bg-secondary/20">
+                                            <TrendingUp className="w-7 h-7 md:w-10 md:h-10" />
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground font-bold font-cairo">إجمالي المبيعات</p>
@@ -1393,9 +1393,9 @@ export default function ProviderDashboard() {
                                     </CardContent>
                                 </Card>
                                 <Card className="bg-card border-border/50 shadow-xl rounded-[2.5rem] overflow-hidden group hover:border-amber-500/50 transition-all">
-                                    <CardContent className="p-8 flex items-center gap-6">
-                                        <div className="p-5 bg-amber-500/10 rounded-2xl text-amber-500 transition-colors group-hover:bg-amber-500/20">
-                                            <Star className="w-10 h-10" />
+                                    <CardContent className="p-4 md:p-8 flex items-center gap-4 md:gap-6">
+                                        <div className="p-3 md:p-5 bg-amber-500/10 rounded-2xl text-amber-500 transition-colors group-hover:bg-amber-500/20">
+                                            <Star className="w-7 h-7 md:w-10 md:h-10" />
                                         </div>
                                         <div>
                                             <p className="text-sm text-muted-foreground font-bold font-cairo">التقييم العام</p>
@@ -1408,7 +1408,7 @@ export default function ProviderDashboard() {
                             </div>
 
                             <Card className="bg-card border-border/50 shadow-2xl rounded-[2.5rem] overflow-hidden">
-                                <CardHeader className="bg-muted/30 border-b border-border/50 px-10 py-8">
+                                <CardHeader className="bg-muted/30 border-b border-border/50 px-4 py-4 md:px-10 md:py-8">
                                     <CardTitle className="text-2xl font-black text-foreground font-cairo">آخر 5 طلبات</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
@@ -1416,17 +1416,17 @@ export default function ProviderDashboard() {
                                         <table className="w-full text-sm text-right">
                                             <thead className="bg-muted/50 text-muted-foreground font-black font-cairo border-b border-border/50">
                                                 <tr>
-                                                    <th className="px-10 py-6 text-foreground/80">العميل</th>
-                                                    <th className="px-10 py-6 text-foreground/80">الخدمة</th>
-                                                    <th className="px-10 py-6 text-foreground/80">الحالة</th>
+                                                    <th className="px-4 py-3 md:px-10 md:py-6 text-foreground/80">العميل</th>
+                                                    <th className="px-4 py-3 md:px-10 md:py-6 text-foreground/80">الخدمة</th>
+                                                    <th className="px-4 py-3 md:px-10 md:py-6 text-foreground/80">الحالة</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border/50 font-medium font-cairo">
                                                 {overviewBookings.slice(0, 5).map((booking: Booking, i: number) => (
                                                     <tr key={i} className="hover:bg-muted/20 transition-all group">
-                                                        <td className="px-10 py-6 font-black text-foreground text-lg">{booking.userName}</td>
-                                                        <td className="px-10 py-6 text-muted-foreground">{booking.serviceName}</td>
-                                                        <td className="px-10 py-6">
+                                                        <td className="px-4 py-3 md:px-10 md:py-6 font-black text-foreground text-sm md:text-lg">{booking.userName}</td>
+                                                        <td className="px-4 py-3 md:px-10 md:py-6 text-muted-foreground text-xs md:text-sm">{booking.serviceName}</td>
+                                                        <td className="px-4 py-3 md:px-10 md:py-6">
                                                             <span className={`px-4 py-1.5 rounded-full text-xs font-black
                                                                     ${booking.status === 'pending' || booking.status === 'pending_appointment' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
                                                                     booking.status === 'confirmed' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
@@ -2148,6 +2148,43 @@ export default function ProviderDashboard() {
                 onClose={() => setIsPriceEstimationOpen(false)}
                 onConfirm={handleAcceptWithPrice}
             />
+
+            {/* Mobile Bottom Tab Navigation */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border/50 px-2 py-2 flex justify-around items-center shadow-[0_-4px_20px_rgba(0,0,0,0.1)]" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+                {[
+                    { id: 'overview' as const, label: 'نظرة عامة', icon: LayoutDashboard },
+                    { id: 'orders' as const, label: 'الطلبات', icon: ShoppingBag, badge: overviewBookings.filter((b: Booking) => b.status === 'pending').length },
+                    { id: 'services' as const, label: 'المنيو', icon: Utensils },
+                    { id: 'reviews' as const, label: 'التقييمات', icon: Star },
+                    ...(isPharmacyProvider(myProviderProfile?.category) ? [{ id: 'conversations' as const, label: 'محادثات', icon: MessageSquare, badge: consultations.reduce((acc: number, c: any) => acc + (c.unread_count || 0), 0) }] : []),
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => {
+                            if (tab.id === 'overview') setCurrentPage(1);
+                            setActiveTab(tab.id);
+                        }}
+                        className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all relative ${
+                            activeTab === tab.id
+                                ? 'text-primary scale-105'
+                                : 'text-muted-foreground'
+                        }`}
+                    >
+                        <div className="relative">
+                            <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-primary' : ''}`} />
+                            {tab.badge && tab.badge > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 animate-pulse">
+                                    {tab.badge}
+                                </span>
+                            )}
+                        </div>
+                        <span className={`text-[10px] font-bold ${activeTab === tab.id ? 'text-primary' : ''}`}>{tab.label}</span>
+                        {activeTab === tab.id && (
+                            <div className="absolute -bottom-1 w-6 h-1 bg-primary rounded-full" />
+                        )}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

@@ -10,8 +10,8 @@ export function MobileBottomNav() {
     const pathname = usePathname();
     const { currentUser } = useAppStore();
 
-    // Hide on partner routes
-    if (pathname?.startsWith('/partner')) return null;
+    // Hide on partner routes and provider-dashboard (has its own mobile nav)
+    if (pathname?.startsWith('/partner') || pathname?.startsWith('/provider-dashboard')) return null;
 
     const navItems = [
         {
@@ -37,7 +37,10 @@ export function MobileBottomNav() {
     ];
 
     return (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-t border-border px-6 py-3 flex justify-between items-center shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+        <div
+            className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-t border-border px-6 py-3 flex justify-between items-center shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
             {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -57,3 +60,4 @@ export function MobileBottomNav() {
         </div>
     );
 }
+

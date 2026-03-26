@@ -4,6 +4,7 @@ import "@/styles/globals.css";
 import "leaflet/dist/leaflet.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { AppProvider } from "@/components/providers/AppProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 import { ConfirmProvider } from "@/components/providers/ConfirmProvider";
@@ -59,6 +60,7 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: "cover" as const,
   themeColor: "#6366F1",
 };
 
@@ -90,6 +92,7 @@ export default function RootLayout({
                         {children}
                       </ErrorBoundary>
                     </main>
+                    <MobileBottomNav />
                     <Footer />
                   </SmoothScroll>
                 </ConfirmProvider>

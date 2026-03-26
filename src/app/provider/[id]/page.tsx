@@ -271,7 +271,7 @@ export default function ProviderProfile() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 transition-colors duration-300">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 pb-24 md:pb-8 transition-colors duration-300">
             <div className="container mx-auto px-4 max-w-5xl">
                 {/* Back to Order Banner */}
                 {addToOrderId && (
@@ -306,7 +306,7 @@ export default function ProviderProfile() {
                 >
                     <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200/50 dark:border-slate-800/50 bg-white dark:bg-slate-900/80 backdrop-blur-xl">
                         {/* Abstract Cover Photo */}
-                        <div className={`h-48 md:h-64 w-full relative overflow-hidden ${isRestaurant ? "bg-gradient-to-r from-orange-400 via-rose-500 to-amber-500" : "bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600"}`}>
+                        <div className={`h-36 md:h-64 w-full relative overflow-hidden ${isRestaurant ? "bg-gradient-to-r from-orange-400 via-rose-500 to-amber-500" : "bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600"}`}>
                             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
                             <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-white/20 rounded-full blur-[50px] mix-blend-overlay" />
                             <div className="absolute top-10 left-10 w-32 h-32 bg-black/10 rounded-full blur-[30px] mix-blend-overlay" />
@@ -705,7 +705,7 @@ export default function ProviderProfile() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setIsCartOpen(true)}
-                        className="fixed bottom-6 left-6 z-[60] bg-violet-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center lg:hidden"
+                        className="fixed bottom-24 md:bottom-6 left-6 z-[60] bg-violet-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center lg:hidden"
                     >
                         <div className="relative">
                             <ShoppingCart className="w-6 h-6" />

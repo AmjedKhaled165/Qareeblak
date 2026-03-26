@@ -216,6 +216,22 @@ dotlottie-player {
   will-change: transform;
 }
 
+/* Hide scrollbar for horizontal scroll containers */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Reduce blob sizes on mobile for performance */
+@media (max-width: 640px) {
+  .blob-1, .blob-2, .blob-3 {
+    transform: scale(0.6);
+  }
+}
+
 /* Page transition smoothness */
 html {
   scroll-behavior: smooth;

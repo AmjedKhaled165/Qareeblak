@@ -193,7 +193,7 @@ function ExploreContent() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 font-cairo">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 pb-24 md:pb-8 font-cairo">
             <div className="absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-950/20 dark:to-transparent pointer-events-none -z-10" />
             
             {/* Add Item Banner */}
@@ -329,7 +329,7 @@ function ExploreContent() {
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0, opacity: 0, y: 20 }}
                         onClick={() => setIsCartOpen(true)}
-                        className="fixed bottom-6 left-6 z-50 bg-primary text-white p-4 rounded-full shadow-2xl flex items-center gap-2 group hover:scale-110 transition-transform md:hidden"
+                        className="fixed bottom-24 md:bottom-6 left-6 z-50 bg-primary text-white p-4 rounded-full shadow-2xl flex items-center gap-2 group hover:scale-110 transition-transform md:hidden"
                     >
                         <div className="relative">
                             <ShoppingCart className="w-6 h-6" />

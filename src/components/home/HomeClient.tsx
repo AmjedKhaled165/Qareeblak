@@ -72,14 +72,14 @@ export default function HomeClient() {
       )}
 
       {/* Hero Section - Awwwards Style 3D */}
-      <section className="relative pt-24 pb-32 lg:pt-36 lg:pb-40 overflow-hidden px-4 min-h-[90vh] flex items-center justify-center">
+      <section className="relative pt-20 pb-24 lg:pt-36 lg:pb-40 overflow-hidden px-4 min-h-[75vh] md:min-h-[90vh] flex items-center justify-center">
         {/* Interactive 3D Background */}
         <Hero3DCanvas />
         
         {/* Abstract Background Elements for additional depth */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-          <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-primary/10 dark:bg-primary/20 blur-[120px]" />
-          <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 blur-[120px]" />
+          <div className="absolute top-[-10%] right-[-5%] w-[250px] md:w-[500px] h-[250px] md:h-[500px] rounded-full bg-primary/10 dark:bg-primary/20 blur-[120px]" />
+          <div className="absolute bottom-[-20%] left-[-10%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 blur-[120px]" />
           <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-30 dark:opacity-10" />
         </div>
 
@@ -130,7 +130,7 @@ export default function HomeClient() {
                   visible: { y: 0, opacity: 1, rotateX: 0, transition: { duration: 0.8, ease: [0.25, 1, 0.5, 1] } }
                 }}
                 style={{ perspective: "1000px" }}
-                className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 dark:text-white font-cairo leading-[1.1] md:leading-[1.1]"
+                className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 dark:text-white font-cairo leading-[1.15] md:leading-[1.1]"
               >
                 كل خدمات مدينتك.. <br className="hidden md:block" />
                 <span 
@@ -305,7 +305,7 @@ export default function HomeClient() {
                 className="h-full"
               >
                 <Link href={`/explore?category=${cat.name}${addToOrderId ? `&addToOrderId=${addToOrderId}` : ""}`} className="block h-full group">
-                  <div className={`relative p-8 md:p-10 rounded-[2.5rem] border-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg transition-all duration-500 h-full flex flex-col items-center justify-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-2xl border-slate-100 dark:border-slate-800 hover:border-primary/40 dark:hover:border-primary/40 group-hover:bg-white dark:group-hover:bg-slate-900 card-hover`}>
+                  <div className={`relative p-5 sm:p-8 md:p-10 rounded-[2.5rem] border-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg transition-all duration-500 h-full flex flex-col items-center justify-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-2xl border-slate-100 dark:border-slate-800 hover:border-primary/40 dark:hover:border-primary/40 group-hover:bg-white dark:group-hover:bg-slate-900 card-hover`}>
                     
                     {/* Floating Orb behind icon on hover */}
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-primary/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -400,13 +400,13 @@ export default function HomeClient() {
               </div>
 
               {/* Creative Floating UI Elements (Left Side) */}
-              <div className="flex-1 w-full relative h-[350px] md:h-[400px] z-10 flex items-center justify-center">
+              <div className="flex-1 w-full relative h-[280px] sm:h-[350px] md:h-[400px] z-10 flex items-center justify-center">
                 {/* Glowing backdrop circle */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-violet-400 rounded-full blur-[80px] opacity-10 dark:opacity-20 animate-pulse" />
                 
                 {/* Floating Mockup Card 1 */}
                 <div 
-                  className="absolute top-[10%] left-[10%] md:left-[20%] w-[260px] md:w-[320px] bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-2xl shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 z-20 card-hover"
+                  className="absolute top-[10%] left-[5%] sm:left-[10%] md:left-[20%] w-[220px] sm:w-[260px] md:w-[320px] bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-2xl shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 z-20 card-hover"
                   style={{ animation: "float-y 4s ease-in-out infinite", willChange: "transform" }}
                 >
                   <div className="flex gap-4 items-center mb-4">
@@ -431,7 +431,7 @@ export default function HomeClient() {
 
                 {/* Floating Mockup Card 2 */}
                 <div 
-                  className="absolute bottom-[5%] right-[5%] md:right-[10%] w-[240px] md:w-[280px] bg-white/95 dark:bg-slate-800/95 rounded-2xl p-5 shadow-2xl shadow-violet-500/10 border border-slate-100 dark:border-slate-700 z-30 card-hover"
+                  className="absolute bottom-[5%] right-[2%] sm:right-[5%] md:right-[10%] w-[200px] sm:w-[240px] md:w-[280px] bg-white/95 dark:bg-slate-800/95 rounded-2xl p-4 sm:p-5 shadow-2xl shadow-violet-500/10 border border-slate-100 dark:border-slate-700 z-30 card-hover"
                   style={{ animation: "float-y 5s ease-in-out 1s infinite", animationDirection: "reverse", willChange: "transform" }}
                 >
                   <div className="flex justify-between items-center mb-5">
