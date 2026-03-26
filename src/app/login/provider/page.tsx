@@ -71,6 +71,10 @@ export default function ProviderLogin() {
           else router.push('/partner/dashboard');
           return;
         }
+      } catch (_halanErr) {
+        // Fall back to regular provider login when Halan auth fails.
+      }
+
       const success = await loginUser(identifier, password);
       if (success) {
         const userType = success.type || success.user_type;
