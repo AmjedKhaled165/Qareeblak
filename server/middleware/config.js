@@ -60,6 +60,27 @@ module.exports = function configureMiddleware(app, express) {
     // Data Sanitization against XSS
     app.use(xssSanitizer);
 
+    // ⏱️ Request Timeout Middleware — kills zombie requests after 25s
+    // Prevents hanging connections from exhausting the server
+    const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 25000);
+    app.use((req, res, next) => {
+        const timer = setTimeout(() => {
+            if (!res.headersSent) {
+                logger.warn(`⏱️ Request timeout: ${req.method} ${req.url} exceeded ${REQUEST_TIMEOUT_MS}ms`);
+                res.status(408).json({
+                    success: false,
+                    error: 'Request timeout — الطلب استغرق وقتاً طويلاً. يرجى المحاولة مرة أخرى.'
+                });
+            }
+        }, REQUEST_TIMEOUT_MS);
+        // Use .unref() so the timer doesn't prevent graceful shutdown
+        timer.unref();
+        // Clear timer when response finishes naturally
+        res.on('finish', () => clearTimeout(timer));
+        res.on('close', () => clearTimeout(timer));
+        next();
+    });
+
     // ⛔ Global Rate Limiting to prevent DoS & Brute Force Attacks
     app.use('/api', publicLimiter);
 

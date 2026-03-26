@@ -96,7 +96,11 @@ export default function ProviderProfile() {
         fetchProviderDetails(id);
 
         // Keep customer page synced with server-side menu updates.
-        const interval = setInterval(() => fetchProviderDetails(id), 10000);
+        // Poll every 30s (only while tab is visible) to reduce backend load.
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+            fetchProviderDetails(id);
+        }, 30000);
         return () => clearInterval(interval);
     }, [isInitialized, params?.id]);
 

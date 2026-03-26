@@ -4,39 +4,68 @@ const { activeCheckoutsGauge } = require('./metrics');
 /**
  * 🛡️ [ELITE] Guardian Watchdog
  * Self-healing component that monitors system health and prevents catastrophic failure.
+ * Auto-recovers to 'healthy' when metrics return to safe levels.
  */
 class GuardianWatchdog {
     constructor() {
         this.status = 'healthy';
         this.lastHealAt = new Map();
+        this.consecutiveHealthy = 0;
         this.thresholds = {
-            memory: Number(process.env.GUARDIAN_MEMORY_THRESHOLD || 0.97),
+            memory: Number(process.env.GUARDIAN_MEMORY_THRESHOLD || 0.90),
             eventLoopLag: Number(process.env.GUARDIAN_EVENT_LOOP_LAG_MS || 200),
             maxActiveCheckouts: 500
         };
-        this.healCooldownMs = Number(process.env.GUARDIAN_HEAL_COOLDOWN_MS || 600000);
+        this.healCooldownMs = Number(process.env.GUARDIAN_HEAL_COOLDOWN_MS || 300000); // 5 min
     }
 
     start() {
         logger.info('🛡️ Guardian Watchdog activated. Monitoring system health...');
 
-        // 1. Health Monitoring Loop
-        setInterval(() => this.checkHealth(), 30000); // Every 30s - تقليل التكرار
+        // Health Monitoring Loop — every 15s for faster reaction
+        this._interval = setInterval(() => this.checkHealth(), 15000);
+        this._interval.unref(); // Don't prevent process exit
     }
 
     checkHealth() {
         const mem = process.memoryUsage();
         const heapUsed = mem.heapUsed / mem.heapTotal;
+        let problemDetected = false;
 
         // A. Memory Guard
         if (heapUsed > this.thresholds.memory) {
-            this.heal('CRITICAL_MEMORY_USAGE', `Heap usage at ${(heapUsed * 100).toFixed(2)}%`);
+            this.heal('CRITICAL_MEMORY_USAGE', `Heap usage at ${(heapUsed * 100).toFixed(1)}% (RSS: ${(mem.rss / 1024 / 1024).toFixed(0)}MB)`);
+            problemDetected = true;
         }
 
         // B. Throughput Guard (Concurrency Spike)
-        const checkouts = activeCheckoutsGauge?.get()?.values?.[0]?.value || 0;
-        if (checkouts > this.thresholds.maxActiveCheckouts) {
-            this.heal('THROUGHPUT_SPIKE', `Active checkouts (${checkouts}) exceeded safety threshold.`);
+        try {
+            const checkouts = activeCheckoutsGauge?.get()?.values?.[0]?.value || 0;
+            if (checkouts > this.thresholds.maxActiveCheckouts) {
+                this.heal('THROUGHPUT_SPIKE', `Active checkouts (${checkouts}) exceeded safety threshold.`);
+                problemDetected = true;
+            }
+        } catch (_) { /* metric may not exist */ }
+
+        // C. DB Pool Monitoring
+        try {
+            const db = require('../db');
+            if (db.waitingCount > 10) {
+                this.heal('DB_POOL_EXHAUSTION', `${db.waitingCount} queries waiting for DB connection. Pool: ${db.totalCount}/${db.options?.max || '?'}`);
+                problemDetected = true;
+            }
+        } catch (_) { /* db may not be loaded yet */ }
+
+        // D. Auto-recover to healthy after 3 consecutive clean checks
+        if (!problemDetected) {
+            this.consecutiveHealthy++;
+            if (this.status === 'degraded' && this.consecutiveHealthy >= 3) {
+                this.status = 'healthy';
+                logger.info('✅ [Guardian] System recovered to HEALTHY status');
+                this.consecutiveHealthy = 0;
+            }
+        } else {
+            this.consecutiveHealthy = 0;
         }
     }
 
@@ -59,9 +88,8 @@ class GuardianWatchdog {
             }
         }
 
-        if (reason === 'THROUGHPUT_SPIKE') {
-            logger.warn('[Guardian] Shedding load: Delaying non-critical background workers.');
-            // Logic to pause/throttle worker queues
+        if (reason === 'DB_POOL_EXHAUSTION') {
+            logger.warn('[Guardian] DB pool under pressure — consider increasing pool size or optimizing queries.');
         }
     }
 

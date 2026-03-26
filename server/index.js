@@ -222,6 +222,7 @@ app.use(globalErrorHandler);
 const SERVER_TIMEOUT = 30000; // 30 seconds
 server.timeout = SERVER_TIMEOUT;
 server.headersTimeout = SERVER_TIMEOUT;
+server.requestTimeout = 60000;  // Absolute max per request (prevents zombie requests)
 server.keepAliveTimeout = 65000; // Slightly higher than load balancer (Nginx)
 
 // 2. Start Server
@@ -264,15 +265,42 @@ process.on('SIGTERM', () => shutDown('SIGTERM'));
 process.on('SIGINT', () => shutDown('SIGINT'));
 process.on('SIGUSR2', () => shutDown('SIGUSR2')); // For nodemon
 
+// ================== RESILIENT ERROR HANDLING ==================
+// Instead of crashing on every error, log and survive.
+// Only exit on truly fatal errors (OOM, stack overflow).
+
 process.on('uncaughtException', (err) => {
-    console.error('💥 FATAL: Uncaught Exception:', err);
+    console.error('🚨 Uncaught Exception (SURVIVED):', err?.message || err);
     if (err && err.stack) console.error('Stack:', err.stack);
-    process.exit(1);
+    logger.error({ err }, '🚨 Uncaught Exception — server survived');
+
+    // Only exit for truly unrecoverable errors
+    const fatal = err && (
+        err.message?.includes('out of memory') ||
+        err.message?.includes('Maximum call stack') ||
+        err.code === 'ERR_OUT_OF_RANGE'
+    );
+    if (fatal) {
+        console.error('🔥 FATAL unrecoverable error — exiting');
+        process.exit(1);
+    }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('💥 FATAL: Unhandled Rejection at promise:', promise);
-    console.error('Reason:', reason);
+    console.error('🚨 Unhandled Rejection (SURVIVED):', reason);
     if (reason && reason.stack) console.error('Stack:', reason.stack);
-    process.exit(1);
+    logger.error({ reason }, '🚨 Unhandled Rejection — server survived');
+    // Do NOT exit — let the server keep running
 });
+
+// ================== EVENT LOOP LAG MONITOR ==================
+let _lastLagCheck = Date.now();
+setInterval(() => {
+    const now = Date.now();
+    const lag = now - _lastLagCheck - 5000; // Expected interval is 5s
+    _lastLagCheck = now;
+    if (lag > 500) {
+        logger.warn(`⚠️ Event loop lag detected: ${lag}ms — server may be under heavy load`);
+    }
+}, 5000).unref();
+

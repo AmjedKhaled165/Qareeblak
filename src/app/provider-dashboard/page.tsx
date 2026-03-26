@@ -117,7 +117,7 @@ const HalanItemsList = ({ halanOrderId, bookingId, fallback }: { halanOrderId?: 
         };
 
         fetchItems();
-        const interval = setInterval(fetchItems, 5000);
+        const interval = setInterval(fetchItems, 20000); // Poll every 20s instead of 5s
         return () => clearInterval(interval);
     }, [halanOrderId, bookingId]);
 

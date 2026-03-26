@@ -120,13 +120,16 @@ export default function OrderTrackingPage() {
             return;
         }
         fetchOrderDetails();
-        const interval = setInterval(fetchOrderDetails, 5000); // Poll every 5 seconds
+        // Poll every 15s (only while tab is visible) to reduce server load
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+            fetchOrderDetails();
+        }, 15000);
         return () => clearInterval(interval);
     }, []);
 
     const fetchOrderDetails = async () => {
         try {
-            console.log('🔵 Fetching order with ID:', orderId);
             let data;
 
             try {
@@ -138,7 +141,7 @@ export default function OrderTrackingPage() {
                 // Fallback 1: Try to find in global app state (orders just created in this session)
                 if (Array.isArray(bookings)) {
                     data = bookings.find((o: { id: string | number }) => String(o.id) === String(orderId));
-                    if (data) console.log('✅ Found order in global bookings state');
+                    if (data) {/* Found in global bookings state */}
                 }
 
                 // Fallback 2: try to get orders for current user (if logged in)
@@ -166,7 +169,7 @@ export default function OrderTrackingPage() {
                                 return acc;
                             }, []);
                             data = uniqueParsed.find((order: { id: string | number }) => String(order.id) === String(orderId));
-                            if (data) console.log('✅ Found order in localStorage cache');
+                            if (data) {/* Found in localStorage cache */}
                         } catch (cacheError) {
                             console.error('Error parsing cached orders');
                         }
@@ -183,19 +186,7 @@ export default function OrderTrackingPage() {
                 throw new Error(`الطلب #${orderId} غير موجود`);
             }
 
-            console.log('========== ✅ ORDER DATA ==========');
-            console.log('Complete Order Object:', data);
-            console.log('Order Keys:', Object.keys(data));
-            console.log('Source:', data.source);
-            console.log('Status:', data.status);
-            console.log('Halan Status:', data.halanStatus);
-            console.log('🔍 MAINTENANCE CHECK FIELDS:');
-            console.log('  - appointmentType:', data.appointmentType);
-            console.log('  - serviceName:', data.serviceName);
-            console.log('  - providerName:', data.providerName);
-            console.log('  - category:', data.category);
-            console.log('  - appointment_type:', data.appointment_type);
-            console.log('=====================================');
+            // Order data loaded successfully
 
             setOrder(data);
             setError(null);
@@ -406,16 +397,7 @@ export default function OrderTrackingPage() {
         return maintenanceKeywords.some(keyword => normalized.includes(keyword));
     };
 
-    console.log('🔍 Checking if maintenance order:', {
-        appointmentType: appointmentType,
-        serviceName: order.serviceName,
-        providerName: order.providerName,
-        providerCategory: order.category,
-        status: order.status,
-    });
-
-    // COMPREHENSIVE CHECK: Use multiple detection methods
-    // Priority: appointmentType field > status > category > keywords in name
+    // Maintenance order detection
     const isMaintenanceOrder =
         appointmentType === 'maintenance' ||
         order.status === 'pending_appointment' ||
@@ -425,16 +407,6 @@ export default function OrderTrackingPage() {
         hasMaintenanceKeyword(order.serviceName) ||
         hasMaintenanceKeyword(order.providerName) ||
         hasMaintenanceKeyword(order.category);
-
-    console.log('✅ Is maintenance order?', isMaintenanceOrder);
-    console.log('   - By appointmentType?', appointmentType === 'maintenance');
-    console.log('   - By status?', order.status === 'pending_appointment');
-    console.log('   - By category utility?', isMaintenanceProvider(order.category));
-    console.log('   - By serviceName utility?', isMaintenanceProvider(order.serviceName));
-    console.log('   - By providerName utility?', isMaintenanceProvider(order.providerName));
-    console.log('   - By serviceName keywords?', hasMaintenanceKeyword(order.serviceName));
-    console.log('   - By providerName keywords?', hasMaintenanceKeyword(order.providerName));
-    console.log('   - By category keywords?', hasMaintenanceKeyword(order.category));
 
     if (isMaintenanceOrder) {
         return (
