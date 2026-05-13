@@ -172,7 +172,21 @@ const wheelRoutes = require('./routes/wheel');
 const debugAuthRoutes = require('./routes/debug-auth');
 
 // ================== API ROUTES ==================
+const { csrfProtection } = require('./middleware/security');
+
 app.use('/api/health', healthRoutes);
+
+// Apply CSRF protection to all other API routes
+// Note: Initial login/register won't have a token yet, but they usually don't need CSRF 
+// because they are the "entry" points. However, we can exclude them explicitly.
+app.use('/api', (req, res, next) => {
+    const excludedPaths = ['/auth/login', '/auth/register', '/auth/google-sync', '/auth/guest-login', '/health'];
+    if (excludedPaths.some(path => req.path.startsWith(path))) {
+        return next();
+    }
+    csrfProtection(req, res, next);
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/providers', providersRoutes);
 app.use('/api/services', servicesRoutes);
@@ -186,7 +200,13 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wheel', wheelRoutes);
-app.use('/api/debug', debugAuthRoutes);
+// Only load debug routes in development mode to prevent data exposure
+if (process.env.NODE_ENV !== 'production') {
+    app.use('/api/debug', debugAuthRoutes);
+} else {
+    // Explicitly handle it to avoid 404 confusion for developers in prod
+    app.get('/api/debug/*', (req, res) => res.status(403).json({ error: 'Debug endpoints disabled in production' }));
+}
 
 // 📊 Prometheus Metrics Scraper Endpoint (Protected — localhost scraper only)
 const { register } = require('./utils/metrics');

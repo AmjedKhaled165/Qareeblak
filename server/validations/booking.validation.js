@@ -1,7 +1,6 @@
 const { z } = require('zod');
 
 const checkoutSchema = z.object({
-    userId: z.union([z.number().int().positive(), z.string().regex(/^\d+$/)]).optional(),
     items: z.array(z.object({
         providerId: z.number().int().positive('معرف مقدم الخدمة غير صالح'),
         providerName: z.string().min(1, 'اسم مقدم الخدمة مطلوب'),
@@ -16,7 +15,8 @@ const checkoutSchema = z.object({
     }).optional(),
     userPrizeId: z.number().int().positive().optional(),
     promoCode: z.string().max(50).optional(),
-    useWallet: z.boolean().optional().default(false)
+    useWallet: z.boolean().optional().default(false),
+    idempotencyKey: z.string().max(100).optional()
 });
 
 const createBookingSchema = z.object({

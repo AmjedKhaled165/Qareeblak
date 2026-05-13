@@ -14,25 +14,24 @@ if (!JWT_ACCESS_SECRET) {
     process.exit(1);
 }
 
-// In-memory OTP storage for registration (MVP approach)
-// Keys: email, Values: { otp: string, expiresAt: number }
-const registrationOtps = new Map();
+const { client: redisClient } = require('../utils/redis');
+
+// NOTE: in-memory registrationOtps Map has been removed in favor of Redis for scalability.
 
 class AuthService {
     generateTokens(user, isGuest = false) {
-        // Access Token: Never expires (as requested by user)
+        // [SECURITY] Access Token: Short-lived (1 hour) for minimal compromise window
         const accessToken = jwt.sign(
             { id: user.id, email: user.email, type: user.user_type, isGuest, v: user.token_version || 1 },
             JWT_ACCESS_SECRET,
-            { expiresIn: '3650d' }
+            { expiresIn: '1h' }
         );
 
-        // Refresh Token: Never expires
-        // Includes version so that invalidating sessions kills refresh tokens too
+        // [SECURITY] Refresh Token: Longer-lived (30 days) but rotated on use
         const refreshToken = jwt.sign(
             { id: user.id, email: user.email, type: 'refresh', v: user.token_version || 1 },
             JWT_REFRESH_SECRET,
-            { expiresIn: '3650d' }
+            { expiresIn: '30d' }
         );
 
         return { accessToken, refreshToken, token: accessToken };
@@ -44,18 +43,29 @@ class AuthService {
             throw new AppError('البريد الإلكتروني مسجل مسبقاً', 400);
         }
 
-        // Generate 6-digit OTP securely
-        const otpCode = crypto.randomInt(100000, 999999).toString();
-        const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-        registrationOtps.set(email, { otp: otpCode, expiresAt });
+        // Store OTP in Redis (High Reliability)
+        const otpKey = `otp:reg:${email}`;
+        if (redisClient && redisClient.status === 'ready') {
+            try {
+                await redisClient.set(otpKey, otpCode, 'EX', 600); // Expires in 10 minutes
+            } catch (redisErr) {
+                logger.error(`Failed to store OTP in Redis for ${email}: ${redisErr.message}`);
+                // Fallback: we cannot reliably store OTP, so we should warn but for now let it fail to be safe
+                throw new AppError('فشل نظام أكواد التحقق، يرجى المحاولة لاحقاً', 500);
+            }
+        } else {
+            logger.error(`Redis unavailable for OTP storage: ${email}`);
+            throw new AppError('خدمة التسجيل غير متاحة حالياً بسبب عطل فني (Redis)', 503);
+        }
 
         // Try to send via Nodemailer (if configured)
         try {
             const nodemailer = require('nodemailer');
             if (process.env.SMTP_USER && process.env.SMTP_PASS) {
                 const transporter = nodemailer.createTransport({
-                    service: 'gmail',
+                    host: process.env.SMTP_HOST || 'smtp.zoho.com',
+                    port: process.env.SMTP_PORT || 465,
+                    secure: true,
                     auth: {
                         user: process.env.SMTP_USER,
                         pass: process.env.SMTP_PASS
@@ -63,19 +73,30 @@ class AuthService {
                 });
 
                 await transporter.sendMail({
-                    from: `"Qareeblak" <${process.env.SMTP_USER}>`,
+                    from: `"Qareeblak | قريبلك" <${process.env.SMTP_USER}>`,
                     to: email,
-                    subject: 'رمز التحقق لتسجيل حساب جديد',
+                    subject: 'رمز التحقق لتسجيل حساب جديد 🚀',
                     html: `
-                        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; direction: rtl;">
-                            <h2>مرحباً بك في قريبلك!</h2>
-                            <p>رمز التحقق الخاص بك هو:</p>
-                            <h1 style="color: #4F46E5; letter-spacing: 5px; background: #f3f4f6; padding: 10px; border-radius: 10px; display: inline-block;">${otpCode}</h1>
-                            <p style="color: #666; font-size: 14px; mt-5">هذا الرمز صالح لمدة 10 دقائق.</p>
+                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc; direction: rtl;">
+                            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #e2e8f0;">
+                                <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 40px 20px; color: white;">
+                                    <h1 style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">مرحباً بك في أسرة قريبلك! 💙</h1>
+                                </div>
+                                <div style="padding: 40px 30px;">
+                                    <p style="color: #475569; font-size: 18px; margin-bottom: 30px; line-height: 1.6; font-weight: 500;">شكراً لانضمامك لأكبر منصة خدمات في أسيوط الجديدة. لتأكيد حسابك، يرجى استخدام رمز التحقق التالي:</p>
+                                    <div style="background-color: #f1f5f9; padding: 25px 40px; border-radius: 16px; border: 2px dashed #818cf8; display: inline-block; margin: 10px 0;">
+                                        <h2 style="margin: 0; color: #4f46e5; font-size: 46px; letter-spacing: 16px; font-weight: 900; text-shadow: 1px 1px 0px rgba(79,70,229,0.2);">${otpCode}</h2>
+                                    </div>
+                                    <p style="color: #64748b; font-size: 15px; margin-top: 35px; line-height: 1.5;">هذا الرمز صالح لمدة <strong style="color: #4f46e5;">10 دقائق</strong> فقط.<br>إذا لم تقم بطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p>
+                                </div>
+                                <div style="background-color: #f8fafc; padding: 20px; color: #94a3b8; font-size: 13px; border-top: 1px solid #f1f5f9;">
+                                    © ${new Date().getFullYear()} قريبلك المشاع - كل الحقوق محفوظة.
+                                </div>
+                            </div>
                         </div>
                     `
                 });
-                logger.info(`OTP Email sent successfully to ${email}`);
+                logger.info(`OTP Email sent successfully via Zoho to ${email}`);
             } else {
                 logger.warn(`SMTP credentials missing in .env. Mock OTP for ${email}: ${otpCode}`);
             }
@@ -92,21 +113,34 @@ class AuthService {
             throw new AppError('رمز التحقق (OTP) مطلوب لإنشاء الحساب', 400);
         }
 
-        const otpRecord = registrationOtps.get(email);
-        if (!otpRecord) {
-            throw new AppError('رمز التحقق غير صحيح أو لم يتم طلبه', 400);
+        const otpKey = `otp:reg:${email}`;
+        let storedOtp;
+
+        if (redisClient && redisClient.status === 'ready') {
+            try {
+                storedOtp = await redisClient.get(otpKey);
+            } catch (redisErr) {
+                logger.error(`Failed to get OTP from Redis for ${email}: ${redisErr.message}`);
+                throw new AppError('حدث خطأ في النظام، يرجى المحاولة لاحقاً', 500);
+            }
+        } else {
+            throw new AppError('نظام التحقق غير متاح حالياً، يرجى المحاولة لاحقاً', 503);
         }
 
-        if (Date.now() > otpRecord.expiresAt) {
-            registrationOtps.delete(email);
-            throw new AppError('رمز التحقق منتهي الصلاحية، يرجى طلب رمز جديد', 400);
+        if (!storedOtp) {
+            throw new AppError('رمز التحقق غير صحيح أو منتهي الصلاحية', 400);
         }
 
-        if (String(otpRecord.otp) !== String(otp).trim()) {
+        if (String(storedOtp) !== String(otp).trim()) {
             throw new AppError('رمز التحقق غير صحيح', 400);
         }
 
-        registrationOtps.delete(email);
+        // Clean up OTP after successful use
+        try {
+            await redisClient.del(otpKey);
+        } catch (delErr) {
+            logger.warn(`Failed to delete used OTP for ${email}: ${delErr.message}`);
+        }
 
         const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
         if (existingUser.rows.length > 0) {
@@ -493,10 +527,14 @@ class AuthService {
                 throw new AppError('لقد انتهت صلاحية هذه الجلسة. يرجى تسجيل الدخول مجدداً.', 401);
             }
 
-            // Issue new short-lived access token and a new refresh token (rotation)
+            // [SECURITY ROTATION] Issue new short-lived access token and a NEW refresh token
+            // This is the industry standard "Refresh Token Rotation" pattern.
             return this.generateTokens(user);
         } catch (err) {
             if (err instanceof AppError) throw err;
+            if (err.name === 'TokenExpiredError') {
+                throw new AppError('انتهت صلاحية جلسة التحديث. يرجى تسجيل الدخول مجدداً.', 401);
+            }
             throw new AppError('جلسة منتهية أو توكن غير صالح. يرجى تسجيل الدخول.', 401);
         }
     }

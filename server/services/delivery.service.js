@@ -60,17 +60,16 @@ class DeliveryService {
                 return !hasSupervisor && !closed;
             }).slice(0, 10);
 
-            for (const order of backfillCandidates) {
-                try {
-                    const assigned = await performAutoAssign(order.id, requesterId, null, String(order.status || 'pending'));
-                    if (assigned) {
-                        order.supervisor_id = assigned.id;
-                        order.supervisor_name = assigned.name;
+            // Asynchronously process backfill so we don't block the GET request response time
+            setImmediate(async () => {
+                for (const order of backfillCandidates) {
+                    try {
+                        await performAutoAssign(order.id, requesterId, null, String(order.status || 'pending'));
+                    } catch (e) {
+                        logger.error(`[OrderBackfill] Failed auto-assign for order #${order.id}:`, e.message || e);
                     }
-                } catch (e) {
-                    logger.error(`[OrderBackfill] Failed auto-assign for order #${order.id}:`, e.message || e);
                 }
-            }
+            });
         }
 
         return result;
@@ -439,7 +438,7 @@ class DeliveryService {
             await client.query('BEGIN');
 
             const orderRes = await client.query(
-                `SELECT id, supervisor_id, status FROM delivery_orders WHERE id = $1 FOR UPDATE`,
+                `SELECT id, supervisor_id, courier_id, status FROM delivery_orders WHERE id = $1 FOR UPDATE`,
                 [orderId]
             );
             if (!orderRes.rows.length) {
@@ -447,6 +446,13 @@ class DeliveryService {
             }
 
             const order = orderRes.rows[0];
+            const blockedStatuses = ['delivered', 'cancelled', 'تم التوصيل'];
+            if (blockedStatuses.includes(String(order.status || '').toLowerCase())) {
+                throw new AppError('لا يمكن تعيين مندوب لطلب منتهي أو ملغي', 400);
+            }
+            if (Number(order.courier_id) === courierId) {
+                throw new AppError('هذا الطلب معين بالفعل لهذا المندوب', 400);
+            }
             if (isSupervisor && Number(order.supervisor_id) !== Number(userId)) {
                 throw new AppError('لا يمكنك تعيين مندوب لطلب خارج مسؤوليتك', 403);
             }

@@ -33,6 +33,7 @@ router.post('/google-sync', authLimiter, authController.googleSync);
 
 // Refresh Token
 router.post('/refresh', authLimiter, authController.refreshToken);
+router.post('/logout', authController.logout);
 
 
 // Protected routes (require valid JWT token)

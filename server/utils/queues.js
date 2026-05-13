@@ -169,6 +169,83 @@ const initializeWorkers = async () => {
             `);
             logger.info(`[Maintenance] Guest cleanup: removed ${result.rowCount} stale guest accounts`);
         }
+
+        // [ENTERPRISE] Asynchronous Side-Effects Worker
+        // Handles complex logic after a booking is updated without blocking the user
+        if (job.name === 'new_booking_created') {
+            const { parentId, bookingIds, halanOrderId, providerIds, userId } = job.data;
+            logger.info(`[Worker] 🚀 Processing new booking creation side-effects for Parent #${parentId}`);
+            
+            try {
+                if (halanOrderId) {
+                    const { performAutoAssign } = require('./driver-assignment');
+                    logger.info(`[Worker] Triggering immediate Auto-Assign for Halan Order #${halanOrderId}`);
+                    // Trigger auto-assign to a supervisor as soon as the order is created
+                    await performAutoAssign(halanOrderId, userId, null, 'pending').catch(e => logger.warn(`AutoAssign failed on creation: ${e.message}`));
+                }
+                logger.info(`[Worker] ✅ new_booking_created completed for Parent #${parentId}`);
+            } catch (err) {
+                logger.error(`[Worker] ❌ Failed new_booking_created for ${parentId}: ${err.message}`);
+                throw err;
+            }
+        }
+
+        if (job.name === 'booking-side-effects') {
+            const { bookingId, status, oldStatus, userId, price } = job.data;
+            logger.info(`[Worker] 🚀 Processing side-effects for booking ${bookingId} (${status})`);
+            
+            const bookingRepo = require('../repositories/booking.repository');
+            const { syncParentOrderStatus } = require('./parent-sync');
+            const { performAutoAssign } = require('./driver-assignment');
+            
+            try {
+                // 1. Get full booking context
+                const booking = await bookingRepo.getBookingToUpdate(bookingId);
+                if (!booking) return;
+
+                // 2. Financial Calculations (Only on completion)
+                if (status === 'completed' && booking.price > 0) {
+                    const rate = Number(booking.commissionRate) || 10.00;
+                    const commission = (booking.price * (rate / 100));
+                    const net = booking.price - commission;
+                    await bookingRepo.updateBookingFinancials(bookingId, commission, net);
+                    logger.info(`[Worker] 💸 Financials calculated for #${bookingId}: Comm ${commission}`);
+                }
+
+                // 3. Halan Delivery Synchronization
+                if (booking.halan_order_id) {
+                    let halanStatus = null;
+                    if (status === 'confirmed') halanStatus = 'pending';
+                    if (status === 'completed') halanStatus = 'ready_for_pickup';
+                    if (status === 'cancelled') halanStatus = 'cancelled';
+
+                    if (halanStatus) {
+                        await bookingRepo.updateDeliveryOrderStatus(booking.halan_order_id, halanStatus);
+                        
+                        // If ready for pickup, trigger auto-assignment
+                        if (halanStatus === 'ready_for_pickup') {
+                            await performAutoAssign(booking.halan_order_id, booking.provider_id, null, 'ready_for_pickup').catch(e => logger.warn(`AutoAssign failed: ${e.message}`));
+                        }
+                        logger.info(`[Worker] 🚚 Halan sync: ${booking.halan_order_id} -> ${halanStatus}`);
+                    }
+                }
+
+                // 4. Parent Order Sync
+                if (booking.parent_order_id) {
+                    await syncParentOrderStatus(booking.parent_order_id).catch(e => logger.error(`ParentSync failed: ${e.message}`));
+                }
+
+                // 5. Anti-Fraud
+                if (status === 'cancelled' && userId) {
+                    await bookingRepo.incrementUserCancellation(userId);
+                }
+
+                logger.info(`[Worker] ✅ Side-effects completed for booking ${bookingId}`);
+            } catch (err) {
+                logger.error(`[Worker] ❌ Failed side-effects for ${bookingId}: ${err.message}`);
+                throw err; // Retry
+            }
+        }
     }, { connection });
 
     // Circuit breaker: silence & close after 5 rapid errors to prevent the memory-flooding loop

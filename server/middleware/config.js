@@ -3,6 +3,7 @@ const compression = require('compression');
 const path = require('path');
 const crypto = require('crypto');
 const pinoHttp = require('pino-http');
+const cookieParser = require('cookie-parser');
 const logger = require('../utils/logger');
 const { publicLimiter, securityHeaders, xssSanitizer } = require('./security');
 const { httpRequestDurationMicroseconds, httpRequestsTotal } = require('../utils/metrics');
@@ -43,6 +44,31 @@ module.exports = function configureMiddleware(app, express) {
     app.use(cors(corsOptions));
     app.options('*', cors(corsOptions));
 
+    // [ELITE OBSERVABILITY] Request Logger using Pino-Http
+    // Initialized early to trace the entire lifecycle
+    app.use(pinoHttp({
+        logger,
+        genReqId: (req) => {
+            const incoming = req.headers['x-request-id'];
+            const id = (incoming && typeof incoming === 'string' && incoming.length < 64)
+                ? incoming
+                : crypto.randomUUID();
+            req.id = id;
+            return id;
+        },
+        customSuccessMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
+        customErrorMessage: (req, res, err) => `${req.method} ${req.url} ${res.statusCode} — ${err.message}`,
+        customProps: (req) => ({ requestId: req.id }),
+        autoLogging: {
+            ignore: (req) => req.url.includes('/api/health')
+        }
+    }));
+
+    app.use((req, res, next) => {
+        if (req.id) res.setHeader('X-Request-ID', req.id);
+        next();
+    });
+
     // Compression middleware
     app.use(compression({
         filter: (req, res) => {
@@ -54,6 +80,7 @@ module.exports = function configureMiddleware(app, express) {
     }));
 
     // Body parsing (Strict limit against Memory Exhaustion/DoS)
+    app.use(cookieParser());
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
@@ -100,33 +127,4 @@ module.exports = function configureMiddleware(app, express) {
 
     // Static files
     app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-
-    // Request Logger using Pino-Http (Ultra-fast, structured logging)
-    // genReqId: assigns a unique UUID to every request for cross-worker tracing
-    app.use(pinoHttp({
-        logger,
-        genReqId: (req) => {
-            // Honour upstream X-Request-ID (from load balancer / Nginx) or generate one
-            const incoming = req.headers['x-request-id'];
-            const id = (incoming && typeof incoming === 'string' && incoming.length < 64)
-                ? incoming
-                : crypto.randomUUID();
-            req.id = id;
-            return id;
-        },
-        customSuccessMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
-        customErrorMessage: (req, res, err) => `${req.method} ${req.url} ${res.statusCode} — ${err.message}`,
-        // Attaches request ID to every log line for distributed tracing
-        customProps: (req) => ({ requestId: req.id }),
-        // Don't log health-check noise
-        autoLogging: {
-            ignore: (req) => req.url.includes('/api/health')
-        }
-    }));
-
-    // Propagate request ID back to client so frontend can include it in bug reports
-    app.use((req, res, next) => {
-        if (req.id) res.setHeader('X-Request-ID', req.id);
-        next();
-    });
 };

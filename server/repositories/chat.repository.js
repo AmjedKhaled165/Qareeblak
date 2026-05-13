@@ -151,6 +151,7 @@ class ChatRepository {
     }
 
     async markMessagesAsRead(consultationId, userId) {
+        // [FIX] IDs are VARCHAR(100), ensuring types match in the query
         const result = await pool.query(`
             UPDATE chat_messages 
             SET is_read = true 

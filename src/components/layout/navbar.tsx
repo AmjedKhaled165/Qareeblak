@@ -25,15 +25,28 @@ export function Navbar() {
     const lastScrolledRef = useRef(false);
     const pathname = usePathname();
 
+    const [isVisible, setIsVisible] = useState(true);
+    const lastScrollY = useRef(0);
+
     useEffect(() => {
         const handleScroll = () => {
-            const nextScrolled = window.scrollY > 20;
+            const currentScrollY = window.scrollY;
+            const nextScrolled = currentScrollY > 20;
+            
+            // Hide on scroll down, show on scroll up
+            if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
+                setIsVisible(false);
+            } else {
+                setIsVisible(true);
+            }
+            
             if (nextScrolled !== lastScrolledRef.current) {
                 lastScrolledRef.current = nextScrolled;
                 setScrolled(nextScrolled);
             }
+            lastScrollY.current = currentScrollY;
         };
-        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
         handleScroll();
         
         // Check if there is a logged in Halan Partner
@@ -70,28 +83,30 @@ export function Navbar() {
     };
 
     return (
-        <header className={`sticky top-0 z-50 w-full border-b transition-all duration-500 ${
+        <header className={`sticky top-0 z-50 w-full transition-all duration-500 ${
+            isVisible ? "translate-y-0" : "-translate-y-full"
+        } ${
             scrolled 
-            ? "border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg shadow-lg" 
-            : "border-transparent bg-transparent py-2 sm:py-4"
+            ? "border-b border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-lg shadow-lg" 
+            : "border-transparent bg-transparent py-1 sm:py-4"
         }`}>
             <div className={`w-full max-w-[1600px] mx-auto flex items-center justify-between px-4 sm:px-8 xl:px-12 transition-all duration-500 ${
-                scrolled ? "h-16 sm:h-20" : "h-20 sm:h-24"
+                scrolled ? "h-14 sm:h-20" : "h-16 sm:h-24"
             }`}>
 
                 {/* 1. Logo - Far Right */}
                 <div className="flex flex-1 items-center justify-start shrink-0">
                     <Link
                         href={currentUser?.type === 'provider' ? "/provider-dashboard" : "/"}
-                        className="flex items-center gap-2.5 transition-transform hover:scale-105 group"
+                        className="flex items-center gap-2 transition-transform hover:scale-105 group"
                     >
-                        <div className={`relative flex items-center justify-center bg-white dark:bg-slate-900 rounded-2xl p-1.5 shadow-sm border border-slate-100 dark:border-slate-800 group-hover:shadow-md transition-all duration-500 ${
+                        <div className={`relative flex items-center justify-center bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl p-1 shadow-sm border border-slate-100 dark:border-slate-800 group-hover:shadow-md transition-all duration-500 ${
                             scrolled ? "scale-90" : "scale-100 shadow-xl"
                         }`}>
                             <img 
                                 src="/Qareeblak_Logo_rbg.png?v=20260327" 
                                 alt="قريبلك" 
-                                className="h-10 md:h-12 w-auto object-contain transition-all duration-500"
+                                className="h-8 md:h-12 w-auto object-contain transition-all duration-500"
                             />
                         </div>
                         <span className={`font-black font-cairo bg-clip-text text-transparent bg-gradient-to-l from-indigo-700 to-violet-600 dark:from-indigo-400 dark:to-violet-400 tracking-tight hidden sm:inline transition-all duration-500 ${

@@ -4,12 +4,16 @@ import { Hero3DCanvas } from "@/components/animations/Hero3DCanvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Wrench, Utensils, Pill, Car, Zap, Home, ShoppingBag, ShieldCheck, Star, Clock, CheckCircle2, ChevronLeft, Phone, Store } from "lucide-react";
+import { Search, Wrench, Utensils, Pill, Car, Zap, Home, ShoppingBag, ShieldCheck, Star, Clock, CheckCircle2, ChevronLeft, Phone, Store, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { ScrollReveal } from "@/components/animations/ScrollReveal";
+import { GradientText } from "@/components/animations/GradientText";
+import { BlurIn } from "@/components/animations/BlurIn";
+import { FloatingParticles } from "@/components/animations/FloatingParticles";
 
 export default function HomeClient() {
   const { currentUser } = useAppStore();
@@ -47,7 +51,8 @@ export default function HomeClient() {
   const popularSearches = ["سباك", "كهربائي", "صيدلية", "مشويات", "ونش انقاذ"];
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 selection:bg-primary/30">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 selection:bg-primary/30 overflow-x-hidden">
+      <FloatingParticles />
 
       {/* Active Order Banner */}
       {addToOrderId && (
@@ -124,7 +129,7 @@ export default function HomeClient() {
             </motion.div>
 
             <motion.div className="overflow-hidden pb-4">
-              <motion.h1 
+              <motion.h1
                 variants={{
                   hidden: { y: "100%", opacity: 0, rotateX: -20 },
                   visible: { y: 0, opacity: 1, rotateX: 0, transition: { duration: 0.8, ease: [0.25, 1, 0.5, 1] } }
@@ -133,12 +138,9 @@ export default function HomeClient() {
                 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 dark:text-white font-cairo leading-[1.15] md:leading-[1.1]"
               >
                 كل خدمات مدينتك.. <br className="hidden md:block" />
-                <span 
-                  className="text-transparent bg-clip-text bg-gradient-to-l from-primary via-fuchsia-500 to-indigo-600 py-2 inline-block drop-shadow-sm"
-                  style={{ backgroundSize: "200% auto", animation: "gradient-shift 5s linear infinite" }}
-                >
+                <GradientText animated className="py-2 inline-block drop-shadow-sm">
                   بضغطة زر واحدة 🚀
-                </span>
+                </GradientText>
               </motion.h1>
             </motion.div>
 
@@ -202,11 +204,15 @@ export default function HomeClient() {
         </div>
       </section>
 
-      {/* Trust Signals Section - Professional SaaS Style */}
+      {/* Trust Signals Section - Enhanced with Animations */}
       <section className="py-24 border-y border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-lg relative overflow-hidden">
         {/* Animated Background Mesh */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full -z-10 pointer-events-none opacity-20">
-            <div className="absolute top-0 right-1/4 w-64 h-64 bg-primary/20 rounded-full blur-[100px] animate-pulse" />
+            <motion.div
+              className="absolute top-0 right-1/4 w-64 h-64 bg-primary/20 rounded-full blur-[100px]"
+              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 8, repeat: Infinity }}
+            />
             <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-[120px]" />
         </div>
 
@@ -217,22 +223,24 @@ export default function HomeClient() {
               { icon: Star, title: "تقييمات حقيقية 100%", desc: "قراراتك معتمدة على تجارب تقييمات عملاء حقيقيين فقط.", color: "yellow" },
               { icon: Clock, title: "تواصل سريع ومباشر", desc: "توصل للمزود واتفق معاه بضغطة زر وبدون عمولات خارجية.", color: "emerald" }
             ].map((feature, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: i * 0.15, ease: "easeOut" }}
-                viewport={{ once: true }}
-                className="flex flex-col items-center space-y-5 p-6 rounded-[2rem] hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors group card-hover"
-              >
-                <div className={`w-20 h-20 bg-${feature.color}-500/10 text-${feature.color}-600 dark:text-${feature.color}-400 rounded-3xl flex items-center justify-center shadow-sm border border-${feature.color}-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
-                  <feature.icon className="w-10 h-10" />
-                </div>
-                <div className="space-y-3">
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white font-cairo leading-tight">{feature.title}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 font-cairo font-medium text-lg leading-relaxed">{feature.desc}</p>
-                </div>
-              </motion.div>
+              <ScrollReveal key={i} delay={i * 0.1}>
+                <motion.div
+                  className="flex flex-col items-center space-y-5 p-6 rounded-[2rem] hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors group card-hover"
+                  whileHover={{ y: -8 }}
+                >
+                  <motion.div
+                    className={`w-20 h-20 bg-${feature.color}-500/10 text-${feature.color}-600 dark:text-${feature.color}-400 rounded-3xl flex items-center justify-center shadow-sm border border-${feature.color}-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 3, delay: i * 0.2, repeat: Infinity }}
+                  >
+                    <feature.icon className="w-10 h-10" />
+                  </motion.div>
+                  <div className="space-y-3">
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white font-cairo leading-tight">{feature.title}</h3>
+                    <p className="text-slate-500 dark:text-slate-400 font-cairo font-medium text-lg leading-relaxed">{feature.desc}</p>
+                  </div>
+                </motion.div>
+              </ScrollReveal>
             ))}
           </div>
         </div>
@@ -295,31 +303,40 @@ export default function HomeClient() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 md:gap-8">
             {categories.map((cat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ delay: index * 0.1, type: "spring", stiffness: 200, damping: 20 }}
-                whileHover={{ y: -12 }}
-                className="h-full"
-              >
-                <Link href={`/explore?category=${cat.name}${addToOrderId ? `&addToOrderId=${addToOrderId}` : ""}`} className="block h-full group">
-                  <div className={`relative p-5 sm:p-8 md:p-10 rounded-[2.5rem] border-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg transition-all duration-500 h-full flex flex-col items-center justify-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-2xl border-slate-100 dark:border-slate-800 hover:border-primary/40 dark:hover:border-primary/40 group-hover:bg-white dark:group-hover:bg-slate-900 card-hover`}>
-                    
-                    {/* Floating Orb behind icon on hover */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-primary/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    
-                    <div className={`w-20 h-20 md:w-24 md:h-24 flex items-center justify-center rounded-3xl bg-white dark:bg-slate-950 shadow-md mb-6 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 relative z-10 border border-slate-100 dark:border-slate-800`}>
-                      <cat.icon className="h-10 w-10 md:h-12 md:w-12 text-primary" />
+              <BlurIn key={index} delay={index * 0.05} className="h-full">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-100px" }}
+                  transition={{ delay: index * 0.1, type: "spring", stiffness: 200, damping: 20 }}
+                  whileHover={{ y: -12 }}
+                  className="h-full"
+                >
+                  <Link href={`/explore?category=${cat.name}${addToOrderId ? `&addToOrderId=${addToOrderId}` : ""}`} className="block h-full group">
+                    <div className={`relative p-5 sm:p-8 md:p-10 rounded-[2.5rem] border-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-lg transition-all duration-500 h-full flex flex-col items-center justify-center text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-2xl border-slate-100 dark:border-slate-800 hover:border-primary/40 dark:hover:border-primary/40 group-hover:bg-white dark:group-hover:bg-slate-900 card-hover`}>
+
+                      {/* Floating Orb behind icon on hover */}
+                      <motion.div
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-primary/20 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
+
+                      <div className={`w-20 h-20 md:w-24 md:h-24 flex items-center justify-center rounded-3xl bg-white dark:bg-slate-950 shadow-md mb-6 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 relative z-10 border border-slate-100 dark:border-slate-800`}>
+                        <cat.icon className="h-10 w-10 md:h-12 md:w-12 text-primary" />
+                      </div>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-xl md:text-2xl font-cairo leading-tight relative z-10">{cat.name}</h3>
+
+                      {/* Hover Glow line at the bottom */}
+                      <motion.div
+                        className="absolute bottom-6 w-12 h-1 bg-primary/40 rounded-full opacity-0 group-hover:opacity-100 group-hover:w-20 transition-all duration-500"
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
                     </div>
-                    <h3 className="font-bold text-slate-900 dark:text-white text-xl md:text-2xl font-cairo leading-tight relative z-10">{cat.name}</h3>
-                    
-                    {/* Hover Glow line at the bottom */}
-                    <div className="absolute bottom-6 w-12 h-1 bg-primary/40 rounded-full opacity-0 group-hover:opacity-100 group-hover:w-20 transition-all duration-500" />
-                  </div>
-                </Link>
-              </motion.div>
+                  </Link>
+                </motion.div>
+              </BlurIn>
             ))}
           </div>
         </div>

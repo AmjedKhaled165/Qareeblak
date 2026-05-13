@@ -150,12 +150,18 @@ async function invalidateUserCache(userId) {
  */
 const verifyToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
+    let token = null;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'غير مصرح - يرجى تسجيل الدخول' });
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    } else if (req.cookies && req.cookies.accessToken) {
+        // [SECURITY] Support for HttpOnly cookies (Protection against XSS)
+        token = req.cookies.accessToken;
     }
 
-    const token = authHeader.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ error: 'غير مصرح - يرجى تسجيل الدخول' });
+    }
 
     try {
         const decoded = verifyJWT(token, 'access');

@@ -101,8 +101,25 @@ textarea {
   @apply bg-white/70 backdrop-blur-md border border-white/20;
 }
 
-.dark .glass {
-  @apply bg-black/70 border-white/10;
+@utility glass-premium {
+  @apply bg-white/10 dark:bg-black/40 backdrop-blur-2xl border border-white/20 dark:border-white/5;
+}
+
+/* ═══ Animations ═══ */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* ═══ Cross-Browser Compatibility ═══ */

@@ -518,12 +518,30 @@ export default function TrackOrderPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900 flex items-center justify-center">
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full"
-                />
+            <div className="min-h-screen bg-slate-900 flex flex-col p-4 space-y-6" dir="rtl">
+                {/* Skeleton Header */}
+                <div className="flex items-center gap-4 py-4">
+                    <div className="w-10 h-10 bg-slate-800 rounded-full animate-pulse" />
+                    <div className="space-y-2">
+                        <div className="w-24 h-4 bg-slate-800 rounded animate-pulse" />
+                        <div className="w-16 h-3 bg-slate-800 rounded animate-pulse" />
+                    </div>
+                </div>
+
+                {/* Skeleton Hero */}
+                <div className="w-full h-48 bg-slate-800 rounded-3xl animate-pulse relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                </div>
+
+                {/* Skeleton Timeline */}
+                <div className="bg-slate-800/50 rounded-2xl p-6 space-y-8">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="flex gap-4 items-center">
+                            <div className="w-8 h-8 bg-slate-700 rounded-full animate-pulse" />
+                            <div className="w-32 h-4 bg-slate-700 rounded animate-pulse" />
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }
@@ -757,36 +775,50 @@ export default function TrackOrderPage() {
             </div>
 
             <div className="max-w-lg mx-auto p-4 space-y-6 pb-32">
-                {/* Status Hero */}
+                {/* Status Hero - Premium Overhaul */}
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600/20 to-indigo-600/20 dark:from-violet-600/20 dark:to-indigo-600/20 border border-slate-200 dark:border-slate-700 p-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 border border-white/5 p-8 shadow-2xl"
                 >
-                    {/* Animated Background */}
-                    <div className="absolute inset-0 overflow-hidden">
-                        <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
-                            className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-violet-500/20 to-transparent rounded-full blur-3xl"
-                        />
+                    {/* Dynamic Background Blobs */}
+                    <div className="absolute inset-0 opacity-40">
+                        <div className="absolute -top-24 -right-24 w-64 h-64 bg-violet-600 rounded-full blur-[100px] animate-pulse" />
+                        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-600 rounded-full blur-[100px] animate-pulse" />
                     </div>
 
-                    <div className="relative z-10 text-center">
+                    <div className="relative z-10 flex flex-col items-center">
                         <motion.div
-                            animate={{ scale: [1, 1.1, 1] }}
+                            animate={{ 
+                                scale: [1, 1.05, 1],
+                                boxShadow: currentStatus.step === 5 
+                                    ? ['0 0 0 0px rgba(34,197,94,0.4)', '0 0 0 20px rgba(34,197,94,0)']
+                                    : ['0 0 0 0px rgba(139,92,246,0.4)', '0 0 0 20px rgba(139,92,246,0)']
+                            }}
                             transition={{ repeat: Infinity, duration: 2 }}
-                            className={`w-24 h-24 mx-auto rounded-full ${currentStatus.bgColor}/20 flex items-center justify-center mb-4`}
+                            className={`w-28 h-28 rounded-[2rem] ${currentStatus.bgColor} flex items-center justify-center mb-6 shadow-2xl relative overflow-hidden`}
                         >
-                            <StatusIcon className={`w-12 h-12 ${currentStatus.color}`} />
+                            <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                            <StatusIcon className="w-14 h-14 text-white relative z-10" />
                         </motion.div>
-                        <h2 className={`text-2xl font-black mb-2 ${currentStatus.color}`}>
+                        
+                        <motion.h2 
+                            layoutId="status-label"
+                            className="text-3xl font-black mb-3 bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent"
+                        >
                             {currentStatus.label}
-                        </h2>
+                        </motion.h2>
+                        
                         {!['delivered', 'cancelled'].includes(normalizeTrackingStatus(order.status)) && (
-                            <p className="text-slate-600 dark:text-slate-300 text-sm">
-                                يتم تحديث الحالة تلقائياً كل 30 ثانية
-                            </p>
+                            <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full backdrop-blur-md border border-white/10">
+                                <span className="flex h-2 w-2 relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
+                                </span>
+                                <p className="text-violet-300 text-[11px] font-bold tracking-wider uppercase">
+                                    تتبع مباشر
+                                </p>
+                            </div>
                         )}
                     </div>
                 </motion.div>
@@ -1150,44 +1182,51 @@ export default function TrackOrderPage() {
                     })()}
                 </div>
 
-                {/* Fixed Bottom Actions */}
-                <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black/80 backdrop-blur-xl border-t border-slate-200 dark:border-white/10 p-4 space-y-3">
-                    <div className="max-w-lg mx-auto flex gap-3">
-                        {/* Add Item Button - Redirects to Services Browse */}
+                {/* Premium Floating Actions */}
+                <div className="fixed bottom-6 left-6 right-6 z-40 max-w-lg mx-auto">
+                    <motion.div 
+                        initial={{ y: 100 }}
+                        animate={{ y: 0 }}
+                        className="glass-premium rounded-[2rem] p-3 flex gap-2 shadow-2xl border-white/20"
+                    >
+                        {/* Add Item Button */}
                         {canAddItems && (
-                            <button
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
                                 onClick={() => {
                                     if (order) router.push(`/explore?addToOrderId=${order.id}`);
                                 }}
-                                className="flex-1 py-4 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:from-green-700 hover:to-emerald-700 transition text-white"
+                                className="flex-1 py-4 bg-green-500 text-white rounded-[1.5rem] font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:brightness-90 transition-all"
                             >
                                 <Plus className="w-5 h-5" />
-                                أضف للطلب
-                            </button>
+                                <span className="hidden sm:inline">أضف للطلب</span>
+                                <span className="sm:hidden text-xs">أضف</span>
+                            </motion.button>
                         )}
 
-                        {/* Edit Order Button - Replaces Customer Support, Only within 5 minutes */}
-                        {canModify && order && order.status !== 'cancelled' && order.status !== 'delivered' ? (
-                            <button
+                        {/* Edit Order Button */}
+                        {canModify && order && order.status !== 'cancelled' && order.status !== 'delivered' && (
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
                                 onClick={() => setShowEditModal(true)}
-                                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl font-bold flex items-center justify-center gap-2 transition"
+                                className="flex-1 py-4 bg-white/10 hover:bg-white/20 text-white rounded-[1.5rem] font-bold flex items-center justify-center gap-2 transition-all backdrop-blur-md"
                             >
                                 <Edit3 className="w-5 h-5" />
-                                تعديل الطلب
-                            </button>
-                        ) : null}
-
-                        {/* Cancel Button - Only within 5 minutes */}
-                        {canModify && order && order.status !== 'cancelled' && order.status !== 'delivered' && (
-                            <button
-                                onClick={() => setShowCancelModal(true)}
-                                className="flex-1 py-4 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-500 rounded-xl font-bold flex items-center justify-center gap-2 transition border border-red-200 dark:border-red-500/50"
-                            >
-                                <X className="w-5 h-5" />
-                                إلغاء الطلب
-                            </button>
+                                <span className="hidden sm:inline">تعديل</span>
+                            </motion.button>
                         )}
-                    </div>
+
+                        {/* Cancel Button */}
+                        {canModify && order && order.status !== 'cancelled' && order.status !== 'delivered' && (
+                            <motion.button
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setShowCancelModal(true)}
+                                className="w-14 py-4 bg-red-500/10 text-red-500 rounded-[1.5rem] font-bold flex items-center justify-center transition-all border border-red-500/20"
+                            >
+                                <X className="w-6 h-6" />
+                            </motion.button>
+                        )}
+                    </motion.div>
                 </div>
 
                 {/* Edit Order Modal */}

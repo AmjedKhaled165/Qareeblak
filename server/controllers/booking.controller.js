@@ -4,6 +4,10 @@ const db = require('../db');
 const catchAsync = require('../utils/catchAsync');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
+const { client: redisClient } = require('../utils/redis');
+
+// [ENTERPRISE] Idempotency TTL (24 hours)
+const IDEMPOTENCY_TTL = 24 * 60 * 60;
 
 /**
  * GET /bookings — Admin-only: Retrieve all platform bookings with cursor pagination
@@ -71,6 +75,15 @@ exports.checkout = catchAsync(async (req, res, next) => {
     }
 
     const idempotencyKey = req.headers['idempotency-key'] || null;
+    const cacheKey = `idempotency:checkout:${idempotencyKey}`;
+
+    if (idempotencyKey && redisClient?.status === 'ready') {
+        const cachedResponse = await redisClient.get(cacheKey);
+        if (cachedResponse) {
+            logger.info(`♻️ [IDEMPOTENCY] Returning cached response for key: ${idempotencyKey}`);
+            return res.status(200).json(JSON.parse(cachedResponse));
+        }
+    }
 
     const checkoutResult = await bookingService.checkoutTransaction(authenticatedUser, items, addressInfo, {
         userPrizeId,
@@ -81,6 +94,11 @@ exports.checkout = catchAsync(async (req, res, next) => {
     });
 
     logger.info(`✅ [Elite] Checkout completed Parent: ${checkoutResult.parentId} for User: ${authenticatedUser}`);
+    
+    if (idempotencyKey && redisClient?.status === 'ready') {
+        await redisClient.set(cacheKey, JSON.stringify({ success: true, message: 'Order placed successfully', ...checkoutResult }), 'EX', IDEMPOTENCY_TTL);
+    }
+
     res.status(201).json({ success: true, message: 'Order placed successfully', ...checkoutResult });
 });
 
@@ -156,15 +174,23 @@ exports.getUserBookings = catchAsync(async (req, res, next) => {
 exports.getBookingById = catchAsync(async (req, res, next) => {
     const { id } = req.params;
 
+    // Handle reserved route keywords
     if (['provider', 'user', 'checkout', 'track'].includes(id)) {
         return next();
     }
 
+    // [SECURITY] Fetch booking with explicit IDOR check info
     const booking = await bookingRepo.getBookingInfoById(id);
-    if (!booking) throw new AppError('Booking not found', 404);
+    if (!booking) throw new AppError('الحجز غير موجود', 404);
 
-    if (String(booking.user_id) !== String(req.user.id) && String(booking.providerUserId) !== String(req.user.id) && req.user.role !== 'admin') {
-        throw new AppError('غير مصرح لك برؤية هذه التفاصيل', 403);
+    // [SECURITY] Verify ownership: Admin, Customer of the booking, or the Provider of the booking
+    const isCustomer = String(booking.user_id) === String(req.user.id);
+    const isProvider = String(booking.providerUserId) === String(req.user.id);
+    const isAdmin = req.user.role === 'admin' || req.user.user_type === 'admin';
+
+    if (!isCustomer && !isProvider && !isAdmin) {
+        logger.warn(`🚨 [IDOR ATTEMPT] User ${req.user.id} tried to access booking ${id} belonging to user ${booking.user_id}`);
+        throw new AppError('غير مصرح لك برؤية تفاصيل هذا الحجز', 403);
     }
 
     res.status(200).json(booking);
@@ -189,15 +215,68 @@ exports.updateStatus = catchAsync(async (req, res, next) => {
 
 exports.rescheduleAppointment = catchAsync(async (req, res, next) => {
     const { id } = req.params;
-    const { newDate, updatedBy } = req.body;
+    const { newDate } = req.body;
+    const idempotencyKey = req.headers['idempotency-key'];
 
-    const booking = await bookingService.reschedule(id, newDate, updatedBy, req.app.get('io'));
+    // [SECURITY] Force party identification from session/JWT role, not client body
+    // This prevents a customer from pretending to be a provider or vice versa
+    const isProvider = req.user.user_type === 'provider';
+    const party = isProvider ? 'provider' : 'customer';
+
+    // [SECURITY] IDOR Check: Ensure user is authorized for this specific booking
+    const bookingInfo = await bookingRepo.getBookingToUpdate(id);
+    if (!bookingInfo) throw new AppError('الحجز غير موجود', 404);
+
+    const isAuthorized = isProvider
+        ? String(bookingInfo.provider_id) === String(req.user.provider_id || (await bookingRepo.getProviderIdByUserId(req.user.id)))
+        : String(bookingInfo.user_id) === String(req.user.id);
+
+    if (!isAuthorized && req.user.role !== 'admin') {
+        throw new AppError('غير مصرح لك بتعديل موعد هذا الحجز', 403);
+    }
+
+    const cacheKey = `idempotency:reschedule:${idempotencyKey}`;
+    if (idempotencyKey && redisClient?.status === 'ready') {
+        const cachedResponse = await redisClient.get(cacheKey);
+        if (cachedResponse) return res.status(200).json(JSON.parse(cachedResponse));
+    }
+
+    const booking = await bookingService.reschedule(id, newDate, party, req.app.get('io'));
+    
+    if (idempotencyKey && redisClient?.status === 'ready') {
+        await redisClient.set(cacheKey, JSON.stringify({ success: true, message: 'تم تغيير الموعد بنجاح', booking }), 'EX', IDEMPOTENCY_TTL);
+    }
+
     res.status(200).json({ success: true, message: 'تم تغيير الموعد بنجاح', booking });
 });
 
 exports.acceptAppointment = catchAsync(async (req, res, next) => {
     const { id } = req.params;
-    const acceptedBy = req.body.acceptedBy || 'customer';
+
+    // [SECURITY] IDOR & Role Logic:
+    // If a provider rescheduled, ONLY the customer can accept.
+    // If a customer rescheduled, ONLY the provider can accept.
+    const bookingInfo = await bookingRepo.getBookingToUpdate(id);
+    if (!bookingInfo) throw new AppError('الحجز غير موجود', 404);
+
+    const isCustomer = String(bookingInfo.user_id) === String(req.user.id);
+    const pUserId = await bookingRepo.getUserIdByProviderId(bookingInfo.provider_id);
+    const isProvider = String(pUserId) === String(req.user.id);
+
+    // Determine who is accepting based on their identity
+    const acceptedBy = isProvider ? 'provider' : (isCustomer ? 'customer' : null);
+
+    if (!acceptedBy && req.user.role !== 'admin') {
+        throw new AppError('غير مصرح لك بتأكيد هذا الموعد', 403);
+    }
+
+    // Logic for transition check: Can't accept your own suggestion
+    if (bookingInfo.status === 'provider_rescheduled' && acceptedBy === 'provider') {
+        throw new AppError('يجب انتظار رد العميل على اقتراحك', 400);
+    }
+    if (bookingInfo.status === 'customer_rescheduled' && acceptedBy === 'customer') {
+        throw new AppError('يجب انتظار رد مقدم الخدمة على اقتراحك', 400);
+    }
 
     const booking = await bookingService.confirmAppointment(id, acceptedBy, req.app.get('io'));
     res.status(200).json({ success: true, message: 'تم تأكيد الموعد بنجاح', booking });

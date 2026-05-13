@@ -2,6 +2,37 @@ const authService = require('../services/auth.service');
 const catchAsync = require('../utils/catchAsync');
 const logger = require('../utils/logger');
 
+const crypto = require('crypto');
+
+// [SECURITY] Professional Cookie Configuration
+const COOKIE_OPTIONS = {
+    httpOnly: true, // Prevents JavaScript access (Immune to XSS)
+    secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS
+    sameSite: 'Lax', // Protects against some CSRF
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+};
+
+const ACCESS_COOKIE_OPTIONS = {
+    ...COOKIE_OPTIONS,
+    maxAge: 1 * 60 * 60 * 1000 // 1 hour
+};
+
+// [SECURITY] CSRF Cookie Option - MUST BE httpOnly: false for client to read and send in header
+const CSRF_COOKIE_OPTIONS = {
+    ...COOKIE_OPTIONS,
+    httpOnly: false, // Client-side JS needs to read this for Double-Submit Pattern
+    sameSite: 'Strict', // Strongest protection for CSRF cookie
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+};
+
+const setAuthCookies = (res, accessToken, refreshToken) => {
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    res.cookie('accessToken', accessToken, ACCESS_COOKIE_OPTIONS);
+    res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
+    res.cookie('csrfToken', csrfToken, CSRF_COOKIE_OPTIONS);
+    return csrfToken;
+};
+
 exports.sendRegisterOtp = catchAsync(async (req, res, next) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'البريد الإلكتروني مطلوب' });
@@ -16,16 +47,13 @@ exports.sendRegisterOtp = catchAsync(async (req, res, next) => {
 });
 
 exports.register = catchAsync(async (req, res, next) => {
-    // Validation is handled via middleware route
-    const { user, accessToken, refreshToken, token } = await authService.registerUser(req.body);
+    const { user, accessToken, refreshToken } = await authService.registerUser(req.body);
+    setAuthCookies(res, accessToken, refreshToken);
 
     logger.info(`User registered successfully: ${user.email}`);
     res.status(201).json({
         message: 'تم التسجيل بنجاح',
-        user,
-        accessToken,
-        refreshToken,
-        token
+        user
     });
 });
 
@@ -33,39 +61,33 @@ exports.login = catchAsync(async (req, res, next) => {
     const { identifier, email, password } = req.body;
     const loginIdentifier = (identifier || email || '').trim();
 
-    const { user, accessToken, refreshToken, token } = await authService.loginUser(loginIdentifier, password);
+    const { user, accessToken, refreshToken } = await authService.loginUser(loginIdentifier, password);
+    setAuthCookies(res, accessToken, refreshToken);
 
     logger.info(`User logged in: ${user.email}`);
     res.status(200).json({
         message: 'تم تسجيل الدخول بنجاح',
-        user,
-        accessToken,
-        refreshToken,
-        token // For backwards compatibility
+        user
     });
 });
 
 exports.guestLogin = catchAsync(async (req, res, next) => {
-    const { user, accessToken, refreshToken, token } = await authService.guestLogin();
+    const { user, accessToken, refreshToken } = await authService.guestLogin();
+    setAuthCookies(res, accessToken, refreshToken);
 
     logger.info(`Guest logged in: ${user.email}`);
     res.status(200).json({
         message: 'تم الدخول كزائر بنجاح',
-        user,
-        accessToken,
-        refreshToken,
-        token
+        user
     });
 });
 
 exports.getMe = catchAsync(async (req, res, next) => {
-    // req.user is set by verifyToken middleware
     res.status(200).json(req.user);
 });
 
 exports.submitProviderRequest = catchAsync(async (req, res, next) => {
     await authService.submitProviderRequest(req.body);
-
     logger.info(`Provider request submitted: ${req.body.email}`);
     res.status(201).json({
         message: 'تم تقديم طلبك بنجاح! سيتم مراجعته من الإدارة.',
@@ -80,21 +102,18 @@ exports.getRequests = catchAsync(async (req, res, next) => {
 
 exports.approveRequest = catchAsync(async (req, res, next) => {
     await authService.approveRequest(req.params.id);
-
     logger.info(`Provider request approved: ${req.params.id}`);
     res.status(200).json({ message: 'تم قبول الطلب بنجاح' });
 });
 
 exports.rejectRequest = catchAsync(async (req, res, next) => {
     await authService.rejectRequest(req.params.id);
-
     logger.info(`Provider request rejected: ${req.params.id}`);
     res.status(200).json({ message: 'تم رفض الطلب' });
 });
 
 exports.updateProfile = catchAsync(async (req, res, next) => {
     const updatedUser = await authService.updateProfile(req.user.id, req.body);
-
     logger.info(`User profile updated: ${req.user.id}`);
     res.status(200).json({
         success: true,
@@ -120,83 +139,55 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     });
 });
 
-/**
- * POST /auth/google-sync
- * Idempotent upsert: creates a new customer account for a Google user,
- * or fetches their existing account if already registered with the same email.
- * Returns a real JWT so real-time features and bookings work correctly.
- */
 exports.googleSync = catchAsync(async (req, res, next) => {
-    // SECURITY: Verify the Firebase token to prove identity before any account access
     const { name, email, googleUid, avatar, firebaseIdToken, isDevMock } = req.body;
-
     if (!email || (!firebaseIdToken && !isDevMock)) {
-        return res.status(400).json({ success: false, error: 'البيانات غير مكتملة. يلزم وجود ايميل وتوكن مصادقة صالحة من Google.' });
+        return res.status(400).json({ success: false, error: 'البيانات غير مكتملة.' });
     }
 
     try {
-        // [DEV ONLY FALLBACK]: Allow mock login if keys are missing but ONLY in development
         if (isDevMock && process.env.NODE_ENV !== 'production') {
-            logger.warn(`⚠️ [DEV MODE] Accepted Mock Google Auth Token for ${email}`);
+            logger.warn(`⚠️ [DEV MODE] Mock Google Auth for ${email}`);
         } else {
             const { admin } = require('../utils/firebase');
-
-            // Verify Firebase identity
-            if (admin && admin.apps.length) {
+            if (admin && admin.apps.length > 0) {
                 const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
-
-                // SECURITY: Ensure the verified token belongs to the claimed email
                 if (decodedToken.email !== email) {
-                    logger.warn(`[SECURITY ALERT] Firebase Token email mismatch. Token: ${decodedToken.email}, Claimed: ${email}, IP: ${req.ip}`);
-                    return res.status(401).json({ success: false, error: 'غير مصرح لك. بريد إلكتروني غير متطابق بين جوجل والسيرفر.' });
+                    return res.status(401).json({ success: false, error: 'بريد غير متطابق.' });
                 }
             } else {
-                logger.warn('Firebase Admin not fully initialized. Syncing without backend token verification.');
+                return res.status(500).json({ success: false, error: 'خدمة جوجل غير مفعلة.' });
             }
         }
     } catch (error) {
-        logger.error(`[SECURITY] Firebase token verification failed: ${error.message} | IP: ${req.ip}`);
-        let message = 'فشل التحقق من هوية جوجل. ';
-        if (error.message.includes('Credential must be provided') || error.message.includes('credential')) {
-            message += 'السيرفر يفتقر إلى صلاحيات Firebase (Service Account). الرجاء التواصل مع الدعم الفني لدعم السيرفر بالمفاتيح.';
-        } else if (error.code === 'auth/id-token-expired') {
-            message += 'جلستك في جوجل انتهت. يرجى إعادة تسجيل الدخول.';
-        } else {
-            message += 'خطأ في التوكن أو السيرفر. (السبب: ' + error.message + ')';
-        }
-        return res.status(401).json({ success: false, error: message });
+        return res.status(401).json({ success: false, error: 'فشل التحقق.' });
     }
 
-    const { user, accessToken, refreshToken, token } = await authService.googleSync({ name, email, googleUid, avatar });
-    const phoneRequired = !user?.phone;
+    const { user, accessToken, refreshToken } = await authService.googleSync({ name, email, googleUid, avatar });
+    setAuthCookies(res, accessToken, refreshToken);
 
-    logger.info(`Google sync success for: ${email}`);
     res.status(200).json({
         success: true,
         message: 'تم تسجيل الدخول بنجاح',
         user,
-        token,
-        accessToken,
-        refreshToken,
-        phoneRequired
+        phoneRequired: !user?.phone
     });
 });
 
+exports.logout = (req, res) => {
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    res.clearCookie('csrfToken');
+    res.status(200).json({ success: true, message: 'تم تسجيل الخروج بنجاح' });
+};
+
 exports.refreshToken = catchAsync(async (req, res, next) => {
-    const { refreshToken } = req.body;
+    const tokenFromCookie = req.cookies?.refreshToken;
+    if (!tokenFromCookie) return res.status(401).json({ success: false, error: 'انتهت الجلسة' });
 
-    if (!refreshToken) {
-        return res.status(400).json({ success: false, error: 'Refresh token is required' });
-    }
+    const tokens = await authService.refreshToken(tokenFromCookie);
+    setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
-    const tokens = await authService.refreshToken(refreshToken);
-
-    logger.info(`Token refreshed successfully`);
-    res.status(200).json({
-        success: true,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        token: tokens.accessToken // For backwards compatibility
-    });
+    res.status(200).json({ success: true });
 });
 

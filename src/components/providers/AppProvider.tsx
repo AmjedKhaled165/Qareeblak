@@ -3,8 +3,7 @@
 import { createContext, useState, useEffect, ReactNode, useCallback, useContext, useRef } from "react";
 import { providersApi, authApi, servicesApi, bookingsApi, apiCall } from "@/lib/api";
 import { io } from "socket.io-client";
-import { auth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
-import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider, isFirebaseConfigured, signInWithPopup } from "@/lib/firebase";
 import { useToast } from "./ToastProvider";
 import { usePathname, useRouter } from "next/navigation";
 

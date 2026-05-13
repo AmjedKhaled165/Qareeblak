@@ -14,7 +14,8 @@ let hasWarnedMemoryFallback = false;
 // ==========================================
 
 // Helper to create a store that handles Redis reconnection/state automatically 
-// The store will fallback to memory if Redis is not yet connected to avoid crashing the server
+// ⚠️ WARNING: MemoryStore is NOT scalable and dangerous in multi-instance (PM2/K8s)
+// It is used here ONLY as a temporary emergency fallback during Redis outages.
 const createStore = () => {
     // If Redis is already connected, use it
     if (redisClient.status === 'ready') {
@@ -29,17 +30,14 @@ const createStore = () => {
         });
     }
 
-    // If Redis is not ready, we return an object that mimics the store 
-    // but flags the library to use memory fallback until we are ready.
-    // However, the cleanest way with express-rate-limit is to return undefined 
-    // to trigger the internal MemoryStore, but we want to avoid the "Error: Redis not ready" 
-    // thrown by the RedisStore constructor itself when it tries to load scripts.
-    
+    // Degraded Mode: Fallback to local memory
     if (!hasWarnedMemoryFallback) {
         hasWarnedMemoryFallback = true;
-        logger.info('[RateLimiter] Redis not ready during startup, using memory store fallback.');
+        logger.error('🚨 [RateLimiter] SYSTEM DEGRADED: Redis unavailable. Falling back to MemoryStore.');
+        logger.error('🚨 [RateLimiter] WARNING: Rate limits are now per-instance and NOT synchronized across the cluster.');
     }
-    return undefined; // Falls back to memory store
+    
+    return undefined; // Falls back to express-rate-limit internal MemoryStore
 };
 
 // Normalize IP keys safely for IPv6 and proxy scenarios.
@@ -50,7 +48,7 @@ const getIpKey = (req) => req.ip || req.socket?.remoteAddress || '127.0.0.1';
 const publicLimiter = rateLimit({
     store: createStore(),
     windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 300,
+    max: 1500, // Increased for NAT/Corporate networks
     message: { error: '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -60,7 +58,7 @@ const publicLimiter = rateLimit({
 const authLimiter = rateLimit({
     store: createStore(),
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // 10 attempts per IP
+    max: 20, // 20 attempts per IP
     keyGenerator: (req) => `rl_auth_${getIpKey(req)}`,
     validate: { keyGeneratorIpFallback: false },
     message: { error: '❌ تم حظر هاتفك لكثرة محاولات الدخول الفاشلة. انتظر 15 دقيقة.' },
@@ -73,7 +71,7 @@ const authLimiter = rateLimit({
 const checkoutLimiter = rateLimit({
     store: createStore(),
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 2, // Max 2 checkouts per minute (Very strict)
+    max: 5, // Allow 5 retries per minute to accommodate payment failures
     keyGenerator: (req) => `rl_checkout_${req.user?.id || getIpKey(req)}`,
     validate: { keyGeneratorIpFallback: false },
     message: { error: '🔔 أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
@@ -160,8 +158,26 @@ const securityHeaders = helmet({
 // ==========================================
 const xssSanitizer = require('./xss');
 
+const csrfProtection = (req, res, next) => {
+    // 1. Skip safe methods
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+
+    // 2. Double-Submit Cookie Check
+    // The client must send the token in both a cookie (csrfToken) and a custom header (x-csrf-token)
+    const csrfHeader = req.headers['x-csrf-token'];
+    const csrfCookie = req.cookies?.csrfToken;
+
+    if (!csrfHeader || !csrfCookie || csrfHeader !== csrfCookie) {
+        logger.warn(`🚨 [CSRF Protection] Blocked ${req.method} request to ${req.originalUrl} from ${req.ip}. Header: ${!!csrfHeader}, Cookie: ${!!csrfCookie}`);
+        return res.status(403).json({ 
+            error: 'حماية النظام: طلب غير مصرح به (CSRF). يرجى تحديث الصفحة والمحاولة مرة أخرى.' 
+        });
+    }
+    next();
+};
+
 module.exports = {
-    globalLimiter: publicLimiter, // Alias for routes calling it global
+    globalLimiter: publicLimiter,
     publicLimiter,
     authLimiter,
     chatLimiter,
@@ -169,5 +185,6 @@ module.exports = {
     orderLimiter,
     guestLoginLimiter,
     securityHeaders,
-    xssSanitizer
+    xssSanitizer,
+    csrfProtection
 };

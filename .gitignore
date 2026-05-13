@@ -43,3 +43,7 @@ tmpclaude-*
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Firebase service account keys
+qareeblak-810d3-firebase-adminsdk-fbsvc-fa85e60b79.json
+*.json.bak

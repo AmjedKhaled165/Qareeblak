@@ -16,6 +16,7 @@ router.get('/', async (req, res) => {
         checks: {
             database: 'unknown',
             redis: 'unknown',
+            queue: 'unknown',
             halanUsers: 'unknown'
         }
     };
@@ -40,11 +41,32 @@ router.get('/', async (req, res) => {
 
         // 3. Check Redis
         const redisStart = Date.now();
+        const { isQuotaExceeded } = require('../utils/redis');
+        
         if (redisClient.status === 'ready') {
             await redisClient.ping();
-            healthcheck.checks.redis = `healthy (${Date.now() - redisStart}ms)`;
+            healthcheck.checks.redis = `healthy (${Date.now() - redisStart}ms)${isQuotaExceeded() ? ' [DEGRADED: Quota Exceeded]' : ''}`;
         } else {
-            healthcheck.checks.redis = 'unhealthy (disconnected)';
+            healthcheck.checks.redis = `unhealthy (${redisClient.status})`;
+        }
+
+        // 4. Check Queues (BullMQ)
+        try {
+            const { notificationQueue, maintenanceQueue } = require('../utils/queues');
+            const queues = [];
+            
+            if (notificationQueue) {
+                const nCounts = await notificationQueue.getJobCounts();
+                queues.push(`notifications(w:${nCounts.waiting}, a:${nCounts.active}, f:${nCounts.failed})`);
+            }
+            if (maintenanceQueue) {
+                const mCounts = await maintenanceQueue.getJobCounts();
+                queues.push(`maintenance(w:${mCounts.waiting}, a:${mCounts.active})`);
+            }
+            
+            healthcheck.checks.queue = queues.length > 0 ? queues.join(' | ') : 'disabled';
+        } catch (e) {
+            healthcheck.checks.queue = `error: ${e.message}`;
         }
 
         res.status(200).json(healthcheck);

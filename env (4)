@@ -1,0 +1,6 @@
+NODE_ENV=production
+PORT=3000
+NEXT_PUBLIC_API_URL=https://api.qareeblak.com
+NEXT_PUBLIC_SOCKET_URL=https://api.qareeblak.com
+INTERNAL_API_URL=http://qareeblak_backend:5000
+NEXT_TELEMETRY_DISABLED=1
