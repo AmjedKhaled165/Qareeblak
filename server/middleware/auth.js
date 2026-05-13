@@ -242,7 +242,14 @@ const isPartnerOrAdmin = (req, res, next) => {
  */
 const verifySocketToken = async (socket, next) => {
     try {
-        const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+        let token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+        if (!token && socket.handshake.headers?.cookie) {
+            const cookies = socket.handshake.headers.cookie.split(';').map((c) => c.trim());
+            const accessCookie = cookies.find((c) => c.startsWith('accessToken='));
+            if (accessCookie) {
+                token = accessCookie.substring('accessToken='.length);
+            }
+        }
         if (!token) return next(new Error('Authentication error: Token missing'));
 
         const decoded = verifyJWT(token, 'access');

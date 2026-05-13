@@ -28,9 +28,37 @@ interface PharmacyChatProps {
     providerName: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-const API_BASE = API_URL.replace(/\/api$/, ''); // Ensure no trailing /api
-const SOCKET_URL = API_BASE;
+// Use same-origin proxy for all HTTP API calls (avoids CSRF issues)
+// The Next.js rewrite in next.config.ts proxies /api/* -> backend
+const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const forceLocalProxy = process.env.NEXT_PUBLIC_FORCE_LOCAL_API_PROXY === 'true';
+const useSameOriginProxy = isLocalBrowser || forceLocalProxy;
+const CHAT_API_BASE = useSameOriginProxy ? '/api' : ((process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '').replace(/\/api$/, '') + '/api');
+// Socket.io should use same-origin in local dev to keep cookies/CSRF aligned
+const SOCKET_URL = useSameOriginProxy
+    ? ''
+    : (process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '');
+
+// Helper to read CSRF token from cookies
+function getCsrfToken(): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith('csrfToken='));
+    if (!match) return null;
+    return decodeURIComponent(match.substring('csrfToken='.length));
+}
+
+// Helper to build headers with auth + CSRF for POST/PUT/DELETE
+function buildHeaders(token: string | null, contentType?: string): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (contentType) headers['Content-Type'] = contentType;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const csrf = getCsrfToken();
+    if (csrf) headers['x-csrf-token'] = csrf;
+    return headers;
+}
 
 export function PharmacyChat({ isOpen, onClose, providerId, providerName }: PharmacyChatProps) {
     const { currentUser } = useAppStore();
@@ -71,15 +99,21 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    // Initialize socket connection with proper error handling
-    useEffect(() => {
+    // Initialize socket connection
+    const initSocket = useCallback((token: string | null, consultationId: string) => {
         if (!isOpen) return;
 
         try {
-            console.log('[PharmacyChat] Initializing Socket.io connection...');
+            console.log('[PharmacyChat] Initializing Socket.io connection with auth token...');
 
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
+
+            const auth = token ? { token } : undefined;
             socketRef.current = io(SOCKET_URL, {
                 transports: ['websocket', 'polling'],
+                auth,
                 reconnection: true,
                 reconnectionDelay: 1000,
                 reconnectionDelayMax: 5000,
@@ -90,6 +124,9 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 console.log('[PharmacyChat] Socket connected:', socketRef.current?.id);
                 setSocketConnected(true);
                 setSocketError(null);
+                
+                // Join room immediately after connection
+                socketRef.current?.emit('join-consultation', consultationId);
             });
 
             socketRef.current.on('connect_error', (error: any) => {
@@ -106,7 +143,6 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
             socketRef.current.on('new-message', (message: Message) => {
                 console.log('[PharmacyChat] New message received:', message);
                 setMessages(prev => {
-                    // Avoid duplicate messages
                     if (prev.some(m => m.id === message.id)) {
                         return prev;
                     }
@@ -116,10 +152,6 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
 
             socketRef.current.on('pharmacist-status', ({ providerId: pid, status }) => {
                 console.log('[PharmacyChat] Pharmacist status update ignored (Forced Online):', pid, status);
-                // logic commented out to force online
-                // if (String(pid) === String(providerId)) {
-                //     setIsPharmacistOnline(status === 'online');
-                // }
             });
 
             socketRef.current.on('user-typing', ({ userName }) => {
@@ -141,19 +173,23 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 ));
             });
 
-            return () => {
-                if (socketRef.current) {
-                    if (consultationId) {
-                        socketRef.current.emit('leave-consultation', consultationId);
-                    }
-                    socketRef.current.disconnect();
-                }
-            };
         } catch (error) {
             console.error('[PharmacyChat] Socket initialization error:', error);
             setSocketError('فشل الاتصال بخادم المحادثة');
         }
-    }, [isOpen, providerId, consultationId]);
+    }, [isOpen]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (socketRef.current) {
+                if (consultationId) {
+                    socketRef.current.emit('leave-consultation', consultationId);
+                }
+                socketRef.current.disconnect();
+            }
+        };
+    }, [consultationId]);
 
     // Start or resume consultation
     useEffect(() => {
@@ -165,8 +201,9 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
 
             // Step 1: Auto-login guest if no user
             let token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
+            const hasCookieSession = localStorage.getItem('qareeblak_cookie_session') === 'true';
 
-            if (!token) {
+            if (!token && !hasCookieSession) {
                 console.log('[PharmacyChat] No token - creating guest account...');
                 try {
                     const guestName = `زائر_${Math.floor(Math.random() * 10000)}`;
@@ -194,13 +231,11 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
             // Step 2: Start consultation
             console.log('[PharmacyChat] Starting consultation with provider:', providerId);
             try {
-                const startUrl = `${API_BASE}/api/chat/start`;
+                const startUrl = `${CHAT_API_BASE}/chat/start`;
                 const startRes = await fetch(startUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    headers: buildHeaders(token, 'application/json'),
+                    credentials: 'include',
                     body: JSON.stringify({ providerId }),
                 });
 
@@ -217,14 +252,13 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                     setConsultationId(startData.consultationId);
                     console.log('[PharmacyChat] Consultation ID:', startData.consultationId);
 
-                    // Join socket room
-                    if (socketRef.current) {
-                        socketRef.current.emit('join-consultation', startData.consultationId);
-                    }
+                    // Initialize socket with token and join room
+                    initSocket(token, startData.consultationId);
 
                     // Fetch existing messages
-                    const msgRes = await fetch(`${API_BASE}/api/chat/${startData.consultationId}`, {
-                        headers: { 'Authorization': `Bearer ${token}` },
+                    const msgRes = await fetch(`${CHAT_API_BASE}/chat/${startData.consultationId}`, {
+                        headers: buildHeaders(token),
+                        credentials: 'include',
                     });
                     if (msgRes.ok) {
                         const msgData = await msgRes.json();
@@ -287,7 +321,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
 
         try {
             const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
-            if (!token) {
+            const hasCookieSession = localStorage.getItem('qareeblak_cookie_session') === 'true';
+            if (!token && !hasCookieSession) {
                 throw new Error('غير مصرح - لم يتم العثور على جلسة');
             }
 
@@ -301,21 +336,18 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 formData.append('senderId', String(currentUser?.id));
                 formData.append('senderName', currentUser?.name || 'عميل');
 
-                res = await fetch(`${API_BASE}/api/chat/${consultationId}/upload`, {
+                res = await fetch(`${CHAT_API_BASE}/chat/${consultationId}/upload`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    headers: buildHeaders(token),
+                    credentials: 'include',
                     body: formData,
                 });
             } else {
                 // Text Message
-                res = await fetch(`${API_BASE}/api/chat/${consultationId}/messages`, {
+                res = await fetch(`${CHAT_API_BASE}/chat/${consultationId}/messages`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    headers: buildHeaders(token, 'application/json'),
+                    credentials: 'include',
                     body: JSON.stringify({
                         message: inputMessage.trim() || null,
                         senderType: 'customer',
@@ -411,17 +443,16 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
         setIsAcceptingOrder(true);
         try {
             const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
-            if (!token) {
+            const hasCookieSession = localStorage.getItem('qareeblak_cookie_session') === 'true';
+            if (!token && !hasCookieSession) {
                 toast("يرجى تسجيل الدخول أولاً", "error");
                 return;
             }
 
-            const res = await fetch(`${API_BASE}/api/chat/${consultationId}/accept-quote`, {
+            const res = await fetch(`${CHAT_API_BASE}/chat/${consultationId}/accept-quote`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
+                headers: buildHeaders(token, 'application/json'),
+                credentials: 'include',
                 body: JSON.stringify({
                     messageId: acceptingQuote.messageId,
                     addressArea: addressArea.trim(),
@@ -438,8 +469,9 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 setAddressDetails('');
                 setCustomerPhone('');
                 // Refresh messages to show updated quote status
-                const msgRes = await fetch(`${API_BASE}/api/chat/${consultationId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                const msgRes = await fetch(`${CHAT_API_BASE}/chat/${consultationId}`, {
+                    headers: buildHeaders(token),
+                    credentials: 'include',
                 });
                 if (msgRes.ok) {
                     const msgData = await msgRes.json();
