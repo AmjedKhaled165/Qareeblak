@@ -37,8 +37,10 @@ const { connectRedis, client: redisPublishClient, getRedisConnectionOptions, nor
 const { initializeFirebase } = require('./utils/firebase');
 const watchdog = require('./utils/watchdog');
 
-// 🛡️ Activate System Guardian
-watchdog.start();
+// 🛡️ Activate System Guardian (disable in local dev with GUARDIAN_ENABLED=false)
+if (String(process.env.GUARDIAN_ENABLED || 'true').toLowerCase() === 'true') {
+    watchdog.start();
+}
 
 // Initialize Firebase SDK early
 initializeFirebase();
