@@ -182,7 +182,14 @@ app.use('/api/health', healthRoutes);
 // Note: Initial login/register won't have a token yet, but they usually don't need CSRF 
 // because they are the "entry" points. However, we can exclude them explicitly.
 app.use('/api', (req, res, next) => {
-    const excludedPaths = ['/auth/login', '/auth/register', '/auth/google-sync', '/auth/guest-login', '/health'];
+    const excludedPaths = [
+        '/auth/login',
+        '/auth/register',
+        '/auth/google-sync',
+        '/auth/guest-login',
+        '/halan/auth/login',
+        '/health'
+    ];
     if (excludedPaths.some(path => req.path.startsWith(path))) {
         return next();
     }

@@ -105,6 +105,16 @@ function getAuthToken(endpoint: string): string | null {
     return token;
 }
 
+function getCookieValue(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${name}=`));
+    if (!match) return null;
+    return decodeURIComponent(match.substring(name.length + 1));
+}
+
 // Helper function for API calls
 export async function apiCall<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = getAuthToken(endpoint);
@@ -125,6 +135,12 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
     }
 
     const method = (options.method || 'GET').toUpperCase();
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        const csrfToken = getCookieValue('csrfToken');
+        if (csrfToken) {
+            headers['x-csrf-token'] = csrfToken;
+        }
+    }
     const timeout = getRequestTimeout(endpoint, options);
     const maxAttempts = method === 'GET' ? 2 : 1;
 
@@ -270,10 +286,18 @@ export const authApi = {
             method: 'POST',
             body: JSON.stringify({ email, password })
         });
-        if (result.token) {
-            localStorage.setItem('qareeblak_token', result.token);
+        
+        const tokenToSave = result.token || result.data?.token;
+        if (tokenToSave) {
+            localStorage.setItem('qareeblak_token', tokenToSave);
             localStorage.removeItem('halan_token');
         }
+        
+        // Ensure user is correctly attached so loginUser works smoothly
+        if (!result.user && result.data?.user) {
+            result.user = result.data.user;
+        }
+        
         return result;
     },
 
