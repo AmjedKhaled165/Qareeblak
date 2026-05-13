@@ -199,44 +199,33 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
             setIsLoading(true);
             setSocketError(null);
 
-            // Step 1: Auto-login guest if no user
+            // Step 1: Check authentication
             let token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
             const hasCookieSession = localStorage.getItem('qareeblak_cookie_session') === 'true';
 
             if (!token && !hasCookieSession) {
-                console.log('[PharmacyChat] No token - creating guest account...');
-                try {
-                    const guestName = `زائر_${Math.floor(Math.random() * 10000)}`;
-                    const { authApi } = await import('@/lib/api');
-                    const res = await authApi.register({
-                        name: guestName,
-                        email: `${guestName}@guest.qareeblak.com`,
-                        password: 'Guest#2026a',
-                        phone: '01000000000'
-                    });
-                    if (res && res.token) {
-                        token = res.token;
-                        toast("مرحباً! تم إنشاء حساب زائر", "success");
-                    } else {
-                        throw new Error('No token returned');
-                    }
-                } catch (e) {
-                    console.error('[PharmacyChat] Guest login failed:', e);
-                    toast("فشل في إنشاء حساب زائر", "error");
-                    setIsLoading(false);
-                    return;
-                }
+                console.log('[PharmacyChat] No token - User must login first.');
+                toast("عفواً، يجب عليك تسجيل الدخول أولاً لبدء المحادثة.", "error");
+                setIsLoading(false);
+                onClose(); // Close the chat window
+                return;
             }
 
             // Step 2: Start consultation
-            console.log('[PharmacyChat] Starting consultation with provider:', providerId);
+            const providerIdNumber = Number(providerId);
+            if (!providerId || Number.isNaN(providerIdNumber)) {
+                toast("تعذر بدء المحادثة: معرف مقدم الخدمة غير صالح", "error");
+                setIsLoading(false);
+                return;
+            }
+            console.log('[PharmacyChat] Starting consultation with provider:', providerIdNumber);
             try {
                 const startUrl = `${CHAT_API_BASE}/chat/start`;
                 const startRes = await fetch(startUrl, {
                     method: 'POST',
                     headers: buildHeaders(token, 'application/json'),
                     credentials: 'include',
-                    body: JSON.stringify({ providerId }),
+                    body: JSON.stringify({ providerId: providerIdNumber }),
                 });
 
                 if (!startRes.ok) {
