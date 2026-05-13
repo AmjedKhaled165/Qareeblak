@@ -1,0 +1,193 @@
+const authService = require('../services/auth.service');
+const catchAsync = require('../utils/catchAsync');
+const logger = require('../utils/logger');
+
+const crypto = require('crypto');
+
+// [SECURITY] Professional Cookie Configuration
+const COOKIE_OPTIONS = {
+    httpOnly: true, // Prevents JavaScript access (Immune to XSS)
+    secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS
+    sameSite: 'Lax', // Protects against some CSRF
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+};
+
+const ACCESS_COOKIE_OPTIONS = {
+    ...COOKIE_OPTIONS,
+    maxAge: 1 * 60 * 60 * 1000 // 1 hour
+};
+
+// [SECURITY] CSRF Cookie Option - MUST BE httpOnly: false for client to read and send in header
+const CSRF_COOKIE_OPTIONS = {
+    ...COOKIE_OPTIONS,
+    httpOnly: false, // Client-side JS needs to read this for Double-Submit Pattern
+    sameSite: 'Strict', // Strongest protection for CSRF cookie
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+};
+
+const setAuthCookies = (res, accessToken, refreshToken) => {
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    res.cookie('accessToken', accessToken, ACCESS_COOKIE_OPTIONS);
+    res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
+    res.cookie('csrfToken', csrfToken, CSRF_COOKIE_OPTIONS);
+    return csrfToken;
+};
+
+exports.sendRegisterOtp = catchAsync(async (req, res, next) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'البريد الإلكتروني مطلوب' });
+
+    await authService.sendRegisterOtp(email);
+    
+    logger.info(`Registration OTP sent to: ${email}`);
+    res.status(200).json({
+        success: true,
+        message: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني'
+    });
+});
+
+exports.register = catchAsync(async (req, res, next) => {
+    const { user, accessToken, refreshToken } = await authService.registerUser(req.body);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    logger.info(`User registered successfully: ${user.email}`);
+    res.status(201).json({
+        message: 'تم التسجيل بنجاح',
+        user
+    });
+});
+
+exports.login = catchAsync(async (req, res, next) => {
+    const { identifier, email, password } = req.body;
+    const loginIdentifier = (identifier || email || '').trim();
+
+    const { user, accessToken, refreshToken } = await authService.loginUser(loginIdentifier, password);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    logger.info(`User logged in: ${user.email}`);
+    res.status(200).json({
+        message: 'تم تسجيل الدخول بنجاح',
+        user
+    });
+});
+
+exports.guestLogin = catchAsync(async (req, res, next) => {
+    const { user, accessToken, refreshToken } = await authService.guestLogin();
+    setAuthCookies(res, accessToken, refreshToken);
+
+    logger.info(`Guest logged in: ${user.email}`);
+    res.status(200).json({
+        message: 'تم الدخول كزائر بنجاح',
+        user
+    });
+});
+
+exports.getMe = catchAsync(async (req, res, next) => {
+    res.status(200).json(req.user);
+});
+
+exports.submitProviderRequest = catchAsync(async (req, res, next) => {
+    await authService.submitProviderRequest(req.body);
+    logger.info(`Provider request submitted: ${req.body.email}`);
+    res.status(201).json({
+        message: 'تم تقديم طلبك بنجاح! سيتم مراجعته من الإدارة.',
+        status: 'pending'
+    });
+});
+
+exports.getRequests = catchAsync(async (req, res, next) => {
+    const requests = await authService.getAllRequests();
+    res.status(200).json(requests);
+});
+
+exports.approveRequest = catchAsync(async (req, res, next) => {
+    await authService.approveRequest(req.params.id);
+    logger.info(`Provider request approved: ${req.params.id}`);
+    res.status(200).json({ message: 'تم قبول الطلب بنجاح' });
+});
+
+exports.rejectRequest = catchAsync(async (req, res, next) => {
+    await authService.rejectRequest(req.params.id);
+    logger.info(`Provider request rejected: ${req.params.id}`);
+    res.status(200).json({ message: 'تم رفض الطلب' });
+});
+
+exports.updateProfile = catchAsync(async (req, res, next) => {
+    const updatedUser = await authService.updateProfile(req.user.id, req.body);
+    logger.info(`User profile updated: ${req.user.id}`);
+    res.status(200).json({
+        success: true,
+        message: 'تم تحديث البيانات بنجاح',
+        user: updatedUser
+    });
+});
+
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+    await authService.forgotPassword(req.body.email);
+    res.status(200).json({
+        success: true,
+        message: 'إذا كان البريد الإلكتروني مسجلاً، فستتلقى رمز استعادة كلمة المرور قريباً.'
+    });
+});
+
+exports.resetPassword = catchAsync(async (req, res, next) => {
+    const { token, newPassword } = req.body;
+    await authService.resetPassword(token, newPassword);
+    res.status(200).json({
+        success: true,
+        message: 'تم إعادة تعيين كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول.'
+    });
+});
+
+exports.googleSync = catchAsync(async (req, res, next) => {
+    const { name, email, googleUid, avatar, firebaseIdToken, isDevMock } = req.body;
+    if (!email || (!firebaseIdToken && !isDevMock)) {
+        return res.status(400).json({ success: false, error: 'البيانات غير مكتملة.' });
+    }
+
+    try {
+        if (isDevMock && process.env.NODE_ENV !== 'production') {
+            logger.warn(`⚠️ [DEV MODE] Mock Google Auth for ${email}`);
+        } else {
+            const { admin } = require('../utils/firebase');
+            if (admin && admin.apps.length > 0) {
+                const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+                if (decodedToken.email !== email) {
+                    return res.status(401).json({ success: false, error: 'بريد غير متطابق.' });
+                }
+            } else {
+                return res.status(500).json({ success: false, error: 'خدمة جوجل غير مفعلة.' });
+            }
+        }
+    } catch (error) {
+        return res.status(401).json({ success: false, error: 'فشل التحقق.' });
+    }
+
+    const { user, accessToken, refreshToken } = await authService.googleSync({ name, email, googleUid, avatar });
+    setAuthCookies(res, accessToken, refreshToken);
+
+    res.status(200).json({
+        success: true,
+        message: 'تم تسجيل الدخول بنجاح',
+        user,
+        phoneRequired: !user?.phone
+    });
+});
+
+exports.logout = (req, res) => {
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    res.clearCookie('csrfToken');
+    res.status(200).json({ success: true, message: 'تم تسجيل الخروج بنجاح' });
+};
+
+exports.refreshToken = catchAsync(async (req, res, next) => {
+    const tokenFromCookie = req.cookies?.refreshToken;
+    if (!tokenFromCookie) return res.status(401).json({ success: false, error: 'انتهت الجلسة' });
+
+    const tokens = await authService.refreshToken(tokenFromCookie);
+    setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+
+    res.status(200).json({ success: true });
+});
+

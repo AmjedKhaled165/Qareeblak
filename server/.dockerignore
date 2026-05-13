@@ -1,0 +1,8 @@
+node_modules/
+.git/
+.env*
+npm-debug.log
+.DS_Store
+logs/
+uploads/
+mock-db-data.json
