@@ -162,6 +162,12 @@ const csrfProtection = (req, res, next) => {
     // 1. Skip safe methods
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
 
+    // 1.5 If using Bearer auth, skip CSRF (token-based auth is not vulnerable to CSRF)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return next();
+    }
+
     // 2. Double-Submit Cookie Check
     // The client must send the token in both a cookie (csrfToken) and a custom header (x-csrf-token)
     const csrfHeader = req.headers['x-csrf-token'];
