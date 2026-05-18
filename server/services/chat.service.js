@@ -3,10 +3,6 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 
 class ChatService {
-    _generateConsultationId(providerId, customerId) {
-        return `chat_${providerId}_${customerId}`;
-    }
-
     async _verifyOwnership(consultationId, userId) {
         const consultation = await chatRepo.getConsultationById(consultationId);
         if (!consultation) {
@@ -22,12 +18,11 @@ class ChatService {
     async startConsultation(customerId, providerId) {
         const existingId = await chatRepo.getActiveConsultation(customerId, providerId);
         if (existingId) {
-            return { consultationId: existingId, isExisting: true };
+            return { consultationId: String(existingId), isExisting: true };
         }
 
-        const newId = this._generateConsultationId(providerId, customerId);
-        await chatRepo.createConsultation(newId, customerId, providerId);
-        return { consultationId: newId, isExisting: false };
+        const newId = await chatRepo.createConsultation(customerId, providerId);
+        return { consultationId: String(newId), isExisting: false };
     }
 
     async getMessages(consultationId, userId, limit = 50, lastId = null) {

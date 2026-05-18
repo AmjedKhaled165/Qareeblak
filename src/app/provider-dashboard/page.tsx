@@ -489,11 +489,13 @@ export default function ProviderDashboard() {
 
         // Check authentication
         const qareeblakToken = localStorage.getItem('qareeblak_token');
+        const qareeblakCookieSession = localStorage.getItem('qareeblak_cookie_session');
         const halanToken = localStorage.getItem('halan_token');
         const halanUserRaw = localStorage.getItem('halan_user');
 
         console.log('[ProviderDashboard] Auth check completed:', {
             qareeblakTokenExists: !!qareeblakToken,
+            qareeblakCookieExists: !!qareeblakCookieSession,
             halanTokenExists: !!halanToken,
             halanUserExists: !!halanUserRaw,
             currentUser: currentUser?.name,
@@ -501,7 +503,7 @@ export default function ProviderDashboard() {
         });
 
         // Partner users must use partner dashboards, not provider dashboard.
-        if (halanToken && !qareeblakToken && halanUserRaw) {
+        if (halanToken && !qareeblakToken && !qareeblakCookieSession && halanUserRaw) {
             try {
                 const halanUser = JSON.parse(halanUserRaw);
                 const normalizedRole = String(halanUser?.role || '').replace(/^partner_/, '');
@@ -527,8 +529,9 @@ export default function ProviderDashboard() {
             }
         }
 
-        // If no auth token exists at all, redirect to login
-        if (!qareeblakToken && !halanToken) {
+        // If no auth token exists at all AND no currentUser, redirect to login
+        // currentUser being present means AppProvider validated the session (e.g. via cookie)
+        if (!qareeblakToken && !qareeblakCookieSession && !halanToken && !currentUser) {
             console.warn('[ProviderDashboard] No authentication detected. Redirecting to login.');
             router.push('/login/provider');
             return;
@@ -546,7 +549,9 @@ export default function ProviderDashboard() {
 
     // Fetch consultations automatically (with periodic polling)
     const fetchConsultations = useCallback(async (pid: string) => {
-        if (!currentUser || currentUser.type !== 'provider') {
+        const uType = String(currentUser?.type || currentUser?.user_type || '').toLowerCase();
+        const isProv = uType.includes('provider') || uType.includes('partner') || uType.includes('restaurant') || uType.includes('pharmacy') || uType.includes('maintenance');
+        if (!currentUser || !isProv) {
             return;
         }
 
@@ -928,6 +933,7 @@ export default function ProviderDashboard() {
     // Check for both Qareeblak and Halan provider sessions IN LOCALSTORAGE
     // This is crucial - we check localStorage directly, not just the state
     const qareeblakToken = typeof window !== 'undefined' ? localStorage.getItem('qareeblak_token') : null;
+    const qareeblakCookieSession = typeof window !== 'undefined' ? localStorage.getItem('qareeblak_cookie_session') : null;
     const halanToken = typeof window !== 'undefined' ? localStorage.getItem('halan_token') : null;
     const halanUser = typeof window !== 'undefined' ? localStorage.getItem('halan_user') : null;
 
@@ -937,8 +943,15 @@ export default function ProviderDashboard() {
 
     // 2. Qareeblak session: Must have token AND (currentUser with provider type OR still loading)
     // IMPORTANT: Don't reject if currentUser is null but token exists (could be loading)
-    const hasQareeblakToken = !!qareeblakToken;
-    const hasValidQareeblakSession = !!(hasQareeblakToken && currentUser && currentUser.type === 'provider');
+    const hasQareeblakToken = !!(qareeblakToken || qareeblakCookieSession);
+    const isQareeblakProvider = currentUser && (
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('provider') ||
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('partner') ||
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('restaurant') ||
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('pharmacy') ||
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('maintenance')
+    );
+    const hasValidQareeblakSession = !!(hasQareeblakToken && isQareeblakProvider);
 
     // 3. Still loading user data: If we have a token but no currentUser yet, keep showing loading
     const isStillLoadingUser = hasQareeblakToken && !currentUser && !isLoading;

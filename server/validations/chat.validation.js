@@ -28,7 +28,7 @@ const acceptQuoteSchema = z.object({
 });
 
 const validateParams = z.object({
-    consultationId: z.string().min(5).max(100)
+    consultationId: z.string().min(1).max(100)
 });
 
 // Zod Middleware

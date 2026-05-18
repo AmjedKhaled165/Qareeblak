@@ -124,9 +124,27 @@ async function ensureCoreTables(query) {
     `);
 
     await query(`
+        CREATE TABLE IF NOT EXISTS consultations (
+            id SERIAL PRIMARY KEY,
+            customer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+            status VARCHAR(50) DEFAULT 'active',
+            order_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
         CREATE TABLE IF NOT EXISTS chat_messages (
             id SERIAL PRIMARY KEY,
-            consultation_id INTEGER,
+            consultation_id INTEGER REFERENCES consultations(id) ON DELETE CASCADE,
+            sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            sender_type VARCHAR(50) DEFAULT 'customer',
+            message TEXT,
+            message_type VARCHAR(50) DEFAULT 'text',
+            image_url TEXT,
+            is_read BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `);
@@ -165,6 +183,25 @@ async function runStartupMigrations() {
 
         // Ensure core relations exist before any update/cleanup/index logic.
         await ensureCoreTables(query);
+
+        // Chat tables: ensure all required columns exist (idempotent for old schemas)
+        const chatColMigrations = [
+            'ALTER TABLE consultations ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES users(id) ON DELETE CASCADE',
+            'ALTER TABLE consultations ADD COLUMN IF NOT EXISTS provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE',
+            "ALTER TABLE consultations ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'",
+            'ALTER TABLE consultations ADD COLUMN IF NOT EXISTS order_id INTEGER',
+            'ALTER TABLE consultations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+            'ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE',
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sender_type VARCHAR(50) DEFAULT 'customer'",
+            'ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS message TEXT',
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS message_type VARCHAR(50) DEFAULT 'text'",
+            'ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS image_url TEXT',
+            'ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE',
+        ];
+        for (const sql of chatColMigrations) {
+            try { await query(sql); } catch(e) { /* column may already exist */ }
+        }
+        logger.info('✅ Chat tables columns ensured');
 
         // 1. Migration: Ensure default ratings are 0.0 for providers with no reviews
         const ratingRes = await query("UPDATE providers SET rating = 0.0 WHERE reviews_count = 0");

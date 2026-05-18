@@ -1,5 +1,6 @@
 const chatService = require('../services/chat.service');
 const chatRepo = require('../repositories/chat.repository');
+const pool = require('../db');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
@@ -124,7 +125,7 @@ exports.getProviderConsultations = catchAsync(async (req, res, next) => {
     const { status, limit = 20, lastId = null } = req.query; // cursor-based
 
     // Security check: only the owner of this provider can view their consultations
-    const check = await chatRepo.pool.query('SELECT user_id FROM providers WHERE id = $1', [providerId]);
+    const check = await pool.query('SELECT user_id FROM providers WHERE id = $1', [providerId]);
     if (!check.rows.length || (String(check.rows[0].user_id) !== String(req.user.id) && req.user.user_type !== 'admin')) {
         throw new AppError('غير مصرح لك بالوصول لقائمة محادثات هذا المزود', 403);
     }

@@ -52,7 +52,9 @@ exports.register = catchAsync(async (req, res, next) => {
 
     logger.info(`User registered successfully: ${user.email}`);
     res.status(201).json({
+        success: true,
         message: 'تم التسجيل بنجاح',
+        token: accessToken,
         user
     });
 });
@@ -66,7 +68,9 @@ exports.login = catchAsync(async (req, res, next) => {
 
     logger.info(`User logged in: ${user.email}`);
     res.status(200).json({
+        success: true,
         message: 'تم تسجيل الدخول بنجاح',
+        token: accessToken,
         user
     });
 });
@@ -77,7 +81,9 @@ exports.guestLogin = catchAsync(async (req, res, next) => {
 
     logger.info(`Guest logged in: ${user.email}`);
     res.status(200).json({
+        success: true,
         message: 'تم الدخول كزائر بنجاح',
+        token: accessToken,
         user
     });
 });

@@ -99,12 +99,12 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    // Initialize socket connection
-    const initSocket = useCallback((token: string | null, consultationId: string) => {
+    // Initialize socket connection (graceful - chat works without it via HTTP)
+    const initSocket = useCallback((token: string | null, consultId: string) => {
         if (!isOpen) return;
 
         try {
-            console.log('[PharmacyChat] Initializing Socket.io connection with auth token...');
+            console.log('[PharmacyChat] Initializing Socket.io connection (optional enhancement)...');
 
             if (socketRef.current) {
                 socketRef.current.disconnect();
@@ -115,23 +115,21 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 transports: ['websocket', 'polling'],
                 auth,
                 reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                reconnectionAttempts: 5,
+                reconnectionDelay: 2000,
+                reconnectionDelayMax: 10000,
+                reconnectionAttempts: 3,
             });
 
             socketRef.current.on('connect', () => {
                 console.log('[PharmacyChat] Socket connected:', socketRef.current?.id);
                 setSocketConnected(true);
                 setSocketError(null);
-                
-                // Join room immediately after connection
-                socketRef.current?.emit('join-consultation', consultationId);
+                socketRef.current?.emit('join-consultation', consultId);
             });
 
             socketRef.current.on('connect_error', (error: any) => {
-                console.error('[PharmacyChat] Socket connection error:', error);
-                setSocketError('خطأ في الاتصال بخادم المحادثة');
+                console.warn('[PharmacyChat] Socket connection failed (chat still works via HTTP):', error.message);
+                // Don't show error to user - chat works without socket
                 setSocketConnected(false);
             });
 
@@ -141,43 +139,67 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
             });
 
             socketRef.current.on('new-message', (message: Message) => {
-                console.log('[PharmacyChat] New message received:', message);
                 setMessages(prev => {
-                    if (prev.some(m => m.id === message.id)) {
-                        return prev;
-                    }
+                    if (prev.some(m => m.id === message.id)) return prev;
                     return [...prev, message];
                 });
             });
 
-            socketRef.current.on('pharmacist-status', ({ providerId: pid, status }) => {
-                console.log('[PharmacyChat] Pharmacist status update ignored (Forced Online):', pid, status);
+            socketRef.current.on('pharmacist-status', ({ providerId: pid, status }: { providerId: string; status: string }) => {
+                console.log('[PharmacyChat] Pharmacist status:', pid, status);
             });
 
-            socketRef.current.on('user-typing', ({ userName }) => {
-                console.log('[PharmacyChat] User typing:', userName);
+            socketRef.current.on('user-typing', ({ userName }: { userName: string }) => {
                 setIsTyping(true);
                 setTypingUserName(userName);
             });
 
             socketRef.current.on('user-stop-typing', () => {
-                console.log('[PharmacyChat] User stopped typing');
                 setIsTyping(false);
             });
 
-            // Listen for read receipts
             socketRef.current.on('messages-read', ({ messageIds }: { messageIds: number[] }) => {
-                console.log('[PharmacyChat] Messages marked as read:', messageIds);
                 setMessages(prev => prev.map(msg =>
                     messageIds.includes(msg.id) ? { ...msg, is_read: true } : msg
                 ));
             });
 
         } catch (error) {
-            console.error('[PharmacyChat] Socket initialization error:', error);
-            setSocketError('فشل الاتصال بخادم المحادثة');
+            console.warn('[PharmacyChat] Socket init failed (non-critical):', error);
+            // Don't block the chat - HTTP API still works
         }
     }, [isOpen]);
+
+    // HTTP Polling fallback: fetch new messages when socket is not connected
+    useEffect(() => {
+        if (!isOpen || !consultationId || socketConnected) return;
+
+        const pollMessages = async () => {
+            try {
+                const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
+                const res = await fetch(`${CHAT_API_BASE}/chat/${consultationId}`, {
+                    headers: buildHeaders(token),
+                    credentials: 'include',
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && Array.isArray(data.messages)) {
+                        setMessages(prev => {
+                            // Merge: keep existing + add new ones
+                            const existingIds = new Set(prev.map(m => m.id));
+                            const newMsgs = data.messages.filter((m: Message) => !existingIds.has(m.id));
+                            return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
+                        });
+                    }
+                }
+            } catch {
+                // Polling error is non-critical
+            }
+        };
+
+        const interval = setInterval(pollMessages, 5000);
+        return () => clearInterval(interval);
+    }, [isOpen, consultationId, socketConnected]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -517,15 +539,15 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
 
                 {/* Messages Area */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-950">
-                    {/* Socket Error Alert */}
-                    {socketError && (
+                    {/* Socket status indicator (non-blocking) */}
+                    {!socketConnected && consultationId && !isLoading && (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-200 p-3 rounded-lg flex items-start gap-2"
+                            className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 p-2 rounded-lg flex items-center gap-2 text-xs"
                         >
-                            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                            <div className="text-sm">{socketError}</div>
+                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                            <span>وضع الرسائل العادي - الرسائل الفورية غير متاحة حالياً</span>
                         </motion.div>
                     )}
 
@@ -735,8 +757,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                         />
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={!consultationId || isLoading || isSending || !socketConnected}
-                            className={`p-3 rounded-xl transition ${consultationId && !isLoading && !isSending && socketConnected
+                            disabled={!consultationId || isLoading || isSending}
+                            className={`p-3 rounded-xl transition ${consultationId && !isLoading && !isSending
                                 ? 'text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'
                                 : 'text-slate-300 cursor-not-allowed opacity-50'
                                 }`}
@@ -759,9 +781,9 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                                         sendMessage();
                                     }
                                 }}
-                                disabled={!consultationId || isLoading || !socketConnected}
-                                placeholder={consultationId ? (socketConnected ? "اكتب رسالتك أو أرسل صورة الروشتة..." : "جاري الاتصال...") : "جاري بدء المحادثة..."}
-                                className={`w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 max-h-32 ${consultationId && !isLoading && socketConnected
+                                disabled={!consultationId || isLoading}
+                                placeholder={consultationId ? "اكتب رسالتك أو أرسل صورة الروشتة..." : "جاري بدء المحادثة..."}
+                                className={`w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 max-h-32 ${consultationId && !isLoading
                                     ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-emerald-500'
                                     : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 opacity-50'
                                     }`}
@@ -772,7 +794,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                             size="icon"
                             className="bg-emerald-600 hover:bg-emerald-700 h-11 w-11 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={() => sendMessage()}
-                            disabled={!consultationId || isLoading || isSending || !socketConnected || (!inputMessage.trim() && !previewImage)}
+                            disabled={!consultationId || isLoading || isSending || (!inputMessage.trim() && !previewImage)}
                         >
                             {isSending ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />

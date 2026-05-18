@@ -19,8 +19,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && currentUser) {
-      console.log("Already logged in, redirecting...", currentUser.type);
-      if (currentUser.type === 'provider' || currentUser.type?.includes('partner')) {
+      const userType = currentUser.user_type || currentUser.type;
+      console.log("Already logged in, redirecting...", userType);
+      if (userType === 'provider' || userType?.includes('partner')) {
         router.replace("/provider-dashboard");
       } else {
         router.replace("/");

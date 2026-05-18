@@ -27,6 +27,7 @@ export default function ProviderLogin() {
   useEffect(() => {
     if (!isInitialized) return;
     const qareeblakToken = localStorage.getItem('qareeblak_token');
+    const qareeblakCookieSession = localStorage.getItem('qareeblak_cookie_session');
     const halanToken = localStorage.getItem('halan_token');
     const halanUser = localStorage.getItem('halan_user');
 
@@ -41,9 +42,13 @@ export default function ProviderLogin() {
         return;
       } catch (e) { /* ignore */ }
     }
-    if (qareeblakToken && currentUser) {
-      router.push('/provider-dashboard');
-      return;
+    if ((qareeblakToken || qareeblakCookieSession) && currentUser) {
+      // Verify user is actually a provider before redirecting
+      const userType = String(currentUser.type || currentUser.user_type || '').toLowerCase();
+      if (userType !== 'customer') {
+        router.push('/provider-dashboard');
+        return;
+      }
     }
   }, [isInitialized, currentUser, router]);
 

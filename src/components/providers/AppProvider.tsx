@@ -149,9 +149,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!isInitialized || !currentUser) return;
 
         const qareeblakToken = localStorage.getItem('qareeblak_token');
-        if (!qareeblakToken) return;
+        const qareeblakCookieSession = localStorage.getItem('qareeblak_cookie_session');
+        if (!qareeblakToken && !qareeblakCookieSession) return;
 
-        const userType = currentUser.user_type || currentUser.type;
+        const userType = String(currentUser.user_type || currentUser.type || '').toLowerCase();
         const hasPhone = Boolean(String(currentUser.phone || '').trim());
         const needsPhone = userType === 'customer' && !hasPhone;
 
@@ -174,15 +175,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (!isInitialized || !currentUser) return;
 
-        const qareeblakToken = localStorage.getItem('qareeblak_token');
-        const halanToken = localStorage.getItem('halan_token');
-        const userType = currentUser.user_type || currentUser.type;
+        const userType = String(currentUser.user_type || currentUser.type || '').toLowerCase();
         const currentPath = pathname || '/';
 
-        const isRegularProviderSession = Boolean(qareeblakToken) && !halanToken && userType === 'provider';
-        const isProviderDashboardPath = currentPath === '/provider-dashboard' || currentPath.startsWith('/provider-dashboard/');
+        const isProvider = userType.includes('provider') || userType.includes('partner') || userType.includes('restaurant') || userType.includes('pharmacy') || userType.includes('maintenance');
+        const isProviderDashboardPath = currentPath === '/provider-dashboard' || currentPath.startsWith('/provider-dashboard/') || currentPath.startsWith('/partner/');
 
-        if (isRegularProviderSession && !isProviderDashboardPath) {
+        if (isProvider && !isProviderDashboardPath) {
             router.replace('/provider-dashboard');
         }
     }, [isInitialized, currentUser, pathname, router]);
@@ -256,38 +255,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
             console.log('[AppProvider] Loading current user...');
             
-            // 1. Qareeblak Token (real JWT)
+            // 1. Qareeblak Session (Supports both JWT in localStorage and HttpOnly cookies)
             const qareeblakToken = localStorage.getItem('qareeblak_token');
-            if (qareeblakToken) {
-                console.log('[AppProvider] Found qareeblak_token');
-                if (qareeblakToken === 'mock_google_token') {
-                    // Google user with offline mock — restore from localStorage
-                    const savedUser = localStorage.getItem('qareeblak_user');
-                    if (savedUser) {
-                        const parsed = JSON.parse(savedUser);
-                        console.log('[AppProvider] Loaded mock user:', parsed.name);
-                        setCurrentUser(parsed);
-                        localStorage.setItem('user', JSON.stringify(parsed));
-                        return parsed;
-                    }
-                    return null;
+            if (qareeblakToken === 'mock_google_token') {
+                // Google user with offline mock — restore from localStorage
+                const savedUser = localStorage.getItem('qareeblak_user');
+                if (savedUser) {
+                    const parsed = JSON.parse(savedUser);
+                    console.log('[AppProvider] Loaded mock user:', parsed.name);
+                    setCurrentUser(parsed);
+                    localStorage.setItem('user', JSON.stringify(parsed));
+                    return parsed;
                 }
+                return null;
+            }
 
-                try {
-                    const user = await authApi.getCurrentUser();
+            // Always try to fetch current user (authApi will use cookie if token is missing in localStorage)
+            try {
+                const user = await authApi.getCurrentUser();
+                if (user && user.id) {
                     console.log('[AppProvider] Loaded qareeblak user:', user.name);
                     setCurrentUser(user);
                     localStorage.setItem('user', JSON.stringify(user));
+                    // If we have a user but no token in localStorage, it means we're using HttpOnly cookies
+                    // We'll set a flag so ProviderDashboard knows we have a valid session
+                    if (!qareeblakToken) {
+                        localStorage.setItem('qareeblak_cookie_session', 'true');
+                    }
                     return user;
-                } catch (authErr: any) {
-                    // Stale/invalid persisted token: clear it once to avoid 401 loops.
-                    console.warn('[AppProvider] Clearing stale qareeblak session token after /auth/me failure');
-                    localStorage.removeItem('qareeblak_token');
-                    localStorage.removeItem('qareeblak_user');
-                    localStorage.removeItem('user');
-                    setCurrentUser(null);
-                    return null;
                 }
+            } catch (authErr: any) {
+                // Not logged in or stale session
+                console.warn('[AppProvider] No valid qareeblak session found or /auth/me failed');
+                localStorage.removeItem('qareeblak_token');
+                localStorage.removeItem('qareeblak_cookie_session');
+                localStorage.removeItem('qareeblak_user');
+                localStorage.removeItem('user');
+                // Don't return null yet, fall through to Halan check
             }
 
             // 2. Halan Token (partner/courier)
@@ -461,6 +465,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Disconnect socket on logout
         const socket = (window as any).__qareeblak_socket;
         if (socket) socket.disconnect();
+        
+        // Redirect to login or home page after logout
+        router.replace('/');
     };
 
     const sendRegisterOtp = async (email: string): Promise<boolean> => {
