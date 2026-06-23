@@ -59,8 +59,15 @@ function safeJsonParse(value) {
 
 function parseAddressInfo(rawAddressInfo) {
     if (!rawAddressInfo) return null;
-    const maybeDecrypted = typeof rawAddressInfo === 'string' ? vault.decrypt(rawAddressInfo) : rawAddressInfo;
-    return safeJsonParse(maybeDecrypted);
+    if (typeof rawAddressInfo === 'string') {
+        const trimmed = rawAddressInfo.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try { return JSON.parse(trimmed); } catch {}
+        }
+        const decrypted = vault.decrypt(rawAddressInfo);
+        return safeJsonParse(decrypted);
+    }
+    return rawAddressInfo;
 }
 
 function pickFirstValue(values) {
@@ -107,19 +114,63 @@ function hydrateOrderDisplayFields(row) {
         addressInfo?.customerPhone
     ]);
 
+    // --- Address resolution ---
+    // Try delivery_orders.delivery_address, then parent_order address_info,
+    // then parse the linked booking's details text field.
+    let resolvedAddress = '';
+    if (!isPlaceholderAddress(row.delivery_address)) {
+        resolvedAddress = row.delivery_address || '';
+    } else if (addressFromParent) {
+        resolvedAddress = addressFromParent;
+    } else if (row.b_details) {
+        // Parse "العنوان: xxx" from linked booking's details field
+        const addrMatch = String(row.b_details).match(/العنوان[:\s]+([^|\n]+)/);
+        if (addrMatch) resolvedAddress = addrMatch[1].trim();
+    }
+
     const resolvedName = isPlaceholderName(row.customer_name)
         ? pickFirstValue([row.customer_user_name, nameFromParent, row.customer_name])
         : row.customer_name;
-    const resolvedAddress = isPlaceholderAddress(row.delivery_address)
-        ? pickFirstValue([addressFromParent, row.delivery_address])
-        : row.delivery_address;
     const resolvedPhone = pickFirstValue([row.customer_phone, row.customer_user_phone, phoneFromParent]);
+
+    // --- Items resolution ---
+    // Use delivery_orders.items if non-empty, otherwise fall back to linked booking items.
+    let resolvedItems = row.items;
+    if (!resolvedItems || (Array.isArray(resolvedItems) && resolvedItems.length === 0)) {
+        const bItems = safeJsonParse(row.b_items);
+        if (Array.isArray(bItems) && bItems.length > 0) resolvedItems = bItems;
+    } else if (typeof resolvedItems === 'string') {
+        const parsed = safeJsonParse(resolvedItems);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            resolvedItems = parsed;
+        } else {
+            const bItems = safeJsonParse(row.b_items);
+            if (Array.isArray(bItems) && bItems.length > 0) resolvedItems = bItems;
+            else resolvedItems = [];
+        }
+    }
+
+    // --- Price resolution ---
+    // delivery_orders.price is rarely set; fall back to sum from items or booking price.
+    let resolvedPrice = Number(row.price || 0);
+    if (resolvedPrice === 0 && row.b_price) {
+        resolvedPrice = Number(row.b_price) || 0;
+    }
+    if (resolvedPrice === 0 && Array.isArray(resolvedItems) && resolvedItems.length > 0) {
+        resolvedPrice = resolvedItems.reduce(
+            (sum, item) => sum + (Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)),
+            0
+        );
+    }
 
     return {
         ...row,
         customer_name: resolvedName,
         delivery_address: resolvedAddress,
-        customer_phone: resolvedPhone
+        customer_phone: resolvedPhone,
+        items: resolvedItems,
+        price: resolvedPrice,
+        delivery_fee: Number(row.delivery_fee || 0)
     };
 }
 
@@ -229,7 +280,7 @@ class DeliveryRepository {
         const customerJoin = hasCustomerId
             ? 'LEFT JOIN users cu ON o.customer_id = cu.id'
             : 'LEFT JOIN LATERAL (SELECT NULL::text as name, NULL::text as phone) cu ON TRUE';
-        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = b0.parent_order_id' : '';
+        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = bk.parent_order_id' : '';
         const parentAddressSelect = hasParentAddressInfo
             ? 'po.address_info as parent_address_info'
             : 'NULL::text as parent_address_info';
@@ -245,18 +296,21 @@ class DeliveryRepository {
                    s.name as supervisor_name,
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
-                   ${parentAddressSelect}
+                   ${parentAddressSelect},
+                   bk.items as b_items,
+                   bk.price as b_price,
+                   bk.details as b_details
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id
+                SELECT b.parent_order_id, b.items, b.price, b.details
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
                 ORDER BY b.id ASC
                 LIMIT 1
-            ) b0 ON TRUE
+            ) bk ON TRUE
             ${parentJoin}
             ${whereClause}
             ORDER BY o.id DESC
@@ -282,7 +336,7 @@ class DeliveryRepository {
         const customerJoin = hasCustomerId
             ? 'LEFT JOIN users cu ON o.customer_id = cu.id'
             : 'LEFT JOIN LATERAL (SELECT NULL::text as name, NULL::text as phone) cu ON TRUE';
-        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = b0.parent_order_id' : '';
+        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = bk.parent_order_id' : '';
         const parentAddressSelect = hasParentAddressInfo
             ? 'po.address_info as parent_address_info'
             : 'NULL::text as parent_address_info';
@@ -294,18 +348,21 @@ class DeliveryRepository {
                    s.name as supervisor_name,
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
-                   ${parentAddressSelect}
+                   ${parentAddressSelect},
+                   bk.items as b_items,
+                   bk.price as b_price,
+                   bk.details as b_details
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id
+                SELECT b.parent_order_id, b.items, b.price, b.details
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
                 ORDER BY b.id ASC
                 LIMIT 1
-            ) b0 ON TRUE
+            ) bk ON TRUE
             ${parentJoin}
             WHERE o.id = $1
         `;
@@ -353,7 +410,7 @@ class DeliveryRepository {
         const customerJoin = hasCustomerId
             ? 'LEFT JOIN users cu ON o.customer_id = cu.id'
             : 'LEFT JOIN LATERAL (SELECT NULL::text as name, NULL::text as phone) cu ON TRUE';
-        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = b0.parent_order_id' : '';
+        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = bk.parent_order_id' : '';
         const parentAddressSelect = hasParentAddressInfo
             ? 'po.address_info as parent_address_info'
             : 'NULL::text as parent_address_info';
@@ -365,18 +422,21 @@ class DeliveryRepository {
                    s.name as supervisor_name,
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
-                   ${parentAddressSelect}
+                   ${parentAddressSelect},
+                   bk.items as b_items,
+                   bk.price as b_price,
+                   bk.details as b_details
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id
+                SELECT b.parent_order_id, b.items, b.price, b.details
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
                 ORDER BY b.id ASC
                 LIMIT 1
-            ) b0 ON TRUE
+            ) bk ON TRUE
             ${parentJoin}
             WHERE ${conditions.join(' AND ')}
             LIMIT 1
@@ -449,7 +509,7 @@ class DeliveryRepository {
 
         const query = `UPDATE delivery_orders SET ${setClause}${updatedAtClause} WHERE id = $${params.length} RETURNING *`;
         const result = await pool.query(query, params);
-        return result.rows[0];
+        return result.rows[0] ? hydrateOrderDisplayFields(result.rows[0]) : null;
     }
 
     async updateCourierPricing(id, updates, meta = {}) {
@@ -500,7 +560,7 @@ class DeliveryRepository {
         `;
 
         const result = await pool.query(query, params);
-        return result.rows[0] || null;
+        return result.rows[0] ? hydrateOrderDisplayFields(result.rows[0]) : null;
     }
 
     async getLinkedBookings(orderId) {

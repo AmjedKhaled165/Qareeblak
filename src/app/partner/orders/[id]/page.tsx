@@ -230,7 +230,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                             price: item.price || item.unit_price || 0,
                             notes: item.notes || ''
                         })));
-                        setEditableDeliveryFee(found.delivery_fee || 0);
+                        setEditableDeliveryFee(Number(found.delivery_fee) || 0);
                         setEditableNotes(found.notes || '');
                     }
                 }
@@ -486,7 +486,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         : true;
     // Couriers CANNOT edit items (products, prices, quantities) - only delivery_fee and notes
     const canEditItems = !isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
-    const canEditDeliveryFee = isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
+    const canEditDeliveryFee = isCourier && order.status !== 'delivered' && order.status !== 'cancelled' && subOrdersReadyForPickup;
     // Legacy canEdit for backwards compatibility - now only for non-courier roles
     const canEdit = canEditItems;
 
@@ -597,7 +597,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                     </div>
                                     <div>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">توصيل إلى</p>
-                                        <p className="font-medium text-slate-800 dark:text-slate-200">{order.delivery_address}</p>
+                                        <p className="font-medium text-slate-800 dark:text-slate-200">
+                                            {order.delivery_address || 'لم يُحدَّد العنوان بعد'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -692,7 +694,12 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                     )}
                                 </div>
                                 <div className="space-y-4">
-                                    {editableItems.map((item, index) => (
+                                    {editableItems.length === 0 ? (
+                                        <div className="text-center py-8 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                                            <Package className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-500 mb-3" />
+                                            <p className="text-slate-500 dark:text-slate-400 font-medium">لا توجد منتجات مسجلة</p>
+                                        </div>
+                                    ) : (editableItems.map((item, index) => (
                                         <div key={index} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex-1 relative">
@@ -810,7 +817,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                 />
                                             </div>
                                         </div>
-                                    ))}
+                                    )))}
                                 </div>
                             </div>
                         )}

@@ -166,7 +166,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                                 </div>
                                 <div className="flex items-start gap-3">
                                     <MapPin className="w-4 h-4 text-green-500 mt-1" />
-                                    <span className="text-slate-700 dark:text-slate-300 text-sm">{order.delivery_address}</span>
+                                    <span className="text-slate-700 dark:text-slate-300 text-sm">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span>
                                 </div>
                             </div>
                         </div>
@@ -674,7 +674,22 @@ export default function OwnerAllOrdersPage() {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.03 }}
-                                    onClick={() => setSelectedOrder(order)}
+                                    onClick={async () => {
+                                        // Optimistic: show immediately with list data
+                                        setSelectedOrder(order);
+                                        // Then silently enrich with full detail (items, delivery_address, price)
+                                        try {
+                                            const full = await apiCall(`/halan/orders/${order.id}`);
+                                            if (full?.success && full?.data) {
+                                                const enriched = { ...order, ...full.data };
+                                                // Parse items if string
+                                                if (typeof enriched.items === 'string') {
+                                                    try { enriched.items = JSON.parse(enriched.items); } catch { enriched.items = []; }
+                                                }
+                                                setSelectedOrder(enriched);
+                                            }
+                                        } catch { /* keep optimistic data */ }
+                                    }}
                                     className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden"
                                 >
                                     {/* Source Indicator Strip */}
@@ -721,7 +736,7 @@ export default function OwnerAllOrdersPage() {
                                         </span>
                                         <span className="flex items-center gap-1">
                                             <MapPin className="w-3 h-3" />
-                                            <span className="truncate max-w-[150px]">{order.delivery_address}</span>
+                                            <span className="truncate max-w-[150px]">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span>
                                         </span>
                                     </div>
 

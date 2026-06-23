@@ -141,6 +141,19 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
     const totalItemsPrice = editItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const statusInfo = STATUS_MAP[order.status] || STATUS_MAP.pending;
 
+    // Resolve items_total: prefer order.price if set, otherwise compute from items
+    const computedItemsTotal = Number(order.price) > 0
+        ? Number(order.price)
+        : (order.items || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
+    const computedDeliveryFee = Number(order.delivery_fee) || 0;
+    const computedGrandTotal = computedItemsTotal + computedDeliveryFee;
+
+    // Resolve delivery_address with a clear fallback
+    const ADDRESS_PLACEHOLDERS = new Set(['n/a', 'na', 'no address', 'بدون عنوان']);
+    const rawAddress = (order.delivery_address || '').trim();
+    const resolvedDeliveryAddress = (rawAddress && !ADDRESS_PLACEHOLDERS.has(rawAddress.toLowerCase())) ? rawAddress : null;
+    const resolvedPickupAddress = (order.pickup_address || '').trim() || null;
+
     // ===== Item Edit Helpers =====
     const updateItem = (index: number, field: keyof OrderItem, value: string | number) => {
         setEditItems((prev) => {
@@ -353,29 +366,29 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                                 </div>
                             </div>
 
-                            {/* Addresses */}
-                            {(order.pickup_address || order.delivery_address) && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {order.pickup_address && (
-                                        <div className="flex items-start gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                                            <MapPin className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                                            <div>
-                                                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">عنوان الاستلام</p>
-                                                <p className="text-sm text-slate-800 dark:text-white">{order.pickup_address}</p>
-                                            </div>
+                            {/* Addresses — always rendered so courier/owner can see the delivery location */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {resolvedPickupAddress && (
+                                    <div className="flex items-start gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                                        <MapPin className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">عنوان الاستلام</p>
+                                            <p className="text-sm text-slate-800 dark:text-white">{resolvedPickupAddress}</p>
                                         </div>
-                                    )}
-                                    {order.delivery_address && (
-                                        <div className="flex items-start gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                                            <MapPin className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
-                                            <div>
-                                                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">عنوان التوصيل</p>
-                                                <p className="text-sm text-slate-800 dark:text-white">{order.delivery_address}</p>
-                                            </div>
-                                        </div>
-                                    )}
+                                    </div>
+                                )}
+                                <div className="flex items-start gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                                    <MapPin className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">عنوان التوصيل</p>
+                                        {resolvedDeliveryAddress ? (
+                                            <p className="text-sm text-slate-800 dark:text-white">{resolvedDeliveryAddress}</p>
+                                        ) : (
+                                            <p className="text-sm text-slate-400 italic">لم يُحدَّد العنوان بعد</p>
+                                        )}
+                                    </div>
                                 </div>
-                            )}
+                            </div>
 
                             {/* Items Table */}
                             <div>
@@ -413,17 +426,19 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                             {/* Price Summary */}
                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 space-y-1.5">
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-500 dark:text-slate-400">سعر المنتجات</span>
-                                    <span className="font-semibold text-slate-800 dark:text-white">{(order.price || 0).toFixed(0)} ج.م</span>
+                                    <span className="text-slate-500 dark:text-slate-400">إجمالي المنتجات</span>
+                                    <span className="font-semibold text-slate-800 dark:text-white">{computedItemsTotal.toFixed(0)} ج.م</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span className="text-slate-500 dark:text-slate-400">رسوم التوصيل</span>
-                                    <span className="font-semibold text-slate-800 dark:text-white">{(order.delivery_fee || 0).toFixed(0)} ج.م</span>
+                                    <span className={`font-semibold ${computedDeliveryFee === 0 ? 'text-slate-400 italic' : 'text-slate-800 dark:text-white'}`}>
+                                        {computedDeliveryFee === 0 ? 'لم يُحدَّد بعد (٠)' : `${computedDeliveryFee.toFixed(0)} ج.م`}
+                                    </span>
                                 </div>
                                 <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 flex justify-between text-sm">
-                                    <span className="font-bold text-slate-800 dark:text-white">الإجمالي</span>
+                                    <span className="font-bold text-slate-800 dark:text-white">الإجمالي الكلي</span>
                                     <span className="font-bold text-indigo-600 dark:text-indigo-400 text-lg">
-                                        {((order.price || 0) + (order.delivery_fee || 0)).toFixed(0)} ج.م
+                                        {computedGrandTotal.toFixed(0)} ج.م
                                     </span>
                                 </div>
                             </div>

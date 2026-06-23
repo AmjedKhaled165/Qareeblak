@@ -62,7 +62,8 @@ class BookingService {
             }
 
             const encryptedAddress = addressInfo ? vault.encrypt(JSON.stringify(addressInfo)) : null;
-            const summaryStr = addressInfo ? `Phone: ${addressInfo.phone} | Wallet: ${walletDeduction} EGP` : 'No Address';
+            const deliveryAddressStr = addressInfo ? [addressInfo.address, addressInfo.area, addressInfo.street, addressInfo.details].filter(Boolean).join(' - ') || 'N/A' : 'No Address';
+            const summaryStr = addressInfo ? `الهاتف: ${addressInfo.phone} | العنوان: ${deliveryAddressStr}` : 'No Address';
 
             const parentId = await bookingRepo.createParentOrder(userId, finalPrice, totalDiscount, validatedPrizeId, summaryStr, encryptedAddress, client);
 
@@ -94,7 +95,7 @@ class BookingService {
                 const dResult = await client.query(`
                     INSERT INTO delivery_orders (order_number, customer_name, customer_phone, customer_id, pickup_address, delivery_address, status, source, order_type)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
-                `, [orderNum, addressInfo.name || user.name || 'Client', addressInfo.phone || user.phone || '', userId, Object.values(grouped).map(g => g.providerName).join(' | '), addressInfo.address || 'N/A', 'pending', 'qareeblak', 'app']);
+                `, [orderNum, addressInfo.name || user.name || 'Client', addressInfo.phone || user.phone || '', userId, Object.values(grouped).map(g => g.providerName).join(' | '), deliveryAddressStr, 'pending', 'qareeblak', 'app']);
                 halanOrderId = dResult.rows[0].id;
                 await client.query('UPDATE bookings SET halan_order_id = $1 WHERE parent_order_id = $2', [halanOrderId, parentId]);
             }

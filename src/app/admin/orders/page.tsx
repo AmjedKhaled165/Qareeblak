@@ -149,10 +149,18 @@ export default function OrdersPage() {
         }
     };
 
-    // ===== Open Order Detail Modal =====
-    const openOrderModal = (order: Order) => {
+    // ===== Open Order Detail Modal — fetch enriched data first =====
+    const openOrderModal = async (order: Order) => {
+        // Optimistically open modal with list data so it doesn't feel slow
         setSelectedOrder(order);
         setModalOpen(true);
+        // Then silently enrich with full detail (delivery_address, delivery_fee, items, etc.)
+        try {
+            const full = await adminOrdersApi.getById(order.id);
+            if (full) setSelectedOrder(full as Order);
+        } catch {
+            // keep the optimistic data if the detail fetch fails
+        }
     };
 
     // ===== Quick Actions =====
