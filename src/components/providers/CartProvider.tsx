@@ -21,7 +21,7 @@ export interface CartContextType {
     removeFromGlobalCart: (providerId: string, itemId: string) => void;
     updateGlobalCartQuantity: (providerId: string, itemId: string, quantity: number) => void;
     clearGlobalCart: () => void;
-    checkoutGlobalCart: (userId: string | number, addressInfo?: { area: string, details: string, phone: string }, userPrizeId?: number) => Promise<string[] | false>;
+    checkoutGlobalCart: (userId: string | number, addressInfo?: { area: string, details: string, phone: string }, userPrizeId?: number) => Promise<{ orderIds: string[], trackingCode?: string } | false>;
     isLoadingCart: boolean;
 
     // Info Cart Actions (For specific bookings)
@@ -145,7 +145,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             if (result && result.success) {
                 clearGlobalCart();
                 toast("تم تسجيل طلبك بنجاح!", "success");
-                return result.parentId ? [`P${result.parentId}`] : (result.bookingIds || []);
+                const orderIds = result.parentId ? [`P${result.parentId}`] : (result.bookingIds || []);
+                return { orderIds, trackingCode: result.trackingCode || undefined };
             } else {
                 toast(result.error || "عذراً، فشل إتمام الطلب! تأكد من اتصالك.", "error");
                 return false;

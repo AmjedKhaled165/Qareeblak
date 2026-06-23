@@ -117,8 +117,26 @@ const HalanItemsList = ({ halanOrderId, bookingId, fallback }: { halanOrderId?: 
         };
 
         fetchItems();
-        const interval = setInterval(fetchItems, 20000); // Poll every 20s instead of 5s
-        return () => clearInterval(interval);
+        
+        const socket = (typeof window !== 'undefined') ? (window as any).__qareeblak_socket : null;
+        const handleUpdate = (e: any) => {
+            const id = Number(e?.orderId || e?.halanOrderId || e?.id);
+            if (!id || id === halanOrderId) {
+                fetchItems();
+            }
+        };
+        
+        if (socket) {
+            socket.on('order-updated', handleUpdate);
+            socket.on('order-status-changed', handleUpdate);
+        }
+        
+        return () => {
+            if (socket) {
+                socket.off('order-updated', handleUpdate);
+                socket.off('order-status-changed', handleUpdate);
+            }
+        };
     }, [halanOrderId, bookingId]);
 
     // If we have items from live fetch, show them. Otherwise use fallback.

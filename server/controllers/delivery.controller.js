@@ -168,65 +168,71 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             throw new AppError('معرف الطلب غير صالح', 400);
         }
 
-        const result = await db.query(
-            `SELECT b.id, b.parent_order_id, b.status,
-                    COALESCE(d.status, b.status) AS effective_status,
-                    p.status AS parent_status,
-                    b.items, b.price, b.provider_name,
-                    b.booking_date, b.created_at, b.details,
-                    b.halan_order_id,
-                    d.courier_id,
-                    c.name AS courier_name,
-                    c.phone AS courier_phone,
-                    COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
-                    u.phone AS customer_phone
-             FROM bookings b
-             LEFT JOIN users u ON u.id = b.user_id
-             LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
-             LEFT JOIN parent_orders p ON p.id = b.parent_order_id
-             LEFT JOIN users c ON c.id = d.courier_id
-             WHERE b.parent_order_id = $1
-             ORDER BY b.id ASC`,
-            [parentId]
-        );
+    const result = await db.query(
+        `SELECT b.id, b.parent_order_id, b.status,
+                CASE 
+                    WHEN d.status IN ('pending', 'assigned') THEN COALESCE(b.status, d.status)
+                    ELSE COALESCE(d.status, b.status)
+                END AS effective_status,
+                p.status AS parent_status,
+                b.items, b.price, b.provider_name,
+                b.booking_date, b.created_at, b.details,
+                b.halan_order_id,
+                d.courier_id,
+                d.delivery_address,
+                d.notes,
+                d.delivery_fee,
+                c.name AS courier_name,
+                c.phone AS courier_phone,
+                COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
+                u.phone AS customer_phone
+         FROM bookings b
+         LEFT JOIN users u ON u.id = b.user_id
+         LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
+         LEFT JOIN parent_orders p ON p.id = b.parent_order_id
+         LEFT JOIN users c ON c.id = d.courier_id
+         WHERE b.parent_order_id = $1
+         ORDER BY b.id ASC`,
+        [parentId]
+    );
 
-        if (result.rows.length === 0) throw new AppError('الطلب غير موجود', 404);
+    if (result.rows.length === 0) throw new AppError('الطلب غير موجود', 404);
 
-        const first = result.rows[0];
-        const subOrders = result.rows.map((r) => ({
-            id: r.id,
-            provider_name: r.provider_name,
-            status: r.effective_status || r.status,
-            price: Number(r.price || 0),
-            items: parseItems(r.items),
-            courier_name: r.courier_name || undefined,
-            courier_phone: r.courier_phone || undefined
-        }));
+    const first = result.rows[0];
+    const subOrders = result.rows.map((r) => ({
+        id: r.id,
+        provider_name: r.provider_name,
+        status: r.effective_status || r.status,
+        price: Number(r.price || 0),
+        items: parseItems(r.items),
+        courier_name: r.courier_name || undefined,
+        courier_phone: r.courier_phone || undefined
+    }));
 
-        const aggregateStatus = getAggregateTrackingStatus(subOrders.map((s) => s.status));
-        const parentStatus = normalizeTrackingStatus(first.parent_status || first.status || 'pending');
-        const effectiveParentStatus = getAggregateTrackingStatus([parentStatus, aggregateStatus]);
+    const aggregateStatus = getAggregateTrackingStatus(subOrders.map((s) => s.status));
+    const parentStatus = normalizeTrackingStatus(first.parent_status || first.status || 'pending');
+    const effectiveParentStatus = getAggregateTrackingStatus([parentStatus, aggregateStatus]);
 
-        const order = {
-            id: `P${parentId}`,
-            order_number: `P${parentId}`,
-            customer_name: first.customer_name || 'عميل',
-            customer_phone: first.customer_phone || '',
-            delivery_address: first.details || 'غير متاح',
-            pickup_address: '',
-            status: effectiveParentStatus,
-            items: subOrders.flatMap((s) => s.items),
-            delivery_fee: 0,
-            notes: first.details || '',
-            created_at: first.booking_date || first.created_at,
-            total_price: subOrders.reduce((sum, s) => sum + Number(s.price || 0), 0),
-            is_parent: true,
-            courier_name: first.courier_name || undefined,
-            courier_phone: first.courier_phone || undefined,
-            sub_orders: subOrders
-        };
+    const order = {
+        id: `P${parentId}`,
+        order_number: `P${parentId}`,
+        customer_name: first.customer_name || 'عميل',
+        customer_phone: first.customer_phone || '',
+        delivery_address: first.delivery_address || first.details || 'غير متاح',
+        pickup_address: '',
+        status: effectiveParentStatus,
+        items: subOrders.flatMap((s) => s.items),
+        delivery_fee: Number(first.delivery_fee || 0),
+        notes: first.notes || '',
+        created_at: first.booking_date || first.created_at,
+        total_price: subOrders.reduce((sum, s) => sum + Number(s.price || 0), 0),
+        is_parent: true,
+        courier_name: first.courier_name || undefined,
+        courier_phone: first.courier_phone || undefined,
+        sub_orders: subOrders
+    };
 
-        return res.status(200).json({ success: true, order });
+    return res.status(200).json({ success: true, order });
     }
 
     const bookingId = Number(rawId);
@@ -236,11 +242,17 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
 
     const result = await db.query(
         `SELECT b.id, b.parent_order_id, b.status,
-            COALESCE(d.status, b.status) AS effective_status,
+            CASE 
+                WHEN d.status IN ('pending', 'assigned') THEN COALESCE(b.status, d.status)
+                ELSE COALESCE(d.status, b.status)
+            END AS effective_status,
             b.items, b.price, b.provider_name,
                 b.booking_date, b.created_at, b.details,
             b.halan_order_id,
                 d.courier_id,
+                d.delivery_address,
+                d.notes,
+                d.delivery_fee,
                 c.name AS courier_name,
                 c.phone AS courier_phone,
                 COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
@@ -262,12 +274,12 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         order_number: String(booking.id),
         customer_name: booking.customer_name || 'عميل',
         customer_phone: booking.customer_phone || '',
-        delivery_address: booking.details || 'غير متاح',
+        delivery_address: booking.delivery_address || booking.details || 'غير متاح',
         pickup_address: '',
         status: normalizeTrackingStatus(booking.effective_status || booking.status || 'pending'),
         items: parseItems(booking.items),
-        delivery_fee: 0,
-        notes: booking.details || '',
+        delivery_fee: Number(booking.delivery_fee || 0),
+        notes: booking.notes || '',
         created_at: booking.booking_date || booking.created_at,
         total_price: Number(booking.price || 0),
         is_parent: false,
@@ -277,6 +289,27 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
     };
 
     return res.status(200).json({ success: true, order });
+});
+
+exports.trackOrderByCode = catchAsync(async (req, res) => {
+    const { code } = req.params;
+    if (!code || code.length !== 7) {
+        throw new AppError('كود التتبع غير صالح', 400);
+    }
+
+    // Look up delivery_orders by tracking_code
+    const dResult = await db.query(
+        `SELECT id FROM delivery_orders WHERE tracking_code = $1 LIMIT 1`,
+        [code.toUpperCase()]
+    );
+    if (dResult.rows.length === 0) {
+        throw new AppError('الطلب غير موجود', 404);
+    }
+    const deliveryId = dResult.rows[0].id;
+
+    // Reuse trackOrderPublic logic by passing the delivery order id directly
+    req.params.id = String(deliveryId);
+    return exports.trackOrderPublic(req, res);
 });
 
 exports.customerCancel = catchAsync(async (req, res) => {
@@ -344,8 +377,9 @@ exports.getOrder = catchAsync(async (req, res, next) => {
 exports.createOrder = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
+    const io = req.app.get('io');
 
-    const order = await deliveryService.createOrder(userId, role, req.body);
+    const order = await deliveryService.createOrder(userId, role, req.body, io);
     res.status(201).json({ success: true, data: order });
 });
 

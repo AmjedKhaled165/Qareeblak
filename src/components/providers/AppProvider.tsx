@@ -285,13 +285,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     return user;
                 }
             } catch (authErr: any) {
-                // Not logged in or stale session
-                console.warn('[AppProvider] No valid qareeblak session found or /auth/me failed');
-                localStorage.removeItem('qareeblak_token');
-                localStorage.removeItem('qareeblak_cookie_session');
-                localStorage.removeItem('qareeblak_user');
-                localStorage.removeItem('user');
-                // Don't return null yet, fall through to Halan check
+                // [PERSISTENT LOGIN] DO NOT clear tokens here — tokens never expire
+                // and server restarts / brief network issues should never log user out.
+                // Only the manual "logout" button clears authentication.
+                console.warn('[AppProvider] Could not reach auth server for /auth/me, keeping token for retry');
             }
 
             // 2. Halan Token (partner/courier)
@@ -382,18 +379,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
 
             // Real-time updates via socket events only (no polling to prevent auto-logout)
-            socket.on('booking-updated', () => {
-                const u = currentUserRef.current;
-                if (u?.id) loadUserBookings(u);
-            });
-            socket.on('order-status-changed', () => {
-                const u = currentUserRef.current;
-                if (u?.id) loadUserBookings(u);
-            });
-            socket.on('order-updated', () => {
-                const u = currentUserRef.current;
-                if (u?.id) loadUserBookings(u);
-            });
+            let fetchTimeout: NodeJS.Timeout;
+            const debouncedFetchBookings = () => {
+                if (fetchTimeout) clearTimeout(fetchTimeout);
+                fetchTimeout = setTimeout(() => {
+                    const u = currentUserRef.current;
+                    if (u?.id) loadUserBookings(u);
+                }, 300);
+            };
+
+            socket.on('booking-updated', debouncedFetchBookings);
+            socket.on('order-status-changed', debouncedFetchBookings);
+            socket.on('order-updated', debouncedFetchBookings);
             socket.on('services_updated', loadProviders);
 
             // Store globally so other effects can emit to it

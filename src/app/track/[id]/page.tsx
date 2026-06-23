@@ -512,7 +512,7 @@ export default function TrackOrderPage() {
         ? order.items.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0)
         : Math.max(0, (Number(order?.total_price || 0) - Number(order?.delivery_fee || 0)));
 
-    const grandTotal = Number(order?.total_price) || (itemsTotal + Number(order?.delivery_fee || 0));
+    const grandTotal = (Number(order?.total_price) || itemsTotal) + Number(order?.delivery_fee || 0);
 
 
 
@@ -1020,6 +1020,10 @@ export default function TrackOrderPage() {
                                     })()}
                                 </span>
                             </div>
+                            <div className="flex justify-between items-center text-sm opacity-90 mt-2 pt-3 border-t border-indigo-500/30">
+                                <span>التوصيل</span>
+                                <span>{Number(order.delivery_fee) > 0 ? `${Number(order.delivery_fee).toFixed(0)} ج.م` : 'يحدد من قبل المندوب'}</span>
+                            </div>
                             <div className="text-xs opacity-70 leading-relaxed">
                                 تم تجميع طلباتك في طلب واحد لتسهيل التتبع. قد يصل المندوبون في أوقات متقاربة حسب جاهزية كل متجر.
                             </div>
@@ -1061,7 +1065,7 @@ export default function TrackOrderPage() {
                                 </div>
                                 <div className="flex justify-between text-slate-600 dark:text-slate-400">
                                     <span>التوصيل</span>
-                                    <span>{Number(order.delivery_fee || 0).toFixed(0)} ج.م</span>
+                                    <span>{Number(order.delivery_fee) > 0 ? `${Number(order.delivery_fee).toFixed(0)} ج.م` : 'يحدد من قبل المندوب'}</span>
                                 </div>
                                 <div className="flex justify-between text-slate-900 dark:text-white text-lg font-bold border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
                                     <span>الإجمالي</span>
@@ -1122,8 +1126,12 @@ export default function TrackOrderPage() {
                             0x2018: 0x91, 0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F
                         };
 
+                        const hasUnicode = (s: string) => { for (let i = 0; i < s.length; i++) { if (s.charCodeAt(i) > 255) return true; } return false; };
+
                         const fixAgony = (str: string) => {
                             if (!str) return "";
+                            // If already valid Unicode (Arabic chars > U+00FF), return as-is
+                            if (hasUnicode(str)) return str;
                             try {
                                 // Convert string to bytes, handling Windows-1252 overrides
                                 const bytes = new Uint8Array(str.length);

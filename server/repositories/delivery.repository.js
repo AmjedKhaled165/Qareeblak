@@ -1,8 +1,21 @@
 const pool = require('../db');
 const vault = require('../utils/vault');
+const { generateTrackingCode } = require('../utils/generate-tracking-code');
 
 let deliveryOrdersColumnsCache = null;
 let parentOrdersColumnsCache = null;
+
+// [PERFORMANCE] Warm schema cache at startup — eliminates 1-2 extra round-trips per request
+(async function warmColumnCache() {
+    try {
+        const [dResult, pResult] = await Promise.all([
+            pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'delivery_orders'`),
+            pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'parent_orders'`)
+        ]);
+        deliveryOrdersColumnsCache = new Set(dResult.rows.map(r => r.column_name));
+        parentOrdersColumnsCache = new Set(pResult.rows.map(r => r.column_name));
+    } catch (_) { /* server starting, schema not ready yet — will lazy-load on first real request */ }
+})();
 
 async function getDeliveryOrdersColumns() {
     if (deliveryOrdersColumnsCache) return deliveryOrdersColumnsCache;
@@ -471,19 +484,23 @@ class DeliveryRepository {
     }
 
     async createDeliveryOrder(data, client = pool) {
+        const trackingCode = data.trackingCode || generateTrackingCode();
         const query = `
             INSERT INTO delivery_orders 
             (order_number, customer_name, customer_phone, pickup_address, delivery_address,
              pickup_lat, pickup_lng, delivery_lat, delivery_lng,
-             courier_id, supervisor_id, status, notes, delivery_fee, items, source, order_type)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+             courier_id, supervisor_id, status, notes, delivery_fee, items, source, order_type,
+             tracking_code)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            ON CONFLICT (tracking_code) DO UPDATE SET tracking_code = EXCLUDED.tracking_code
             RETURNING *
         `;
         const params = [
             data.orderNumber, data.customerName, data.customerPhone, data.pickupAddress, data.deliveryAddress,
             data.pLat, data.pLng, data.dLat, data.dLng,
             data.courierId, data.supervisorId, data.status, data.notes, data.deliveryFee,
-            JSON.stringify(data.items), data.source, data.orderType
+            JSON.stringify(data.items), data.source, data.orderType,
+            trackingCode
         ];
         const result = await client.query(query, params);
         return result.rows[0];
@@ -660,5 +677,9 @@ class DeliveryRepository {
         await client.query(query, [orderId, status, userId, notes, latitude, longitude]);
     }
 }
+
+// Pre-warm column caches in the background
+getDeliveryOrdersColumns().catch(e => logger.warn('Background cache warm failed (delivery orders)'));
+getParentOrdersColumns().catch(e => logger.warn('Background cache warm failed (parent orders)'));
 
 module.exports = new DeliveryRepository();

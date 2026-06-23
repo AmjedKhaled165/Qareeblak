@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import { apiCall } from "@/lib/api";
+import { useDebounce } from "@/lib/use-debounce";
 
 interface Order {
     id: number;
@@ -337,6 +338,7 @@ export default function OwnerAllOrdersPage() {
     const [managerFilter, setManagerFilter] = useState<string>(searchParams.get('supervisorId') || 'all');
     const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') || 'all');
     const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('search') || '');
+    const debouncedSearch = useDebounce(searchQuery, 350);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     // Keep latest fetchOrders for socket callbacks without re-registering listeners each render.
@@ -368,7 +370,7 @@ export default function OwnerAllOrdersPage() {
             if (driverFilter !== 'all') params.append('courierId', driverFilter);
             if (managerFilter !== 'all') params.append('supervisorId', managerFilter);
             if (sourceFilter !== 'all') params.append('source', sourceFilter);
-            if (searchQuery.trim()) params.append('search', searchQuery.trim());
+            if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
 
             // Pagination params
             params.append('page', page.toString());
@@ -399,7 +401,7 @@ export default function OwnerAllOrdersPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [statusFilter, driverFilter, managerFilter, sourceFilter, searchQuery, page]);
+    }, [statusFilter, driverFilter, managerFilter, sourceFilter, debouncedSearch, page]);
 
     useEffect(() => {
         fetchOrdersRef.current = fetchOrders;

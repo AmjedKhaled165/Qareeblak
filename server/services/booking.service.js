@@ -1,6 +1,7 @@
 const bookingRepo = require('../repositories/booking.repository');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
+const { generateTrackingCode } = require('../utils/generate-tracking-code');
 const { syncParentOrderStatus } = require('../utils/parent-sync');
 const { createNotification } = require('../routes/notifications');
 const { performAutoAssign } = require('../utils/driver-assignment');
@@ -10,13 +11,13 @@ const { client: redisClient } = require('../utils/redis');
 
 class BookingService {
     async checkoutTransaction(userId, items, addressInfo, options = {}) {
-        const { userPrizeId, promoCode, useWallet, idempotencyKey } = options;
+        const { userPrizeId, promoCode, useWallet, idempotencyKey, io } = options;
         const { withEliteLock } = require('../utils/resilient-lock');
 
         // Pass the request-like object for hashing and userId
         const reqContext = { user: { id: userId }, body: { items, promoCode, userPrizeId, useWallet } };
 
-        return await withEliteLock(reqContext, idempotencyKey, async (client) => {
+        const result = await withEliteLock(reqContext, idempotencyKey, async (client) => {
             const vault = require('../utils/vault');
             const { WalletService, PromoService } = require('./loyalty.service');
 
@@ -88,14 +89,16 @@ class BookingService {
 
             // [HALAN SYNC]
             let halanOrderId = null;
+            let trackingCode = null;
             if (addressInfo) {
                 const orderNum = `HLN-${Date.now().toString(36).toUpperCase()}`;
+                trackingCode = generateTrackingCode();
                 const userRes = await client.query('SELECT name, phone FROM users WHERE id = $1 LIMIT 1', [userId]);
                 const user = userRes.rows[0] || {};
                 const dResult = await client.query(`
-                    INSERT INTO delivery_orders (order_number, customer_name, customer_phone, customer_id, pickup_address, delivery_address, status, source, order_type)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
-                `, [orderNum, addressInfo.name || user.name || 'Client', addressInfo.phone || user.phone || '', userId, Object.values(grouped).map(g => g.providerName).join(' | '), deliveryAddressStr, 'pending', 'qareeblak', 'app']);
+                    INSERT INTO delivery_orders (order_number, customer_name, customer_phone, customer_id, pickup_address, delivery_address, status, source, order_type, tracking_code)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+                `, [orderNum, addressInfo.name || user.name || 'Client', addressInfo.phone || user.phone || '', userId, Object.values(grouped).map(g => g.providerName).join(' | '), deliveryAddressStr, 'pending', 'qareeblak', 'app', trackingCode]);
                 halanOrderId = dResult.rows[0].id;
                 await client.query('UPDATE bookings SET halan_order_id = $1 WHERE parent_order_id = $2', [halanOrderId, parentId]);
             }
@@ -114,8 +117,24 @@ class BookingService {
                 userId 
             }]);
 
-            return { parentId, bookingIds, finalPrice, walletUsed: walletDeduction };
+            return { parentId, bookingIds, finalPrice, walletUsed: walletDeduction, trackingCode };
         });
+
+        // Send tracking code notification asynchronously
+        if (result.trackingCode && userId) {
+            setImmediate(async () => {
+                try {
+                    const countRes = await db.query('SELECT COUNT(*) FROM parent_orders WHERE user_id = $1', [userId]);
+                    const orderCount = Number(countRes.rows[0]?.count || 0);
+                    const msg = `كود الاوردر رقم ${orderCount} هو ${result.trackingCode}`;
+                    await createNotification(userId, msg, 'tracking_code', String(result.parentId), io);
+                } catch (e) {
+                    logger.error(`Failed to send tracking code notification for user #${userId}:`, e.message);
+                }
+            });
+        }
+
+        return result;
     }
 
     async updateBookingStatus(id, status, price, io) {
@@ -147,6 +166,16 @@ class BookingService {
         }
 
         const bookingInfo = result; // Use the freshly updated row data
+
+        // Sync delivery order status when provider marks order ready
+        if (status === 'completed' && bookingInfo.halan_order_id) {
+            try {
+                const deliveryRepo = require('../repositories/delivery.repository');
+                await deliveryRepo.updateOrder(bookingInfo.halan_order_id, { status: 'ready_for_pickup' });
+            } catch (e) {
+                logger.warn('Failed to sync delivery order status on booking completed:', e.message);
+            }
+        }
 
         const customerId = bookingInfo.user_id;
         // providerUserId is now returned directly from getBookingToUpdate JOIN — no extra DB call

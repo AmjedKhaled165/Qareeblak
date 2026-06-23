@@ -48,12 +48,11 @@ const USER_CACHE_TTL = 60;
 // ==========================================
 // If Redis dies, 10,000 requests will hit the DB concurrently, bringing down Postgres.
 // We intercept DB fallback requests with a Circuit Breaker.
+const AUTH_USER_COLUMNS = 'id, name, email, password, user_type, phone, avatar, is_banned, token_version, cancellation_count, role';
 const dbQueryBreaker = new CircuitBreaker(
     async (userId) => {
         return await db.query(
-            // Use SELECT * to stay compatible with older schemas where optional
-            // auth columns (e.g. role/cancellation_count/token_version) may not exist yet.
-            'SELECT * FROM users WHERE id = $1',
+            `SELECT ${AUTH_USER_COLUMNS} FROM users WHERE id = $1`,
             [userId]
         );
     },

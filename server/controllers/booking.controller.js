@@ -204,8 +204,8 @@ exports.updateStatus = catchAsync(async (req, res, next) => {
     const bookingInfo = await bookingRepo.getBookingToUpdate(id);
     if (!bookingInfo) throw new AppError('Booking not found', 404);
 
-    const pUserId = await bookingRepo.getUserIdByProviderId(bookingInfo.provider_id);
-    if (String(pUserId) !== String(req.user.id) && req.user.role !== 'admin' && req.user.user_type !== 'admin') {
+    const providerUserId = bookingInfo.providerUserId;
+    if (String(providerUserId || (await bookingRepo.getUserIdByProviderId(bookingInfo.provider_id))) !== String(req.user.id) && req.user.role !== 'admin' && req.user.user_type !== 'admin') {
         throw new AppError('غير مصرح تغيير حالة هذا الطلب', 403);
     }
 
@@ -260,8 +260,8 @@ exports.acceptAppointment = catchAsync(async (req, res, next) => {
     if (!bookingInfo) throw new AppError('الحجز غير موجود', 404);
 
     const isCustomer = String(bookingInfo.user_id) === String(req.user.id);
-    const pUserId = await bookingRepo.getUserIdByProviderId(bookingInfo.provider_id);
-    const isProvider = String(pUserId) === String(req.user.id);
+    const providerUserId = bookingInfo.providerUserId;
+    const isProvider = String(providerUserId || (await bookingRepo.getUserIdByProviderId(bookingInfo.provider_id))) === String(req.user.id);
 
     // Determine who is accepting based on their identity
     const acceptedBy = isProvider ? 'provider' : (isCustomer ? 'customer' : null);

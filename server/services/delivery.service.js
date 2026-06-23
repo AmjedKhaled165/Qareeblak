@@ -2,6 +2,8 @@ const deliveryRepo = require('../repositories/delivery.repository');
 const db = require('../db');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
+const { generateTrackingCode } = require('../utils/generate-tracking-code');
+const { createNotification } = require('../routes/notifications');
 const { performAutoAssign } = require('../utils/driver-assignment');
 const { syncParentOrderStatus } = require('../utils/parent-sync');
 const whatsappRoutes = require('../routes/whatsapp');
@@ -60,15 +62,12 @@ class DeliveryService {
                 return !hasSupervisor && !closed;
             }).slice(0, 10);
 
-            // Asynchronously process backfill so we don't block the GET request response time
+            // Asynchronously process backfill in parallel so we don't block the GET request
             setImmediate(async () => {
-                for (const order of backfillCandidates) {
-                    try {
-                        await performAutoAssign(order.id, requesterId, null, String(order.status || 'pending'));
-                    } catch (e) {
-                        logger.error(`[OrderBackfill] Failed auto-assign for order #${order.id}:`, e.message || e);
-                    }
-                }
+                await Promise.allSettled(backfillCandidates.map(order =>
+                    performAutoAssign(order.id, requesterId, null, String(order.status || 'pending'))
+                        .catch(e => logger.error(`[OrderBackfill] Failed auto-assign for order #${order.id}:`, e.message || e))
+                ));
             });
         }
 
@@ -115,18 +114,19 @@ class DeliveryService {
             throw new AppError('لا يمكن إلغاء الطلب بعد خروجه للتوصيل', 400);
         }
 
-        const updated = await deliveryRepo.updateOrder(orderId, { status: 'cancelled' });
-        await deliveryRepo.addHistory(orderId, 'cancelled', null, payload?.reason || 'تم إلغاء الطلب من العميل');
+        const [updated] = await Promise.all([
+            deliveryRepo.updateOrder(orderId, { status: 'cancelled' }),
+            deliveryRepo.addHistory(orderId, 'cancelled', null, payload?.reason || 'تم إلغاء الطلب من العميل')
+        ]);
 
         if (io) {
             this._emitOrderSync(io, orderId, { status: 'cancelled', updates: { status: 'cancelled' } });
             const linkedBookings = await deliveryRepo.getLinkedBookings(orderId);
+            const parentIds = linkedBookings.filter(b => b.parent_order_id).map(b => b.parent_order_id);
             for (const b of linkedBookings) {
                 io.emit('booking-updated', { id: b.id, status: 'cancelled', halanOrderId: Number(orderId) });
-                if (b.parent_order_id) {
-                    await syncParentOrderStatus(b.parent_order_id, io);
-                }
             }
+            await Promise.all(parentIds.map(pid => syncParentOrderStatus(pid, io).catch(e => logger.error(`syncParentOrderStatus #${pid} failed:`, e.message))));
         }
 
         return updated;
@@ -144,8 +144,10 @@ class DeliveryService {
         }
 
         items.splice(itemIndex, 1);
-        const updated = await deliveryRepo.updateOrder(orderId, { items });
-        await deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `قام العميل بحذف منتج من الطلب (index: ${itemIndex})`);
+        const [updated] = await Promise.all([
+            deliveryRepo.updateOrder(orderId, { items }),
+            deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `قام العميل بحذف منتج من الطلب (index: ${itemIndex})`)
+        ]);
 
         if (io) {
             this._emitOrderSync(io, orderId, { updates: { items }, extraBooking: { items } });
@@ -183,8 +185,10 @@ class DeliveryService {
         const currentItems = this._parseItems(currentOrder.items);
         const merged = [...currentItems, ...normalized];
 
-        const updated = await deliveryRepo.updateOrder(orderId, { items: merged });
-        await deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `أضاف العميل ${normalized.length} منتج/منتجات للطلب`);
+        const [updated] = await Promise.all([
+            deliveryRepo.updateOrder(orderId, { items: merged }),
+            deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `أضاف العميل ${normalized.length} منتج/منتجات للطلب`)
+        ]);
 
         if (io) {
             this._emitOrderSync(io, orderId, { updates: { items: merged }, extraBooking: { items: merged } });
@@ -193,7 +197,18 @@ class DeliveryService {
         return { order: updated, items: merged };
     }
 
-    async createOrder(userId, role, orderData) {
+    async _sendTrackingCodeNotification(userId, trackingCode, orderId, io) {
+        try {
+            const countRes = await db.query('SELECT COUNT(*) FROM parent_orders WHERE user_id = $1', [userId]);
+            const orderCount = Number(countRes.rows[0]?.count || 0);
+            const msg = `كود الاوردر رقم ${orderCount} هو ${trackingCode}`;
+            await createNotification(userId, msg, 'tracking_code', String(orderId), io);
+        } catch (e) {
+            logger.error(`Failed to send tracking code notification for user #${userId}:`, e.message);
+        }
+    }
+
+    async createOrder(userId, role, orderData, io) {
         const {
             customerName, customerPhone, pickupAddress, deliveryAddress,
             pickupLat, pickupLng, deliveryLat, deliveryLng,
@@ -210,24 +225,30 @@ class DeliveryService {
             ? (creator?.name ? `طلب يدوي بواسطة ${creator.name}` : 'manual')
             : source;
 
+        const trackingCode = generateTrackingCode();
+
         const itemsWithProvider = finalItems.filter(p => p.providerId);
         const isSplitMode = itemsWithProvider.length > 0;
 
+        let order;
         if (isSplitMode) {
-            return await this._createSplitOrder(userId, role, {
+            order = await this._createSplitOrder(userId, role, {
                 customerName, customerPhone, pickupAddress, effectiveDeliveryAddress,
                 pickupLat, pickupLng, deliveryLat, deliveryLng,
                 courierId, notes, deliveryFee, finalItems, itemsWithProvider,
-                effectiveSource, effectiveOrderType
+                effectiveSource, effectiveOrderType, trackingCode
             });
         } else {
-            return await this._createNormalOrder(userId, role, {
+            order = await this._createNormalOrder(userId, role, {
                 customerName, customerPhone, pickupAddress, effectiveDeliveryAddress,
                 pickupLat, pickupLng, deliveryLat, deliveryLng,
                 courierId, notes, deliveryFee, finalItems,
-                effectiveSource, effectiveOrderType
+                effectiveSource, effectiveOrderType, trackingCode
             });
         }
+
+        setImmediate(() => this._sendTrackingCodeNotification(userId, trackingCode, order.id, io));
+        return order;
     }
 
     async _createNormalOrder(userId, role, data) {
@@ -235,7 +256,8 @@ class DeliveryService {
         const courierId = (role === 'courier' && !data.courierId) ? userId : (data.courierId || null);
 
         const order = await deliveryRepo.createDeliveryOrder({
-            orderNumber, ...data, courierId, status: 'pending', items: data.finalItems, source: data.effectiveSource
+            orderNumber, ...data, courierId, status: 'pending', items: data.finalItems, source: data.effectiveSource,
+            trackingCode: data.trackingCode
         });
 
         try {
@@ -265,7 +287,8 @@ class DeliveryService {
             const courierId = (role === 'courier' && !data.courierId) ? userId : (data.courierId || null);
 
             const deliveryOrder = await deliveryRepo.createDeliveryOrder({
-                orderNumber, ...data, courierId, status: 'pending', items: data.finalItems, source: data.effectiveSource
+                orderNumber, ...data, courierId, status: 'pending', items: data.finalItems, source: data.effectiveSource,
+                trackingCode: data.trackingCode
             }, client);
 
             const grouped = {};
@@ -274,16 +297,16 @@ class DeliveryService {
                 grouped[item.providerId].items.push(item);
             });
 
-            for (const [providerId, group] of Object.entries(grouped)) {
+            await Promise.all(Object.entries(grouped).map(([providerId, group]) => {
                 const price = group.items.reduce((sum, i) => sum + (parseFloat(i.price || 0) * (i.quantity || 1)), 0);
-                await deliveryRepo.createSubBooking({
+                return deliveryRepo.createSubBooking({
                     userId, providerId, userName: data.customerName,
                     serviceName: `طلب يدوي (${group.items.length} أصناف)`,
                     providerName: group.name, price,
                     details: `الهاتف: ${data.customerPhone} | العنوان: ${data.effectiveDeliveryAddress}`,
                     items: group.items, parentId, deliveryOrderId: deliveryOrder.id
                 }, client);
-            }
+            }));
 
             await deliveryRepo.commitTransaction(client);
 
@@ -335,28 +358,28 @@ class DeliveryService {
             if (Object.prototype.hasOwnProperty.call(data, 'status')) {
 
                 const linkedBookings = await deliveryRepo.getLinkedBookings(id);
+                const parentIds = linkedBookings.filter(b => b.parent_order_id).map(b => b.parent_order_id);
                 for (const b of linkedBookings) {
                     io.emit('booking-updated', { id: b.id, status: data.status, halanOrderId: Number(id) });
-                    if (b.parent_order_id) {
-                        await syncParentOrderStatus(b.parent_order_id, io);
-                    }
                 }
+                await Promise.all(parentIds.map(pid => syncParentOrderStatus(pid, io).catch(e => logger.error(`syncParentOrderStatus #${pid} failed:`, e.message))));
             }
         }
 
         const normalizedStatus = String(data?.status || '').trim().toLowerCase();
         const isDelivered = ['delivered', 'تم التوصيل'].includes(normalizedStatus);
         if (isDelivered && typeof whatsappRoutes.sendOrderInvoice === 'function') {
-            try {
-                const invoiceResult = await whatsappRoutes.sendOrderInvoice(id);
-                if (invoiceResult?.success) {
-                    logger.info(`WhatsApp invoice sent successfully for delivered order #${id} (updateOrder)`);
-                } else {
-                    logger.error(`WhatsApp invoice failed for delivered order #${id} (updateOrder):`, invoiceResult?.error || 'unknown error');
-                }
-            } catch (err) {
-                logger.error(`Failed to send WhatsApp invoice for delivered order #${id} from updateOrder:`, err.message || err);
-            }
+            whatsappRoutes.sendOrderInvoice(id)
+                .then(invoiceResult => {
+                    if (invoiceResult?.success) {
+                        logger.info(`WhatsApp invoice sent successfully for delivered order #${id} (updateOrder)`);
+                    } else {
+                        logger.error(`WhatsApp invoice failed for delivered order #${id} (updateOrder):`, invoiceResult?.error || 'unknown error');
+                    }
+                })
+                .catch(err => {
+                    logger.error(`Failed to send WhatsApp invoice for delivered order #${id} from updateOrder:`, err.message || err);
+                });
         }
 
         return updated;
@@ -387,33 +410,37 @@ class DeliveryService {
             }
         }
 
-        await deliveryRepo.updateOrder(id, { status });
-        await deliveryRepo.addHistory(id, status, userId, notes || `تم تحديث الحالة إلى: ${status}`, latitude, longitude);
+        await Promise.all([
+            deliveryRepo.updateOrder(id, { status }),
+            deliveryRepo.addHistory(id, status, userId, notes || `تم تحديث الحالة إلى: ${status}`, latitude, longitude)
+        ]);
 
         // Notify via Sockets
         if (io) {
             this._emitOrderSync(io, id, { status, updates: { status } });
             const bookings = await deliveryRepo.getLinkedBookings(id);
+            const parentIds = bookings.filter(b => b.parent_order_id).map(b => b.parent_order_id);
             for (const b of bookings) {
                 io.emit('booking-updated', { id: b.id, status });
-                if (b.parent_order_id) await syncParentOrderStatus(b.parent_order_id, io);
             }
+            await Promise.all(parentIds.map(pid => syncParentOrderStatus(pid, io).catch(e => logger.error(`syncParentOrderStatus #${pid} failed:`, e.message))));
         }
 
         // Auto-send WhatsApp invoice once courier marks order as delivered
         const normalizedStatus = String(status || '').trim().toLowerCase();
         const isDelivered = ['delivered', 'تم التوصيل'].includes(normalizedStatus);
         if (isDelivered && typeof whatsappRoutes.sendOrderInvoice === 'function') {
-            try {
-                const invoiceResult = await whatsappRoutes.sendOrderInvoice(id);
-                if (invoiceResult?.success) {
-                    logger.info(`WhatsApp invoice sent successfully for delivered order #${id} (updateStatus)`);
-                } else {
-                    logger.error(`WhatsApp invoice failed for delivered order #${id} (updateStatus):`, invoiceResult?.error || 'unknown error');
-                }
-            } catch (err) {
-                logger.error(`Failed to send WhatsApp invoice for delivered order #${id}:`, err.message || err);
-            }
+            whatsappRoutes.sendOrderInvoice(id)
+                .then(invoiceResult => {
+                    if (invoiceResult?.success) {
+                        logger.info(`WhatsApp invoice sent successfully for delivered order #${id} (updateStatus)`);
+                    } else {
+                        logger.error(`WhatsApp invoice failed for delivered order #${id} (updateStatus):`, invoiceResult?.error || 'unknown error');
+                    }
+                })
+                .catch(err => {
+                    logger.error(`Failed to send WhatsApp invoice for delivered order #${id}:`, err.message || err);
+                });
         }
 
         return { success: true };

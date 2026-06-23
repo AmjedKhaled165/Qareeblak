@@ -59,10 +59,11 @@ class ProviderService {
         const provider = await providerRepo.getByEmail(email);
         if (!provider) return null;
 
-        const services = await providerRepo.getServices(provider.id);
+        const [services, reviews] = await Promise.all([
+            providerRepo.getServices(provider.id),
+            providerRepo.getReviews(provider.id)
+        ]);
         provider.services = this._formatServices(services);
-
-        const reviews = await providerRepo.getReviews(provider.id);
         provider.reviewsList = this._formatReviews(reviews);
 
         this._sanitizeProvider(provider);

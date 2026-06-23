@@ -112,8 +112,10 @@ class ChatService {
                 throw new AppError('تم قبول هذا العرض مسبقاً', 400);
             }
 
-            const customerInfo = await chatRepo.getUserInfo(userId) || {};
-            const providerInfo = await chatRepo.getProviderInfo(consult.provider_id) || {};
+            const [customerInfo, providerInfo] = await Promise.all([
+                chatRepo.getUserInfo(userId).catch(() => ({})),
+                chatRepo.getProviderInfo(consult.provider_id).catch(() => ({})),
+            ]);
 
             const totalPrice = quoteData.items.reduce((sum, item) => sum + Number(item.price), 0);
             const orderItems = quoteData.items.map(item => ({ name: item.name, quantity: 1, price: item.price }));

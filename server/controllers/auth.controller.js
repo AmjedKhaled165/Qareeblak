@@ -4,17 +4,17 @@ const logger = require('../utils/logger');
 
 const crypto = require('crypto');
 
-// [SECURITY] Professional Cookie Configuration
+// [PERSISTENT LOGIN] Cookies last 100 years — only logout button clears session
 const COOKIE_OPTIONS = {
     httpOnly: true, // Prevents JavaScript access (Immune to XSS)
     secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS
     sameSite: 'Lax', // Protects against some CSRF
-    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    maxAge: 100 * 365 * 24 * 60 * 60 * 1000 // 100 years
 };
 
 const ACCESS_COOKIE_OPTIONS = {
     ...COOKIE_OPTIONS,
-    maxAge: 1 * 60 * 60 * 1000 // 1 hour
+    maxAge: 100 * 365 * 24 * 60 * 60 * 1000 // 100 years
 };
 
 // [SECURITY] CSRF Cookie Option - MUST BE httpOnly: false for client to read and send in header

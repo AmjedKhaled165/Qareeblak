@@ -112,7 +112,7 @@ export default function DriverDashboard() {
         const interval = setInterval(() => {
             if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
             fetchActiveOrders();
-        }, 10000);
+        }, 30000);
         return () => clearInterval(interval);
     }, []);
 
@@ -120,14 +120,12 @@ export default function DriverDashboard() {
         const socket = (window as any).__qareeblak_socket;
         if (!socket) return;
 
+        let socketTimeout: NodeJS.Timeout;
         const handleRealtimeOrderUpdate = (eventData: any) => {
-            const changedOrderId = Number(eventData?.orderId || eventData?.halanOrderId || eventData?.id);
-            if (!Number.isFinite(changedOrderId)) {
-                fetchActiveOrders();
-                return;
-            }
-
-            fetchActiveOrders();
+            if (socketTimeout) clearTimeout(socketTimeout);
+            socketTimeout = setTimeout(() => {
+                fetchActiveOrders(true);
+            }, 300);
         };
 
         socket.on('order-updated', handleRealtimeOrderUpdate);

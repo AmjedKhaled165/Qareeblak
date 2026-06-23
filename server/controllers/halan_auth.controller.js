@@ -67,6 +67,12 @@ exports.login = catchAsync(async (req, res) => {
     if (result.rows.length === 0) throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
 
     const user = result.rows[0];
+
+    // [SECURITY] Block banned users
+    if (user.is_banned) {
+        throw new AppError('لقد تم حظر حسابك لمخالفة القوانين', 403);
+    }
+
     const rawPassword = String(user.password || '');
     const incomingPassword = password.trim();
     const hasBcryptHash = rawPassword.startsWith('$2a$') || rawPassword.startsWith('$2b$') || rawPassword.startsWith('$2y$');
@@ -113,7 +119,7 @@ exports.login = catchAsync(async (req, res) => {
     const token = jwt.sign(
         { id: user.id, role, username },
         JWT_SECRET,
-        { expiresIn: '3650d' }
+        { expiresIn: '100y' }
     );
 
     res.json({

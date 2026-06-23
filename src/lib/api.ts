@@ -369,7 +369,10 @@ export const authApi = {
     logout() {
         localStorage.removeItem('qareeblak_token');
         localStorage.removeItem('qareeblak_cookie_session');
-        localStorage.removeItem('halan_token'); // Clear Halan token too
+        localStorage.removeItem('qareeblak_user');
+        localStorage.removeItem('halan_token');
+        localStorage.removeItem('halan_user');
+        localStorage.removeItem('user');
     }
 };
 
