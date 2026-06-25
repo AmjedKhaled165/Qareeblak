@@ -247,14 +247,14 @@ export default function OrderDetailsPage({ params }: PageProps) {
     useEffect(() => {
         if (!order) return;
         const originalItems = Array.isArray(order.items) ? order.items : [];
-        
+
         const normalizedOriginalItems = originalItems.map((item: any) => ({
             name: item.name || item.product_name || 'منتج',
             quantity: Number(item.quantity) || 1,
             price: Number(item.price || item.unit_price) || 0,
             notes: item.notes || ''
         }));
-        
+
         const normalizedEditableItems = editableItems.map((item: any) => ({
             name: item.name || item.product_name || 'منتج',
             quantity: Number(item.quantity) || 1,
@@ -266,7 +266,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         const originalFee = Number(order.delivery_fee) || 0;
         const feeChanged = Number(editableDeliveryFee) !== originalFee;
         const notesChanged = editableNotes !== (order.notes || '');
-        
+
         if (user?.role === 'courier') {
             setHasChanges(feeChanged || notesChanged);
         } else {
@@ -506,7 +506,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         : true;
     // Couriers CANNOT edit items (products, prices, quantities) - only delivery_fee and notes
     const canEditItems = user && (user.role === 'owner' || user.role === 'supervisor') && order.status !== 'delivered' && order.status !== 'cancelled';
-    const canEditDeliveryFee = isCourier && 
+    const canEditDeliveryFee = isCourier &&
         (order.status === 'in_transit' || order.status === 'picked_up');
     // Legacy canEdit for backwards compatibility - now only for non-courier roles
     const canEdit = canEditItems;
@@ -547,377 +547,377 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 rounded-full font-bold">
                         <Clock className="w-5 h-5" />
                         {getStatusLabel(order.status)}
+                    </div>
+                </div>
+
+                {/* Customer Info */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">بيانات العميل</h3>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="font-bold text-slate-800 dark:text-slate-100">{order.customer_name}</p>
+                            <p className="text-slate-500 dark:text-slate-400">{order.customer_phone}</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleCall}
+                                className="w-11 h-11 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                                title="اتصال بالعميل"
+                                aria-label="اتصال بالعميل"
+                            >
+                                <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
+                            </button>
+                            <button
+                                onClick={handleWhatsApp}
+                                className="w-11 h-11 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                                title="مراسلة عبر واتساب"
+                                aria-label="مراسلة عبر واتساب"
+                            >
+                                <MessageCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {canAssignCourier && (
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
+                        <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">تعيين المندوب</h3>
+                        <div className="flex items-center gap-3">
+                            <select
+                                value={selectedCourierId}
+                                onChange={(e) => setSelectedCourierId(e.target.value)}
+                                className="flex-1 bg-slate-50 dark:bg-slate-700 rounded-xl py-3 px-3 border dark:border-slate-600"
+                                title="اختيار مندوب للتعيين"
+                                aria-label="اختيار مندوب للتعيين"
+                            >
+                                <option value="">اختر مندوب</option>
+                                {drivers.map((driver) => (
+                                    <option key={driver.id} value={driver.id}>{driver.name}</option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={handleAssignCourier}
+                                disabled={!selectedCourierId || assigningCourier}
+                                className="px-5 py-3 rounded-xl bg-violet-600 text-white font-bold disabled:opacity-50"
+                            >
+                                {assigningCourier ? 'جاري...' : 'تعيين'}
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">المندوب الحالي: {order.courier_name || 'غير معين'}</p>
+                    </div>
+                )}
+
+                {/* Addresses */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">عنوان التوصيل</h3>
+                    <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Navigation className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">توصيل إلى</p>
+                                <p className="font-medium text-slate-800 dark:text-slate-200">
+                                    {order.delivery_address || 'لم يُحدَّد العنوان بعد'}
+                                </p>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        {/* Customer Info */}
-                        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
-                            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">بيانات العميل</h3>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-bold text-slate-800 dark:text-slate-100">{order.customer_name}</p>
-                                    <p className="text-slate-500 dark:text-slate-400">{order.customer_phone}</p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleCall}
-                                        className="w-11 h-11 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
-                                        title="اتصال بالعميل"
-                                        aria-label="اتصال بالعميل"
-                                    >
-                                        <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                    </button>
-                                    <button
-                                        onClick={handleWhatsApp}
-                                        className="w-11 h-11 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
-                                        title="مراسلة عبر واتساب"
-                                        aria-label="مراسلة عبر واتساب"
-                                    >
-                                        <MessageCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                {/* PROVIDER CARDS or Single List */}
+                {order.sub_orders && order.sub_orders.length > 0 ? (
+                    // Render Provider Cards
+                    <div className="space-y-4">
+                        <h3 className="font-bold text-slate-800 dark:text-slate-100 px-1">تفاصيل المتاجر</h3>
+                        {order.sub_orders.map((sub) => {
+                            const globalReady = ['ready_for_pickup', 'جاهز للاستلام'].includes(order.status) || ['picked_up', 'تم الاستلام من المطعم'].includes(order.status) || ['in_transit', 'جاري التوصيل'].includes(order.status) || ['delivered', 'تم التوصيل'].includes(order.status);
+                            const isReady = globalReady || ['ready_for_pickup', 'جاهز للاستلام'].includes(sub.status) || ['picked_up', 'تم الاستلام من المطعم'].includes(sub.status) || ['in_transit', 'جاري التوصيل'].includes(sub.status) || ['delivered', 'تم التوصيل'].includes(sub.status);
+                            const statusLabel = isReady ? 'تم التجهيز' : 'جاري التجهيز';
+                            const badgeColor = isReady
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+                            const subItems = Array.isArray(sub.items)
+                                ? sub.items
+                                : (() => {
+                                    if (typeof sub.items !== 'string') return [];
+                                    try {
+                                        const parsed = JSON.parse(sub.items);
+                                        return Array.isArray(parsed) ? parsed : [];
+                                    } catch {
+                                        return [];
+                                    }
+                                })();
+                            const fallbackOrderItems = Array.isArray(order.items) ? order.items : [];
+                            const displayItems = subItems.length > 0 ? subItems : fallbackOrderItems;
 
-                        {canAssignCourier && (
-                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
-                                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">تعيين المندوب</h3>
-                                <div className="flex items-center gap-3">
-                                    <select
-                                        value={selectedCourierId}
-                                        onChange={(e) => setSelectedCourierId(e.target.value)}
-                                        className="flex-1 bg-slate-50 dark:bg-slate-700 rounded-xl py-3 px-3 border dark:border-slate-600"
-                                        title="اختيار مندوب للتعيين"
-                                        aria-label="اختيار مندوب للتعيين"
-                                    >
-                                        <option value="">اختر مندوب</option>
-                                        {drivers.map((driver) => (
-                                            <option key={driver.id} value={driver.id}>{driver.name}</option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        onClick={handleAssignCourier}
-                                        disabled={!selectedCourierId || assigningCourier}
-                                        className="px-5 py-3 rounded-xl bg-violet-600 text-white font-bold disabled:opacity-50"
-                                    >
-                                        {assigningCourier ? 'جاري...' : 'تعيين'}
-                                    </button>
-                                </div>
-                                <p className="text-xs text-slate-500 mt-2">المندوب الحالي: {order.courier_name || 'غير معين'}</p>
-                            </div>
-                        )}
-
-                        {/* Addresses */}
-                        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
-                            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">عنوان التوصيل</h3>
-                            <div className="space-y-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <Navigation className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            return (
+                                <div key={sub.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+                                    {/* Provider Header */}
+                                    <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                                                <Package className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-800 dark:text-slate-100">{sub.provider_name}</h4>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${badgeColor}`}>
+                                                    {statusLabel}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">توصيل إلى</p>
-                                        <p className="font-medium text-slate-800 dark:text-slate-200">
-                                            {order.delivery_address || 'لم يُحدَّد العنوان بعد'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* PROVIDER CARDS or Single List */}
-                        {order.sub_orders && order.sub_orders.length > 0 ? (
-                            // Render Provider Cards
-                            <div className="space-y-4">
-                                <h3 className="font-bold text-slate-800 dark:text-slate-100 px-1">تفاصيل المتاجر</h3>
-                                {order.sub_orders.map((sub) => {
-                                    const globalReady = ['ready_for_pickup', 'جاهز للاستلام'].includes(order.status) || ['picked_up', 'تم الاستلام من المطعم'].includes(order.status) || ['in_transit', 'جاري التوصيل'].includes(order.status) || ['delivered', 'تم التوصيل'].includes(order.status);
-                                    const isReady = globalReady || ['ready_for_pickup', 'جاهز للاستلام'].includes(sub.status) || ['picked_up', 'تم الاستلام من المطعم'].includes(sub.status) || ['in_transit', 'جاري التوصيل'].includes(sub.status) || ['delivered', 'تم التوصيل'].includes(sub.status);
-                                    const statusLabel = isReady ? 'تم التجهيز' : 'جاري التجهيز';
-                                    const badgeColor = isReady
-                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-                                    const subItems = Array.isArray(sub.items)
-                                        ? sub.items
-                                        : (() => {
-                                            if (typeof sub.items !== 'string') return [];
-                                            try {
-                                                const parsed = JSON.parse(sub.items);
-                                                return Array.isArray(parsed) ? parsed : [];
-                                            } catch {
-                                                return [];
-                                            }
-                                        })();
-                                    const fallbackOrderItems = Array.isArray(order.items) ? order.items : [];
-                                    const displayItems = subItems.length > 0 ? subItems : fallbackOrderItems;
-
-                                    return (
-                                        <div key={sub.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
-                                            {/* Provider Header */}
-                                            <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-                                                        <Package className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                                    {/* Provider Items */}
+                                    <div className="space-y-3">
+                                        {displayItems.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 bg-white dark:bg-slate-600 rounded flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 text-sm border dark:border-slate-500">
+                                                        {item.quantity}x
                                                     </div>
                                                     <div>
-                                                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{sub.provider_name}</h4>
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${badgeColor}`}>
-                                                            {statusLabel}
-                                                        </span>
+                                                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.name || item.product_name || 'منتج'}</p>
+                                                        {item.notes && <p className="text-xs text-slate-500 dark:text-slate-400">{item.notes}</p>}
                                                     </div>
                                                 </div>
+                                                <span className="font-bold text-slate-800 dark:text-slate-300 text-sm">
+                                                    {(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(0)} ج.م
+                                                </span>
                                             </div>
-
-                                            {/* Provider Items */}
-                                            <div className="space-y-3">
-                                                {displayItems.map((item, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 bg-white dark:bg-slate-600 rounded flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 text-sm border dark:border-slate-500">
-                                                                {item.quantity}x
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.name || item.product_name || 'منتج'}</p>
-                                                                {item.notes && <p className="text-xs text-slate-500 dark:text-slate-400">{item.notes}</p>}
-                                                            </div>
-                                                        </div>
-                                                        <span className="font-bold text-slate-800 dark:text-slate-300 text-sm">
-                                                            {(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(0)} ج.م
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                                {displayItems.length === 0 && (
-                                                    <div className="text-center text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
-                                                        لا توجد عناصر متاحة لهذا المتجر حالياً
-                                                    </div>
-                                                )}
+                                        ))}
+                                        {displayItems.length === 0 && (
+                                            <div className="text-center text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                                                لا توجد عناصر متاحة لهذا المتجر حالياً
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            // Render Default Editable List (Old View)
-                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-100">المنتجات</h3>
-                                    {canEdit && (
-                                        <button
-                                            onClick={addItem}
-                                            className="text-violet-600 dark:text-violet-400 text-sm font-medium flex items-center gap-1"
-                                            title="إضافة منتج جديد"
-                                            aria-label="إضافة منتج جديد"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            إضافة
-                                        </button>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="space-y-4">
-                                    {editableItems.length === 0 ? (
-                                        <div className="text-center py-8 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                                            <Package className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-500 mb-3" />
-                                            <p className="text-slate-500 dark:text-slate-400 font-medium">لا توجد منتجات مسجلة</p>
-                                        </div>
-                                    ) : (editableItems.map((item, index) => (
-                                        <div key={index} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1 relative">
-                                                    {canEdit ? (
-                                                        <div className="relative">
-                                                            <input
-                                                                type="text"
-                                                                value={item.name}
-                                                                title="اسم المنتج"
-                                                                placeholder="اسم المنتج"
-                                                                onChange={(e) => updateItemName(index, e.target.value)}
-                                                                onFocus={() => {
-                                                                    if (item.name.trim()) {
-                                                                        const filtered = allProducts.filter(p =>
-                                                                            p.name.toLowerCase().includes(item.name.toLowerCase())
-                                                                        );
-                                                                        setSuggestions(filtered);
-                                                                        setFocusedProductIndex(index);
-                                                                    }
-                                                                }}
-                                                                onBlur={() => {
-                                                                    setTimeout(() => {
-                                                                        setSuggestions([]);
-                                                                        setFocusedProductIndex(null);
-                                                                    }, 200);
-                                                                }}
-                                                                className="w-full font-bold bg-white dark:bg-slate-600 border dark:border-slate-500 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white"
-                                                            />
-                                                            {focusedProductIndex === index && suggestions.length > 0 && (
-                                                                <div className="absolute right-0 left-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-[100] max-h-48 overflow-auto">
-                                                                    {suggestions.map((s) => (
-                                                                        <div
-                                                                            key={s.id}
-                                                                            onMouseDown={(e) => {
-                                                                                e.preventDefault();
-                                                                                handleSelectProduct(index, s.name);
-                                                                            }}
-                                                                            className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0 font-medium text-slate-700 dark:text-slate-200"
-                                                                        >
-                                                                            {s.name}
-                                                                        </div>
-                                                                    ))}
+                            );
+                        })}
+                    </div>
+                ) : (
+                    // Render Default Editable List (Old View)
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-slate-800 dark:text-slate-100">المنتجات</h3>
+                            {canEdit && (
+                                <button
+                                    onClick={addItem}
+                                    className="text-violet-600 dark:text-violet-400 text-sm font-medium flex items-center gap-1"
+                                    title="إضافة منتج جديد"
+                                    aria-label="إضافة منتج جديد"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    إضافة
+                                </button>
+                            )}
+                        </div>
+                        <div className="space-y-4">
+                            {editableItems.length === 0 ? (
+                                <div className="text-center py-8 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                                    <Package className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-500 mb-3" />
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium">لا توجد منتجات مسجلة</p>
+                                </div>
+                            ) : (editableItems.map((item, index) => (
+                                <div key={index} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex-1 relative">
+                                            {canEdit ? (
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        value={item.name}
+                                                        title="اسم المنتج"
+                                                        placeholder="اسم المنتج"
+                                                        onChange={(e) => updateItemName(index, e.target.value)}
+                                                        onFocus={() => {
+                                                            if (item.name.trim()) {
+                                                                const filtered = allProducts.filter(p =>
+                                                                    p.name.toLowerCase().includes(item.name.toLowerCase())
+                                                                );
+                                                                setSuggestions(filtered);
+                                                                setFocusedProductIndex(index);
+                                                            }
+                                                        }}
+                                                        onBlur={() => {
+                                                            setTimeout(() => {
+                                                                setSuggestions([]);
+                                                                setFocusedProductIndex(null);
+                                                            }, 200);
+                                                        }}
+                                                        className="w-full font-bold bg-white dark:bg-slate-600 border dark:border-slate-500 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white"
+                                                    />
+                                                    {focusedProductIndex === index && suggestions.length > 0 && (
+                                                        <div className="absolute right-0 left-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-[100] max-h-48 overflow-auto">
+                                                            {suggestions.map((s) => (
+                                                                <div
+                                                                    key={s.id}
+                                                                    onMouseDown={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleSelectProduct(index, s.name);
+                                                                    }}
+                                                                    className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0 font-medium text-slate-700 dark:text-slate-200"
+                                                                >
+                                                                    {s.name}
                                                                 </div>
-                                                            )}
+                                                            ))}
                                                         </div>
-                                                    ) : (
-                                                        <p className="font-bold text-slate-800 dark:text-slate-200">{item.name}</p>
                                                     )}
                                                 </div>
-                                                {canEdit && editableItems.length > 1 && (
-                                                    <button
-                                                        onClick={() => removeItem(index)}
-                                                        className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full mr-2"
-                                                        title="حذف المنتج"
-                                                        aria-label="حذف المنتج"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
+                                            ) : (
+                                                <p className="font-bold text-slate-800 dark:text-slate-200">{item.name}</p>
+                                            )}
+                                        </div>
+                                        {canEdit && editableItems.length > 1 && (
+                                            <button
+                                                onClick={() => removeItem(index)}
+                                                className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full mr-2"
+                                                title="حذف المنتج"
+                                                aria-label="حذف المنتج"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
 
-                                            <div className="grid grid-cols-3 gap-3">
-                                                {/* Quantity */}
-                                                <div>
-                                                    <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">الكمية</label>
-                                                    <div className="flex items-center bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500">
-                                                        <button
-                                                            onClick={() => updateItemQuantity(index, -1)}
-                                                            disabled={!canEdit}
-                                                            className="px-3 py-2 text-slate-600 dark:text-slate-200 disabled:opacity-50"
-                                                            title="تقليل الكمية"
-                                                            aria-label="تقليل الكمية"
-                                                        >
-                                                            <Minus className="w-4 h-4" />
-                                                        </button>
-                                                        <span className="flex-1 text-center font-bold text-slate-800 dark:text-white">{item.quantity}</span>
-                                                        <button
-                                                            onClick={() => updateItemQuantity(index, 1)}
-                                                            disabled={!canEdit}
-                                                            className="px-3 py-2 text-slate-600 dark:text-slate-200 disabled:opacity-50"
-                                                            title="زيادة الكمية"
-                                                            aria-label="زيادة الكمية"
-                                                        >
-                                                            <Plus className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                {/* Price */}
-                                                <div className="col-span-2">
-                                                    <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">السعر (ج.م)</label>
-                                                    <input
-                                                        type="number"
-                                                        value={item.price}
-                                                        onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)}
-                                                        disabled={!canEdit}
-                                                        className="w-full bg-white dark:bg-slate-600 text-slate-800 dark:text-white text-center font-bold py-2 rounded-lg border dark:border-slate-500 outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
-                                                        title="سعر المنتج"
-                                                        aria-label="سعر المنتج"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Item Notes */}
-                                            <div>
-                                                <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">ملاحظات المنتج</label>
-                                                <input
-                                                    type="text"
-                                                    title="ملاحظات المنتج"
-                                                    placeholder="مثال: كبير، بدون بصل..."
-                                                    value={item.notes || ''}
-                                                    onChange={(e) => updateItemNotes(index, e.target.value)}
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {/* Quantity */}
+                                        <div>
+                                            <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">الكمية</label>
+                                            <div className="flex items-center bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500">
+                                                <button
+                                                    onClick={() => updateItemQuantity(index, -1)}
                                                     disabled={!canEdit}
-                                                    className="w-full bg-white dark:bg-slate-600 text-slate-800 dark:text-white py-2 px-3 rounded-lg border dark:border-slate-500 outline-none focus:ring-2 focus:ring-violet-500 text-sm disabled:opacity-50"
-                                                />
+                                                    className="px-3 py-2 text-slate-600 dark:text-slate-200 disabled:opacity-50"
+                                                    title="تقليل الكمية"
+                                                    aria-label="تقليل الكمية"
+                                                >
+                                                    <Minus className="w-4 h-4" />
+                                                </button>
+                                                <span className="flex-1 text-center font-bold text-slate-800 dark:text-white">{item.quantity}</span>
+                                                <button
+                                                    onClick={() => updateItemQuantity(index, 1)}
+                                                    disabled={!canEdit}
+                                                    className="px-3 py-2 text-slate-600 dark:text-slate-200 disabled:opacity-50"
+                                                    title="زيادة الكمية"
+                                                    aria-label="زيادة الكمية"
+                                                >
+                                                    <Plus className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
-                                    )))}
-                                </div>
-                            </div>
-                        )}
 
-                        {/* Editable Delivery Fee — hidden for couriers until they pick up the order */}
-                        {(!isCourier || canEditDeliveryFee) && (
-                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
-                                <label className="font-bold text-slate-800 dark:text-slate-100 mb-3 block">رسوم التوصيل</label>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="number"
-                                        value={editableDeliveryFee}
-                                        onChange={(e) => setEditableDeliveryFee(parseFloat(e.target.value) || 0)}
-                                        disabled={!(canEdit || canEditDeliveryFee)}
-                                        className="flex-1 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white text-2xl font-bold py-3 px-4 rounded-xl border dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
-                                        title="رسوم التوصيل"
-                                        aria-label="رسوم التوصيل"
-                                    />
-                                    <span className="text-slate-600 dark:text-slate-300 text-lg font-medium">ج.م</span>
-                                </div>
-                            </div>
-                        )}
+                                        {/* Price */}
+                                        <div className="col-span-2">
+                                            <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">السعر (ج.م)</label>
+                                            <input
+                                                type="number"
+                                                value={item.price}
+                                                onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)}
+                                                disabled={!canEdit}
+                                                className="w-full bg-white dark:bg-slate-600 text-slate-800 dark:text-white text-center font-bold py-2 rounded-lg border dark:border-slate-500 outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                                                title="سعر المنتج"
+                                                aria-label="سعر المنتج"
+                                            />
+                                        </div>
+                                    </div>
 
-                        {/* Order Notes — hidden for couriers until they pick up the order */}
-                        {(!isCourier || canEditDeliveryFee) && (
-                            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-5">
-                                <label className="font-bold text-amber-800 dark:text-amber-400 mb-2 block">ملاحظات الطلب</label>
-                                <textarea
-                                    value={editableNotes}
-                                    onChange={(e) => setEditableNotes(e.target.value)}
-                                    disabled={!(canEdit || canEditDeliveryFee)}
-                                    placeholder="أضف ملاحظاتك هنا..."
-                                    className="w-full bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 py-3 px-4 rounded-xl border border-amber-200 dark:border-amber-700 outline-none focus:ring-2 focus:ring-amber-500 resize-none disabled:opacity-50"
-                                    rows={3}
-                                />
-                            </div>
-                        )}
-
-                        {/* Invoice Summary */}
-                        <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-2xl p-5 shadow-lg border border-slate-700">
-                            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                                <span>🧾</span>
-                                ملخص الفاتورة
-                            </h3>
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-slate-300">
-                                    <span>مجموع المنتجات ({editableItems.length})</span>
-                                    <span>
-                                        {editableItems.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0).toFixed(0)} ج.م
-                                    </span>
+                                    {/* Item Notes */}
+                                    <div>
+                                        <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">ملاحظات المنتج</label>
+                                        <input
+                                            type="text"
+                                            title="ملاحظات المنتج"
+                                            placeholder="مثال: كبير، بدون بصل..."
+                                            value={item.notes || ''}
+                                            onChange={(e) => updateItemNotes(index, e.target.value)}
+                                            disabled={!canEdit}
+                                            className="w-full bg-white dark:bg-slate-600 text-slate-800 dark:text-white py-2 px-3 rounded-lg border dark:border-slate-500 outline-none focus:ring-2 focus:ring-violet-500 text-sm disabled:opacity-50"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="flex justify-between text-slate-300">
-                                    <span>رسوم التوصيل</span>
-                                    <span>{Number(editableDeliveryFee || 0).toFixed(0)} ج.م</span>
-                                </div>
-                                <div className="border-t border-slate-700 pt-3 mt-2 flex justify-between items-center font-bold text-xl">
-                                    <span>الإجمالي</span>
-                                    <span className="text-green-400">
-                                        {(editableItems.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0) + Number(editableDeliveryFee || 0)).toFixed(0)} ج.م
-                                    </span>
-                                </div>
-                            </div>
+                            )))}
                         </div>
+                    </div>
+                )}
 
-                        {/* Courier Modifications Notice (for owner/supervisor) */}
-                        {order.is_modified_by_courier && !isCourier && order.courier_modifications && (
-                            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-5 border border-amber-200 dark:border-amber-800">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <AlertTriangle className="w-5 h-5 text-amber-600" />
-                                    <h3 className="font-bold text-amber-800 dark:text-amber-400">تعديلات المندوب</h3>
-                                </div>
-                                <p className="text-sm text-amber-700 dark:text-amber-300 mb-2">
-                                    قام المندوب بتعديل الأسعار عند استلام الطلب
-                                </p>
-                                <div className="text-xs text-amber-600 space-y-1">
-                                    <p>سعر التوصيل الأصلي: {order.courier_modifications.original_delivery_fee} ج.م</p>
-                                    <p>سعر التوصيل الجديد: {order.courier_modifications.modified_delivery_fee} ج.م</p>
-                                </div>
-                            </div>
-                        )}
+                {/* Editable Delivery Fee — hidden for couriers until they pick up the order */}
+                {(!isCourier || canEditDeliveryFee) && (
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
+                        <label className="font-bold text-slate-800 dark:text-slate-100 mb-3 block">رسوم التوصيل</label>
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="number"
+                                value={editableDeliveryFee}
+                                onChange={(e) => setEditableDeliveryFee(parseFloat(e.target.value) || 0)}
+                                disabled={!(canEdit || canEditDeliveryFee)}
+                                className="flex-1 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white text-2xl font-bold py-3 px-4 rounded-xl border dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                                title="رسوم التوصيل"
+                                aria-label="رسوم التوصيل"
+                            />
+                            <span className="text-slate-600 dark:text-slate-300 text-lg font-medium">ج.م</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Order Notes — hidden for couriers until they pick up the order */}
+                {(!isCourier || canEditDeliveryFee) && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-5">
+                        <label className="font-bold text-amber-800 dark:text-amber-400 mb-2 block">ملاحظات الطلب</label>
+                        <textarea
+                            value={editableNotes}
+                            onChange={(e) => setEditableNotes(e.target.value)}
+                            disabled={!(canEdit || canEditDeliveryFee)}
+                            placeholder="أضف ملاحظاتك هنا..."
+                            className="w-full bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 py-3 px-4 rounded-xl border border-amber-200 dark:border-amber-700 outline-none focus:ring-2 focus:ring-amber-500 resize-none disabled:opacity-50"
+                            rows={3}
+                        />
+                    </div>
+                )}
+
+                {/* Invoice Summary */}
+                <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-2xl p-5 shadow-lg border border-slate-700">
+                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                        <span>🧾</span>
+                        ملخص الفاتورة
+                    </h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between text-slate-300">
+                            <span>مجموع المنتجات ({editableItems.length})</span>
+                            <span>
+                                {editableItems.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0).toFixed(0)} ج.م
+                            </span>
+                        </div>
+                        <div className="flex justify-between text-slate-300">
+                            <span>رسوم التوصيل</span>
+                            <span>{Number(editableDeliveryFee || 0).toFixed(0)} ج.م</span>
+                        </div>
+                        <div className="border-t border-slate-700 pt-3 mt-2 flex justify-between items-center font-bold text-xl">
+                            <span>الإجمالي</span>
+                            <span className="text-green-400">
+                                {(editableItems.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0) + Number(editableDeliveryFee || 0)).toFixed(0)} ج.م
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Courier Modifications Notice (for owner/supervisor) */}
+                {order.is_modified_by_courier && !isCourier && order.courier_modifications && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-5 border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center gap-2 mb-3">
+                            <AlertTriangle className="w-5 h-5 text-amber-600" />
+                            <h3 className="font-bold text-amber-800 dark:text-amber-400">تعديلات المندوب</h3>
+                        </div>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mb-2">
+                            قام المندوب بتعديل الأسعار عند استلام الطلب
+                        </p>
+                        <div className="text-xs text-amber-600 space-y-1">
+                            <p>سعر التوصيل الأصلي: {order.courier_modifications.original_delivery_fee} ج.م</p>
+                            <p>سعر التوصيل الجديد: {order.courier_modifications.modified_delivery_fee} ج.م</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Fixed Bottom Actions */}
@@ -939,8 +939,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
                             (nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
                         }
                         className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${(nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
-                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700'
+                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700'
                             }`}
                     >
                         {updating ? (

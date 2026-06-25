@@ -166,7 +166,7 @@ export default function DriverDashboard() {
                 const active = response.data.filter((o: any) => {
                     // The backend already filters to only show orders assigned to the courier OR their supervisor.
                     // Allow the courier to see the order if it's assigned to them OR if it's not assigned to any courier yet.
-                    const isVisible = (o.courier_id === currentUser.id) || !o.courier_id;
+                    const isVisible = (String(o.courierId) === String(currentUser.id)) || (String(o.courier_id) === String(currentUser.id)) || !o.courier_id;
 
                     return isVisible && !['delivered', 'تم التوصيل'].includes(o.status) && !['cancelled', 'ملغي'].includes(o.status);
                 }).map((o: any) => {
