@@ -271,7 +271,7 @@ class DeliveryService {
         const client = await deliveryRepo.beginTransaction();
         try {
             const orderNumber = `HLN-${Date.now().toString(36).toUpperCase()}`;
-            const totalPrice = data.finalItems.reduce((sum, p) => sum + (parseFloat(p.price || 0) * (p.quantity || 1)), 0);
+            const totalPrice = data.finalItems.reduce((sum, p) => sum + (parseFloat(p.price || p.unit_price || 0) * (parseFloat(p.quantity) || 1)), 0);
 
             const parentId = await deliveryRepo.createParentOrder({
                 userId, totalPrice,
@@ -298,7 +298,7 @@ class DeliveryService {
             });
 
             await Promise.all(Object.entries(grouped).map(([providerId, group]) => {
-                const price = group.items.reduce((sum, i) => sum + (parseFloat(i.price || 0) * (i.quantity || 1)), 0);
+                const price = group.items.reduce((sum, i) => sum + (parseFloat(i.price || i.unit_price || 0) * (parseFloat(i.quantity) || 1)), 0);
                 return deliveryRepo.createSubBooking({
                     userId, providerId, userName: data.customerName,
                     serviceName: `طلب يدوي (${group.items.length} أصناف)`,

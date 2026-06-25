@@ -1,0 +1,1 @@
+const { hydrateOrderDisplayFields } = require('./server/repositories/delivery.repository.js'); const row = { id: 1, items: '[]', sub_orders: [{ items: '[{\"price\": 10, \"quantity\": 2}]', price: 0 }] }; console.log(JSON.stringify(hydrateOrderDisplayFields(row)));

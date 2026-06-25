@@ -188,6 +188,9 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                                     aria-label="تعيين المندوب"
                                 >
                                     <option value="">غير معين</option>
+                                    {order.courier_id && !drivers.some(d => Number(d.id) === Number(order.courier_id)) && (
+                                        <option value={order.courier_id}>{order.courier_name || `مندوب #${order.courier_id}`}</option>
+                                    )}
                                     {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                 </select>
                             </div>
@@ -350,8 +353,8 @@ export default function OwnerAllOrdersPage() {
             const usersData = await apiCall('/halan/users');
             if (usersData.success) {
                 const allUsers = usersData.data;
-                setDrivers(allUsers.filter((u: any) => u.role === 'courier'));
-                setManagers(allUsers.filter((u: any) => u.role === 'supervisor'));
+                setDrivers(allUsers.filter((u: any) => u.role === 'courier' && u.isAvailable === true));
+                setManagers(allUsers.filter((u: any) => u.role === 'supervisor' && u.isAvailable === true));
             }
         } catch (error: any) {
             const message = String(error?.message || '');

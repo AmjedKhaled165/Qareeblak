@@ -81,7 +81,7 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
                    ), 0)::int as today_orders
             FROM users u
             WHERE ${roleExpr} IN ('supervisor', 'partner_supervisor', 'manager')
-            AND ${isAvailableExpr} = true
+            AND COALESCE(u.is_available, false) = true
         `);
 
         logger.info(`[Auto-Assign] وجدنا ${supervisorsResult.rows.length} مسؤول نشط`);

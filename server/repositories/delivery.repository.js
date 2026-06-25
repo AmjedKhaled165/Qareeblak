@@ -416,7 +416,7 @@ class DeliveryRepository {
             ${customerJoin}
             LEFT JOIN LATERAL (
                 SELECT 
-                    b.parent_order_id, 
+                    MAX(b.parent_order_id) as parent_order_id, 
                     jsonb_agg(
                         jsonb_build_object(
                             'id', b.id,
@@ -430,7 +430,6 @@ class DeliveryRepository {
                     ) as sub_orders
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
-                GROUP BY b.parent_order_id
             ) bk ON TRUE
             ${parentJoin}
             WHERE o.id = $1
@@ -507,16 +506,14 @@ class DeliveryRepository {
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
                    ${parentAddressSelect},
-                   bk.items as b_items,
-                   bk.price as b_price,
-                   bk.details as b_details
+                   bk.sub_orders
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
                 SELECT 
-                    b.parent_order_id, 
+                    MAX(b.parent_order_id) as parent_order_id, 
                     jsonb_agg(
                         jsonb_build_object(
                             'id', b.id,
@@ -530,7 +527,6 @@ class DeliveryRepository {
                     ) as sub_orders
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
-                GROUP BY b.parent_order_id
             ) bk ON TRUE
             ${parentJoin}
             WHERE ${conditions.join(' AND ')}
