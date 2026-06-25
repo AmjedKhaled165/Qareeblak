@@ -18,6 +18,7 @@ import { adminUsersApi } from "@/lib/admin-api";
 
 // ========== Types ==========
 interface UserProfile {
+    display_id?: string | number;
     id: number;
     name: string;
     name_ar?: string;
@@ -244,7 +245,7 @@ export default function UsersCustomersPage() {
                                         onClick={() => openUserModal(user)}
                                     >
                                         <td className="px-3 py-2.5">
-                                            <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">#{user.id}</span>
+                                            <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">#{user.display_id || user.id}</span>
                                         </td>
                                         <td className="px-3 py-2.5">
                                             <div className="flex items-center gap-2">
@@ -353,7 +354,7 @@ export default function UsersCustomersPage() {
                                                 <Badge variant="destructive" className="mr-2 text-[10px]">محظور</Badge>
                                             )}
                                             <p className="text-xs text-slate-500 font-normal mt-0.5">
-                                                {typeLabel(selectedUser.user_type)} — #{selectedUser.id}
+                                                {typeLabel(selectedUser.user_type)} — #{selectedUser.display_id || selectedUser.id}
                                             </p>
                                         </div>
                                     </DialogTitle>

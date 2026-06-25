@@ -111,7 +111,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setIsLoadingCart(true);
         try {
             const checkoutItems = globalCart.map((item) => ({
-                providerId: Number(item.providerId),
+                providerId: item.providerId,
                 providerName: item.providerName,
                 price: Number(item.price),
                 quantity: Math.max(1, Number(item.quantity) || 1),
@@ -119,8 +119,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             }));
 
             const hasInvalidItem = checkoutItems.some((item) =>
-                !Number.isInteger(item.providerId) ||
-                item.providerId <= 0 ||
+                typeof item.providerId !== 'string' ||
+                item.providerId.trim().length === 0 ||
                 typeof item.providerName !== 'string' ||
                 item.providerName.trim().length === 0 ||
                 Number.isNaN(item.price) ||
@@ -145,7 +145,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             if (result && result.success) {
                 clearGlobalCart();
                 toast("تم تسجيل طلبك بنجاح!", "success");
-                const orderIds = result.parentId ? [`P${result.parentId}`] : (result.bookingIds || []);
+                const orderIds = result.encryptedParentId ? [result.encryptedParentId] : (result.bookingIds || []);
                 return { orderIds, trackingCode: result.trackingCode || undefined };
             } else {
                 toast(result.error || "عذراً، فشل إتمام الطلب! تأكد من اتصالك.", "error");

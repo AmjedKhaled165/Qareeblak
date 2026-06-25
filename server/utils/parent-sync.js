@@ -121,7 +121,9 @@ async function syncParentOrderStatus(parentId, io) {
         const result = await client.query(
             `SELECT
                 ${bookingStatusSelect} as booking_status,
-                ${deliveryStatusSelect} as delivery_status
+                ${deliveryStatusSelect} as delivery_status,
+                b.${bookingDeliveryColForSelect} as halan_order_id,
+                b.provider_id
              FROM bookings b
              ${deliveryJoin}
              WHERE b.${bookingParentColForSelect} = $1`,
@@ -182,10 +184,33 @@ async function syncParentOrderStatus(parentId, io) {
         // Update Global Status if different
         if (newGlobalStatus !== currentParentStatus) {
             logger.info(`[ParentSync] Updating Global Status: ${currentParentStatus} -> ${newGlobalStatus} (accepted ${total_accepted}/${total_required})`);
+            
+            // 1. Update Parent Order
             const parentStatusColForUpdate = parentStatusCol || 'status';
             const parentUpdatedAtColForUpdate = parentUpdatedAtCol ? `, ${parentUpdatedAtCol} = CURRENT_TIMESTAMP` : ``;
             const updateSql = `UPDATE parent_orders SET ${parentStatusColForUpdate} = $1${parentUpdatedAtColForUpdate} WHERE id = $2`;
             await client.query(updateSql, [newGlobalStatus, parentId]);
+
+            // 2. Update Delivery Order if exists
+            const activeBookingWithDelivery = activeRows.find(r => r.halan_order_id);
+            if (activeBookingWithDelivery) {
+                const deliveryOrderId = activeBookingWithDelivery.halan_order_id;
+                await client.query(`UPDATE delivery_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`, [newGlobalStatus, deliveryOrderId]);
+                
+                // If the new global status is confirmed (i.e. first store accepted), let's ensure it gets a courier assigned
+                if (newGlobalStatus === 'confirmed') {
+                    // Check if a courier is already assigned
+                    const orderCheck = await client.query('SELECT supervisor_id FROM delivery_orders WHERE id = $1', [deliveryOrderId]);
+                    if (orderCheck.rows.length > 0 && !orderCheck.rows[0].supervisor_id) {
+                        const { performAutoAssign } = require('./driver-assignment');
+                        logger.info(`[ParentSync] First store accepted! Triggering auto-assign for delivery order #${deliveryOrderId}`);
+                        // Change 'confirmed' to 'preparing' internally for auto-assign status if needed, or stick to 'confirmed'
+                        // 'pending' or 'assigned' or 'confirmed'
+                        // we pass 'confirmed' as target status so the courier sees it
+                        await performAutoAssign(deliveryOrderId, null, io, 'confirmed').catch(e => logger.warn(`AutoAssign failed: ${e.message}`));
+                    }
+                }
+            }
 
             if (io) {
                 io.emit('order-status-changed', { orderId: `P${parentId}`, status: newGlobalStatus });

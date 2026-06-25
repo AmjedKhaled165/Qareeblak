@@ -99,7 +99,10 @@ exports.checkout = catchAsync(async (req, res, next) => {
         await redisClient.set(cacheKey, JSON.stringify({ success: true, message: 'Order placed successfully', ...checkoutResult }), 'EX', IDEMPOTENCY_TTL);
     }
 
-    res.status(201).json({ success: true, message: 'Order placed successfully', ...checkoutResult });
+    const { encodeEntityId } = require('../utils/obfuscate');
+    const encryptedParentId = checkoutResult.parentId ? encodeEntityId('parent_order', checkoutResult.parentId) : undefined;
+
+    res.status(201).json({ success: true, message: 'Order placed successfully', ...checkoutResult, encryptedParentId });
 });
 
 exports.createLegacyBooking = catchAsync(async (req, res, next) => {
@@ -118,7 +121,8 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
 });
 
 exports.getProviderBookings = catchAsync(async (req, res, next) => {
-    const { providerId } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const providerId = decodeEntityId('provider', req.params.providerId) || req.params.providerId;
     const { lastId, limit, page } = req.query; // Validated via zod
     const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const safePage = Math.max(Number(page) || 1, 1);
@@ -134,8 +138,9 @@ exports.getProviderBookings = catchAsync(async (req, res, next) => {
     const nextLastId = records.length > 0 ? records[records.length - 1].id : null;
     const hasMore = records.length === safeLimit;
 
+    const { obfuscateOrder } = require('../utils/obfuscate');
     res.status(200).json({
-        bookings: records,
+        bookings: records.map(obfuscateOrder),
         pagination: {
             nextLastId,
             limit: safeLimit,
@@ -146,7 +151,8 @@ exports.getProviderBookings = catchAsync(async (req, res, next) => {
 });
 
 exports.getUserBookings = catchAsync(async (req, res, next) => {
-    const { userId } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const userId = decodeEntityId('user', req.params.userId) || req.params.userId;
     const { lastId, limit, page } = req.query;
     const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const safePage = Math.max(Number(page) || 1, 1);
@@ -160,8 +166,9 @@ exports.getUserBookings = catchAsync(async (req, res, next) => {
     const nextLastId = records.length > 0 ? records[records.length - 1].id : null;
     const hasMore = records.length === safeLimit;
 
+    const { obfuscateOrder } = require('../utils/obfuscate');
     res.status(200).json({
-        bookings: records,
+        bookings: records.map(obfuscateOrder),
         pagination: {
             nextLastId,
             limit: safeLimit,
@@ -172,7 +179,8 @@ exports.getUserBookings = catchAsync(async (req, res, next) => {
 });
 
 exports.getBookingById = catchAsync(async (req, res, next) => {
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('booking', req.params.id) || decodeEntityId('parent_order', req.params.id) || req.params.id;
 
     // Handle reserved route keywords
     if (['provider', 'user', 'checkout', 'track'].includes(id)) {
@@ -193,11 +201,13 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
         throw new AppError('غير مصرح لك برؤية تفاصيل هذا الحجز', 403);
     }
 
-    res.status(200).json(booking);
+    const { obfuscateOrder } = require('../utils/obfuscate');
+    res.status(200).json(obfuscateOrder(booking));
 });
 
 exports.updateStatus = catchAsync(async (req, res, next) => {
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('booking', req.params.id) || decodeEntityId('order', req.params.id) || decodeEntityId('parent_order', req.params.id) || req.params.id;
     const { status, price } = req.body;
 
     // Auth Check: Is the caller the provider for this booking or an admin?
@@ -214,7 +224,8 @@ exports.updateStatus = catchAsync(async (req, res, next) => {
 });
 
 exports.rescheduleAppointment = catchAsync(async (req, res, next) => {
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('booking', req.params.id) || decodeEntityId('order', req.params.id) || decodeEntityId('parent_order', req.params.id) || req.params.id;
     const { newDate } = req.body;
     const idempotencyKey = req.headers['idempotency-key'];
 
@@ -251,7 +262,8 @@ exports.rescheduleAppointment = catchAsync(async (req, res, next) => {
 });
 
 exports.acceptAppointment = catchAsync(async (req, res, next) => {
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('booking', req.params.id) || decodeEntityId('order', req.params.id) || decodeEntityId('parent_order', req.params.id) || req.params.id;
 
     // [SECURITY] IDOR & Role Logic:
     // If a provider rescheduled, ONLY the customer can accept.
@@ -283,7 +295,8 @@ exports.acceptAppointment = catchAsync(async (req, res, next) => {
 });
 
 exports.reorder = catchAsync(async (req, res, next) => {
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('booking', req.params.id) || decodeEntityId('order', req.params.id) || decodeEntityId('parent_order', req.params.id) || req.params.id;
     const booking = await bookingRepo.getBookingInfoById(id);
     if (!booking) throw new AppError('Booking not found', 404);
 

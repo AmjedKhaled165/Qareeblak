@@ -84,8 +84,8 @@ const mapSourceLabel = (source: string | undefined) => {
 
 // Order Details Modal Component
 function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }: { order: Order; drivers: UserOption[]; managers: UserOption[]; onClose: () => void; onUpdateOrder: (id: number, payload: any) => Promise<void> }) {
-    const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
-    const editHistory = typeof order.edit_history === 'string' ? JSON.parse(order.edit_history || '[]') : (order.edit_history || []);
+    const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+    const editHistory = Array.isArray(order.edit_history) ? order.edit_history : (typeof order.edit_history === 'string' ? JSON.parse(order.edit_history || '[]') : []);
     const resolvedSupervisorName = order.supervisor_name || (order.supervisor_id ? (managers.find((m) => Number(m.id) === Number(order.supervisor_id))?.name || null) : null);
 
     const getSourceLabel = (source: string | undefined) => mapSourceLabel(source);
@@ -121,7 +121,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                     <div className="sticky top-0 bg-white dark:bg-slate-900 p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center z-10">
                         <div>
                             <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-bold">{order.customer_name} - طلب #{order.id}</h2>
+                                <h2 className="text-lg font-bold">{order.customer_name} - طلب #{order.display_id || order.id}</h2>
                                 {order.is_edited && (
                                     <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">معدل</span>
                                 )}
@@ -710,7 +710,7 @@ export default function OwnerAllOrdersPage() {
                                             <div className="flex items-center gap-2 mb-1">
                                                 <StatusIcon className="w-4 h-4 text-slate-500" />
                                                 <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                    {order.customer_name} #{order.id}
+                                                    {order.customer_name} #{order.display_id || order.id}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -749,8 +749,8 @@ export default function OwnerAllOrdersPage() {
                                         </span>
 
                                         {(() => {
-                                            const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
-                                            const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+                                            const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+                                            const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item?.price || item?.unit_price) || 0) * (parseFloat(item?.quantity) || 1)), 0);
                                             const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
                                             const grandTotal = itemsTotal + deliFee;
 

@@ -71,6 +71,7 @@ interface Provider {
 }
 
 interface Booking {
+    display_id?: string | number;
     id: string;
     userId?: string | number;
     userName: string;
@@ -1783,7 +1784,7 @@ export default function ProviderDashboard() {
                                                             className="hover:bg-muted/30 transition-all cursor-pointer group"
                                                             onClick={() => setSelectedOrderModal(booking)}
                                                         >
-                                                            <td className="px-8 py-6 font-mono text-muted-foreground/60 text-xs">#{String(booking.id).substring(0, 8)}</td>
+                                                            <td className="px-8 py-6 font-mono text-muted-foreground/60 text-xs">#{booking.display_id || String(booking.id).substring(0, 8)}</td>
                                                             <td className="px-8 py-6">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm border border-primary/20 shrink-0">
@@ -1973,7 +1974,7 @@ export default function ProviderDashboard() {
                                             <div>
                                                 <h3 className="text-xl font-black text-foreground font-cairo">{consultation.customer_name || 'مستخدم زائر'}</h3>
                                                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                                                    <span className="bg-muted px-2 py-0.5 rounded-lg text-xs font-bold">#{String(consultation.id).substring(0, 8)}</span>
+                                                    <span className="bg-muted px-2 py-0.5 rounded-lg text-xs font-bold">#{consultation.display_id || String(consultation.id).substring(0, 8)}</span>
                                                     <span>• {consultation.last_message ? (consultation.last_message.substring(0, 30) + (consultation.last_message.length > 30 ? '...' : '')) : 'بدء محادثة'}</span>
                                                 </div>
                                             </div>

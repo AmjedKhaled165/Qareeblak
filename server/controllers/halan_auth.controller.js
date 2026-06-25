@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const { encodeEntityId } = require('../utils/obfuscate');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -126,7 +127,7 @@ exports.login = catchAsync(async (req, res) => {
         success: true,
         data: {
             user: {
-                id: user.id,
+                id: encodeEntityId('user', user.id),
                 username,
                 name_ar: user.name,
                 email: user.email,
@@ -150,7 +151,7 @@ exports.getMe = catchAsync(async (req, res) => {
     res.json({
         success: true,
         data: {
-            id: user.id,
+            id: encodeEntityId('user', user.id),
             username: user.username,
             name_ar: user.name,
             email: user.email,

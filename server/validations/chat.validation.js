@@ -1,7 +1,7 @@
 const { z } = require('zod');
 
 const startConsultationSchema = z.object({
-    providerId: z.number().int().positive('معرف مقدم الخدمة غير صالح')
+    providerId: z.union([z.string(), z.number()])
 });
 
 const sendMessageSchema = z.object({

@@ -6,7 +6,9 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 
 exports.startConsultation = catchAsync(async (req, res, next) => {
-    const { providerId } = req.body;
+    const { providerId: rawProviderId } = req.body;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const providerId = decodeEntityId('provider', rawProviderId) || rawProviderId;
     const customerId = req.user.id; // From verifyToken
 
     const result = await chatService.startConsultation(customerId, providerId);

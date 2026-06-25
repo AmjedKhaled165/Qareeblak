@@ -357,7 +357,7 @@ export default function OrdersPage() {
                                             {/* ID */}
                                             <td className="px-3 py-2.5">
                                                 <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                                                    #{order.id}
+                                                    #{order.display_id || order.id}
                                                 </span>
                                                 {order.order_type && (
                                                     <span className="block text-[10px] text-slate-400 mt-0.5">

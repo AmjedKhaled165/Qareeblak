@@ -22,7 +22,9 @@ exports.search = catchAsync(async (req, res) => {
 });
 
 exports.getById = catchAsync(async (req, res) => {
-    const provider = await providerService.getProviderById(req.params.id);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const decodedId = decodeEntityId('provider', req.params.id) || req.params.id;
+    const provider = await providerService.getProviderById(decodedId);
     if (!provider) throw new AppError('مقدم الخدمة غير موجود', 404);
     res.json(provider);
 });
@@ -35,13 +37,17 @@ exports.getByEmail = catchAsync(async (req, res) => {
 
 exports.addReview = catchAsync(async (req, res) => {
     const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const decodedId = decodeEntityId('provider', id) || id;
     const { userName, rating, comment } = req.body;
-    await providerRepo.addReview({ providerId: id, userName, rating, comment });
+    await providerRepo.addReview({ providerId: decodedId, userName, rating, comment });
     res.status(201).json({ message: 'تم إضافة التقييم بنجاح' });
 });
 
 exports.deleteProvider = catchAsync(async (req, res) => {
-    const success = await providerRepo.deleteProvider(req.params.id);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const decodedId = decodeEntityId('provider', req.params.id) || req.params.id;
+    const success = await providerRepo.deleteProvider(decodedId);
     if (!success) throw new AppError('مقدم الخدمة غير موجود', 404);
     res.json({ message: 'تم حذف مقدم الخدمة بنجاح' });
 });

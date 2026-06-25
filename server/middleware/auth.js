@@ -115,7 +115,7 @@ async function getUserWithCache(userId) {
     if (user.cancellation_count === undefined || user.cancellation_count === null) {
         user.cancellation_count = 0;
     }
-    if (!user.role) {
+    if (!user.role || user.role === 'user') {
         user.role = user.user_type;
     }
 

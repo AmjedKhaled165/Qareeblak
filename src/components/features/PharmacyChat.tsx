@@ -234,20 +234,19 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
             }
 
             // Step 2: Start consultation
-            const providerIdNumber = Number(providerId);
-            if (!providerId || Number.isNaN(providerIdNumber)) {
+            if (!providerId) {
                 toast("تعذر بدء المحادثة: معرف مقدم الخدمة غير صالح", "error");
                 setIsLoading(false);
                 return;
             }
-            console.log('[PharmacyChat] Starting consultation with provider:', providerIdNumber);
+            console.log('[PharmacyChat] Starting consultation with provider:', providerId);
             try {
                 const startUrl = `${CHAT_API_BASE}/chat/start`;
                 const startRes = await fetch(startUrl, {
                     method: 'POST',
                     headers: buildHeaders(token, 'application/json'),
                     credentials: 'include',
-                    body: JSON.stringify({ providerId: providerIdNumber }),
+                    body: JSON.stringify({ providerId: providerId }),
                 });
 
                 if (!startRes.ok) {

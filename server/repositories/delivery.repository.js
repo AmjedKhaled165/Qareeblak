@@ -1,5 +1,6 @@
 const pool = require('../db');
 const vault = require('../utils/vault');
+const logger = require('../utils/logger');
 const { generateTrackingCode } = require('../utils/generate-tracking-code');
 
 let deliveryOrdersColumnsCache = null;
@@ -152,6 +153,7 @@ function hydrateOrderDisplayFields(row) {
     if (!resolvedItems || (Array.isArray(resolvedItems) && resolvedItems.length === 0)) {
         const bItems = safeJsonParse(row.b_items);
         if (Array.isArray(bItems) && bItems.length > 0) resolvedItems = bItems;
+        else resolvedItems = [];
     } else if (typeof resolvedItems === 'string') {
         const parsed = safeJsonParse(resolvedItems);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -161,6 +163,8 @@ function hydrateOrderDisplayFields(row) {
             if (Array.isArray(bItems) && bItems.length > 0) resolvedItems = bItems;
             else resolvedItems = [];
         }
+    } else if (!Array.isArray(resolvedItems)) {
+        resolvedItems = [];
     }
 
     // --- Price resolution ---
@@ -183,7 +187,8 @@ function hydrateOrderDisplayFields(row) {
         customer_phone: resolvedPhone,
         items: resolvedItems,
         price: resolvedPrice,
-        delivery_fee: Number(row.delivery_fee || 0)
+        delivery_fee: Number(row.delivery_fee || 0),
+        sub_orders: row.sub_orders || []
     };
 }
 
@@ -207,7 +212,7 @@ class DeliveryRepository {
     /**
      * @param {{role: string, userId: number, status: string, courierId: number, supervisorId: number, search: string, source: string, limit: number, lastId: number}} options
      */
-    async getOrders({ role, userId, status, courierId, supervisorId, search, source, limit = 20, lastId }) {
+    async getOrders({ role, userId, status, courierId, supervisorId, search, source, limit = 20, lastId, offset }) {
         const deliveryCols = await getDeliveryOrdersColumns();
         const parentCols = await getParentOrdersColumns();
         const hasCustomerId = deliveryCols.has('customer_id');
@@ -223,7 +228,17 @@ class DeliveryRepository {
         if (!isAdmin) {
             if (role === 'courier' || role === 'partner_courier') {
                 params.push(userId);
-                conditions.push(`o.courier_id = $${params.length}`);
+                conditions.push(`(
+                    o.courier_id = $${params.length}
+                    OR (
+                        o.courier_id IS NULL AND EXISTS (
+                            SELECT 1
+                            FROM courier_supervisors cs
+                            WHERE cs.courier_id = $${params.length}
+                              AND cs.supervisor_id = o.supervisor_id
+                        )
+                    )
+                )`);
             } else if (role === 'supervisor' || role === 'partner_supervisor') {
                 params.push(userId);
                 conditions.push(`(
@@ -246,12 +261,18 @@ class DeliveryRepository {
             conditions.push(`o.id < $${params.length}`);
         }
 
+        const hasIsDeleted = deliveryCols.has('is_deleted');
+        const hasIsEdited = deliveryCols.has('is_edited');
+
         if (status === 'deleted') {
-            conditions.push(`COALESCE(o.is_deleted, false) = true`);
+            if (hasIsDeleted) conditions.push(`COALESCE(o.is_deleted, false) = true`);
+            else conditions.push('1=0');
         } else if (status === 'edited') {
-            conditions.push(`o.is_edited = true AND COALESCE(o.is_deleted, false) = false`);
+            const editCond = hasIsEdited ? `o.is_edited = true` : '1=0';
+            const delCond = hasIsDeleted ? `COALESCE(o.is_deleted, false) = false` : '1=1';
+            conditions.push(`${editCond} AND ${delCond}`);
         } else {
-            conditions.push(`COALESCE(o.is_deleted, false) = false`);
+            if (hasIsDeleted) conditions.push(`COALESCE(o.is_deleted, false) = false`);
             if (status && status !== 'all') {
                 params.push(status);
                 conditions.push(`o.status = $${params.length}`);
@@ -310,19 +331,28 @@ class DeliveryRepository {
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
                    ${parentAddressSelect},
-                   bk.items as b_items,
-                   bk.price as b_price,
-                   bk.details as b_details
+                   bk.sub_orders
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id, b.items, b.price, b.details
+                SELECT 
+                    b.parent_order_id, 
+                    jsonb_agg(
+                        jsonb_build_object(
+                            'id', b.id,
+                            'status', b.status,
+                            'provider_id', b.provider_id,
+                            'provider_name', b.provider_name,
+                            'items', b.items,
+                            'price', b.price,
+                            'details', b.details
+                        ) ORDER BY b.id ASC
+                    ) as sub_orders
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
-                ORDER BY b.id ASC
-                LIMIT 1
+                GROUP BY b.parent_order_id
             ) bk ON TRUE
             ${parentJoin}
             ${whereClause}
@@ -331,7 +361,14 @@ class DeliveryRepository {
         `;
 
         const result = await pool.query(query, params);
-        const rows = result.rows.map(hydrateOrderDisplayFields);
+        const rows = result.rows.reduce((acc, row) => {
+            try {
+                acc.push(hydrateOrderDisplayFields(row));
+            } catch (e) {
+                logger.error(`[getOrders] Skipping row #${row.id}: hydration failed — ${e.message}`);
+            }
+            return acc;
+        }, []);
 
         return {
             records: rows,
@@ -356,25 +393,39 @@ class DeliveryRepository {
 
         const query = `
             SELECT o.*, 
+                   COALESCE((
+                       SELECT bool_and(b.status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed'))
+                       FROM bookings b
+                       WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
+                   ), true) AS providers_ready_for_pickup,
                    c.name as courier_name,
                    c.phone as courier_phone,
                    s.name as supervisor_name,
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
                    ${parentAddressSelect},
-                   bk.items as b_items,
-                   bk.price as b_price,
-                   bk.details as b_details
+                   bk.sub_orders
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id, b.items, b.price, b.details
+                SELECT 
+                    b.parent_order_id, 
+                    jsonb_agg(
+                        jsonb_build_object(
+                            'id', b.id,
+                            'status', b.status,
+                            'provider_id', b.provider_id,
+                            'provider_name', b.provider_name,
+                            'items', b.items,
+                            'price', b.price,
+                            'details', b.details
+                        ) ORDER BY b.id ASC
+                    ) as sub_orders
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
-                ORDER BY b.id ASC
-                LIMIT 1
+                GROUP BY b.parent_order_id
             ) bk ON TRUE
             ${parentJoin}
             WHERE o.id = $1
@@ -399,7 +450,17 @@ class DeliveryRepository {
 
         if (isCourier) {
             params.push(userId);
-            conditions.push(`o.courier_id = $2`);
+            conditions.push(`(
+                o.courier_id = $2
+                OR (
+                    o.courier_id IS NULL AND EXISTS (
+                        SELECT 1
+                        FROM courier_supervisors cs
+                        WHERE cs.courier_id = $2
+                          AND cs.supervisor_id = o.supervisor_id
+                    )
+                )
+            )`);
         } else if (isSupervisor) {
             params.push(userId);
             conditions.push(`(
@@ -430,6 +491,11 @@ class DeliveryRepository {
 
         const query = `
             SELECT o.*, 
+                   COALESCE((
+                       SELECT bool_and(b.status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed'))
+                       FROM bookings b
+                       WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
+                   ), true) AS providers_ready_for_pickup,
                    c.name as courier_name,
                    c.phone as courier_phone,
                    s.name as supervisor_name,
@@ -444,11 +510,22 @@ class DeliveryRepository {
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id, b.items, b.price, b.details
+                SELECT 
+                    b.parent_order_id, 
+                    jsonb_agg(
+                        jsonb_build_object(
+                            'id', b.id,
+                            'status', b.status,
+                            'provider_id', b.provider_id,
+                            'provider_name', b.provider_name,
+                            'items', b.items,
+                            'price', b.price,
+                            'details', b.details
+                        ) ORDER BY b.id ASC
+                    ) as sub_orders
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
-                ORDER BY b.id ASC
-                LIMIT 1
+                GROUP BY b.parent_order_id
             ) bk ON TRUE
             ${parentJoin}
             WHERE ${conditions.join(' AND ')}

@@ -162,10 +162,11 @@ export default function DriverDashboard() {
                 const currentUser = userRef.current;
 
                 const active = response.data.filter((o: any) => {
-                    const isSelf = currentUser && o.courier_id === currentUser.id;
+                    // The backend already filters to only show orders assigned to the courier OR their supervisor.
+                    // Allow the courier to see the order if it's assigned to them OR if it's not assigned to any courier yet.
+                    const isVisible = (o.courier_id === currentUser.id) || !o.courier_id;
 
-                    // Driver should only see orders assigned to them.
-                    return isSelf && !['delivered', 'تم التوصيل'].includes(o.status) && !['cancelled', 'ملغي'].includes(o.status);
+                    return isVisible && !['delivered', 'تم التوصيل'].includes(o.status) && !['cancelled', 'ملغي'].includes(o.status);
                 }).map((o: any) => {
                     // Parse items safely
                     let items = o.items;
@@ -607,7 +608,7 @@ export default function DriverDashboard() {
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex items-center gap-2">
                                                 <span className="bg-violet-500/10 border border-violet-500/20 px-3 py-1 rounded-full text-[10px] font-bold text-violet-400 tracking-wider">
-                                                    #{order.id}
+                                                    #{order.display_id || order.id}
                                                 </span>
                                                 <span className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-[10px] font-bold text-emerald-400">
                                                     {order.status}
@@ -626,8 +627,42 @@ export default function DriverDashboard() {
                                             </div>
                                         </div>
 
-                                        {/* Live Items List */}
-                                        {order.items && order.items.length > 0 && (
+                                        {/* Live Sub-Orders List */}
+                                        {order.sub_orders && order.sub_orders.length > 0 ? (
+                                            <div className="space-y-3 mb-6">
+                                                {order.sub_orders.map((sub: any) => {
+                                                    const subStatus = sub.status;
+                                                    const isReady = subStatus === 'completed' || subStatus === 'ready_for_pickup';
+                                                    const isPreparing = subStatus === 'confirmed' || subStatus === 'processing' || subStatus === 'assigned';
+                                                    
+                                                    const statusText = isReady ? 'تم التجهيز' : isPreparing ? 'جاري التحضير' : subStatus === 'pending' ? 'بانتظار القبول' : subStatus;
+                                                    const statusColor = isReady ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 
+                                                                       isPreparing ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 
+                                                                       'text-slate-400 bg-slate-500/10 border-slate-500/20';
+
+                                                    const items = Array.isArray(sub.items) ? sub.items : (typeof sub.items === 'string' ? JSON.parse(sub.items) : []);
+
+                                                    return (
+                                                        <div key={sub.id} className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                                                            <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                                                                <h4 className="font-bold text-slate-200 text-sm">{sub.providerName || sub.provider_name || 'متجر'}</h4>
+                                                                <span className={`text-[10px] px-2 py-1 rounded-full border font-bold ${statusColor}`}>
+                                                                    {statusText}
+                                                                </span>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                {items.map((item: any, i: number) => (
+                                                                    <div key={i} className="flex justify-between items-center text-xs font-bold">
+                                                                        <span className="text-slate-300">x{item.quantity} {item.name || item.product_name}</span>
+                                                                        <span className="text-violet-400">{item.price || item.unit_price} ج.م</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : order.items && order.items.length > 0 && (
                                             <div className="bg-white/5 rounded-2xl p-4 mb-6 border border-white/5">
                                                 <p className="text-[10px] text-slate-500 font-black mb-2 flex items-center gap-2">
                                                     <ClipboardList className="w-3 h-3" /> المنتجات ({order.items.length})
@@ -759,7 +794,7 @@ export default function DriverDashboard() {
                                     onClick={() => router.push(`/partner/orders/${order.id}`)}
                                 >
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-black text-violet-400 uppercase tracking-tighter">طلب #{order.id}</span>
+                                        <span className="text-[10px] font-black text-violet-400 uppercase tracking-tighter">طلب #{order.display_id || order.id}</span>
                                         <span className="text-[10px] font-bold text-emerald-400">{order.delivery_fee} ج.م</span>
                                     </div>
                                     <p className="font-bold text-foreground text-base truncate">{order.customer_name}</p>

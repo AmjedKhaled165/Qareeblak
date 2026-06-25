@@ -62,6 +62,7 @@ interface Order {
 }
 
 interface SubOrder {
+    display_id?: string | number;
     id: number;
     provider_name: string;
     status: string;
@@ -605,7 +606,6 @@ export default function TrackOrderPage() {
                         </button>
                         <div className="flex-1">
                             <h1 className="text-lg font-bold text-slate-900 dark:text-white">طلب صيانة</h1>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">طلب #{order.id}</p>
                         </div>
                         <button onClick={fetchOrder} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-900 dark:text-white" title="تحديث البيانات" aria-label="تحديث بيانات الطلب">
                             <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -766,7 +766,6 @@ export default function TrackOrderPage() {
                     </button>
                     <div className="flex-1">
                         <h1 className="text-lg font-bold text-slate-900 dark:text-white">تتبع طلبك</h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">طلب #{order.id}</p>
                     </div>
                     <button onClick={fetchOrder} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-900 dark:text-white" title="تحديث البيانات" aria-label="تحديث بيانات الطلب">
                         <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -944,7 +943,7 @@ export default function TrackOrderPage() {
                                     <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
                                         <div>
                                             <h4 className="font-bold text-lg">{fixMangledText(sub.provider_name)}</h4>
-                                            <p className="text-xs text-slate-500">طلب فرعي #{sub.id}</p>
+                                            <p className="text-xs text-slate-500">طلب فرعي #{sub.display_id || sub.id}</p>
                                         </div>
                                         <div className={`px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-bold ${sStatus.color} ${sStatus.bgColor.replace('bg-', 'bg-opacity-10 ')}`}>
                                             <SIcon className="w-4 h-4" />

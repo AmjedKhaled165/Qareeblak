@@ -8,6 +8,7 @@ import { useAppStore } from "@/components/providers/AppProvider";
 
 // Define Order Interface inline
 interface Order {
+    display_id?: string | number;
     id: string | number;
     customer_name: string;
     customer_phone: string;
@@ -68,19 +69,29 @@ export default function TrackSearchPage() {
 
     const handleSearchSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!trackingCode.trim()) return;
+        const trimmed = trackingCode.trim();
+        if (!trimmed) return;
 
         setIsSearching(true);
         setError("");
 
         try {
-            const code = trackingCode.trim().toUpperCase();
+            const code = trimmed.toUpperCase();
             const response = await fetch(`${API_BASE}/api/halan/orders/track/by-code/${encodeURIComponent(code)}`);
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    setError("لم يتم العثور على طلب بهذا الكود");
+                } else {
+                    setError("حدث خطأ في الاتصال");
+                }
+                return;
+            }
+
             const data = await response.json();
 
-            if (data.success && data.data) {
-                // Navigate directly to the order tracking page
-                router.push(`/track/${data.data.id}`);
+            if (data.success && data.order) {
+                router.push(`/track/${data.order.id}`);
             } else {
                 setError("لم يتم العثور على طلب بهذا الكود");
             }
@@ -152,7 +163,10 @@ export default function TrackSearchPage() {
                             <input
                                 type="text"
                                 value={trackingCode}
-                                onChange={(e) => setTrackingCode(e.target.value)}
+                                onChange={(e) => {
+                                    setTrackingCode(e.target.value);
+                                    if (error) setError("");
+                                }}
                                 placeholder="أدخل كود التتبع (مثال: AS12Eas)"
                                 className="w-full bg-slate-50 dark:bg-slate-700/50 border-2 border-slate-200 dark:border-slate-600 rounded-xl py-4 px-4 text-center font-mono font-bold text-lg outline-none focus:border-violet-500 transition-colors ltr"
                                 dir="ltr"
@@ -205,7 +219,7 @@ export default function TrackSearchPage() {
                                                     <Package className="w-5 h-5" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-slate-800 dark:text-white">طلب #{order.id}</h3>
+                                                    <h3 className="font-bold text-slate-800 dark:text-white">طلب #{order.display_id || order.id}</h3>
                                                     <p className="text-xs text-slate-400">
                                                         {new Date(order.created_at).toLocaleDateString('ar-EG', {
                                                             day: 'numeric', month: 'short', hour: 'numeric', minute: 'numeric'

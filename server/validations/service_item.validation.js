@@ -9,7 +9,7 @@ const offerSchema = z.object({
 });
 
 const createServiceSchema = z.object({
-    providerId: z.coerce.number().int().positive().optional().nullable(),
+    providerId: z.union([z.string(), z.number()]).optional().nullable(),
     name: z.string().min(1, 'اسم الخدمة مطلوب'),
     description: z.string().optional().nullable(),
     price: z.coerce.number().nonnegative(),

@@ -68,10 +68,12 @@ class BookingService {
 
             const parentId = await bookingRepo.createParentOrder(userId, finalPrice, totalDiscount, validatedPrizeId, summaryStr, encryptedAddress, client);
 
+            const { decodeEntityId } = require('../utils/obfuscate');
             const grouped = {};
             items.forEach(item => {
-                if (!grouped[item.providerId]) grouped[item.providerId] = { providerName: item.providerName, items: [] };
-                grouped[item.providerId].items.push(item);
+                const pId = decodeEntityId('provider', item.providerId) || item.providerId;
+                if (!grouped[pId]) grouped[pId] = { providerName: item.providerName, items: [] };
+                grouped[pId].items.push(item);
             });
 
             const bookingPromises = Object.entries(grouped).map(([pId, group]) => {
@@ -167,15 +169,8 @@ class BookingService {
 
         const bookingInfo = result; // Use the freshly updated row data
 
-        // Sync delivery order status when provider marks order ready
-        if (status === 'completed' && bookingInfo.halan_order_id) {
-            try {
-                const deliveryRepo = require('../repositories/delivery.repository');
-                await deliveryRepo.updateOrder(bookingInfo.halan_order_id, { status: 'ready_for_pickup' });
-            } catch (e) {
-                logger.warn('Failed to sync delivery order status on booking completed:', e.message);
-            }
-        }
+        // (REMOVED) Sync delivery order status when provider marks order ready
+        // It is now handled centrally by parent-sync.js via the queue.
 
         const customerId = bookingInfo.user_id;
         // providerUserId is now returned directly from getBookingToUpdate JOIN — no extra DB call

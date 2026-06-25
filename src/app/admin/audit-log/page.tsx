@@ -14,6 +14,7 @@ import { adminAuditApi } from "@/lib/admin-api";
 
 // ===== Types =====
 interface AuditLog {
+    display_entity_id?: string | number;
     id: number;
     admin_id: number;
     admin_name?: string;
@@ -216,7 +217,7 @@ export default function AuditLogPage() {
                                                     </Badge>
                                                     {log.entity_type && (
                                                         <span className="text-xs text-slate-500">
-                                                            {log.entity_type} #{log.entity_id}
+                                                            {log.entity_type} #{log.display_entity_id || log.entity_id}
                                                         </span>
                                                     )}
                                                 </div>

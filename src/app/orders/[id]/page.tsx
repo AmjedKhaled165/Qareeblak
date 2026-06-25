@@ -37,6 +37,7 @@ interface OrderItem {
 }
 
 interface Order {
+    display_id?: string | number;
     id: string | number;
     status: string;
     halanStatus: string;
@@ -496,7 +497,7 @@ export default function OrderTrackingPage() {
                                 <div className="flex items-center justify-between">
                                     <span className="text-slate-500 dark:text-slate-400 font-bold">رقم الطلب:</span>
                                     <span className="font-mono font-black text-lg text-indigo-600 dark:text-indigo-400">
-                                        #{orderId.substring(0, 8).toUpperCase()}
+                                        #{order.display_id || orderId.substring(0, 8).toUpperCase()}
                                     </span>
                                 </div>
 
@@ -648,7 +649,7 @@ export default function OrderTrackingPage() {
                     </button>
                     <div className="text-center">
                         <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mb-1">طلب رقم</p>
-                        <h1 className="font-mono font-bold text-xl">#{orderId.substring(0, 8).toUpperCase()}</h1>
+                        <h1 className="font-mono font-bold text-xl">#{order.display_id || orderId.substring(0, 8).toUpperCase()}</h1>
                     </div>
                     <div className="w-10" />
                 </div>

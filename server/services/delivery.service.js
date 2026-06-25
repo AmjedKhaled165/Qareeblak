@@ -446,7 +446,10 @@ class DeliveryService {
         return { success: true };
     }
 
-    async assignCourier(orderId, userId, role, payload, io) {
+    async assignCourier(orderIdParam, userId, role, payload, io) {
+        const { decodeEntityId } = require('../utils/obfuscate');
+        const orderId = decodeEntityId('order', orderIdParam) || orderIdParam;
+
         const normalizedRole = String(role || '').toLowerCase();
         const isOwner = normalizedRole === 'owner' || normalizedRole === 'partner_owner';
         const isSupervisor = normalizedRole === 'supervisor' || normalizedRole === 'partner_supervisor';
@@ -455,7 +458,10 @@ class DeliveryService {
             throw new AppError('غير مصرح لك بتعيين المندوب', 403);
         }
 
-        const courierId = Number(payload.courierId);
+        const rawCourierId = payload.courierId || payload.courier_id;
+        const decodedCourierId = decodeEntityId('user', rawCourierId) || rawCourierId;
+        const courierId = Number(decodedCourierId);
+        
         if (!Number.isInteger(courierId) || courierId <= 0) {
             throw new AppError('معرف المندوب غير صالح', 400);
         }
@@ -478,7 +484,8 @@ class DeliveryService {
                 throw new AppError('لا يمكن تعيين مندوب لطلب منتهي أو ملغي', 400);
             }
             if (Number(order.courier_id) === courierId) {
-                throw new AppError('هذا الطلب معين بالفعل لهذا المندوب', 400);
+                await client.query('COMMIT');
+                return { success: true, message: 'هذا الطلب معين بالفعل لهذا المندوب' };
             }
             if (isSupervisor && Number(order.supervisor_id) !== Number(userId)) {
                 throw new AppError('لا يمكنك تعيين مندوب لطلب خارج مسؤوليتك', 403);
