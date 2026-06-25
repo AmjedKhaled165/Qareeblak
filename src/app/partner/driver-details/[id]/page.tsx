@@ -20,6 +20,7 @@ import { apiCall } from "@/lib/api";
 
 interface Order {
     id: number;
+    display_id?: number | string;
     customer_name: string;
     customer_phone: string;
     delivery_address: string;

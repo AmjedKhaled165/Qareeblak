@@ -43,6 +43,8 @@ const Popup = dynamic(
 
 interface Order {
     id: number;
+    display_id?: number | string;
+    sub_orders?: any[];
     customer_name: string;
     delivery_address: string;
     created_at: string;

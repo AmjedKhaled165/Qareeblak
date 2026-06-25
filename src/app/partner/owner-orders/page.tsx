@@ -33,6 +33,7 @@ import { useDebounce } from "@/lib/use-debounce";
 
 interface Order {
     id: number;
+    display_id?: number | string;
     order_number: string;
     customer_name: string;
     customer_phone: string;

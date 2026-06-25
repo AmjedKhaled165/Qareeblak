@@ -22,6 +22,7 @@ import ConfirmModal from "@/components/ui/confirm-modal";
 
 interface Order {
     id: number;
+    display_id?: number | string;
     order_number: string;
     customer_name: string;
     customer_phone: string;
