@@ -148,31 +148,36 @@ function hydrateOrderDisplayFields(row) {
     const resolvedPhone = pickFirstValue([row.customer_phone, row.customer_user_phone, phoneFromParent]);
 
     // --- Items resolution ---
-    // Use delivery_orders.items if non-empty, otherwise fall back to linked booking items.
-    let resolvedItems = row.items;
-    if (!resolvedItems || (Array.isArray(resolvedItems) && resolvedItems.length === 0)) {
-        const bItems = safeJsonParse(row.b_items);
-        if (Array.isArray(bItems) && bItems.length > 0) resolvedItems = bItems;
-        else resolvedItems = [];
-    } else if (typeof resolvedItems === 'string') {
-        const parsed = safeJsonParse(resolvedItems);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-            resolvedItems = parsed;
-        } else {
-            const bItems = safeJsonParse(row.b_items);
-            if (Array.isArray(bItems) && bItems.length > 0) resolvedItems = bItems;
-            else resolvedItems = [];
-        }
-    } else if (!Array.isArray(resolvedItems)) {
-        resolvedItems = [];
+    let resolvedItems = [];
+    if (row.items && typeof row.items === 'string') {
+        resolvedItems = safeJsonParse(row.items) || [];
+    } else if (Array.isArray(row.items)) {
+        resolvedItems = row.items;
+    }
+
+    if (!Array.isArray(resolvedItems)) resolvedItems = [];
+
+    // Fall back to items from sub_orders
+    if (resolvedItems.length === 0 && Array.isArray(row.sub_orders) && row.sub_orders.length > 0) {
+        row.sub_orders.forEach(sub => {
+            const parsed = safeJsonParse(sub.items);
+            if (Array.isArray(parsed)) {
+                resolvedItems.push(...parsed);
+            }
+        });
+    } else if (resolvedItems.length === 0 && row.b_items) {
+        const parsed = safeJsonParse(row.b_items);
+        if (Array.isArray(parsed)) resolvedItems = parsed;
     }
 
     // --- Price resolution ---
-    // delivery_orders.price is rarely set; fall back to sum from items or booking price.
     let resolvedPrice = Number(row.price || 0);
-    if (resolvedPrice === 0 && row.b_price) {
+    if (resolvedPrice === 0 && Array.isArray(row.sub_orders) && row.sub_orders.length > 0) {
+        resolvedPrice = row.sub_orders.reduce((sum, sub) => sum + (Number(sub.price) || 0), 0);
+    } else if (resolvedPrice === 0 && row.b_price) {
         resolvedPrice = Number(row.b_price) || 0;
     }
+
     if (resolvedPrice === 0 && Array.isArray(resolvedItems) && resolvedItems.length > 0) {
         resolvedPrice = resolvedItems.reduce(
             (sum, item) => sum + (Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)),
