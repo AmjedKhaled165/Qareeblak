@@ -57,8 +57,8 @@ function obfuscateOrder(order) {
         display_id: order.id, // Store raw numeric ID for display
         id: encode(order.id, 'order'),
         order_number: String(order.id),
-        ...(order.courier_id ? { courier_id: Number(order.courier_id) } : {}),
-        ...(order.supervisor_id ? { supervisor_id: Number(order.supervisor_id) } : {}),
+        ...(order.courier_id ? { courier_id: Number(order.courier_id), courierId: encode(order.courier_id, 'user') } : {}),
+        ...(order.supervisor_id ? { supervisor_id: Number(order.supervisor_id), supervisorId: encode(order.supervisor_id, 'user') } : {}),
         ...(order.customer_id ? { customer_id: Number(order.customer_id) } : {}),
         ...(order.sub_orders ? { sub_orders: order.sub_orders.map(s => ({
             ...s,
