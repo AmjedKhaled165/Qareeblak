@@ -232,7 +232,12 @@ export default function DriverTrackingPage() {
         // Listen for driver location updates (legacy/fallback)
         socketRef.current.on('driver-location', (data: any) => {
             console.log('📍 Received driver location:', data);
-            if (data.driverId === driverUsername || data.courierId === driverUsername) {
+            if (
+                String(data.driverId) === String(driverId) ||
+                String(data.courierId) === String(driverId) ||
+                data.driverId === driverUsername || 
+                data.courierId === driverUsername
+            ) {
                 const lat = data.lat || data.latitude;
                 const lng = data.lng || data.longitude;
 

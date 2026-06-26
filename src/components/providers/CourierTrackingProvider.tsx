@@ -73,10 +73,13 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
 
                 // Initialize Socket
                 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+                const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
+                
                 socketRef.current = io(SOCKET_URL, {
                     transports: ['websocket', 'polling'],
                     reconnection: true,
-                    reconnectionAttempts: 10
+                    reconnectionAttempts: 10,
+                    auth: { token }
                 });
 
                 socketRef.current.on('connect', () => {
