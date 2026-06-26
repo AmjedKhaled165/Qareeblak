@@ -81,7 +81,7 @@ export default function DriversMap({ user }: DriversMapProps) {
 
     useEffect(() => {
         // Connect to socket
-        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || 'https://api.qareeblak.com';
         const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
 
         if (!token) {

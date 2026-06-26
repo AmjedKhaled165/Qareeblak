@@ -72,7 +72,7 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
                 userRef.current = user;
 
                 // Initialize Socket
-                const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+                const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || 'https://api.qareeblak.com';
                 const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
                 
                 socketRef.current = io(SOCKET_URL, {
