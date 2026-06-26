@@ -631,12 +631,34 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     <div className="space-y-4">
                         <h3 className="font-bold text-slate-800 dark:text-slate-100 px-1">تفاصيل المتاجر</h3>
                         {order.sub_orders.map((sub) => {
-                            const globalReady = ['ready_for_pickup', 'جاهز للاستلام'].includes(order.status) || ['picked_up', 'تم الاستلام من المطعم'].includes(order.status) || ['in_transit', 'جاري التوصيل'].includes(order.status) || ['delivered', 'تم التوصيل'].includes(order.status);
-                            const isReady = globalReady || ['ready_for_pickup', 'جاهز للاستلام'].includes(sub.status) || ['picked_up', 'تم الاستلام من المطعم'].includes(sub.status) || ['in_transit', 'جاري التوصيل'].includes(sub.status) || ['delivered', 'تم التوصيل'].includes(sub.status);
-                            const statusLabel = isReady ? 'تم التجهيز' : 'جاري التجهيز';
-                            const badgeColor = isReady
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+                            const getSubStatusLabel = (status: string) => {
+                                const s = String(status || '').toLowerCase();
+                                if (['pending', 'بانتظار قبول المطعم'].includes(s)) return 'بانتظار القبول';
+                                if (['confirmed', 'تم القبول'].includes(s)) return 'تم القبول - جاري التجهيز';
+                                if (['completed', 'ready_for_pickup', 'جاهز للاستلام'].includes(s)) return 'تم التجهيز';
+                                if (['picked_up', 'تم الاستلام من المطعم'].includes(s)) return 'تم الاستلام';
+                                if (['in_transit', 'جاري التوصيل'].includes(s)) return 'جاري التوصيل';
+                                if (['delivered', 'تم التوصيل'].includes(s)) return 'تم التوصيل';
+                                if (['cancelled', 'ملغي'].includes(s)) return 'ملغي';
+                                if (['rejected', 'مرفوض'].includes(s)) return 'مرفوض';
+                                return 'جاري التجهيز';
+                            };
+
+                            const getSubBadgeColor = (status: string) => {
+                                const s = String(status || '').toLowerCase();
+                                if (['pending', 'بانتظار قبول المطعم'].includes(s)) return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400';
+                                if (['confirmed', 'تم القبول'].includes(s)) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+                                if (['completed', 'ready_for_pickup', 'جاهز للاستلام', 'picked_up', 'تم الاستلام من المطعم', 'in_transit', 'جاري التوصيل', 'delivered', 'تم التوصيل'].includes(s)) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+                                if (['cancelled', 'ملغي', 'rejected', 'مرفوض'].includes(s)) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+                                return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+                            };
+
+                            const isGlobalReady = ['ready_for_pickup', 'جاهز للاستلام', 'completed', 'picked_up', 'تم الاستلام من المطعم', 'in_transit', 'جاري التوصيل', 'delivered', 'تم التوصيل'].includes(String(order.status).toLowerCase());
+                            
+                            const effectiveStatus = isGlobalReady && !['completed', 'ready_for_pickup', 'picked_up', 'in_transit', 'delivered'].includes(String(sub.status).toLowerCase()) ? 'completed' : sub.status;
+                            
+                            const statusLabel = getSubStatusLabel(effectiveStatus);
+                            const badgeColor = getSubBadgeColor(effectiveStatus);
                             const subItems = Array.isArray(sub.items)
                                 ? sub.items
                                 : (() => {
