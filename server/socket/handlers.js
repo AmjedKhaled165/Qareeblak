@@ -163,7 +163,18 @@ module.exports = function registerSocketHandlers(io) {
         socket.on('sendLocation', async (data) => {
             const latitude = data.latitude || data.lat;
             const longitude = data.longitude || data.lng;
-            const { orderId, courierId, heading, speed, accuracy } = data;
+            let { orderId, courierId, heading, speed, accuracy } = data;
+
+            // Decode courierId if it's an encoded hash from the app
+            if (courierId && isNaN(Number(courierId))) {
+                try {
+                    const { decodeEntityId } = require('../utils/obfuscate');
+                    const decoded = decodeEntityId('user', courierId);
+                    if (decoded) courierId = decoded;
+                } catch (e) {
+                    logger.error('Error decoding courierId:', e);
+                }
+            }
 
             if (courierId) {
                 const sid = String(courierId);
@@ -241,6 +252,16 @@ module.exports = function registerSocketHandlers(io) {
         // Driver becomes online
         socket.on('driver-online', (driverId) => {
             if (!driverId) return;
+            
+            // Decode driverId if it's an encoded hash from the app
+            if (driverId && isNaN(Number(driverId))) {
+                try {
+                    const { decodeEntityId } = require('../utils/obfuscate');
+                    const decoded = decodeEntityId('user', driverId);
+                    if (decoded) driverId = decoded;
+                } catch (e) {}
+            }
+
             const sid = String(driverId);
             socket.driverId = driverId;
             driverStatuses.set(driverId, 'online');

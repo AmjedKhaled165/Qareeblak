@@ -50,7 +50,7 @@ export default function DriversMap({ user }: DriversMapProps) {
         const fetchAvailableDrivers = async () => {
             try {
                 const token = localStorage.getItem('halan_token');
-                let url = `${process.env.NEXT_PUBLIC_API_URL || ''}/halan/users?role=courier`;
+                let url = `${process.env.NEXT_PUBLIC_API_URL || 'https://api.qareeblak.com/api'}/halan/users?role=courier`;
 
                 if (user?.role === 'supervisor') {
                     url += `&supervisorId=${user.id}`;
