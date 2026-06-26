@@ -1,4 +1,4 @@
-﻿const db = require('../db');
+const db = require('../db');
 const logger = require('../utils/logger');
 
 // In-memory state for driver locations
@@ -179,6 +179,7 @@ module.exports = function registerSocketHandlers(io) {
                 const driverName = data.name || (existingLoc ? existingLoc.name : null);
 
                 driverLocations.set(sid, {
+                    driverId: courierId,
                     latitude,
                     longitude,
                     heading: heading || 0,

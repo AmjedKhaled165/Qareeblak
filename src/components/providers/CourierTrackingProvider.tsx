@@ -27,8 +27,10 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
     const socketRef = useRef<Socket | null>(null);
     const watchIdRef = useRef<number | null>(null);
     const userRef = useRef<any>(null);
+    const latestLocationRef = useRef<GeolocationPosition | null>(null);
 
     const applyLocationUpdate = (position: GeolocationPosition) => {
+        latestLocationRef.current = position;
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         const accuracy = position.coords.accuracy;
@@ -85,6 +87,11 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
                 socketRef.current.on('connect', () => {
                     console.log('📡 Courier Tracking Socket Connected');
                     socketRef.current?.emit('driver-online', user.id);
+                    
+                    // If we already have a location, send it immediately upon connection
+                    if (latestLocationRef.current) {
+                        applyLocationUpdate(latestLocationRef.current);
+                    }
                 });
 
                 // Auto-start tracking if already active and not expired

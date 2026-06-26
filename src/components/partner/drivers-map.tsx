@@ -63,9 +63,8 @@ export default function DriversMap({ user }: DriversMapProps) {
                 console.log('🔍 Drivers API response:', data);
 
                 if (data.success) {
-                    // Only include drivers that are available (isAvailable = true)
-                    const availableDrivers = data.data.filter((d: any) => d.isAvailable === true);
-                    const ids = new Set<string>(availableDrivers.map((d: any) => String(d.id)));
+                    // Include all drivers returned by the API (the backend already filters by supervisor)
+                    const ids = new Set<string>(data.data.map((d: any) => String(d.id)));
                     console.log('🔍 Available driver IDs:', [...ids]);
                     setAllowedDriverIds(ids);
                 }
