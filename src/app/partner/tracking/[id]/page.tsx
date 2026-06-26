@@ -423,7 +423,6 @@ export default function DriverTrackingPage() {
                             center={location ? [location.lat, location.lng] : [MAP_CENTER.lat, MAP_CENTER.lng]}
                             zoom={15}
                             minZoom={13}
-                            maxBounds={MAP_BOUNDS as any}
                             style={{ height: '100%', width: '100%' }}
                             zoomControl={false}
                         >

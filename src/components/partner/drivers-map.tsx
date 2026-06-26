@@ -1,9 +1,28 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { io, Socket } from "socket.io-client";
 import dynamic from "next/dynamic";
 import { User, Navigation } from "lucide-react";
+
+const MapBoundsUpdater = dynamic(
+    () => import("react-leaflet").then((mod) => {
+        const { useMap } = mod;
+        return function MapBoundsUpdater({ drivers }: { drivers: any[] }) {
+            const map = useMap();
+            useEffect(() => {
+                if (drivers.length > 0) {
+                    const bounds = L.latLngBounds(drivers.map(d => [d.lat, d.lng]));
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                }
+            }, [drivers.length, map]);
+            return null;
+        };
+    }),
+    { ssr: false }
+);
 
 // Dynamically import Leaflet components
 const MapContainer = dynamic(
@@ -243,10 +262,9 @@ export default function DriversMap({ user }: DriversMapProps) {
                 center={[MAP_CENTER.lat, MAP_CENTER.lng]}
                 zoom={13}
                 minZoom={12}
-                maxBounds={MAP_BOUNDS}
-                maxBoundsViscosity={1.0}
                 style={{ height: '100%', width: '100%' }}
             >
+                <MapBoundsUpdater drivers={filteredDrivers} />
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap contributors'

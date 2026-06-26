@@ -769,8 +769,6 @@ export default function DriverDashboard() {
                                 center={currentLocation ? [currentLocation.lat, currentLocation.lng] : [MAP_CENTER.lat, MAP_CENTER.lng]}
                                 zoom={15}
                                 minZoom={12}
-                                maxBounds={MAP_BOUNDS}
-                                maxBoundsViscosity={1.0}
                                 style={{ height: '100%', width: '100%' }}
                                 zoomControl={false}
                             >
