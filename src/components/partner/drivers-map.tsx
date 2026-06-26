@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { io, Socket } from "socket.io-client";
 import dynamic from "next/dynamic";
 import { User, Navigation } from "lucide-react";
@@ -14,7 +12,8 @@ const MapBoundsUpdater = dynamic(
             const map = useMap();
             useEffect(() => {
                 if (drivers.length > 0) {
-                    const bounds = L.latLngBounds(drivers.map(d => [d.lat, d.lng]));
+                    const L = require('leaflet');
+                    const bounds = L.latLngBounds(drivers.map((d: any) => [d.lat, d.lng]));
                     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
                 }
             }, [drivers.length, map]);
