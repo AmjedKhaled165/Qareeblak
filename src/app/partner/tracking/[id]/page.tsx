@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
-import { ArrowRight, Phone, User, MapPin, Wifi, WifiOff, RefreshCw, LayoutDashboard, Map as MapIcon, Calendar, CheckCircle, TrendingUp, DollarSign, Star } from "lucide-react";
+import { ArrowRight, Phone, User, MapPin, Wifi, WifiOff, RefreshCw, LayoutDashboard, Map as MapIcon, Calendar, CheckCircle, TrendingUp, DollarSign, Star, Navigation } from "lucide-react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { apiCall } from "@/lib/api";
@@ -572,15 +572,13 @@ export default function DriverTrackingPage() {
                                 <p className="text-sm text-slate-500 dark:text-slate-400">@{driverUsername}</p>
                             </div>
                             <div className="text-left">
-                                {lastUpdate ? (
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        آخر تحديث: {lastUpdate.toLocaleTimeString('ar-EG')}
-                                    </p>
-                                ) : (
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        {location ? <span className="text-green-600 dark:text-green-400">موقع نشط</span> : 'في انتظار الموقع...'}
-                                    </p>
-                                )}
+                                <p className={`text-xs mt-0.5 flex items-center gap-1 ${
+                                    lastUpdate && (new Date().getTime() - lastUpdate.getTime() > 5 * 60000)
+                                        ? 'text-red-500 font-bold animate-pulse'
+                                        : 'text-slate-500 dark:text-slate-400'
+                                }`}>
+                                    آخر تحديث: {lastUpdate ? lastUpdate.toLocaleTimeString('ar-EG') : 'في انتظار...'}
+                                </p>
                                 {location && typeof location.lat === 'number' && typeof location.lng === 'number' && (
                                     <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                         <MapPin className="w-3 h-3" />
@@ -589,6 +587,16 @@ export default function DriverTrackingPage() {
                                 )}
                             </div>
                         </div>
+
+                        {location && !isFollowing && (
+                            <button
+                                onClick={() => setIsFollowing(true)}
+                                className="absolute -top-16 right-4 z-[400] bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg transition-all"
+                                title="تتبع المندوب"
+                            >
+                                <Navigation className="w-5 h-5" />
+                            </button>
+                        )}
                     </div>
                 )}
 
