@@ -49,12 +49,11 @@ export default function TrackSearchPage() {
         setError("");
 
         try {
-            const response = await fetch(`${API_BASE}/api/halan/orders/customer-orders`, {
+            const { apiCall } = await import("@/lib/api");
+            const data = await apiCall('/halan/orders/customer-orders', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId })
             });
-            const data = await response.json();
 
             if (data.success) {
                 setOrders(data.orders);

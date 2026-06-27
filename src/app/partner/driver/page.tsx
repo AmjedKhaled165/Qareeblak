@@ -145,6 +145,43 @@ export default function DriverDashboard() {
         };
     }, []);
 
+    // Wake Lock to keep screen on for continuous location tracking
+    useEffect(() => {
+        let wakeLock: any = null;
+
+        const requestWakeLock = async () => {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await (navigator as any).wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Screen Wake Lock released');
+                    });
+                    console.log('Screen Wake Lock acquired');
+                }
+            } catch (err: any) {
+                console.error(`${err.name}, ${err.message}`);
+            }
+        };
+
+        requestWakeLock();
+
+        const handleVisibilityChange = () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                requestWakeLock();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            if (wakeLock !== null) {
+                wakeLock.release().catch(console.error);
+                wakeLock = null;
+            }
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
     const fetchActiveOrders = async (force = false) => {
         const now = Date.now();
         // Avoid duplicate bursts from polling + multiple socket events.

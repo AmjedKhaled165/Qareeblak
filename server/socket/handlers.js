@@ -53,6 +53,17 @@ module.exports = function registerSocketHandlers(io) {
             logger.info(`Client left chat: ${consultationId}`);
         });
 
+        // ========== MANAGERS TRACKING ==========
+        socket.on('join-managers', () => {
+            socket.join('managers');
+            logger.info(`Client joined managers room: ${socket.id}`);
+        });
+
+        socket.on('leave-managers', () => {
+            socket.leave('managers');
+            logger.info(`Client left managers room: ${socket.id}`);
+        });
+
         // Send message via Socket.io
         socket.on('send_message', async (data) => {
             try {

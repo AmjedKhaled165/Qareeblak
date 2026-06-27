@@ -132,10 +132,34 @@ class DeliveryService {
         return updated;
     }
 
-    async customerRemoveItem(orderId, itemIndex, io) {
+    async customerRemoveItem(orderId, itemIndex, bookingId, io) {
         const currentOrder = await deliveryRepo.getOrderById(orderId);
         if (!currentOrder) {
             throw new AppError('الطلب غير موجود', 404);
+        }
+
+        const blockedStatuses = new Set(['ready_for_pickup', 'completed', 'delivered', 'cancelled', 'picked_up', 'in_transit']);
+        if (blockedStatuses.has(String(currentOrder.status || '').toLowerCase())) {
+            throw new AppError('لا يمكن التعديل، الطلب قيد التجهيز أو تم تسليمه', 400);
+        }
+
+        const elapsedSeconds = (Date.now() - new Date(currentOrder.created_at).getTime()) / 1000;
+        if (elapsedSeconds > 300) {
+            throw new AppError('لقد تجاوزت مهلة التعديل المسموحة (5 دقائق)', 400);
+        }
+
+        if (bookingId) {
+            const bookingRes = await db.query('SELECT items FROM bookings WHERE id = $1', [bookingId]);
+            if (bookingRes.rows.length > 0) {
+                const bookingItems = this._parseItems(bookingRes.rows[0].items);
+                if (itemIndex >= 0 && itemIndex < bookingItems.length) {
+                    const removedItem = bookingItems.splice(itemIndex, 1)[0];
+                    await db.query('UPDATE bookings SET items = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(bookingItems), bookingId]);
+                    deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `قام العميل بحذف منتج (${removedItem?.name}) من طلب المتجر`);
+                    if (io) this._emitOrderSync(io, orderId, { updates: {}, extraBooking: { items: bookingItems } });
+                    return await deliveryRepo.getOrderById(orderId); // return updated order
+                }
+            }
         }
 
         const items = this._parseItems(currentOrder.items);
@@ -162,6 +186,11 @@ class DeliveryService {
             throw new AppError('الطلب غير موجود', 404);
         }
 
+        const blockedStatuses = new Set(['delivered', 'cancelled', 'picked_up', 'in_transit']);
+        if (blockedStatuses.has(String(currentOrder.status || '').toLowerCase())) {
+            throw new AppError('لا يمكن الإضافة، تم خروج الطلب للتوصيل', 400);
+        }
+
         const incoming = Array.isArray(items) ? items : [];
         if (incoming.length === 0) {
             throw new AppError('لا توجد منتجات لإضافتها', 400);
@@ -180,6 +209,16 @@ class DeliveryService {
 
         if (normalized.length === 0) {
             throw new AppError('بيانات المنتجات غير صالحة', 400);
+        }
+
+        if (providerId) {
+            const bookingResult = await db.query('SELECT id, items FROM bookings WHERE CAST(halan_order_id AS TEXT) = $1 AND provider_id = $2', [String(orderId), providerId]);
+            if (bookingResult.rows.length > 0) {
+                const booking = bookingResult.rows[0];
+                const bookingItems = this._parseItems(booking.items);
+                const mergedBookingItems = [...bookingItems, ...normalized];
+                await db.query('UPDATE bookings SET items = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(mergedBookingItems), booking.id]);
+            }
         }
 
         const currentItems = this._parseItems(currentOrder.items);

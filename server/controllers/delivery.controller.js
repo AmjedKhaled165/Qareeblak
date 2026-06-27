@@ -405,9 +405,13 @@ exports.customerCancel = catchAsync(async (req, res) => {
 exports.customerRemoveItem = catchAsync(async (req, res) => {
     const io = req.app.get('io');
     const { decodeEntityId } = require('../utils/obfuscate');
-    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
+    const id = decodeEntityId('order', req.params.id) || req.params.id;
     const itemIndex = Number(req.body?.itemIndex);
-    const order = await deliveryService.customerRemoveItem(id, itemIndex, io);
+    
+    const bookingIdHash = req.body?.bookingId;
+    const bookingId = bookingIdHash ? (decodeEntityId('booking', bookingIdHash) || bookingIdHash) : null;
+
+    const order = await deliveryService.customerRemoveItem(id, itemIndex, bookingId, io);
     return res.status(200).json({ success: true, message: 'تم حذف المنتج بنجاح', order });
 });
 

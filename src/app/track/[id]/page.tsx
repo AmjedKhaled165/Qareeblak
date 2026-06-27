@@ -443,11 +443,11 @@ export default function TrackOrderPage() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`${API_BASE}/api/halan/orders/${order.id}/customer-cancel`, {
+            const { apiCall } = await import('@/lib/api');
+            const data = await apiCall(`/halan/orders/${order.id}/customer-cancel`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                body: JSON.stringify({ reason: 'Customer requested cancellation from tracking page' })
             });
-            const data = await response.json();
 
             if (data.success) {
                 setActionMessage({ type: 'success', text: 'تم إلغاء الطلب بنجاح' });
@@ -464,19 +464,16 @@ export default function TrackOrderPage() {
     };
 
     // Remove item from order
-    const handleRemoveItem = async (index: number, specificOrderId?: string | number) => {
+    const handleRemoveItem = async (index: number, subId?: string | number) => {
         if (!order || !canModify) return;
         setIsSubmitting(true);
 
-        const targetId = specificOrderId || order.id;
-
         try {
-            const response = await fetch(`${API_BASE}/api/halan/orders/${targetId}/customer-remove-item`, {
+            const { apiCall } = await import('@/lib/api');
+            const data = await apiCall(`/halan/orders/${order.id}/customer-remove-item`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ itemIndex: index })
+                body: JSON.stringify({ itemIndex: index, bookingId: subId })
             });
-            const data = await response.json();
 
             if (data.success) {
                 setActionMessage({ type: 'success', text: 'تم حذف المنتج بنجاح' });
@@ -765,7 +762,24 @@ export default function TrackOrderPage() {
                         <ArrowRight className="w-6 h-6" />
                     </button>
                     <div className="flex-1">
-                        <h1 className="text-lg font-bold text-slate-900 dark:text-white">تتبع طلبك</h1>
+                        <h1 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            تتبع طلبك
+                            {order && (
+                                <span className="bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded text-sm text-slate-700 dark:text-slate-300">
+                                    #{order.display_id || order.id}
+                                </span>
+                            )}
+                        </h1>
+                        <div className="flex items-center gap-2 mt-1">
+                            <p className="text-[10px] text-slate-500">كود التتبع:</p>
+                            <input 
+                                type="text" 
+                                readOnly 
+                                value={trackingId as string} 
+                                className="bg-transparent text-[10px] text-slate-400 font-mono outline-none w-32"
+                                onClick={(e) => (e.target as HTMLInputElement).select()}
+                            />
+                        </div>
                     </div>
                     <button onClick={fetchOrder} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-900 dark:text-white" title="تحديث البيانات" aria-label="تحديث بيانات الطلب">
                         <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -1260,13 +1274,15 @@ export default function TrackOrderPage() {
                                 <div className="space-y-3 mt-4">
                                     {(order?.is_parent ? (
                                         order.sub_orders?.flatMap(sub =>
-                                            sub.items.map((item, idx) => ({ ...item, subId: sub.id, subName: sub.provider_name, originalIdx: idx }))
+                                            sub.items.map((item, idx) => ({ ...item, subId: sub.id, subName: sub.provider_name, subStatus: sub.status, originalIdx: idx }))
                                         )
                                     ) : (
-                                        order?.items?.map((item, idx) => ({ ...item, subId: order.id, subName: order.provider_name, originalIdx: idx }))
-                                    ))?.map((item, i) => (
+                                        order?.items?.map((item, idx) => ({ ...item, subId: order.id, subName: order.provider_name, subStatus: order.status, originalIdx: idx }))
+                                    ))?.map((item, i) => {
+                                        const isItemLocked = ['ready_for_pickup', 'in_transit', 'delivered', 'cancelled'].includes(normalizeTrackingStatus(item.subStatus || order?.status || ''));
+                                        return (
                                         <div key={i} className="flex flex-col gap-1">
-                                            {item.subName && order.is_parent && (
+                                            {item.subName && order?.is_parent && (
                                                 <p className="text-[10px] text-violet-500 font-bold mr-1">{item.subName}</p>
                                             )}
                                             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1281,17 +1297,21 @@ export default function TrackOrderPage() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleRemoveItem(item.originalIdx, item.subId)}
-                                                    disabled={isSubmitting}
-                                                    className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg transition-colors"
-                                                    title="حذف المنتج"
-                                                >
-                                                    <X className="w-5 h-5" />
-                                                </button>
+                                                {!isItemLocked ? (
+                                                    <button
+                                                        onClick={() => handleRemoveItem(item.originalIdx, item.subId)}
+                                                        disabled={isSubmitting}
+                                                        className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+                                                        title="حذف المنتج"
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[10px] text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">غير قابل للتعديل</span>
+                                                )}
                                             </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
 
                                 <button

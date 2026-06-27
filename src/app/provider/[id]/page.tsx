@@ -121,9 +121,17 @@ export default function ProviderProfile() {
                 } else {
                     // Try to fetch from API if not in state
                     try {
-                        // Import API dynamically to avoid circular deps if any
-                        const { bookingsApi } = await import('@/lib/api');
-                        const data = await bookingsApi.getById(addToOrderId);
+                        const { bookingsApi, apiCall } = await import('@/lib/api');
+                        let data;
+                        try {
+                            data = await bookingsApi.getById(addToOrderId);
+                        } catch (e) {
+                            console.warn("Failed to fetch target order via bookings API, trying halan tracking...", e);
+                            const res = await apiCall(`/halan/orders/track/${addToOrderId}`);
+                            if (res && res.order) {
+                                data = res.order;
+                            }
+                        }
                         if (data) setTargetOrder(data);
                     } catch (e) {
                         console.error("Failed to fetch target order", e);
@@ -285,8 +293,21 @@ export default function ProviderProfile() {
                                 <ShoppingBag className="w-5 h-5" />
                             </div>
                             <div>
-                                <p className="font-bold text-green-700 dark:text-green-400">أنت الآن تضيف للطلب #{addToOrderId}</p>
-                                <p className="text-xs text-green-600/80">اختر أي صنف من المنيو وسيتم إضافته لطلبك الحالي.</p>
+                                <p className="font-bold text-green-700 dark:text-green-400">أنت الآن تضيف للطلب #{targetOrder?.display_id || targetOrder?.id || 'الحالي'}</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <p className="text-[10px] font-bold text-green-800/80 dark:text-green-300 whitespace-nowrap">كود التتبع:</p>
+                                    <div className="flex-1 max-w-[200px] bg-white/50 dark:bg-black/20 border border-green-600/20 rounded flex items-center overflow-hidden">
+                                        <input 
+                                            type="text" 
+                                            readOnly 
+                                            value={addToOrderId} 
+                                            className="w-full bg-transparent text-[10px] text-green-700 dark:text-green-400 px-2 py-1 outline-none font-mono"
+                                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                                            title="انقر لنسخ كود التتبع"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-green-600/80 mt-1">اختر أي صنف من المنيو وسيتم إضافته لطلبك.</p>
                             </div>
                         </div>
                         <button
