@@ -95,8 +95,11 @@ function getAggregateTrackingStatus(statuses) {
 }
 
 exports.getCustomerOrdersPublic = catchAsync(async (req, res) => {
-    const { phone, userId } = req.body || {};
+    const { phone, userId: rawUserId } = req.body || {};
     const normalizedPhone = normalizeDigits(phone);
+
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const userId = rawUserId ? (decodeEntityId('user', rawUserId) || rawUserId) : null;
 
     if (!normalizedPhone && !userId) {
         throw new AppError('رقم الهاتف أو معرف المستخدم مطلوب', 400);

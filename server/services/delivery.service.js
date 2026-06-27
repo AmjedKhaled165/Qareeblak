@@ -180,6 +180,20 @@ class DeliveryService {
         return updated;
     }
 
+    _parseItems(rawItems) {
+        if (!rawItems) return [];
+        if (Array.isArray(rawItems)) return rawItems;
+        if (typeof rawItems === 'string') {
+            try {
+                const parsed = JSON.parse(rawItems);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (_) {
+                return [];
+            }
+        }
+        return [];
+    }
+
     async customerAddItemsBulk(orderId, items, providerId, io) {
         const currentOrder = await deliveryRepo.getOrderById(orderId);
         if (!currentOrder) {
