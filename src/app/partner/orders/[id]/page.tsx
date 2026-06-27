@@ -51,6 +51,7 @@ interface Order {
     courier_id?: number | null;
     courier_name?: string;
     supervisor_id?: number | null;
+    display_id?: number | string;
     sub_orders?: {
         id: number;
         provider_id: number;
