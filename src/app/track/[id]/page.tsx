@@ -59,6 +59,7 @@ interface Order {
     appointment_date?: string;
     service_name?: string;
     category?: string;
+    display_id?: number | string;
 }
 
 interface SubOrder {
