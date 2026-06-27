@@ -2,7 +2,7 @@ const { z } = require('zod');
 
 const checkoutSchema = z.object({
     items: z.array(z.object({
-        providerId: z.number().int().positive('معرف مقدم الخدمة غير صالح'),
+        providerId: z.union([z.string(), z.number()]),
         providerName: z.string().min(1, 'اسم مقدم الخدمة مطلوب'),
         price: z.number().nonnegative('السعر يجب أن يكون رقماً موجباً'),
         quantity: z.number().int().positive('الكمية يجب أن تكون رقماً موجباً'),
@@ -20,7 +20,7 @@ const checkoutSchema = z.object({
 });
 
 const createBookingSchema = z.object({
-    providerId: z.number().int().positive(),
+    providerId: z.union([z.string(), z.number()]),
     serviceId: z.number().int().positive().optional().nullable(),
     userName: z.string().min(1),
     serviceName: z.string().min(1),
@@ -48,13 +48,13 @@ const acceptAppointmentSchema = z.object({
 });
 
 const getBookingsQuerySchema = z.object({
-    lastId: z.string().regex(/^\d+$/).transform(Number).optional().nullable(),
+    lastId: z.union([z.string(), z.number()]).optional().nullable(),
     limit: z.string().regex(/^\d+$/).transform(val => Math.min(Math.max(Number(val), 1), 100)).optional().default("20"),
     page: z.string().regex(/^\d+$/).transform(val => Math.max(Number(val), 1)).optional().default("1")
 });
 
 const validateIdParam = z.object({
-    id: z.string().regex(/^\d+$/, 'معرف الحجز يجب أن يكون رقماً')
+    id: z.union([z.string(), z.number()])
 });
 
 const validate = (schema, target = 'body') => (req, res, next) => {

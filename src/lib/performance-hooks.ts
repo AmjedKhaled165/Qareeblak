@@ -233,7 +233,7 @@ export function useNetworkStatus() {
 // ============================================
 // 8. RAF THROTTLE (Smooth Animations)
 // ============================================
-export function useRafThrottle(callback: Function) {
+export function useRafThrottle<T extends (...args: any[]) => void>(callback: T) {
     const rafId = useRef<number | null>(null);
     const callbackRef = useRef(callback);
 

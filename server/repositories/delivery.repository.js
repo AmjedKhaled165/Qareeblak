@@ -1,8 +1,22 @@
 const pool = require('../db');
 const vault = require('../utils/vault');
+const logger = require('../utils/logger');
+const { generateTrackingCode } = require('../utils/generate-tracking-code');
 
 let deliveryOrdersColumnsCache = null;
 let parentOrdersColumnsCache = null;
+
+// [PERFORMANCE] Warm schema cache at startup — eliminates 1-2 extra round-trips per request
+(async function warmColumnCache() {
+    try {
+        const [dResult, pResult] = await Promise.all([
+            pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'delivery_orders'`),
+            pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'parent_orders'`)
+        ]);
+        deliveryOrdersColumnsCache = new Set(dResult.rows.map(r => r.column_name));
+        parentOrdersColumnsCache = new Set(pResult.rows.map(r => r.column_name));
+    } catch (_) { /* server starting, schema not ready yet — will lazy-load on first real request */ }
+})();
 
 async function getDeliveryOrdersColumns() {
     if (deliveryOrdersColumnsCache) return deliveryOrdersColumnsCache;
@@ -59,8 +73,15 @@ function safeJsonParse(value) {
 
 function parseAddressInfo(rawAddressInfo) {
     if (!rawAddressInfo) return null;
-    const maybeDecrypted = typeof rawAddressInfo === 'string' ? vault.decrypt(rawAddressInfo) : rawAddressInfo;
-    return safeJsonParse(maybeDecrypted);
+    if (typeof rawAddressInfo === 'string') {
+        const trimmed = rawAddressInfo.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try { return JSON.parse(trimmed); } catch {}
+        }
+        const decrypted = vault.decrypt(rawAddressInfo);
+        return safeJsonParse(decrypted);
+    }
+    return rawAddressInfo;
 }
 
 function pickFirstValue(values) {
@@ -107,19 +128,72 @@ function hydrateOrderDisplayFields(row) {
         addressInfo?.customerPhone
     ]);
 
+    // --- Address resolution ---
+    // Try delivery_orders.delivery_address, then parent_order address_info,
+    // then parse the linked booking's details text field.
+    let resolvedAddress = '';
+    if (!isPlaceholderAddress(row.delivery_address)) {
+        resolvedAddress = row.delivery_address || '';
+    } else if (addressFromParent) {
+        resolvedAddress = addressFromParent;
+    } else if (row.b_details) {
+        // Parse "العنوان: xxx" from linked booking's details field
+        const addrMatch = String(row.b_details).match(/العنوان[:\s]+([^|\n]+)/);
+        if (addrMatch) resolvedAddress = addrMatch[1].trim();
+    }
+
     const resolvedName = isPlaceholderName(row.customer_name)
         ? pickFirstValue([row.customer_user_name, nameFromParent, row.customer_name])
         : row.customer_name;
-    const resolvedAddress = isPlaceholderAddress(row.delivery_address)
-        ? pickFirstValue([addressFromParent, row.delivery_address])
-        : row.delivery_address;
     const resolvedPhone = pickFirstValue([row.customer_phone, row.customer_user_phone, phoneFromParent]);
+
+    // --- Items resolution ---
+    let resolvedItems = [];
+    if (row.items && typeof row.items === 'string') {
+        resolvedItems = safeJsonParse(row.items) || [];
+    } else if (Array.isArray(row.items)) {
+        resolvedItems = row.items;
+    }
+
+    if (!Array.isArray(resolvedItems)) resolvedItems = [];
+
+    // Fall back to items from sub_orders
+    if (resolvedItems.length === 0 && Array.isArray(row.sub_orders) && row.sub_orders.length > 0) {
+        row.sub_orders.forEach(sub => {
+            const parsed = safeJsonParse(sub.items);
+            if (Array.isArray(parsed)) {
+                resolvedItems.push(...parsed);
+            }
+        });
+    } else if (resolvedItems.length === 0 && row.b_items) {
+        const parsed = safeJsonParse(row.b_items);
+        if (Array.isArray(parsed)) resolvedItems = parsed;
+    }
+
+    // --- Price resolution ---
+    let resolvedPrice = Number(row.price || 0);
+    if (resolvedPrice === 0 && Array.isArray(row.sub_orders) && row.sub_orders.length > 0) {
+        resolvedPrice = row.sub_orders.reduce((sum, sub) => sum + (Number(sub.price) || 0), 0);
+    } else if (resolvedPrice === 0 && row.b_price) {
+        resolvedPrice = Number(row.b_price) || 0;
+    }
+
+    if (resolvedPrice === 0 && Array.isArray(resolvedItems) && resolvedItems.length > 0) {
+        resolvedPrice = resolvedItems.reduce(
+            (sum, item) => sum + (Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)),
+            0
+        );
+    }
 
     return {
         ...row,
         customer_name: resolvedName,
         delivery_address: resolvedAddress,
-        customer_phone: resolvedPhone
+        customer_phone: resolvedPhone,
+        items: resolvedItems,
+        price: resolvedPrice,
+        delivery_fee: Number(row.delivery_fee || 0),
+        sub_orders: row.sub_orders || []
     };
 }
 
@@ -143,7 +217,7 @@ class DeliveryRepository {
     /**
      * @param {{role: string, userId: number, status: string, courierId: number, supervisorId: number, search: string, source: string, limit: number, lastId: number}} options
      */
-    async getOrders({ role, userId, status, courierId, supervisorId, search, source, limit = 20, lastId }) {
+    async getOrders({ role, userId, status, courierId, supervisorId, search, source, limit = 20, lastId, offset }) {
         const deliveryCols = await getDeliveryOrdersColumns();
         const parentCols = await getParentOrdersColumns();
         const hasCustomerId = deliveryCols.has('customer_id');
@@ -159,7 +233,17 @@ class DeliveryRepository {
         if (!isAdmin) {
             if (role === 'courier' || role === 'partner_courier') {
                 params.push(userId);
-                conditions.push(`o.courier_id = $${params.length}`);
+                conditions.push(`(
+                    o.courier_id = $${params.length}
+                    OR (
+                        o.courier_id IS NULL AND EXISTS (
+                            SELECT 1
+                            FROM courier_supervisors cs
+                            WHERE cs.courier_id = $${params.length}
+                              AND cs.supervisor_id = o.supervisor_id
+                        )
+                    )
+                )`);
             } else if (role === 'supervisor' || role === 'partner_supervisor') {
                 params.push(userId);
                 conditions.push(`(
@@ -182,12 +266,18 @@ class DeliveryRepository {
             conditions.push(`o.id < $${params.length}`);
         }
 
+        const hasIsDeleted = deliveryCols.has('is_deleted');
+        const hasIsEdited = deliveryCols.has('is_edited');
+
         if (status === 'deleted') {
-            conditions.push(`COALESCE(o.is_deleted, false) = true`);
+            if (hasIsDeleted) conditions.push(`COALESCE(o.is_deleted, false) = true`);
+            else conditions.push('1=0');
         } else if (status === 'edited') {
-            conditions.push(`o.is_edited = true AND COALESCE(o.is_deleted, false) = false`);
+            const editCond = hasIsEdited ? `o.is_edited = true` : '1=0';
+            const delCond = hasIsDeleted ? `COALESCE(o.is_deleted, false) = false` : '1=1';
+            conditions.push(`${editCond} AND ${delCond}`);
         } else {
-            conditions.push(`COALESCE(o.is_deleted, false) = false`);
+            if (hasIsDeleted) conditions.push(`COALESCE(o.is_deleted, false) = false`);
             if (status && status !== 'all') {
                 params.push(status);
                 conditions.push(`o.status = $${params.length}`);
@@ -229,7 +319,7 @@ class DeliveryRepository {
         const customerJoin = hasCustomerId
             ? 'LEFT JOIN users cu ON o.customer_id = cu.id'
             : 'LEFT JOIN LATERAL (SELECT NULL::text as name, NULL::text as phone) cu ON TRUE';
-        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = b0.parent_order_id' : '';
+        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = bk.parent_order_id' : '';
         const parentAddressSelect = hasParentAddressInfo
             ? 'po.address_info as parent_address_info'
             : 'NULL::text as parent_address_info';
@@ -245,18 +335,30 @@ class DeliveryRepository {
                    s.name as supervisor_name,
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
-                   ${parentAddressSelect}
+                   ${parentAddressSelect},
+                   bk.sub_orders
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id
+                SELECT 
+                    b.parent_order_id, 
+                    jsonb_agg(
+                        jsonb_build_object(
+                            'id', b.id,
+                            'status', b.status,
+                            'provider_id', b.provider_id,
+                            'provider_name', b.provider_name,
+                            'items', b.items,
+                            'price', b.price,
+                            'details', b.details
+                        ) ORDER BY b.id ASC
+                    ) as sub_orders
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
-                ORDER BY b.id ASC
-                LIMIT 1
-            ) b0 ON TRUE
+                GROUP BY b.parent_order_id
+            ) bk ON TRUE
             ${parentJoin}
             ${whereClause}
             ORDER BY o.id DESC
@@ -264,7 +366,14 @@ class DeliveryRepository {
         `;
 
         const result = await pool.query(query, params);
-        const rows = result.rows.map(hydrateOrderDisplayFields);
+        const rows = result.rows.reduce((acc, row) => {
+            try {
+                acc.push(hydrateOrderDisplayFields(row));
+            } catch (e) {
+                logger.error(`[getOrders] Skipping row #${row.id}: hydration failed — ${e.message}`);
+            }
+            return acc;
+        }, []);
 
         return {
             records: rows,
@@ -282,30 +391,46 @@ class DeliveryRepository {
         const customerJoin = hasCustomerId
             ? 'LEFT JOIN users cu ON o.customer_id = cu.id'
             : 'LEFT JOIN LATERAL (SELECT NULL::text as name, NULL::text as phone) cu ON TRUE';
-        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = b0.parent_order_id' : '';
+        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = bk.parent_order_id' : '';
         const parentAddressSelect = hasParentAddressInfo
             ? 'po.address_info as parent_address_info'
             : 'NULL::text as parent_address_info';
 
         const query = `
             SELECT o.*, 
+                   COALESCE((
+                       SELECT bool_and(b.status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed'))
+                       FROM bookings b
+                       WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
+                   ), true) AS providers_ready_for_pickup,
                    c.name as courier_name,
                    c.phone as courier_phone,
                    s.name as supervisor_name,
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
-                   ${parentAddressSelect}
+                   ${parentAddressSelect},
+                   bk.sub_orders
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id
+                SELECT 
+                    MAX(b.parent_order_id) as parent_order_id, 
+                    jsonb_agg(
+                        jsonb_build_object(
+                            'id', b.id,
+                            'status', b.status,
+                            'provider_id', b.provider_id,
+                            'provider_name', b.provider_name,
+                            'items', b.items,
+                            'price', b.price,
+                            'details', b.details
+                        ) ORDER BY b.id ASC
+                    ) as sub_orders
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
-                ORDER BY b.id ASC
-                LIMIT 1
-            ) b0 ON TRUE
+            ) bk ON TRUE
             ${parentJoin}
             WHERE o.id = $1
         `;
@@ -329,7 +454,17 @@ class DeliveryRepository {
 
         if (isCourier) {
             params.push(userId);
-            conditions.push(`o.courier_id = $2`);
+            conditions.push(`(
+                o.courier_id = $2
+                OR (
+                    o.courier_id IS NULL AND EXISTS (
+                        SELECT 1
+                        FROM courier_supervisors cs
+                        WHERE cs.courier_id = $2
+                          AND cs.supervisor_id = o.supervisor_id
+                    )
+                )
+            )`);
         } else if (isSupervisor) {
             params.push(userId);
             conditions.push(`(
@@ -353,30 +488,46 @@ class DeliveryRepository {
         const customerJoin = hasCustomerId
             ? 'LEFT JOIN users cu ON o.customer_id = cu.id'
             : 'LEFT JOIN LATERAL (SELECT NULL::text as name, NULL::text as phone) cu ON TRUE';
-        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = b0.parent_order_id' : '';
+        const parentJoin = hasParentAddressInfo ? 'LEFT JOIN parent_orders po ON po.id = bk.parent_order_id' : '';
         const parentAddressSelect = hasParentAddressInfo
             ? 'po.address_info as parent_address_info'
             : 'NULL::text as parent_address_info';
 
         const query = `
             SELECT o.*, 
+                   COALESCE((
+                       SELECT bool_and(b.status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed'))
+                       FROM bookings b
+                       WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
+                   ), true) AS providers_ready_for_pickup,
                    c.name as courier_name,
                    c.phone as courier_phone,
                    s.name as supervisor_name,
                    cu.name as customer_user_name,
                    cu.phone as customer_user_phone,
-                   ${parentAddressSelect}
+                   ${parentAddressSelect},
+                   bk.sub_orders
             FROM delivery_orders o
             LEFT JOIN users c ON o.courier_id = c.id
             LEFT JOIN users s ON o.supervisor_id = s.id
             ${customerJoin}
             LEFT JOIN LATERAL (
-                SELECT b.parent_order_id
+                SELECT 
+                    MAX(b.parent_order_id) as parent_order_id, 
+                    jsonb_agg(
+                        jsonb_build_object(
+                            'id', b.id,
+                            'status', b.status,
+                            'provider_id', b.provider_id,
+                            'provider_name', b.provider_name,
+                            'items', b.items,
+                            'price', b.price,
+                            'details', b.details
+                        ) ORDER BY b.id ASC
+                    ) as sub_orders
                 FROM bookings b
                 WHERE CAST(b.halan_order_id AS TEXT) = CAST(o.id AS TEXT)
-                ORDER BY b.id ASC
-                LIMIT 1
-            ) b0 ON TRUE
+            ) bk ON TRUE
             ${parentJoin}
             WHERE ${conditions.join(' AND ')}
             LIMIT 1
@@ -411,19 +562,23 @@ class DeliveryRepository {
     }
 
     async createDeliveryOrder(data, client = pool) {
+        const trackingCode = data.trackingCode || generateTrackingCode();
         const query = `
             INSERT INTO delivery_orders 
             (order_number, customer_name, customer_phone, pickup_address, delivery_address,
              pickup_lat, pickup_lng, delivery_lat, delivery_lng,
-             courier_id, supervisor_id, status, notes, delivery_fee, items, source, order_type)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+             courier_id, supervisor_id, status, notes, delivery_fee, items, source, order_type,
+             tracking_code)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            ON CONFLICT (tracking_code) DO UPDATE SET tracking_code = EXCLUDED.tracking_code
             RETURNING *
         `;
         const params = [
             data.orderNumber, data.customerName, data.customerPhone, data.pickupAddress, data.deliveryAddress,
             data.pLat, data.pLng, data.dLat, data.dLng,
             data.courierId, data.supervisorId, data.status, data.notes, data.deliveryFee,
-            JSON.stringify(data.items), data.source, data.orderType
+            JSON.stringify(data.items), data.source, data.orderType,
+            trackingCode
         ];
         const result = await client.query(query, params);
         return result.rows[0];
@@ -449,7 +604,7 @@ class DeliveryRepository {
 
         const query = `UPDATE delivery_orders SET ${setClause}${updatedAtClause} WHERE id = $${params.length} RETURNING *`;
         const result = await pool.query(query, params);
-        return result.rows[0];
+        return result.rows[0] ? hydrateOrderDisplayFields(result.rows[0]) : null;
     }
 
     async updateCourierPricing(id, updates, meta = {}) {
@@ -500,7 +655,7 @@ class DeliveryRepository {
         `;
 
         const result = await pool.query(query, params);
-        return result.rows[0] || null;
+        return result.rows[0] ? hydrateOrderDisplayFields(result.rows[0]) : null;
     }
 
     async getLinkedBookings(orderId) {
@@ -600,5 +755,9 @@ class DeliveryRepository {
         await client.query(query, [orderId, status, userId, notes, latitude, longitude]);
     }
 }
+
+// Pre-warm column caches in the background
+getDeliveryOrdersColumns().catch(e => logger.warn('Background cache warm failed (delivery orders)'));
+getParentOrdersColumns().catch(e => logger.warn('Background cache warm failed (parent orders)'));
 
 module.exports = new DeliveryRepository();

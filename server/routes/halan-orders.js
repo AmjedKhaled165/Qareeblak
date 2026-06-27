@@ -16,7 +16,8 @@ const {
 
 const { verifyToken, isPartnerOrAdmin } = require('../middleware/auth');
 
-// Public customer tracking endpoints (phone/user based)
+// Public customer tracking endpoints (phone/user/code based)
+router.get('/track/by-code/:code', globalLimiter, deliveryController.trackOrderByCode);
 router.post('/customer-orders', globalLimiter, deliveryController.getCustomerOrdersPublic);
 router.get('/track/:id', globalLimiter, deliveryController.trackOrderPublic);
 router.post('/:id/customer-cancel', globalLimiter, deliveryController.customerCancel);

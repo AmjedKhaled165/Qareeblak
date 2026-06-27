@@ -3,10 +3,6 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 
 class ChatService {
-    _generateConsultationId(providerId, customerId) {
-        return `chat_${providerId}_${customerId}`;
-    }
-
     async _verifyOwnership(consultationId, userId) {
         const consultation = await chatRepo.getConsultationById(consultationId);
         if (!consultation) {
@@ -22,12 +18,11 @@ class ChatService {
     async startConsultation(customerId, providerId) {
         const existingId = await chatRepo.getActiveConsultation(customerId, providerId);
         if (existingId) {
-            return { consultationId: existingId, isExisting: true };
+            return { consultationId: String(existingId), isExisting: true };
         }
 
-        const newId = this._generateConsultationId(providerId, customerId);
-        await chatRepo.createConsultation(newId, customerId, providerId);
-        return { consultationId: newId, isExisting: false };
+        const newId = await chatRepo.createConsultation(customerId, providerId);
+        return { consultationId: String(newId), isExisting: false };
     }
 
     async getMessages(consultationId, userId, limit = 50, lastId = null) {
@@ -117,8 +112,10 @@ class ChatService {
                 throw new AppError('تم قبول هذا العرض مسبقاً', 400);
             }
 
-            const customerInfo = await chatRepo.getUserInfo(userId) || {};
-            const providerInfo = await chatRepo.getProviderInfo(consult.provider_id) || {};
+            const [customerInfo, providerInfo] = await Promise.all([
+                chatRepo.getUserInfo(userId).catch(() => ({})),
+                chatRepo.getProviderInfo(consult.provider_id).catch(() => ({})),
+            ]);
 
             const totalPrice = quoteData.items.reduce((sum, item) => sum + Number(item.price), 0);
             const orderItems = quoteData.items.map(item => ({ name: item.name, quantity: 1, price: item.price }));

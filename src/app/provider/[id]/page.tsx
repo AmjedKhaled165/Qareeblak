@@ -121,9 +121,17 @@ export default function ProviderProfile() {
                 } else {
                     // Try to fetch from API if not in state
                     try {
-                        // Import API dynamically to avoid circular deps if any
-                        const { bookingsApi } = await import('@/lib/api');
-                        const data = await bookingsApi.getById(addToOrderId);
+                        const { bookingsApi, apiCall } = await import('@/lib/api');
+                        let data;
+                        try {
+                            data = await bookingsApi.getById(addToOrderId);
+                        } catch (e) {
+                            console.warn("Failed to fetch target order via bookings API, trying halan tracking...", e);
+                            const res = await apiCall(`/halan/orders/track/${addToOrderId}`);
+                            if (res && res.order) {
+                                data = res.order;
+                            }
+                        }
                         if (data) setTargetOrder(data);
                     } catch (e) {
                         console.error("Failed to fetch target order", e);
@@ -285,8 +293,8 @@ export default function ProviderProfile() {
                                 <ShoppingBag className="w-5 h-5" />
                             </div>
                             <div>
-                                <p className="font-bold text-green-700 dark:text-green-400">أنت الآن تضيف للطلب #{addToOrderId}</p>
-                                <p className="text-xs text-green-600/80">اختر أي صنف من المنيو وسيتم إضافته لطلبك الحالي.</p>
+                                <p className="font-bold text-green-700 dark:text-green-400">أنت الآن تضيف للطلب #{targetOrder?.display_id || targetOrder?.id || 'الحالي'}</p>
+                                <p className="text-[10px] text-green-600/80 mt-1">اختر أي صنف من المنيو وسيتم إضافته لطلبك.</p>
                             </div>
                         </div>
                         <button

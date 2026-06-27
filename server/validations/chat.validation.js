@@ -1,7 +1,7 @@
 const { z } = require('zod');
 
 const startConsultationSchema = z.object({
-    providerId: z.number().int().positive('معرف مقدم الخدمة غير صالح')
+    providerId: z.union([z.string(), z.number()])
 });
 
 const sendMessageSchema = z.object({
@@ -28,7 +28,7 @@ const acceptQuoteSchema = z.object({
 });
 
 const validateParams = z.object({
-    consultationId: z.string().min(5).max(100)
+    consultationId: z.string().min(1).max(100)
 });
 
 // Zod Middleware

@@ -105,6 +105,16 @@ function getAuthToken(endpoint: string): string | null {
     return token;
 }
 
+function getCookieValue(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${name}=`));
+    if (!match) return null;
+    return decodeURIComponent(match.substring(name.length + 1));
+}
+
 // Helper function for API calls
 export async function apiCall<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = getAuthToken(endpoint);
@@ -125,6 +135,12 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
     }
 
     const method = (options.method || 'GET').toUpperCase();
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        const csrfToken = getCookieValue('csrfToken');
+        if (csrfToken) {
+            headers['x-csrf-token'] = csrfToken;
+        }
+    }
     const timeout = getRequestTimeout(endpoint, options);
     const maxAttempts = method === 'GET' ? 2 : 1;
 
@@ -136,6 +152,7 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
             try {
                 response = await fetchWithTimeout(url, {
                     cache: 'no-store', // Ensure we always get fresh data
+                    credentials: 'include', // Ensure HttpOnly cookies are sent
                     ...options,
                     headers
                 }, timeout);
@@ -258,10 +275,19 @@ export const authApi = {
                 userType: data.userType || 'customer'
             })
         });
-        if (result.token) {
-            localStorage.setItem('qareeblak_token', result.token);
+        const tokenToSave = result.token || result.data?.token;
+        if (tokenToSave) {
+            localStorage.setItem('qareeblak_token', tokenToSave);
+            localStorage.removeItem('halan_token');
+        } else if (result.success || result.user || result.data?.user) {
+            localStorage.setItem('qareeblak_cookie_session', 'true');
             localStorage.removeItem('halan_token');
         }
+        
+        if (!result.user && result.data?.user) {
+            result.user = result.data.user;
+        }
+        
         return result;
     },
 
@@ -270,10 +296,22 @@ export const authApi = {
             method: 'POST',
             body: JSON.stringify({ email, password })
         });
-        if (result.token) {
-            localStorage.setItem('qareeblak_token', result.token);
+        
+        const tokenToSave = result.token || result.data?.token;
+        if (tokenToSave) {
+            localStorage.setItem('qareeblak_token', tokenToSave);
+            localStorage.removeItem('halan_token');
+        } else if (result.success || result.user || result.data?.user) {
+            // We successfully logged in but no token in body -> HttpOnly cookie used
+            localStorage.setItem('qareeblak_cookie_session', 'true');
             localStorage.removeItem('halan_token');
         }
+        
+        // Ensure user is correctly attached so loginUser works smoothly
+        if (!result.user && result.data?.user) {
+            result.user = result.data.user;
+        }
+        
         return result;
     },
 
@@ -281,9 +319,17 @@ export const authApi = {
         const result = await apiCall('/auth/guest-login', {
             method: 'POST'
         });
-        if (result.token) {
-            localStorage.setItem('qareeblak_token', result.token);
+        const tokenToSave = result.token || result.data?.token;
+        if (tokenToSave) {
+            localStorage.setItem('qareeblak_token', tokenToSave);
             localStorage.removeItem('halan_token');
+        } else if (result.success || result.user || result.data?.user) {
+            localStorage.setItem('qareeblak_cookie_session', 'true');
+            localStorage.removeItem('halan_token');
+        }
+        
+        if (!result.user && result.data?.user) {
+            result.user = result.data.user;
         }
         return result;
     },
@@ -322,7 +368,11 @@ export const authApi = {
 
     logout() {
         localStorage.removeItem('qareeblak_token');
-        localStorage.removeItem('halan_token'); // Clear Halan token too
+        localStorage.removeItem('qareeblak_cookie_session');
+        localStorage.removeItem('qareeblak_user');
+        localStorage.removeItem('halan_token');
+        localStorage.removeItem('halan_user');
+        localStorage.removeItem('user');
     }
 };
 

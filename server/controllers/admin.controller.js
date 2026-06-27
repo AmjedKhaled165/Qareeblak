@@ -11,8 +11,9 @@ exports.getStats = catchAsync(async (req, res) => {
 
 exports.getOrders = catchAsync(async (req, res) => {
     const result = await adminService.getOrdersWithPagination(req.query);
+    const { obfuscateOrder } = require('../utils/obfuscate');
     res.json({
-        orders: result.records,
+        orders: result.records.map(obfuscateOrder),
         pagination: {
             nextLastId: result.nextLastId,
             limit: parseInt(req.query.limit) || 25,
@@ -22,20 +23,26 @@ exports.getOrders = catchAsync(async (req, res) => {
 });
 
 exports.getOrderDetail = catchAsync(async (req, res) => {
-    const order = await adminRepo.getOrderWithDetails(req.params.id);
+    const { decodeEntityId, obfuscateOrder } = require('../utils/obfuscate');
+    const orderId = decodeEntityId('order', req.params.id) || req.params.id;
+    const order = await adminRepo.getOrderWithDetails(orderId);
     if (!order) throw new AppError('الطلب غير موجود', 404);
-    const items = await adminRepo.getBookingItems(req.params.id);
-    res.json({ ...order, items });
+    const items = await adminRepo.getBookingItems(orderId);
+    res.json(obfuscateOrder({ ...order, items }));
 });
 
 exports.forceEditOrder = catchAsync(async (req, res) => {
-    const success = await adminService.forceEditOrder(req.user.id, req.params.id, req.body, req.ip);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const orderId = decodeEntityId('order', req.params.id) || req.params.id;
+    const success = await adminService.forceEditOrder(req.user.id, orderId, req.body, req.ip);
     if (!success) throw new AppError('الطلب غير موجود', 404);
     res.json({ message: 'تم تعديل الطلب بنجاح ✅' });
 });
 
 exports.reassignOrder = catchAsync(async (req, res) => {
-    const success = await adminService.reassign(req.user.id, req.params.id, req.body, req.ip);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const orderId = decodeEntityId('order', req.params.id) || req.params.id;
+    const success = await adminService.reassign(req.user.id, orderId, req.body, req.ip);
     if (!success) throw new AppError('الطلب غير موجود', 404);
 
     const io = req.app.get('io');
@@ -45,7 +52,9 @@ exports.reassignOrder = catchAsync(async (req, res) => {
 });
 
 exports.forceStatus = catchAsync(async (req, res) => {
-    const success = await adminService.forceStatus(req.user.id, req.params.id, req.body, req.ip);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const orderId = decodeEntityId('order', req.params.id) || req.params.id;
+    const success = await adminService.forceStatus(req.user.id, orderId, req.body, req.ip);
     if (!success) throw new AppError('الطلب غير موجود', 404);
 
     const io = req.app.get('io');
@@ -58,22 +67,26 @@ exports.getUsers = catchAsync(async (req, res) => {
     const { page = 1, limit = 25, type, search, banned } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
+    const { obfuscateUser } = require('../utils/obfuscate');
     const result = await adminRepo.getUsers({ type, search, banned, limit: parseInt(limit), offset });
     res.json({
-        users: result.records,
+        users: result.records.map(obfuscateUser),
         pagination: { page: parseInt(page), limit: parseInt(limit), total: result.total, totalPages: Math.ceil(result.total / parseInt(limit)) }
     });
 });
 
 exports.getUserProfile = catchAsync(async (req, res) => {
-    const user = await adminRepo.getUserDetailed(req.params.id);
+    const { decodeEntityId, obfuscateUser } = require('../utils/obfuscate');
+    const userId = decodeEntityId('user', req.params.id) || req.params.id;
+    const user = await adminRepo.getUserDetailed(userId);
     if (!user) throw new AppError('المستخدم غير موجود', 404);
     delete user.password;
-    res.json(user);
+    res.json(obfuscateUser(user));
 });
 
 exports.banUser = catchAsync(async (req, res) => {
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
     const { isBanned, reason } = req.body;
     await adminRepo.banUser(id, isBanned);
     await adminService.audit(req.user.id, isBanned ? 'ban' : 'unban', 'user', id, `${isBanned ? 'Banned' : 'Unbanned'} user #${id}. Reason: ${reason || 'N/A'}`, null, { isBanned, reason }, req.ip);
@@ -81,7 +94,8 @@ exports.banUser = catchAsync(async (req, res) => {
 });
 
 exports.editUser = catchAsync(async (req, res) => {
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
     const old = await adminRepo.getUserDetailed(id);
     if (!old) throw new AppError('المستخدم غير موجود', 404);
 
@@ -91,13 +105,16 @@ exports.editUser = catchAsync(async (req, res) => {
 });
 
 exports.resetPassword = catchAsync(async (req, res) => {
-    await adminService.resetPassword(req.user.id, req.params.id, req.body.newPassword, req.ip);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    await adminService.resetPassword(req.user.id, id, req.body.newPassword, req.ip);
     res.json({ message: 'تم إعادة تعيين كلمة المرور ✅' });
 });
 
 exports.getAvailableCouriers = catchAsync(async (req, res) => {
+    const { obfuscateUser } = require('../utils/obfuscate');
     const couriers = await adminRepo.getAvailableCouriers();
-    res.json(couriers);
+    res.json(couriers.map(obfuscateUser));
 });
 
 exports.getAuditLogs = catchAsync(async (req, res) => {
@@ -120,6 +137,7 @@ exports.getAuditLogs = catchAsync(async (req, res) => {
 
 exports.getProvidersPerformance = catchAsync(async (req, res) => {
     const { limit = '50', lastId } = req.query;
+    const { obfuscateUser } = require('../utils/obfuscate');
     const result = await adminRepo.getProvidersPerformance({
         limit: parseInt(limit, 10),
         lastId: lastId ? parseInt(lastId, 10) : null
@@ -127,7 +145,7 @@ exports.getProvidersPerformance = catchAsync(async (req, res) => {
 
     res.json({
         success: true,
-        data: result.records,
+        data: result.records.map(r => ({ ...r, provider_id: require('../utils/obfuscate').encodeEntityId('provider', r.provider_id) })),
         pagination: {
             nextLastId: result.nextLastId,
             hasMore: result.hasMore
@@ -136,7 +154,8 @@ exports.getProvidersPerformance = catchAsync(async (req, res) => {
 });
 
 exports.getProviderDetailedReport = catchAsync(async (req, res) => {
-    const { id } = req.params;
+    const { decodeEntityId, obfuscateOrder } = require('../utils/obfuscate');
+    const id = decodeEntityId('provider', req.params.id) || req.params.id;
     const { limit = '50', lastId } = req.query;
 
     const result = await adminRepo.getProviderDetailedOrders(id, {
@@ -146,9 +165,12 @@ exports.getProviderDetailedReport = catchAsync(async (req, res) => {
 
     res.json({
         success: true,
-        providerId: id,
-        orders: result.records,
-        pagination: result.pagination
+        providerId: req.params.id,
+        orders: result.records.map(obfuscateOrder),
+        pagination: {
+            nextLastId: result.nextLastId,
+            hasMore: result.hasMore
+        }
     });
 });
 

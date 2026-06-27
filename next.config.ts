@@ -1,6 +1,9 @@
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === 'production';
+const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
+
 const nextConfig: NextConfig = {
   // Allow explicit opt-out for CI/Docker, but validate by default.
   typescript: {
@@ -69,7 +72,7 @@ const nextConfig: NextConfig = {
 
   // Security & Caching headers (re-enabled with proper configuration)
   async headers() {
-    const isDev = process.env.NODE_ENV !== 'production';
+    const isDev = !isProd;
 
     // Build the CSP string — permissive in dev, strict in production
     const cspDirectives = [
@@ -148,7 +151,7 @@ export default withSentryConfig(nextConfig, {
   // This can increase your server load as well as your hosting bill.
   // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
   // side errors will fail.
-  tunnelRoute: "/monitoring",
+  tunnelRoute: isProd && sentryDsn ? "/monitoring" : undefined,
 
   webpack: {
     // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)

@@ -7,18 +7,15 @@
 # Stage 1: Install dependencies (cache-friendly)
 FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
-RUN npm install -g pnpm
 WORKDIR /app
 
 # Copy only dependency manifests first to maximize Docker cache hits
-COPY package.json pnpm-lock.yaml ./
-# pnpm + cached store for faster repeated CI builds
-RUN --mount=type=cache,target=/root/.pnpm-store \
-    pnpm install
+COPY package.json package-lock.json ./
+# npm ci for faster repeated CI builds
+RUN npm ci
 
 # Stage 2: Build the application
 FROM node:22-alpine AS builder
-RUN npm install -g pnpm
 WORKDIR /app
 
 # Copy deps from previous stage
@@ -48,7 +45,7 @@ ENV NODE_ENV=production
 ENV BUILD_STANDALONE=true
 ENV NEXT_DISABLE_ESLINT=1
 
-RUN pnpm run build
+RUN npm run build
 
 # Stage 3: Minimal production image
 FROM node:22-alpine AS runner

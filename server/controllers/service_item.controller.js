@@ -9,8 +9,13 @@ exports.create = catchAsync(async (req, res, next) => {
     const isAdmin = req.user.user_type === 'admin';
 
     let providerId;
+    const { decodeEntityId } = require('../utils/obfuscate');
     if (isAdmin && req.body.providerId) {
-        providerId = req.body.providerId;
+        const decoded = decodeEntityId('provider', req.body.providerId);
+        if (decoded === null && isNaN(req.body.providerId)) {
+            return res.status(400).json({ success: false, error: 'معرف مزود الخدمة غير صالح' });
+        }
+        providerId = decoded || req.body.providerId;
     } else {
         providerId = await providerRepo.getProviderIdByUserId(userId);
     }
@@ -96,7 +101,11 @@ exports.delete = catchAsync(async (req, res, next) => {
 });
 
 exports.getByProvider = catchAsync(async (req, res, next) => {
-    const services = await serviceRepo.getByProvider(req.params.providerId);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const decoded = decodeEntityId('provider', req.params.providerId);
+    if (decoded === null && isNaN(req.params.providerId)) { console.error('DECODE FAILED FOR:', req.params.providerId); return res.status(400).json({error: 'Invalid provider ID'}); }
+    const providerId = decoded || req.params.providerId;
+    const services = await serviceRepo.getByProvider(providerId);
     const formatted = services.map(s => ({
         id: s.id.toString(),
         name: s.name,

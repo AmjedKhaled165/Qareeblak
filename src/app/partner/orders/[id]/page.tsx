@@ -51,6 +51,7 @@ interface Order {
     courier_id?: number | null;
     courier_name?: string;
     supervisor_id?: number | null;
+    display_id?: number | string;
     sub_orders?: {
         id: number;
         provider_id: number;
@@ -230,7 +231,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                             price: item.price || item.unit_price || 0,
                             notes: item.notes || ''
                         })));
-                        setEditableDeliveryFee(found.delivery_fee || 0);
+                        setEditableDeliveryFee(Number(found.delivery_fee) || 0);
                         setEditableNotes(found.notes || '');
                     }
                 }
@@ -248,11 +249,32 @@ export default function OrderDetailsPage({ params }: PageProps) {
     useEffect(() => {
         if (!order) return;
         const originalItems = Array.isArray(order.items) ? order.items : [];
-        const itemsChanged = JSON.stringify(editableItems) !== JSON.stringify(originalItems);
-        const feeChanged = editableDeliveryFee !== (order.delivery_fee || 0);
+        
+        const normalizedOriginalItems = originalItems.map((item: any) => ({
+            name: item.name || item.product_name || 'منتج',
+            quantity: Number(item.quantity) || 1,
+            price: Number(item.price || item.unit_price) || 0,
+            notes: item.notes || ''
+        }));
+        
+        const normalizedEditableItems = editableItems.map((item: any) => ({
+            name: item.name || item.product_name || 'منتج',
+            quantity: Number(item.quantity) || 1,
+            price: Number(item.price || item.unit_price) || 0,
+            notes: item.notes || ''
+        }));
+
+        const itemsChanged = JSON.stringify(normalizedEditableItems) !== JSON.stringify(normalizedOriginalItems);
+        const originalFee = Number(order.delivery_fee) || 0;
+        const feeChanged = Number(editableDeliveryFee) !== originalFee;
         const notesChanged = editableNotes !== (order.notes || '');
-        setHasChanges(itemsChanged || feeChanged || notesChanged);
-    }, [editableItems, editableDeliveryFee, editableNotes, order]);
+        
+        if (user?.role === 'courier') {
+            setHasChanges(feeChanged || notesChanged);
+        } else {
+            setHasChanges(itemsChanged || feeChanged || notesChanged);
+        }
+    }, [editableItems, editableDeliveryFee, editableNotes, order, user?.role]);
 
     const updateStatus = async (newStatus: string) => {
         if (!order) return;
@@ -485,10 +507,22 @@ export default function OrderDetailsPage({ params }: PageProps) {
         ? order.sub_orders!.every((s) => readySubOrderStatuses.has(String(s.status || '').toLowerCase()))
         : true;
     // Couriers CANNOT edit items (products, prices, quantities) - only delivery_fee and notes
-    const canEditItems = !isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
-    const canEditDeliveryFee = isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
+    const canEditItems = user && (user.role === 'owner' || user.role === 'supervisor') && order.status !== 'delivered' && order.status !== 'cancelled';
+    const canEditDeliveryFee = isCourier && 
+        (order.status === 'in_transit' || order.status === 'picked_up');
     // Legacy canEdit for backwards compatibility - now only for non-courier roles
     const canEdit = canEditItems;
+
+    console.log("DEBUG VARIABLES:", {
+        isCourier,
+        canEditItems,
+        canEditDeliveryFee,
+        canEdit,
+        hasChanges,
+        userRole: user?.role,
+        status: order?.status,
+        subOrdersReadyForPickup
+    });
 
     return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col" dir="rtl">
@@ -498,7 +532,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     <ArrowRight className="w-6 h-6 text-slate-700 dark:text-slate-300" />
                 </button>
                 <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex-1">
-                    تفاصيل طلب {order.customer_name} (#{order.id})
+                    تفاصيل طلب {order.customer_name} (#{order.display_id || order.id})
                 </h1>
                 {order.is_modified_by_courier && (
                     <span className="px-2 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full text-xs font-bold flex items-center gap-1">
@@ -506,6 +540,20 @@ export default function OrderDetailsPage({ params }: PageProps) {
                         معدل
                     </span>
                 )}
+            </div>
+
+            {/* Tracking Code Field */}
+            <div className="bg-white dark:bg-slate-900 px-4 py-3 border-b dark:border-slate-800 flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 whitespace-nowrap">كود التتبع للبحث:</span>
+                <div className="flex-1 bg-slate-50 dark:bg-slate-950 border dark:border-slate-800 rounded-lg flex items-center overflow-hidden">
+                    <input 
+                        type="text" 
+                        readOnly 
+                        value={order.id} 
+                        className="w-full bg-transparent text-xs text-slate-600 dark:text-slate-400 px-3 py-2 outline-none font-mono"
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                </div>
             </div>
 
             {/* Content */}
@@ -597,7 +645,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                     </div>
                                     <div>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">توصيل إلى</p>
-                                        <p className="font-medium text-slate-800 dark:text-slate-200">{order.delivery_address}</p>
+                                        <p className="font-medium text-slate-800 dark:text-slate-200">
+                                            {order.delivery_address || 'لم يُحدَّد العنوان بعد'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -692,7 +742,12 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                     )}
                                 </div>
                                 <div className="space-y-4">
-                                    {editableItems.map((item, index) => (
+                                    {editableItems.length === 0 ? (
+                                        <div className="text-center py-8 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                                            <Package className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-500 mb-3" />
+                                            <p className="text-slate-500 dark:text-slate-400 font-medium">لا توجد منتجات مسجلة</p>
+                                        </div>
+                                    ) : (editableItems.map((item, index) => (
                                         <div key={index} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex-1 relative">
@@ -810,40 +865,44 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                 />
                                             </div>
                                         </div>
-                                    ))}
+                                    )))}
                                 </div>
                             </div>
                         )}
 
-                        {/* Editable Delivery Fee */}
-                        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
-                            <label className="font-bold text-slate-800 dark:text-slate-100 mb-3 block">رسوم التوصيل</label>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="number"
-                                    value={editableDeliveryFee}
-                                    onChange={(e) => setEditableDeliveryFee(parseFloat(e.target.value) || 0)}
-                                    disabled={!(canEdit || canEditDeliveryFee)}
-                                    className="flex-1 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white text-2xl font-bold py-3 px-4 rounded-xl border dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
-                                    title="رسوم التوصيل"
-                                    aria-label="رسوم التوصيل"
-                                />
-                                <span className="text-slate-600 dark:text-slate-300 text-lg font-medium">ج.م</span>
+                        {/* Editable Delivery Fee — hidden for couriers until they pick up the order */}
+                        {(!isCourier || canEditDeliveryFee) && (
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm">
+                                <label className="font-bold text-slate-800 dark:text-slate-100 mb-3 block">رسوم التوصيل</label>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        value={editableDeliveryFee}
+                                        onChange={(e) => setEditableDeliveryFee(parseFloat(e.target.value) || 0)}
+                                        disabled={!(canEdit || canEditDeliveryFee)}
+                                        className="flex-1 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white text-2xl font-bold py-3 px-4 rounded-xl border dark:border-slate-600 outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                                        title="رسوم التوصيل"
+                                        aria-label="رسوم التوصيل"
+                                    />
+                                    <span className="text-slate-600 dark:text-slate-300 text-lg font-medium">ج.م</span>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Order Notes */}
-                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-5">
-                            <label className="font-bold text-amber-800 dark:text-amber-400 mb-2 block">ملاحظات الطلب</label>
-                            <textarea
-                                value={editableNotes}
-                                onChange={(e) => setEditableNotes(e.target.value)}
-                                disabled={!(canEdit || canEditDeliveryFee)}
-                                placeholder="أضف ملاحظاتك هنا..."
-                                className="w-full bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 py-3 px-4 rounded-xl border border-amber-200 dark:border-amber-700 outline-none focus:ring-2 focus:ring-amber-500 resize-none disabled:opacity-50"
-                                rows={3}
-                            />
-                        </div>
+                        {/* Order Notes — hidden for couriers until they pick up the order */}
+                        {(!isCourier || canEditDeliveryFee) && (
+                            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-5">
+                                <label className="font-bold text-amber-800 dark:text-amber-400 mb-2 block">ملاحظات الطلب</label>
+                                <textarea
+                                    value={editableNotes}
+                                    onChange={(e) => setEditableNotes(e.target.value)}
+                                    disabled={!(canEdit || canEditDeliveryFee)}
+                                    placeholder="أضف ملاحظاتك هنا..."
+                                    className="w-full bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 py-3 px-4 rounded-xl border border-amber-200 dark:border-amber-700 outline-none focus:ring-2 focus:ring-amber-500 resize-none disabled:opacity-50"
+                                    rows={3}
+                                />
+                            </div>
+                        )}
 
                         {/* Invoice Summary */}
                         <div className="bg-slate-900 dark:bg-slate-800 text-white rounded-2xl p-5 shadow-lg border border-slate-700">
@@ -893,24 +952,6 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
             {/* Fixed Bottom Actions */}
             <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-4 space-y-3 z-50">
-                {/* Save Changes Button - Shows for couriers editing delivery fee/notes OR non-couriers editing items */}
-                {(canEdit || canEditDeliveryFee) && hasChanges && (
-                    <button
-                        onClick={handleSavePricing}
-                        disabled={saving}
-                        className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50"
-                    >
-                        {saving ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                            <>
-                                <Save className="w-5 h-5" />
-                                حفظ التغييرات
-                            </>
-                        )}
-                    </button>
-                )}
-
                 {/* Status Action Button */}
                 {isCourier && nextStatus && (
                     <button

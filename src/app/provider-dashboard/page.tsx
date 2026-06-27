@@ -71,6 +71,7 @@ interface Provider {
 }
 
 interface Booking {
+    display_id?: string | number;
     id: string;
     userId?: string | number;
     userName: string;
@@ -117,8 +118,26 @@ const HalanItemsList = ({ halanOrderId, bookingId, fallback }: { halanOrderId?: 
         };
 
         fetchItems();
-        const interval = setInterval(fetchItems, 20000); // Poll every 20s instead of 5s
-        return () => clearInterval(interval);
+        
+        const socket = (typeof window !== 'undefined') ? (window as any).__qareeblak_socket : null;
+        const handleUpdate = (e: any) => {
+            const id = Number(e?.orderId || e?.halanOrderId || e?.id);
+            if (!id || id === halanOrderId) {
+                fetchItems();
+            }
+        };
+        
+        if (socket) {
+            socket.on('order-updated', handleUpdate);
+            socket.on('order-status-changed', handleUpdate);
+        }
+        
+        return () => {
+            if (socket) {
+                socket.off('order-updated', handleUpdate);
+                socket.off('order-status-changed', handleUpdate);
+            }
+        };
     }, [halanOrderId, bookingId]);
 
     // If we have items from live fetch, show them. Otherwise use fallback.
@@ -489,11 +508,13 @@ export default function ProviderDashboard() {
 
         // Check authentication
         const qareeblakToken = localStorage.getItem('qareeblak_token');
+        const qareeblakCookieSession = localStorage.getItem('qareeblak_cookie_session');
         const halanToken = localStorage.getItem('halan_token');
         const halanUserRaw = localStorage.getItem('halan_user');
 
         console.log('[ProviderDashboard] Auth check completed:', {
             qareeblakTokenExists: !!qareeblakToken,
+            qareeblakCookieExists: !!qareeblakCookieSession,
             halanTokenExists: !!halanToken,
             halanUserExists: !!halanUserRaw,
             currentUser: currentUser?.name,
@@ -501,7 +522,7 @@ export default function ProviderDashboard() {
         });
 
         // Partner users must use partner dashboards, not provider dashboard.
-        if (halanToken && !qareeblakToken && halanUserRaw) {
+        if (halanToken && !qareeblakToken && !qareeblakCookieSession && halanUserRaw) {
             try {
                 const halanUser = JSON.parse(halanUserRaw);
                 const normalizedRole = String(halanUser?.role || '').replace(/^partner_/, '');
@@ -527,8 +548,9 @@ export default function ProviderDashboard() {
             }
         }
 
-        // If no auth token exists at all, redirect to login
-        if (!qareeblakToken && !halanToken) {
+        // If no auth token exists at all AND no currentUser, redirect to login
+        // currentUser being present means AppProvider validated the session (e.g. via cookie)
+        if (!qareeblakToken && !qareeblakCookieSession && !halanToken && !currentUser) {
             console.warn('[ProviderDashboard] No authentication detected. Redirecting to login.');
             router.push('/login/provider');
             return;
@@ -546,7 +568,9 @@ export default function ProviderDashboard() {
 
     // Fetch consultations automatically (with periodic polling)
     const fetchConsultations = useCallback(async (pid: string) => {
-        if (!currentUser || currentUser.type !== 'provider') {
+        const uType = String(currentUser?.type || currentUser?.user_type || '').toLowerCase();
+        const isProv = uType.includes('provider') || uType.includes('partner') || uType.includes('restaurant') || uType.includes('pharmacy') || uType.includes('maintenance');
+        if (!currentUser || !isProv) {
             return;
         }
 
@@ -928,6 +952,7 @@ export default function ProviderDashboard() {
     // Check for both Qareeblak and Halan provider sessions IN LOCALSTORAGE
     // This is crucial - we check localStorage directly, not just the state
     const qareeblakToken = typeof window !== 'undefined' ? localStorage.getItem('qareeblak_token') : null;
+    const qareeblakCookieSession = typeof window !== 'undefined' ? localStorage.getItem('qareeblak_cookie_session') : null;
     const halanToken = typeof window !== 'undefined' ? localStorage.getItem('halan_token') : null;
     const halanUser = typeof window !== 'undefined' ? localStorage.getItem('halan_user') : null;
 
@@ -937,8 +962,15 @@ export default function ProviderDashboard() {
 
     // 2. Qareeblak session: Must have token AND (currentUser with provider type OR still loading)
     // IMPORTANT: Don't reject if currentUser is null but token exists (could be loading)
-    const hasQareeblakToken = !!qareeblakToken;
-    const hasValidQareeblakSession = !!(hasQareeblakToken && currentUser && currentUser.type === 'provider');
+    const hasQareeblakToken = !!(qareeblakToken || qareeblakCookieSession);
+    const isQareeblakProvider = currentUser && (
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('provider') ||
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('partner') ||
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('restaurant') ||
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('pharmacy') ||
+        String(currentUser.type || currentUser.user_type || '').toLowerCase().includes('maintenance')
+    );
+    const hasValidQareeblakSession = !!(hasQareeblakToken && isQareeblakProvider);
 
     // 3. Still loading user data: If we have a token but no currentUser yet, keep showing loading
     const isStillLoadingUser = hasQareeblakToken && !currentUser && !isLoading;
@@ -1752,7 +1784,7 @@ export default function ProviderDashboard() {
                                                             className="hover:bg-muted/30 transition-all cursor-pointer group"
                                                             onClick={() => setSelectedOrderModal(booking)}
                                                         >
-                                                            <td className="px-8 py-6 font-mono text-muted-foreground/60 text-xs">#{String(booking.id).substring(0, 8)}</td>
+                                                            <td className="px-8 py-6 font-mono text-muted-foreground/60 text-xs">#{booking.display_id || String(booking.id).substring(0, 8)}</td>
                                                             <td className="px-8 py-6">
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm border border-primary/20 shrink-0">
@@ -1942,7 +1974,7 @@ export default function ProviderDashboard() {
                                             <div>
                                                 <h3 className="text-xl font-black text-foreground font-cairo">{consultation.customer_name || 'مستخدم زائر'}</h3>
                                                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                                                    <span className="bg-muted px-2 py-0.5 rounded-lg text-xs font-bold">#{String(consultation.id).substring(0, 8)}</span>
+                                                    <span className="bg-muted px-2 py-0.5 rounded-lg text-xs font-bold">#{consultation.display_id || String(consultation.id).substring(0, 8)}</span>
                                                     <span>• {consultation.last_message ? (consultation.last_message.substring(0, 30) + (consultation.last_message.length > 30 ? '...' : '')) : 'بدء محادثة'}</span>
                                                 </div>
                                             </div>

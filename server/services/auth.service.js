@@ -20,18 +20,18 @@ const { client: redisClient } = require('../utils/redis');
 
 class AuthService {
     generateTokens(user, isGuest = false) {
-        // [SECURITY] Access Token: Short-lived (1 hour) for minimal compromise window
+        // [PERSISTENT LOGIN] Tokens last 100 years — only logout button clears session
         const accessToken = jwt.sign(
             { id: user.id, email: user.email, type: user.user_type, isGuest, v: user.token_version || 1 },
             JWT_ACCESS_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '100y' }
         );
 
-        // [SECURITY] Refresh Token: Longer-lived (30 days) but rotated on use
+        // [PERSISTENT LOGIN] Refresh token also 100 years
         const refreshToken = jwt.sign(
             { id: user.id, email: user.email, type: 'refresh', v: user.token_version || 1 },
             JWT_REFRESH_SECRET,
-            { expiresIn: '30d' }
+            { expiresIn: '100y' }
         );
 
         return { accessToken, refreshToken, token: accessToken };
@@ -164,9 +164,10 @@ class AuthService {
         const normalizedIdentifier = String(identifier || '').trim();
         let result;
 
+        const USER_LOGIN_COLS = 'id, name, email, password, user_type, phone, avatar, is_banned, token_version, cancellation_count';
         try {
             result = await db.query(
-                `SELECT * FROM users
+                `SELECT ${USER_LOGIN_COLS} FROM users
                  WHERE LOWER(email) = LOWER($1)
                     OR LOWER(username) = LOWER($1)
                     OR phone = $1`,
@@ -177,7 +178,7 @@ class AuthService {
             if (error && error.code === '42703') {
                 try {
                     result = await db.query(
-                        `SELECT * FROM users
+                        `SELECT ${USER_LOGIN_COLS} FROM users
                          WHERE LOWER(email) = LOWER($1)
                             OR phone = $1`,
                         [normalizedIdentifier]
@@ -185,7 +186,7 @@ class AuthService {
                 } catch (legacyErr) {
                     if (legacyErr && legacyErr.code === '42703') {
                         result = await db.query(
-                            `SELECT * FROM users
+                            `SELECT ${USER_LOGIN_COLS} FROM users
                              WHERE LOWER(email) = LOWER($1)`,
                             [normalizedIdentifier]
                         );
@@ -288,15 +289,17 @@ class AuthService {
         const userId = tokenRes.rows[0].user_id;
         const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-        await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, userId]);
-        await db.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+        await Promise.all([
+            db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, userId]),
+            db.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId])
+        ]);
 
         return true;
     }
 
     async updateProfile(userId, data) {
         const { name, email, phone, avatar, oldPassword, newPassword } = data;
-        const userResult = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const userResult = await db.query('SELECT id, name, email, password, user_type, phone, avatar, is_banned, token_version FROM users WHERE id = $1', [userId]);
 
         if (userResult.rows.length === 0) {
             throw new AppError('المستخدم غير موجود', 404);
@@ -399,7 +402,7 @@ class AuthService {
     }
 
     async approveRequest(id) {
-        const requestResult = await db.query('SELECT * FROM requests WHERE id = $1', [id]);
+        const requestResult = await db.query('SELECT id, name, email, password, phone, category, location, status FROM requests WHERE id = $1', [id]);
         if (requestResult.rows.length === 0) {
             throw new AppError('الطلب غير موجود', 404);
         }
@@ -435,7 +438,7 @@ class AuthService {
     }
 
     async rejectRequest(id) {
-        const requestResult = await db.query('SELECT * FROM requests WHERE id = $1', [id]);
+        const requestResult = await db.query('SELECT id, name, email, password, phone, category, location, status FROM requests WHERE id = $1', [id]);
         if (requestResult.rows.length === 0) {
             throw new AppError('الطلب غير موجود', 404);
         }

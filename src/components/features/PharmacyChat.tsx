@@ -28,9 +28,37 @@ interface PharmacyChatProps {
     providerName: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-const API_BASE = API_URL.replace(/\/api$/, ''); // Ensure no trailing /api
-const SOCKET_URL = API_BASE;
+// Use same-origin proxy for all HTTP API calls (avoids CSRF issues)
+// The Next.js rewrite in next.config.ts proxies /api/* -> backend
+const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const forceLocalProxy = process.env.NEXT_PUBLIC_FORCE_LOCAL_API_PROXY === 'true';
+const useSameOriginProxy = isLocalBrowser || forceLocalProxy;
+const CHAT_API_BASE = useSameOriginProxy ? '/api' : ((process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '').replace(/\/api$/, '') + '/api');
+// Socket.io should use same-origin in local dev to keep cookies/CSRF aligned
+const SOCKET_URL = useSameOriginProxy
+    ? ''
+    : (process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '');
+
+// Helper to read CSRF token from cookies
+function getCsrfToken(): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith('csrfToken='));
+    if (!match) return null;
+    return decodeURIComponent(match.substring('csrfToken='.length));
+}
+
+// Helper to build headers with auth + CSRF for POST/PUT/DELETE
+function buildHeaders(token: string | null, contentType?: string): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (contentType) headers['Content-Type'] = contentType;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const csrf = getCsrfToken();
+    if (csrf) headers['x-csrf-token'] = csrf;
+    return headers;
+}
 
 export function PharmacyChat({ isOpen, onClose, providerId, providerName }: PharmacyChatProps) {
     const { currentUser } = useAppStore();
@@ -71,30 +99,37 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    // Initialize socket connection with proper error handling
-    useEffect(() => {
+    // Initialize socket connection (graceful - chat works without it via HTTP)
+    const initSocket = useCallback((token: string | null, consultId: string) => {
         if (!isOpen) return;
 
         try {
-            console.log('[PharmacyChat] Initializing Socket.io connection...');
+            console.log('[PharmacyChat] Initializing Socket.io connection (optional enhancement)...');
 
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
+
+            const auth = token ? { token } : undefined;
             socketRef.current = io(SOCKET_URL, {
                 transports: ['websocket', 'polling'],
+                auth,
                 reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                reconnectionAttempts: 5,
+                reconnectionDelay: 2000,
+                reconnectionDelayMax: 10000,
+                reconnectionAttempts: 3,
             });
 
             socketRef.current.on('connect', () => {
                 console.log('[PharmacyChat] Socket connected:', socketRef.current?.id);
                 setSocketConnected(true);
                 setSocketError(null);
+                socketRef.current?.emit('join-consultation', consultId);
             });
 
             socketRef.current.on('connect_error', (error: any) => {
-                console.error('[PharmacyChat] Socket connection error:', error);
-                setSocketError('خطأ في الاتصال بخادم المحادثة');
+                console.warn('[PharmacyChat] Socket connection failed (chat still works via HTTP):', error.message);
+                // Don't show error to user - chat works without socket
                 setSocketConnected(false);
             });
 
@@ -104,56 +139,79 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
             });
 
             socketRef.current.on('new-message', (message: Message) => {
-                console.log('[PharmacyChat] New message received:', message);
                 setMessages(prev => {
-                    // Avoid duplicate messages
-                    if (prev.some(m => m.id === message.id)) {
-                        return prev;
-                    }
+                    if (prev.some(m => m.id === message.id)) return prev;
                     return [...prev, message];
                 });
             });
 
-            socketRef.current.on('pharmacist-status', ({ providerId: pid, status }) => {
-                console.log('[PharmacyChat] Pharmacist status update ignored (Forced Online):', pid, status);
-                // logic commented out to force online
-                // if (String(pid) === String(providerId)) {
-                //     setIsPharmacistOnline(status === 'online');
-                // }
+            socketRef.current.on('pharmacist-status', ({ providerId: pid, status }: { providerId: string; status: string }) => {
+                console.log('[PharmacyChat] Pharmacist status:', pid, status);
             });
 
-            socketRef.current.on('user-typing', ({ userName }) => {
-                console.log('[PharmacyChat] User typing:', userName);
+            socketRef.current.on('user-typing', ({ userName }: { userName: string }) => {
                 setIsTyping(true);
                 setTypingUserName(userName);
             });
 
             socketRef.current.on('user-stop-typing', () => {
-                console.log('[PharmacyChat] User stopped typing');
                 setIsTyping(false);
             });
 
-            // Listen for read receipts
             socketRef.current.on('messages-read', ({ messageIds }: { messageIds: number[] }) => {
-                console.log('[PharmacyChat] Messages marked as read:', messageIds);
                 setMessages(prev => prev.map(msg =>
                     messageIds.includes(msg.id) ? { ...msg, is_read: true } : msg
                 ));
             });
 
-            return () => {
-                if (socketRef.current) {
-                    if (consultationId) {
-                        socketRef.current.emit('leave-consultation', consultationId);
-                    }
-                    socketRef.current.disconnect();
-                }
-            };
         } catch (error) {
-            console.error('[PharmacyChat] Socket initialization error:', error);
-            setSocketError('فشل الاتصال بخادم المحادثة');
+            console.warn('[PharmacyChat] Socket init failed (non-critical):', error);
+            // Don't block the chat - HTTP API still works
         }
-    }, [isOpen, providerId, consultationId]);
+    }, [isOpen]);
+
+    // HTTP Polling fallback: fetch new messages when socket is not connected
+    useEffect(() => {
+        if (!isOpen || !consultationId || socketConnected) return;
+
+        const pollMessages = async () => {
+            try {
+                const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
+                const res = await fetch(`${CHAT_API_BASE}/chat/${consultationId}`, {
+                    headers: buildHeaders(token),
+                    credentials: 'include',
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && Array.isArray(data.messages)) {
+                        setMessages(prev => {
+                            // Merge: keep existing + add new ones
+                            const existingIds = new Set(prev.map(m => m.id));
+                            const newMsgs = data.messages.filter((m: Message) => !existingIds.has(m.id));
+                            return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
+                        });
+                    }
+                }
+            } catch {
+                // Polling error is non-critical
+            }
+        };
+
+        const interval = setInterval(pollMessages, 5000);
+        return () => clearInterval(interval);
+    }, [isOpen, consultationId, socketConnected]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (socketRef.current) {
+                if (consultationId) {
+                    socketRef.current.emit('leave-consultation', consultationId);
+                }
+                socketRef.current.disconnect();
+            }
+        };
+    }, [consultationId]);
 
     // Start or resume consultation
     useEffect(() => {
@@ -163,45 +221,32 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
             setIsLoading(true);
             setSocketError(null);
 
-            // Step 1: Auto-login guest if no user
+            // Step 1: Check authentication
             let token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
+            const hasCookieSession = localStorage.getItem('qareeblak_cookie_session') === 'true';
 
-            if (!token) {
-                console.log('[PharmacyChat] No token - creating guest account...');
-                try {
-                    const guestName = `زائر_${Math.floor(Math.random() * 10000)}`;
-                    const { authApi } = await import('@/lib/api');
-                    const res = await authApi.register({
-                        name: guestName,
-                        email: `${guestName}@guest.qareeblak.com`,
-                        password: 'Guest#2026a',
-                        phone: '01000000000'
-                    });
-                    if (res && res.token) {
-                        token = res.token;
-                        toast("مرحباً! تم إنشاء حساب زائر", "success");
-                    } else {
-                        throw new Error('No token returned');
-                    }
-                } catch (e) {
-                    console.error('[PharmacyChat] Guest login failed:', e);
-                    toast("فشل في إنشاء حساب زائر", "error");
-                    setIsLoading(false);
-                    return;
-                }
+            if (!token && !hasCookieSession) {
+                console.log('[PharmacyChat] No token - User must login first.');
+                toast("عفواً، يجب عليك تسجيل الدخول أولاً لبدء المحادثة.", "error");
+                setIsLoading(false);
+                onClose(); // Close the chat window
+                return;
             }
 
             // Step 2: Start consultation
+            if (!providerId) {
+                toast("تعذر بدء المحادثة: معرف مقدم الخدمة غير صالح", "error");
+                setIsLoading(false);
+                return;
+            }
             console.log('[PharmacyChat] Starting consultation with provider:', providerId);
             try {
-                const startUrl = `${API_BASE}/api/chat/start`;
+                const startUrl = `${CHAT_API_BASE}/chat/start`;
                 const startRes = await fetch(startUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ providerId }),
+                    headers: buildHeaders(token, 'application/json'),
+                    credentials: 'include',
+                    body: JSON.stringify({ providerId: providerId }),
                 });
 
                 if (!startRes.ok) {
@@ -217,14 +262,13 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                     setConsultationId(startData.consultationId);
                     console.log('[PharmacyChat] Consultation ID:', startData.consultationId);
 
-                    // Join socket room
-                    if (socketRef.current) {
-                        socketRef.current.emit('join-consultation', startData.consultationId);
-                    }
+                    // Initialize socket with token and join room
+                    initSocket(token, startData.consultationId);
 
                     // Fetch existing messages
-                    const msgRes = await fetch(`${API_BASE}/api/chat/${startData.consultationId}`, {
-                        headers: { 'Authorization': `Bearer ${token}` },
+                    const msgRes = await fetch(`${CHAT_API_BASE}/chat/${startData.consultationId}`, {
+                        headers: buildHeaders(token),
+                        credentials: 'include',
                     });
                     if (msgRes.ok) {
                         const msgData = await msgRes.json();
@@ -287,7 +331,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
 
         try {
             const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
-            if (!token) {
+            const hasCookieSession = localStorage.getItem('qareeblak_cookie_session') === 'true';
+            if (!token && !hasCookieSession) {
                 throw new Error('غير مصرح - لم يتم العثور على جلسة');
             }
 
@@ -301,21 +346,18 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 formData.append('senderId', String(currentUser?.id));
                 formData.append('senderName', currentUser?.name || 'عميل');
 
-                res = await fetch(`${API_BASE}/api/chat/${consultationId}/upload`, {
+                res = await fetch(`${CHAT_API_BASE}/chat/${consultationId}/upload`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    headers: buildHeaders(token),
+                    credentials: 'include',
                     body: formData,
                 });
             } else {
                 // Text Message
-                res = await fetch(`${API_BASE}/api/chat/${consultationId}/messages`, {
+                res = await fetch(`${CHAT_API_BASE}/chat/${consultationId}/messages`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
+                    headers: buildHeaders(token, 'application/json'),
+                    credentials: 'include',
                     body: JSON.stringify({
                         message: inputMessage.trim() || null,
                         senderType: 'customer',
@@ -411,17 +453,16 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
         setIsAcceptingOrder(true);
         try {
             const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
-            if (!token) {
+            const hasCookieSession = localStorage.getItem('qareeblak_cookie_session') === 'true';
+            if (!token && !hasCookieSession) {
                 toast("يرجى تسجيل الدخول أولاً", "error");
                 return;
             }
 
-            const res = await fetch(`${API_BASE}/api/chat/${consultationId}/accept-quote`, {
+            const res = await fetch(`${CHAT_API_BASE}/chat/${consultationId}/accept-quote`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
+                headers: buildHeaders(token, 'application/json'),
+                credentials: 'include',
                 body: JSON.stringify({
                     messageId: acceptingQuote.messageId,
                     addressArea: addressArea.trim(),
@@ -438,8 +479,9 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                 setAddressDetails('');
                 setCustomerPhone('');
                 // Refresh messages to show updated quote status
-                const msgRes = await fetch(`${API_BASE}/api/chat/${consultationId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                const msgRes = await fetch(`${CHAT_API_BASE}/chat/${consultationId}`, {
+                    headers: buildHeaders(token),
+                    credentials: 'include',
                 });
                 if (msgRes.ok) {
                     const msgData = await msgRes.json();
@@ -496,15 +538,15 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
 
                 {/* Messages Area */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-950">
-                    {/* Socket Error Alert */}
-                    {socketError && (
+                    {/* Socket status indicator (non-blocking) */}
+                    {!socketConnected && consultationId && !isLoading && (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-200 p-3 rounded-lg flex items-start gap-2"
+                            className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 p-2 rounded-lg flex items-center gap-2 text-xs"
                         >
-                            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                            <div className="text-sm">{socketError}</div>
+                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                            <span>وضع الرسائل العادي - الرسائل الفورية غير متاحة حالياً</span>
                         </motion.div>
                     )}
 
@@ -714,8 +756,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                         />
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={!consultationId || isLoading || isSending || !socketConnected}
-                            className={`p-3 rounded-xl transition ${consultationId && !isLoading && !isSending && socketConnected
+                            disabled={!consultationId || isLoading || isSending}
+                            className={`p-3 rounded-xl transition ${consultationId && !isLoading && !isSending
                                 ? 'text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'
                                 : 'text-slate-300 cursor-not-allowed opacity-50'
                                 }`}
@@ -738,9 +780,9 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                                         sendMessage();
                                     }
                                 }}
-                                disabled={!consultationId || isLoading || !socketConnected}
-                                placeholder={consultationId ? (socketConnected ? "اكتب رسالتك أو أرسل صورة الروشتة..." : "جاري الاتصال...") : "جاري بدء المحادثة..."}
-                                className={`w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 max-h-32 ${consultationId && !isLoading && socketConnected
+                                disabled={!consultationId || isLoading}
+                                placeholder={consultationId ? "اكتب رسالتك أو أرسل صورة الروشتة..." : "جاري بدء المحادثة..."}
+                                className={`w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 max-h-32 ${consultationId && !isLoading
                                     ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-emerald-500'
                                     : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 opacity-50'
                                     }`}
@@ -751,7 +793,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                             size="icon"
                             className="bg-emerald-600 hover:bg-emerald-700 h-11 w-11 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={() => sendMessage()}
-                            disabled={!consultationId || isLoading || isSending || !socketConnected || (!inputMessage.trim() && !previewImage)}
+                            disabled={!consultationId || isLoading || isSending || (!inputMessage.trim() && !previewImage)}
                         >
                             {isSending ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />

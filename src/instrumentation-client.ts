@@ -4,8 +4,13 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+const isProd = process.env.NODE_ENV === "production";
+const isEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true" || (isProd && Boolean(dsn));
+
 Sentry.init({
-  dsn: "https://e664d7e0bdb6e42ba65e87dc38de6008@o4511112803123200.ingest.de.sentry.io/4511112815312976",
+  dsn,
+  enabled: isEnabled,
 
   // Add optional integrations for additional features
   integrations: [Sentry.replayIntegration()],

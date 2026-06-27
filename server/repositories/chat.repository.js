@@ -15,15 +15,16 @@ class ChatRepository {
             WHERE customer_id = $1 AND provider_id = $2 AND status = 'active'
             ORDER BY created_at DESC LIMIT 1
         `, [customerId, providerId]);
-        return result.rows[0] || null;
+        return result.rows[0] ? result.rows[0].id : null;
     }
 
-    async createConsultation(id, customerId, providerId) {
-        await pool.query(`
-            INSERT INTO consultations (id, customer_id, provider_id, status)
-            VALUES ($1, $2, $3, 'active')
-        `, [id, customerId, providerId]);
-        return id;
+    async createConsultation(customerId, providerId) {
+        const result = await pool.query(`
+            INSERT INTO consultations (customer_id, provider_id, status)
+            VALUES ($1, $2, 'active')
+            RETURNING id
+        `, [customerId, providerId]);
+        return result.rows[0].id;
     }
 
     async updateConsultationTimestamp(consultationId) {

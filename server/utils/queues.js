@@ -212,23 +212,8 @@ const initializeWorkers = async () => {
                     logger.info(`[Worker] 💸 Financials calculated for #${bookingId}: Comm ${commission}`);
                 }
 
-                // 3. Halan Delivery Synchronization
-                if (booking.halan_order_id) {
-                    let halanStatus = null;
-                    if (status === 'confirmed') halanStatus = 'pending';
-                    if (status === 'completed') halanStatus = 'ready_for_pickup';
-                    if (status === 'cancelled') halanStatus = 'cancelled';
-
-                    if (halanStatus) {
-                        await bookingRepo.updateDeliveryOrderStatus(booking.halan_order_id, halanStatus);
-                        
-                        // If ready for pickup, trigger auto-assignment
-                        if (halanStatus === 'ready_for_pickup') {
-                            await performAutoAssign(booking.halan_order_id, booking.provider_id, null, 'ready_for_pickup').catch(e => logger.warn(`AutoAssign failed: ${e.message}`));
-                        }
-                        logger.info(`[Worker] 🚚 Halan sync: ${booking.halan_order_id} -> ${halanStatus}`);
-                    }
-                }
+                // 3. (REMOVED) We no longer update halan_order_id directly here.
+                // It is handled centrally by syncParentOrderStatus below.
 
                 // 4. Parent Order Sync
                 if (booking.parent_order_id) {

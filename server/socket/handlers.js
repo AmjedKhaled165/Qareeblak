@@ -1,4 +1,4 @@
-﻿const db = require('../db');
+const db = require('../db');
 const logger = require('../utils/logger');
 
 // In-memory state for driver locations
@@ -51,6 +51,17 @@ module.exports = function registerSocketHandlers(io) {
         socket.on('leave-consultation', (consultationId) => {
             socket.leave(consultationId);
             logger.info(`Client left chat: ${consultationId}`);
+        });
+
+        // ========== MANAGERS TRACKING ==========
+        socket.on('join-managers', () => {
+            socket.join('managers');
+            logger.info(`Client joined managers room: ${socket.id}`);
+        });
+
+        socket.on('leave-managers', () => {
+            socket.leave('managers');
+            logger.info(`Client left managers room: ${socket.id}`);
         });
 
         // Send message via Socket.io
@@ -163,7 +174,18 @@ module.exports = function registerSocketHandlers(io) {
         socket.on('sendLocation', async (data) => {
             const latitude = data.latitude || data.lat;
             const longitude = data.longitude || data.lng;
-            const { orderId, courierId, heading, speed, accuracy } = data;
+            let { orderId, courierId, heading, speed, accuracy } = data;
+
+            // Decode courierId if it's an encoded hash from the app
+            if (courierId && isNaN(Number(courierId))) {
+                try {
+                    const { decodeEntityId } = require('../utils/obfuscate');
+                    const decoded = decodeEntityId('user', courierId);
+                    if (decoded) courierId = decoded;
+                } catch (e) {
+                    logger.error('Error decoding courierId:', e);
+                }
+            }
 
             if (courierId) {
                 const sid = String(courierId);
@@ -179,6 +201,7 @@ module.exports = function registerSocketHandlers(io) {
                 const driverName = data.name || (existingLoc ? existingLoc.name : null);
 
                 driverLocations.set(sid, {
+                    driverId: courierId,
                     latitude,
                     longitude,
                     heading: heading || 0,
@@ -240,6 +263,16 @@ module.exports = function registerSocketHandlers(io) {
         // Driver becomes online
         socket.on('driver-online', (driverId) => {
             if (!driverId) return;
+            
+            // Decode driverId if it's an encoded hash from the app
+            if (driverId && isNaN(Number(driverId))) {
+                try {
+                    const { decodeEntityId } = require('../utils/obfuscate');
+                    const decoded = decodeEntityId('user', driverId);
+                    if (decoded) driverId = decoded;
+                } catch (e) {}
+            }
+
             const sid = String(driverId);
             socket.driverId = driverId;
             driverStatuses.set(driverId, 'online');

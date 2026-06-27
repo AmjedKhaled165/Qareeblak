@@ -1,4 +1,5 @@
 const pool = require('../db');
+const vault = require('../utils/vault');
 
 class AdminRepository {
     async getDashboardStats() {
@@ -352,6 +353,186 @@ class AdminRepository {
             LIMIT $1
         `, [limit]);
         return result.rows;
+    }
+
+    /**
+     * Get a single booking (order) with full join data for admin detail view.
+     * Joins delivery_orders to resolve delivery_address and delivery_fee when available.
+     */
+    async getOrderWithDetails(id) {
+        const result = await pool.query(`
+            SELECT 
+                b.id,
+                b.status,
+                b.price,
+                b.delivery_fee,
+                b.notes,
+                b.items,
+                b.details,
+                b.order_type,
+                b.created_at,
+                b.updated_at,
+                b.halan_order_id,
+                cu.name  AS customer_name,
+                cu.phone AS customer_phone,
+                pu.name  AS provider_name,
+                pu.phone AS provider_phone,
+                do.delivery_address,
+                do.pickup_address,
+                do.courier_id,
+                uc.name  AS courier_name,
+                uc.phone AS courier_phone,
+                COALESCE(do.delivery_fee, b.delivery_fee, 0) AS delivery_fee,
+                po.address_info AS parent_address_info
+            FROM bookings b
+            LEFT JOIN users  cu ON b.user_id    = cu.id
+            LEFT JOIN providers pu ON b.provider_id = pu.id
+            LEFT JOIN delivery_orders do ON CAST(do.id AS TEXT) = CAST(b.halan_order_id AS TEXT)
+            LEFT JOIN users  uc ON do.courier_id = uc.id
+            LEFT JOIN parent_orders po ON b.parent_order_id = po.id
+            WHERE b.id = $1
+            LIMIT 1
+        `, [id]);
+
+        if (!result.rows[0]) return null;
+
+        const row = result.rows[0];
+
+        // Parse items if stored as JSON string
+        if (row.items && typeof row.items === 'string') {
+            try { row.items = JSON.parse(row.items); } catch { row.items = []; }
+        }
+        if (!Array.isArray(row.items)) row.items = [];
+
+        // Resolve delivery_address fallback: try parsing from 'details' text field
+        if (!row.delivery_address && row.details) {
+            const match = String(row.details).match(/العنوان[:\s]+([^\n|]+)/);
+            if (match) row.delivery_address = match[1].trim();
+        }
+        // Handle placeholder address values like 'n/a', 'N/A', 'no address', 'بدون عنوان'
+        const PLACEHOLDER_ADDRESSES = new Set(['n/a', 'na', 'no address', 'بدون عنوان']);
+        if (row.delivery_address && PLACEHOLDER_ADDRESSES.has(String(row.delivery_address).trim().toLowerCase())) {
+            row.delivery_address = '';
+            if (row.details) {
+                const match = String(row.details).match(/العنوان[:\s]+([^\n|]+)/);
+                if (match) row.delivery_address = match[1].trim();
+            }
+        }
+
+        // Final fallback: try parent_order address_info
+        if (!row.delivery_address && row.parent_address_info) {
+            try {
+                const raw = row.parent_address_info;
+                const parsed = typeof raw === 'string'
+                    ? (raw.trim().startsWith('{') ? JSON.parse(raw) : JSON.parse(vault.decrypt(raw) || 'null'))
+                    : raw;
+                if (parsed) {
+                    row.delivery_address = parsed.address || parsed.area || parsed.street || parsed.details || parsed.fullAddress || '';
+                }
+            } catch {}
+        }
+
+        return row;
+    }
+
+    /**
+     * Get items array for a booking (separate from the main row for the details endpoint).
+     * Items are stored as JSONB in bookings.items column.
+     */
+    async getBookingItems(id) {
+        const result = await pool.query(
+            `SELECT items FROM bookings WHERE id = $1 LIMIT 1`,
+            [id]
+        );
+        if (!result.rows[0]) return [];
+        const raw = result.rows[0].items;
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        try { return JSON.parse(raw); } catch { return []; }
+    }
+
+    /**
+     * Generic update for bookings table. Only updates provided keys (whitelist enforced).
+     */
+    async updateBooking(id, updates) {
+        const ALLOWED = new Set(['status', 'price', 'delivery_fee', 'notes', 'items', 'courier_id', 'provider_id']);
+        const fields = Object.keys(updates).filter(k => ALLOWED.has(k));
+        if (fields.length === 0) return;
+
+        const setClauses = fields.map((f, i) => `${f} = $${i + 2}`).join(', ');
+        const values = fields.map(f => {
+            const v = updates[f];
+            // Serialize arrays/objects to JSON for JSONB columns
+            return (f === 'items' && typeof v !== 'string') ? JSON.stringify(v) : v;
+        });
+
+        await pool.query(
+            `UPDATE bookings SET ${setClauses}, updated_at = NOW() WHERE id = $1`,
+            [id, ...values]
+        );
+    }
+
+    /**
+     * Replace the full items array on a booking atomically.
+     */
+    async replaceBookingItems(id, items) {
+        await pool.query(
+            `UPDATE bookings SET items = $1::jsonb, updated_at = NOW() WHERE id = $2`,
+            [JSON.stringify(items), id]
+        );
+    }
+
+    /**
+     * Update user profile fields.
+     */
+    async updateUser(id, updates) {
+        const ALLOWED = new Set(['name', 'phone', 'email', 'user_type', 'password']);
+        const fields = Object.keys(updates).filter(k => ALLOWED.has(k));
+        if (fields.length === 0) return;
+
+        const setClauses = fields.map((f, i) => `${f} = $${i + 2}`).join(', ');
+        const values = fields.map(f => updates[f]);
+
+        await pool.query(
+            `UPDATE users SET ${setClauses} WHERE id = $1`,
+            [id, ...values]
+        );
+    }
+
+    /**
+     * Get a single user's full profile (with booking stats).
+     */
+    async getUserDetailed(id) {
+        const result = await pool.query(`
+            SELECT 
+                u.*,
+                (SELECT COUNT(*) FROM bookings WHERE user_id = u.id) as total_bookings,
+                (SELECT COUNT(*) FROM bookings WHERE user_id = u.id AND status = 'completed') as completed_bookings
+            FROM users u
+            WHERE u.id = $1
+            LIMIT 1
+        `, [id]);
+        return result.rows[0] || null;
+    }
+
+    /**
+     * Get couriers available for assignment (used in the reassign dropdown).
+     */
+    async getAvailableCouriers() {
+        const result = await pool.query(`
+            SELECT 
+                u.id, u.name, u.phone,
+                COALESCE(u.name, u.email) AS name_ar,
+                TRUE as is_available,
+                (SELECT COUNT(*) FROM delivery_orders do 
+                 WHERE do.courier_id = u.id AND do.status NOT IN ('delivered', 'cancelled')
+                ) as active_orders
+            FROM users u
+            WHERE u.user_type IN ('partner_courier', 'courier')
+              AND COALESCE(u.is_banned, false) = false
+            ORDER BY u.name ASC
+        `);
+        return { couriers: result.rows };
     }
 }
 

@@ -23,6 +23,7 @@ interface OrderItem {
 
 interface Order {
     id: number;
+    display_id?: number | string;
     order_number?: string;
     customer_name: string;
     customer_phone: string;
@@ -149,10 +150,18 @@ export default function OrdersPage() {
         }
     };
 
-    // ===== Open Order Detail Modal =====
-    const openOrderModal = (order: Order) => {
+    // ===== Open Order Detail Modal — fetch enriched data first =====
+    const openOrderModal = async (order: Order) => {
+        // Optimistically open modal with list data so it doesn't feel slow
         setSelectedOrder(order);
         setModalOpen(true);
+        // Then silently enrich with full detail (delivery_address, delivery_fee, items, etc.)
+        try {
+            const full = await adminOrdersApi.getById(order.id);
+            if (full) setSelectedOrder(full as Order);
+        } catch {
+            // keep the optimistic data if the detail fetch fails
+        }
     };
 
     // ===== Quick Actions =====
@@ -349,7 +358,7 @@ export default function OrdersPage() {
                                             {/* ID */}
                                             <td className="px-3 py-2.5">
                                                 <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                                                    #{order.id}
+                                                    #{order.display_id || order.id}
                                                 </span>
                                                 {order.order_type && (
                                                     <span className="block text-[10px] text-slate-400 mt-0.5">

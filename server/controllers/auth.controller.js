@@ -4,17 +4,17 @@ const logger = require('../utils/logger');
 
 const crypto = require('crypto');
 
-// [SECURITY] Professional Cookie Configuration
+// [PERSISTENT LOGIN] Cookies last 100 years — only logout button clears session
 const COOKIE_OPTIONS = {
     httpOnly: true, // Prevents JavaScript access (Immune to XSS)
     secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS
     sameSite: 'Lax', // Protects against some CSRF
-    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    maxAge: 100 * 365 * 24 * 60 * 60 * 1000 // 100 years
 };
 
 const ACCESS_COOKIE_OPTIONS = {
     ...COOKIE_OPTIONS,
-    maxAge: 1 * 60 * 60 * 1000 // 1 hour
+    maxAge: 100 * 365 * 24 * 60 * 60 * 1000 // 100 years
 };
 
 // [SECURITY] CSRF Cookie Option - MUST BE httpOnly: false for client to read and send in header
@@ -50,10 +50,13 @@ exports.register = catchAsync(async (req, res, next) => {
     const { user, accessToken, refreshToken } = await authService.registerUser(req.body);
     setAuthCookies(res, accessToken, refreshToken);
 
+    const { obfuscateUser } = require('../utils/obfuscate');
     logger.info(`User registered successfully: ${user.email}`);
     res.status(201).json({
+        success: true,
         message: 'تم التسجيل بنجاح',
-        user
+        token: accessToken,
+        user: obfuscateUser(user)
     });
 });
 
@@ -64,10 +67,13 @@ exports.login = catchAsync(async (req, res, next) => {
     const { user, accessToken, refreshToken } = await authService.loginUser(loginIdentifier, password);
     setAuthCookies(res, accessToken, refreshToken);
 
+    const { obfuscateUser } = require('../utils/obfuscate');
     logger.info(`User logged in: ${user.email}`);
     res.status(200).json({
+        success: true,
         message: 'تم تسجيل الدخول بنجاح',
-        user
+        token: accessToken,
+        user: obfuscateUser(user)
     });
 });
 
@@ -75,15 +81,19 @@ exports.guestLogin = catchAsync(async (req, res, next) => {
     const { user, accessToken, refreshToken } = await authService.guestLogin();
     setAuthCookies(res, accessToken, refreshToken);
 
+    const { obfuscateUser } = require('../utils/obfuscate');
     logger.info(`Guest logged in: ${user.email}`);
     res.status(200).json({
+        success: true,
         message: 'تم الدخول كزائر بنجاح',
-        user
+        token: accessToken,
+        user: obfuscateUser(user)
     });
 });
 
 exports.getMe = catchAsync(async (req, res, next) => {
-    res.status(200).json(req.user);
+    const { obfuscateUser } = require('../utils/obfuscate');
+    res.status(200).json(obfuscateUser(req.user));
 });
 
 exports.submitProviderRequest = catchAsync(async (req, res, next) => {
@@ -101,14 +111,18 @@ exports.getRequests = catchAsync(async (req, res, next) => {
 });
 
 exports.approveRequest = catchAsync(async (req, res, next) => {
-    await authService.approveRequest(req.params.id);
-    logger.info(`Provider request approved: ${req.params.id}`);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    await authService.approveRequest(id);
+    logger.info(`Provider request approved: ${id}`);
     res.status(200).json({ message: 'تم قبول الطلب بنجاح' });
 });
 
 exports.rejectRequest = catchAsync(async (req, res, next) => {
-    await authService.rejectRequest(req.params.id);
-    logger.info(`Provider request rejected: ${req.params.id}`);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    await authService.rejectRequest(id);
+    logger.info(`Provider request rejected: ${id}`);
     res.status(200).json({ message: 'تم رفض الطلب' });
 });
 

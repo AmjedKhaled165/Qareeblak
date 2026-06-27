@@ -59,9 +59,11 @@ interface Order {
     appointment_date?: string;
     service_name?: string;
     category?: string;
+    display_id?: number | string;
 }
 
 interface SubOrder {
+    display_id?: string | number;
     id: number;
     provider_name: string;
     status: string;
@@ -442,11 +444,11 @@ export default function TrackOrderPage() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`${API_BASE}/api/halan/orders/${order.id}/customer-cancel`, {
+            const { apiCall } = await import('@/lib/api');
+            const data = await apiCall(`/halan/orders/${order.id}/customer-cancel`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                body: JSON.stringify({ reason: 'Customer requested cancellation from tracking page' })
             });
-            const data = await response.json();
 
             if (data.success) {
                 setActionMessage({ type: 'success', text: 'تم إلغاء الطلب بنجاح' });
@@ -463,19 +465,16 @@ export default function TrackOrderPage() {
     };
 
     // Remove item from order
-    const handleRemoveItem = async (index: number, specificOrderId?: string | number) => {
+    const handleRemoveItem = async (index: number, subId?: string | number) => {
         if (!order || !canModify) return;
         setIsSubmitting(true);
 
-        const targetId = specificOrderId || order.id;
-
         try {
-            const response = await fetch(`${API_BASE}/api/halan/orders/${targetId}/customer-remove-item`, {
+            const { apiCall } = await import('@/lib/api');
+            const data = await apiCall(`/halan/orders/${order.id}/customer-remove-item`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ itemIndex: index })
+                body: JSON.stringify({ itemIndex: index, bookingId: subId })
             });
-            const data = await response.json();
 
             if (data.success) {
                 setActionMessage({ type: 'success', text: 'تم حذف المنتج بنجاح' });
@@ -512,7 +511,7 @@ export default function TrackOrderPage() {
         ? order.items.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0)
         : Math.max(0, (Number(order?.total_price || 0) - Number(order?.delivery_fee || 0)));
 
-    const grandTotal = Number(order?.total_price) || (itemsTotal + Number(order?.delivery_fee || 0));
+    const grandTotal = (Number(order?.total_price) || itemsTotal) + Number(order?.delivery_fee || 0);
 
 
 
@@ -605,7 +604,6 @@ export default function TrackOrderPage() {
                         </button>
                         <div className="flex-1">
                             <h1 className="text-lg font-bold text-slate-900 dark:text-white">طلب صيانة</h1>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">طلب #{order.id}</p>
                         </div>
                         <button onClick={fetchOrder} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-900 dark:text-white" title="تحديث البيانات" aria-label="تحديث بيانات الطلب">
                             <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -765,8 +763,14 @@ export default function TrackOrderPage() {
                         <ArrowRight className="w-6 h-6" />
                     </button>
                     <div className="flex-1">
-                        <h1 className="text-lg font-bold text-slate-900 dark:text-white">تتبع طلبك</h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">طلب #{order.id}</p>
+                        <h1 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            تتبع طلبك
+                            {order && (
+                                <span className="bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded text-sm text-slate-700 dark:text-slate-300">
+                                    #{order.display_id || order.id}
+                                </span>
+                            )}
+                        </h1>
                     </div>
                     <button onClick={fetchOrder} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-900 dark:text-white" title="تحديث البيانات" aria-label="تحديث بيانات الطلب">
                         <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -944,7 +948,7 @@ export default function TrackOrderPage() {
                                     <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
                                         <div>
                                             <h4 className="font-bold text-lg">{fixMangledText(sub.provider_name)}</h4>
-                                            <p className="text-xs text-slate-500">طلب فرعي #{sub.id}</p>
+                                            <p className="text-xs text-slate-500">طلب فرعي #{sub.display_id || sub.id}</p>
                                         </div>
                                         <div className={`px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-bold ${sStatus.color} ${sStatus.bgColor.replace('bg-', 'bg-opacity-10 ')}`}>
                                             <SIcon className="w-4 h-4" />
@@ -1020,6 +1024,10 @@ export default function TrackOrderPage() {
                                     })()}
                                 </span>
                             </div>
+                            <div className="flex justify-between items-center text-sm opacity-90 mt-2 pt-3 border-t border-indigo-500/30">
+                                <span>التوصيل</span>
+                                <span>{Number(order.delivery_fee) > 0 ? `${Number(order.delivery_fee).toFixed(0)} ج.م` : 'يحدد من قبل المندوب'}</span>
+                            </div>
                             <div className="text-xs opacity-70 leading-relaxed">
                                 تم تجميع طلباتك في طلب واحد لتسهيل التتبع. قد يصل المندوبون في أوقات متقاربة حسب جاهزية كل متجر.
                             </div>
@@ -1061,7 +1069,7 @@ export default function TrackOrderPage() {
                                 </div>
                                 <div className="flex justify-between text-slate-600 dark:text-slate-400">
                                     <span>التوصيل</span>
-                                    <span>{Number(order.delivery_fee || 0).toFixed(0)} ج.م</span>
+                                    <span>{Number(order.delivery_fee) > 0 ? `${Number(order.delivery_fee).toFixed(0)} ج.م` : 'يحدد من قبل المندوب'}</span>
                                 </div>
                                 <div className="flex justify-between text-slate-900 dark:text-white text-lg font-bold border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
                                     <span>الإجمالي</span>
@@ -1122,8 +1130,12 @@ export default function TrackOrderPage() {
                             0x2018: 0x91, 0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F
                         };
 
+                        const hasUnicode = (s: string) => { for (let i = 0; i < s.length; i++) { if (s.charCodeAt(i) > 255) return true; } return false; };
+
                         const fixAgony = (str: string) => {
                             if (!str) return "";
+                            // If already valid Unicode (Arabic chars > U+00FF), return as-is
+                            if (hasUnicode(str)) return str;
                             try {
                                 // Convert string to bytes, handling Windows-1252 overrides
                                 const bytes = new Uint8Array(str.length);
@@ -1253,13 +1265,15 @@ export default function TrackOrderPage() {
                                 <div className="space-y-3 mt-4">
                                     {(order?.is_parent ? (
                                         order.sub_orders?.flatMap(sub =>
-                                            sub.items.map((item, idx) => ({ ...item, subId: sub.id, subName: sub.provider_name, originalIdx: idx }))
+                                            sub.items.map((item, idx) => ({ ...item, subId: sub.id, subName: sub.provider_name, subStatus: sub.status, originalIdx: idx }))
                                         )
                                     ) : (
-                                        order?.items?.map((item, idx) => ({ ...item, subId: order.id, subName: order.provider_name, originalIdx: idx }))
-                                    ))?.map((item, i) => (
+                                        order?.items?.map((item, idx) => ({ ...item, subId: order.id, subName: order.provider_name, subStatus: order.status, originalIdx: idx }))
+                                    ))?.map((item, i) => {
+                                        const isItemLocked = ['ready_for_pickup', 'in_transit', 'delivered', 'cancelled'].includes(normalizeTrackingStatus(item.subStatus || order?.status || ''));
+                                        return (
                                         <div key={i} className="flex flex-col gap-1">
-                                            {item.subName && order.is_parent && (
+                                            {item.subName && order?.is_parent && (
                                                 <p className="text-[10px] text-violet-500 font-bold mr-1">{item.subName}</p>
                                             )}
                                             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1274,17 +1288,21 @@ export default function TrackOrderPage() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleRemoveItem(item.originalIdx, item.subId)}
-                                                    disabled={isSubmitting}
-                                                    className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg transition-colors"
-                                                    title="حذف المنتج"
-                                                >
-                                                    <X className="w-5 h-5" />
-                                                </button>
+                                                {!isItemLocked ? (
+                                                    <button
+                                                        onClick={() => handleRemoveItem(item.originalIdx, item.subId)}
+                                                        disabled={isSubmitting}
+                                                        className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+                                                        title="حذف المنتج"
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[10px] text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">غير قابل للتعديل</span>
+                                                )}
                                             </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
 
                                 <button

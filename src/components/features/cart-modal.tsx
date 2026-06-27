@@ -24,6 +24,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     const router = useRouter();
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [trackingCode, setTrackingCode] = useState<string | null>(null);
     const [step, setStep] = useState(1); // 1: review, 2: address
     const [prizes, setPrizes] = useState<any[]>([]);
     const [selectedPrize, setSelectedPrize] = useState<any>(null);
@@ -105,6 +106,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
         if (result) {
             setIsSuccess(true);
+            if (result.trackingCode) setTrackingCode(result.trackingCode);
             const confetti = (await import('canvas-confetti')).default;
             confetti({
                 particleCount: 150,
@@ -115,8 +117,8 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
             setTimeout(() => {
                 handleClose();
-                if (Array.isArray(result) && result.length === 1) {
-                    router.push(`/track/${result[0]}`);
+                if (result.orderIds.length === 1) {
+                    router.push(`/track/${result.orderIds[0]}`);
                 } else {
                     router.push("/track");
                 }
@@ -403,6 +405,23 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                                         ></dotlottie-player>
                                     </div>
                                     <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-4">مبروك! تم طلبك بنجاح 🎉</h2>
+                                    {trackingCode && (
+                                        <div className="mb-4 text-center">
+                                            <p className="text-slate-500 text-sm mb-2">كود تتبع الطلب</p>
+                                            <div className="flex items-center justify-center gap-3" dir="ltr">
+                                                <span className="text-2xl font-mono font-bold tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                                                    {trackingCode}
+                                                </span>
+                                                <button
+                                                    onClick={() => { navigator.clipboard.writeText(trackingCode); toast('تم نسخ الكود', 'success'); }}
+                                                    className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-800 hover:bg-indigo-200 dark:hover:bg-indigo-700 transition-colors text-indigo-600 dark:text-indigo-300"
+                                                    title="نسخ الكود"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <p className="text-slate-500 text-lg">جاري تحويلك لصفحة التتبع الآن...</p>
                                 </motion.div>
                             )}

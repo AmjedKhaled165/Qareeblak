@@ -20,6 +20,7 @@ import { apiCall } from "@/lib/api";
 
 interface Order {
     id: number;
+    display_id?: number | string;
     customer_name: string;
     customer_phone: string;
     delivery_address: string;
@@ -98,7 +99,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
         >
             <div className="flex justify-between items-start mb-3">
                 <div>
-                    <p className="font-bold text-slate-800 dark:text-slate-100">#{order.id}</p>
+                    <p className="font-bold text-slate-800 dark:text-slate-100">#{order.display_id || order.id}</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">{order.customer_name}</p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[order.status] || statusColors.pending}`}>
@@ -112,8 +113,8 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
                 <div className="flex flex-col items-end">
                     <span className="font-bold text-emerald-500 text-base dir-rtl">
                         {(() => {
-                            const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
-                            const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+                            const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+                            const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item?.price || item?.unit_price) || 0) * (parseFloat(item?.quantity) || 1)), 0);
                             const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
                             const grandTotal = itemsTotal + deliFee;
                             return grandTotal.toFixed(0);
@@ -130,7 +131,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
 
 // Order Details Modal
 function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => void }) {
-    const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+    const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
 
     return (
         <AnimatePresence>
@@ -151,7 +152,7 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
                 >
                     {/* Header */}
                     <div className="sticky top-0 bg-white dark:bg-slate-900 p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                        <h2 className="text-lg font-bold">تفاصيل الطلب #{order.id}</h2>
+                        <h2 className="text-lg font-bold">تفاصيل الطلب #{order.display_id || order.id}</h2>
                         <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
                             <X className="w-5 h-5" />
                         </button>

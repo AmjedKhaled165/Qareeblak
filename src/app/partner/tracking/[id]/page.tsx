@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
-import { ArrowRight, Phone, User, MapPin, Wifi, WifiOff, RefreshCw, LayoutDashboard, Map as MapIcon, Calendar, CheckCircle, TrendingUp, DollarSign, Star } from "lucide-react";
+import { ArrowRight, Phone, User, MapPin, Wifi, WifiOff, RefreshCw, LayoutDashboard, Map as MapIcon, Calendar, CheckCircle, TrendingUp, DollarSign, Star, Navigation } from "lucide-react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { apiCall } from "@/lib/api";
@@ -170,7 +170,7 @@ export default function DriverTrackingPage() {
     const connectSocket = () => {
         setConnectionStatus('connecting');
 
-        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || 'https://api.qareeblak.com';
         const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
 
         if (!token) {
@@ -232,7 +232,12 @@ export default function DriverTrackingPage() {
         // Listen for driver location updates (legacy/fallback)
         socketRef.current.on('driver-location', (data: any) => {
             console.log('📍 Received driver location:', data);
-            if (data.driverId === driverUsername || data.courierId === driverUsername) {
+            if (
+                String(data.driverId) === String(driverId) ||
+                String(data.courierId) === String(driverId) ||
+                data.driverId === driverUsername || 
+                data.courierId === driverUsername
+            ) {
                 const lat = data.lat || data.latitude;
                 const lng = data.lng || data.longitude;
 
@@ -418,7 +423,6 @@ export default function DriverTrackingPage() {
                             center={location ? [location.lat, location.lng] : [MAP_CENTER.lat, MAP_CENTER.lng]}
                             zoom={15}
                             minZoom={13}
-                            maxBounds={MAP_BOUNDS as any}
                             style={{ height: '100%', width: '100%' }}
                             zoomControl={false}
                         >
@@ -568,15 +572,13 @@ export default function DriverTrackingPage() {
                                 <p className="text-sm text-slate-500 dark:text-slate-400">@{driverUsername}</p>
                             </div>
                             <div className="text-left">
-                                {lastUpdate ? (
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        آخر تحديث: {lastUpdate.toLocaleTimeString('ar-EG')}
-                                    </p>
-                                ) : (
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        {location ? <span className="text-green-600 dark:text-green-400">موقع نشط</span> : 'في انتظار الموقع...'}
-                                    </p>
-                                )}
+                                <p className={`text-xs mt-0.5 flex items-center gap-1 ${
+                                    lastUpdate && (new Date().getTime() - lastUpdate.getTime() > 5 * 60000)
+                                        ? 'text-red-500 font-bold animate-pulse'
+                                        : 'text-slate-500 dark:text-slate-400'
+                                }`}>
+                                    آخر تحديث: {lastUpdate ? lastUpdate.toLocaleTimeString('ar-EG') : 'في انتظار...'}
+                                </p>
                                 {location && typeof location.lat === 'number' && typeof location.lng === 'number' && (
                                     <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
                                         <MapPin className="w-3 h-3" />
@@ -585,6 +587,16 @@ export default function DriverTrackingPage() {
                                 )}
                             </div>
                         </div>
+
+                        {location && !isFollowing && (
+                            <button
+                                onClick={() => setIsFollowing(true)}
+                                className="absolute -top-16 right-4 z-[400] bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg transition-all"
+                                title="تتبع المندوب"
+                            >
+                                <Navigation className="w-5 h-5" />
+                            </button>
+                        )}
                     </div>
                 )}
 

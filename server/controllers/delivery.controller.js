@@ -3,6 +3,7 @@ const deliveryRepo = require('../repositories/delivery.repository');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const db = require('../db');
+const { obfuscateOrder, encodeEntityId, decodeEntityId } = require('../utils/obfuscate');
 
 function parseItems(rawItems) {
     if (!rawItems) return [];
@@ -75,16 +76,30 @@ function getAggregateTrackingStatus(statuses) {
         cancelled: 0
     };
 
-    let best = 'pending';
-    for (const s of normalized) {
-        if ((weight[s] || 0) >= (weight[best] || 0)) best = s;
-    }
-    return best;
+    const activeStatuses = normalized.filter(s => s !== 'cancelled');
+    if (activeStatuses.length === 0) return 'cancelled';
+
+    const allHaveStatusOrHigher = (level) => {
+        return activeStatuses.every(s => (weight[s] || 0) >= level);
+    };
+    const anyHaveStatusOrHigher = (level) => {
+        return activeStatuses.some(s => (weight[s] || 0) >= level);
+    };
+
+    if (allHaveStatusOrHigher(weight.delivered)) return 'delivered';
+    if (allHaveStatusOrHigher(weight.in_transit)) return 'in_transit';
+    if (allHaveStatusOrHigher(weight.ready_for_pickup)) return 'ready_for_pickup';
+    if (anyHaveStatusOrHigher(weight.assigned)) return 'assigned';
+    
+    return 'pending';
 }
 
 exports.getCustomerOrdersPublic = catchAsync(async (req, res) => {
-    const { phone, userId } = req.body || {};
+    const { phone, userId: rawUserId } = req.body || {};
     const normalizedPhone = normalizeDigits(phone);
+
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const userId = rawUserId ? (decodeEntityId('user', rawUserId) || rawUserId) : null;
 
     if (!normalizedPhone && !userId) {
         throw new AppError('رقم الهاتف أو معرف المستخدم مطلوب', 400);
@@ -142,7 +157,7 @@ exports.getCustomerOrdersPublic = catchAsync(async (req, res) => {
                 customer_name: row.customer_name || 'عميل',
                 customer_phone: row.customer_phone || phone || '',
                 delivery_address: row.details || 'غير متاح',
-                status: row.status || 'pending',
+                statuses: [row.status || 'pending'],
                 items,
                 delivery_fee: 0,
                 created_at: row.booking_date || row.created_at || new Date().toISOString(),
@@ -152,30 +167,83 @@ exports.getCustomerOrdersPublic = catchAsync(async (req, res) => {
         } else {
             existing.items = [...existing.items, ...items];
             existing.total_price = Number(existing.total_price || 0) + Number(row.price || 0);
-            if (existing.status !== 'delivered' && row.status) existing.status = row.status;
+            if (row.status) existing.statuses.push(row.status);
         }
     }
+    const { encodeEntityId } = require('../utils/obfuscate');
+    const ordersWithEncryptedId = Array.from(grouped.values()).map(order => {
+        const { statuses, ...orderWithoutStatuses } = order;
+        orderWithoutStatuses.status = getAggregateTrackingStatus(statuses);
 
-    res.status(200).json({ success: true, orders: Array.from(grouped.values()) });
+        let encryptedId;
+        if (order.is_parent) {
+            const numericId = String(order.id).startsWith('P') ? String(order.id).slice(1) : String(order.id);
+            encryptedId = encodeEntityId('parent_order', numericId);
+        } else {
+            encryptedId = encodeEntityId('booking', order.id);
+        }
+        return {
+            ...orderWithoutStatuses,
+            id: encryptedId,
+            order_number: String(order.id)
+        };
+    });
+
+    res.status(200).json({ success: true, orders: ordersWithEncryptedId });
 });
 
 exports.trackOrderPublic = catchAsync(async (req, res) => {
     const rawId = String(req.params.id || '');
 
-    if (rawId.toUpperCase().startsWith('P')) {
-        const parentId = Number(rawId.slice(1));
+    // Try to decode as encrypted ID first
+    let decodedParentId = decodeEntityId('parent_order', rawId);
+    let decodedBookingId = decodeEntityId('booking', rawId);
+    const decodedOrderId = decodeEntityId('order', rawId);
+
+    if (decodedOrderId !== null && decodedParentId === null && decodedBookingId === null) {
+        const bResult = await db.query(
+            `SELECT b.id, b.parent_order_id FROM bookings b WHERE b.halan_order_id::TEXT = $1 LIMIT 1`,
+            [String(decodedOrderId)]
+        );
+        if (bResult.rows.length > 0) {
+            const booking = bResult.rows[0];
+            if (booking.parent_order_id) {
+                decodedParentId = booking.parent_order_id;
+            } else {
+                decodedBookingId = booking.id;
+            }
+        }
+    }
+
+    // Legacy: support P{id} prefix for backward compatibility
+    if (decodedParentId === null && rawId.toUpperCase().startsWith('P')) {
+        const legacyParentId = Number(rawId.slice(1));
+        if (!Number.isInteger(legacyParentId) || legacyParentId <= 0) {
+            throw new AppError('معرف الطلب غير صالح', 400);
+        }
+        decodedParentId = legacyParentId;
+    }
+
+    if (decodedParentId !== null) {
+        const parentId = decodedParentId;
         if (!Number.isInteger(parentId) || parentId <= 0) {
             throw new AppError('معرف الطلب غير صالح', 400);
         }
 
         const result = await db.query(
             `SELECT b.id, b.parent_order_id, b.status,
-                    COALESCE(d.status, b.status) AS effective_status,
+                    CASE 
+                        WHEN d.status IN ('pending', 'assigned') THEN COALESCE(b.status, d.status)
+                        ELSE COALESCE(d.status, b.status)
+                    END AS effective_status,
                     p.status AS parent_status,
                     b.items, b.price, b.provider_name,
                     b.booking_date, b.created_at, b.details,
                     b.halan_order_id,
                     d.courier_id,
+                    d.delivery_address,
+                    d.notes,
+                    d.delivery_fee,
                     c.name AS courier_name,
                     c.phone AS courier_phone,
                     COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
@@ -205,46 +273,59 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
 
         const aggregateStatus = getAggregateTrackingStatus(subOrders.map((s) => s.status));
         const parentStatus = normalizeTrackingStatus(first.parent_status || first.status || 'pending');
-        const effectiveParentStatus = getAggregateTrackingStatus([parentStatus, aggregateStatus]);
+        const effectiveParentStatus = parentStatus === 'cancelled' ? 'cancelled' : aggregateStatus;
 
         const order = {
-            id: `P${parentId}`,
-            order_number: `P${parentId}`,
+            id: encodeEntityId('parent_order', parentId),
+            order_number: String(parentId),
             customer_name: first.customer_name || 'عميل',
             customer_phone: first.customer_phone || '',
-            delivery_address: first.details || 'غير متاح',
+            delivery_address: first.delivery_address || first.details || 'غير متاح',
             pickup_address: '',
             status: effectiveParentStatus,
             items: subOrders.flatMap((s) => s.items),
-            delivery_fee: 0,
-            notes: first.details || '',
+            delivery_fee: Number(first.delivery_fee || 0),
+            notes: first.notes || '',
             created_at: first.booking_date || first.created_at,
             total_price: subOrders.reduce((sum, s) => sum + Number(s.price || 0), 0),
             is_parent: true,
             courier_name: first.courier_name || undefined,
             courier_phone: first.courier_phone || undefined,
-            sub_orders: subOrders
+            sub_orders: subOrders.map(s => obfuscateOrder(s))
         };
 
-        return res.status(200).json({ success: true, order });
+        const encryptedId = encodeEntityId('parent_order', parentId);
+        const encryptedResponse = {
+            ...obfuscateOrder(order),
+            id: encryptedId,
+            order_number: encryptedId,
+        };
+
+        return res.status(200).json({ success: true, order: encryptedResponse });
     }
 
-    const bookingId = Number(rawId);
+    const bookingId = decodedBookingId !== null ? decodedBookingId : Number(rawId);
     if (!Number.isInteger(bookingId) || bookingId <= 0) {
         throw new AppError('معرف الطلب غير صالح', 400);
     }
 
     const result = await db.query(
         `SELECT b.id, b.parent_order_id, b.status,
-            COALESCE(d.status, b.status) AS effective_status,
+            CASE 
+                WHEN d.status IN ('pending', 'assigned') THEN COALESCE(b.status, d.status)
+                ELSE COALESCE(d.status, b.status)
+            END AS effective_status,
             b.items, b.price, b.provider_name,
-                b.booking_date, b.created_at, b.details,
+            b.booking_date, b.created_at, b.details,
             b.halan_order_id,
-                d.courier_id,
-                c.name AS courier_name,
-                c.phone AS courier_phone,
-                COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
-                u.phone AS customer_phone
+            d.courier_id,
+            d.delivery_address,
+            d.notes,
+            d.delivery_fee,
+            c.name AS courier_name,
+            c.phone AS courier_phone,
+            COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
+            u.phone AS customer_phone
          FROM bookings b
          LEFT JOIN users u ON u.id = b.user_id
          LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
@@ -262,12 +343,12 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         order_number: String(booking.id),
         customer_name: booking.customer_name || 'عميل',
         customer_phone: booking.customer_phone || '',
-        delivery_address: booking.details || 'غير متاح',
+        delivery_address: booking.delivery_address || booking.details || 'غير متاح',
         pickup_address: '',
         status: normalizeTrackingStatus(booking.effective_status || booking.status || 'pending'),
         items: parseItems(booking.items),
-        delivery_fee: 0,
-        notes: booking.details || '',
+        delivery_fee: Number(booking.delivery_fee || 0),
+        notes: booking.notes || '',
         created_at: booking.booking_date || booking.created_at,
         total_price: Number(booking.price || 0),
         is_parent: false,
@@ -276,39 +357,123 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         courier_phone: booking.courier_phone || undefined
     };
 
-    return res.status(200).json({ success: true, order });
+    return res.status(200).json({ success: true, order: obfuscateOrder(order) });
 });
+
+exports.trackOrderByCode = catchAsync(async (req, res) => {
+    const { code } = req.params;
+    if (!code || code.length !== 7) {
+        throw new AppError('كود التتبع غير صالح', 400);
+    }
+
+    // Look up delivery_orders by tracking_code (case-insensitive)
+    const dResult = await db.query(
+        `SELECT id FROM delivery_orders WHERE LOWER(tracking_code) = LOWER($1) LIMIT 1`,
+        [code]
+    );
+    if (dResult.rows.length === 0) {
+        throw new AppError('الطلب غير موجود', 404);
+    }
+    const deliveryId = dResult.rows[0].id;
+
+    // Find the associated booking by halan_order_id (cast to text to match VARCHAR)
+    const bResult = await db.query(
+        `SELECT b.id, b.parent_order_id FROM bookings b WHERE b.halan_order_id::TEXT = $1 LIMIT 1`,
+        [String(deliveryId)]
+    );
+
+    if (bResult.rows.length > 0) {
+        const booking = bResult.rows[0];
+        // Pass the correct identifier to trackOrderPublic using encrypted ID
+        if (booking.parent_order_id) {
+            req.params.id = encodeEntityId('parent_order', booking.parent_order_id);
+        } else {
+            req.params.id = String(booking.id);
+        }
+    } else {
+        req.params.id = String(deliveryId);
+    }
+
+    return exports.trackOrderPublic(req, res);
+});
+
+async function resolveDeliveryOrderId(rawId) {
+    const { decodeEntityId } = require('../utils/obfuscate');
+    
+    const orderId = decodeEntityId('order', rawId);
+    if (orderId !== null) return orderId;
+
+    const parentId = decodeEntityId('parent_order', rawId);
+    if (parentId !== null) {
+        const res = await db.query(`SELECT halan_order_id FROM bookings WHERE parent_order_id = $1 LIMIT 1`, [parentId]);
+        if (res.rows.length > 0) return res.rows[0].halan_order_id;
+    }
+
+    const bookingId = decodeEntityId('booking', rawId);
+    if (bookingId !== null) {
+        const res = await db.query(`SELECT halan_order_id FROM bookings WHERE id = $1 LIMIT 1`, [bookingId]);
+        if (res.rows.length > 0) return res.rows[0].halan_order_id;
+    }
+
+    if (/^\d+$/.test(rawId)) return Number(rawId);
+
+    throw new AppError('معرف الطلب غير صالح', 400);
+}
 
 exports.customerCancel = catchAsync(async (req, res) => {
     const io = req.app.get('io');
-    const order = await deliveryService.customerCancel(req.params.id, req.body || {}, io);
+    const id = await resolveDeliveryOrderId(req.params.id);
+    const order = await deliveryService.customerCancel(id, req.body || {}, io);
     return res.status(200).json({ success: true, message: 'تم إلغاء الطلب بنجاح', order });
 });
 
 exports.customerRemoveItem = catchAsync(async (req, res) => {
     const io = req.app.get('io');
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = await resolveDeliveryOrderId(req.params.id);
     const itemIndex = Number(req.body?.itemIndex);
-    const order = await deliveryService.customerRemoveItem(req.params.id, itemIndex, io);
+    
+    const bookingIdHash = req.body?.bookingId;
+    const bookingId = bookingIdHash ? (decodeEntityId('booking', bookingIdHash) || bookingIdHash) : null;
+
+    const order = await deliveryService.customerRemoveItem(id, itemIndex, bookingId, io);
     return res.status(200).json({ success: true, message: 'تم حذف المنتج بنجاح', order });
 });
 
 exports.customerAddItemsBulk = catchAsync(async (req, res) => {
     const io = req.app.get('io');
-    const { items = [], providerId = null } = req.body || {};
-    const result = await deliveryService.customerAddItemsBulk(req.params.id, items, providerId, io);
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = await resolveDeliveryOrderId(req.params.id);
+    const { items = [], providerId: rawProviderId = null } = req.body || {};
+    
+    const providerId = rawProviderId ? (decodeEntityId('provider', rawProviderId) || decodeEntityId('user', rawProviderId) || rawProviderId) : null;
+
+    const result = await deliveryService.customerAddItemsBulk(id, items, providerId, io);
     return res.status(200).json({ success: true, message: 'تمت إضافة المنتجات بنجاح', ...result });
 });
 
 exports.getOrders = catchAsync(async (req, res, next) => {
     const result = await deliveryService.getOrders(req.user, req.query);
+    const records = result.records || [];
+    const limit = parseInt(req.query.limit) || 50;
+    const page = parseInt(req.query.page) || 1;
+    const hasMore = result.hasMore !== undefined ? result.hasMore : (records.length === limit);
+
+    const obfuscated = records.map(o => obfuscateOrder({
+        ...o,
+        ...(o.sub_orders ? { sub_orders: o.sub_orders.map(s => obfuscateOrder(s)) } : {})
+    }));
+
     res.status(200).json({
         success: true,
-        data: result.records,
+        data: obfuscated,
         pagination: {
-            total: result.total,
-            page: parseInt(req.query.page) || 1,
-            limit: parseInt(req.query.limit) || 50,
-            totalPages: Math.ceil(result.total / (parseInt(req.query.limit) || 50))
+            total: records.length,
+            page,
+            limit,
+            totalPages: hasMore ? page + 1 : page,
+            hasMore,
+            nextLastId: result.nextLastId || null
         }
     });
 });
@@ -331,28 +496,32 @@ exports.getOrder = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
 
-    const order = await deliveryRepo.getOrderByIdSecure(req.params.id, { userId, role });
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
+
+    const order = await deliveryRepo.getOrderByIdSecure(id, { userId, role });
     if (!order) throw new AppError('الطلب غير موجود أو غير مصرح لك بمشاهدته', 404);
 
-    // Filter sub-orders
-    const subOrders = await deliveryRepo.getLinkedBookings(req.params.id);
-    order.sub_orders = subOrders;
 
-    res.status(200).json({ success: true, data: order });
+    const obfuscatedOrder = obfuscateOrder(order);
+
+    res.status(200).json({ success: true, data: obfuscatedOrder });
 });
 
 exports.createOrder = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
+    const io = req.app.get('io');
 
-    const order = await deliveryService.createOrder(userId, role, req.body);
+    const order = await deliveryService.createOrder(userId, role, req.body, io);
     res.status(201).json({ success: true, data: order });
 });
 
 exports.updateStatus = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
     const io = req.app.get('io');
 
     await deliveryService.updateStatus(id, userId, role, req.body, io);
@@ -362,7 +531,8 @@ exports.updateStatus = catchAsync(async (req, res, next) => {
 exports.assignCourier = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
     const io = req.app.get('io');
 
     const order = await deliveryService.assignCourier(id, userId, role, req.body, io);
@@ -372,7 +542,8 @@ exports.assignCourier = catchAsync(async (req, res, next) => {
 exports.updateCourierPricing = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
     const io = req.app.get('io');
 
     const order = await deliveryService.updateCourierPricing(id, userId, role, req.body, io);
@@ -382,7 +553,8 @@ exports.updateCourierPricing = catchAsync(async (req, res, next) => {
 exports.updateOrderMeta = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
     const io = req.app.get('io');
 
     const order = await deliveryService.updateOrderMeta(id, userId, role, req.body, io);
@@ -390,14 +562,16 @@ exports.updateOrderMeta = catchAsync(async (req, res, next) => {
 });
 
 exports.softDelete = catchAsync(async (req, res, next) => {
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
     await deliveryRepo.softDelete(id);
     res.status(200).json({ success: true, message: 'تم حذف الطلب بنجاح' });
 });
 
 exports.autoAssign = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
     const { performAutoAssign } = require('../utils/driver-assignment');
     const io = req.app.get('io');
 
@@ -408,7 +582,8 @@ exports.autoAssign = catchAsync(async (req, res, next) => {
 exports.publishOrder = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
-    const { id } = req.params;
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
     const io = req.app.get('io');
 
     const order = await deliveryService.publishOrder(id, userId, role, io);
@@ -432,9 +607,12 @@ exports.updateOrder = catchAsync(async (req, res, next) => {
         return next(new AppError('لا توجد بيانات صالحة للتحديث', 400));
     }
 
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
+
     const io = req.app.get('io');
     const updatedOrder = await deliveryService.updateOrder(
-        req.params.id,
+        id,
         req.user.id || req.user.userId,
         req.user.role || req.user.type,
         safeData,

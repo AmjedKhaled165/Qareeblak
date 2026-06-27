@@ -4,6 +4,25 @@ import { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import dynamic from "next/dynamic";
 import { User, Navigation } from "lucide-react";
+import { apiCall } from "@/lib/api";
+
+const MapBoundsUpdater = dynamic(
+    () => import("react-leaflet").then((mod) => {
+        const { useMap } = mod;
+        return function MapBoundsUpdater({ drivers }: { drivers: any[] }) {
+            const map = useMap();
+            useEffect(() => {
+                if (drivers.length > 0) {
+                    const L = require('leaflet');
+                    const bounds = L.latLngBounds(drivers.map((d: any) => [d.lat, d.lng]));
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                }
+            }, [drivers.length, map]);
+            return null;
+        };
+    }),
+    { ssr: false }
+);
 
 // Dynamically import Leaflet components
 const MapContainer = dynamic(
@@ -49,23 +68,18 @@ export default function DriversMap({ user }: DriversMapProps) {
     useEffect(() => {
         const fetchAvailableDrivers = async () => {
             try {
-                const token = localStorage.getItem('halan_token');
-                let url = `${process.env.NEXT_PUBLIC_API_URL || ''}/halan/users?role=courier`;
+                let url = `/halan/users?role=courier`;
 
                 if (user?.role === 'supervisor') {
                     url += `&supervisorId=${user.id}`;
                 }
 
-                const res = await fetch(url, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const data = await res.json();
+                const data = await apiCall(url);
                 console.log('🔍 Drivers API response:', data);
 
-                if (data.success) {
-                    // Only include drivers that are available (isAvailable = true)
-                    const availableDrivers = data.data.filter((d: any) => d.isAvailable === true);
-                    const ids = new Set<string>(availableDrivers.map((d: any) => String(d.id)));
+                if (data.success && Array.isArray(data.data)) {
+                    // Include all drivers returned by the API (the backend already filters by supervisor)
+                    const ids = new Set<string>(data.data.map((d: any) => String(d.id)));
                     console.log('🔍 Available driver IDs:', [...ids]);
                     setAllowedDriverIds(ids);
                 }
@@ -81,7 +95,7 @@ export default function DriversMap({ user }: DriversMapProps) {
 
     useEffect(() => {
         // Connect to socket
-        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+        const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || 'https://api.qareeblak.com';
         const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
 
         if (!token) {
@@ -244,10 +258,9 @@ export default function DriversMap({ user }: DriversMapProps) {
                 center={[MAP_CENTER.lat, MAP_CENTER.lng]}
                 zoom={13}
                 minZoom={12}
-                maxBounds={MAP_BOUNDS}
-                maxBoundsViscosity={1.0}
                 style={{ height: '100%', width: '100%' }}
             >
+                <MapBoundsUpdater drivers={filteredDrivers} />
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap contributors'

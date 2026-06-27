@@ -205,7 +205,7 @@ export default function DriverStatsPage() {
                                                 <div>
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                            {order.customer_name || 'عميل'} #{order.id}
+                                                            {order.customer_name || 'عميل'} #{order.display_id || order.id}
                                                         </span>
                                                         <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">
                                                             تم التوصيل

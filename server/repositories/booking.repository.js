@@ -193,8 +193,8 @@ class BookingRepository {
     }
 
     async createDeliveryOrderForBooking(bookingInfo) {
-        let phone = '';
-        if (bookingInfo.user_id) {
+        let phone = bookingInfo.customer_phone || '';
+        if (!phone && bookingInfo.user_id) {
             const userRes = await pool.query('SELECT phone FROM users WHERE id = $1', [bookingInfo.user_id]);
             if (userRes.rows.length > 0) phone = userRes.rows[0].phone || '';
         }
@@ -294,7 +294,7 @@ class BookingRepository {
                 FROM bookings b
                 ${joinDelivery}
                 ${joinUser}
-                WHERE CAST(b.provider_id AS TEXT) = $1 AND b.id < $2
+                WHERE b.provider_id = $1::int AND b.id < $2
                 ORDER BY b.id DESC
                 LIMIT $3
             `;
@@ -321,7 +321,7 @@ class BookingRepository {
                 FROM bookings b
                 ${joinDelivery}
                 ${joinUser}
-                WHERE CAST(b.provider_id AS TEXT) = $1
+                WHERE b.provider_id = $1::int
                 ORDER BY b.id DESC
                 LIMIT $2
                 OFFSET $3
@@ -372,7 +372,7 @@ class BookingRepository {
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType"
                 FROM bookings b
-                WHERE CAST(b.user_id AS TEXT) = $1 AND b.id < $2
+                WHERE b.user_id = $1::int AND b.id < $2
                 ORDER BY id DESC
                 LIMIT $3
             `;
@@ -395,7 +395,7 @@ class BookingRepository {
                        ${appointmentDateExpr} AS "appointmentDate",
                        ${appointmentTypeExpr} AS "appointmentType"
                 FROM bookings b
-                WHERE CAST(b.user_id AS TEXT) = $1
+                WHERE b.user_id = $1::int
                 ORDER BY id DESC
                 LIMIT $2
                 OFFSET $3
@@ -601,5 +601,11 @@ class BookingRepository {
         );
     }
 }
+
+// Pre-warm column caches in the background
+getBookingsColumns().catch(e => console.warn('Background cache warm failed (bookings)'));
+getParentOrdersColumns().catch(e => console.warn('Background cache warm failed (parent orders)'));
+getDeliveryOrdersColumns().catch(e => console.warn('Background cache warm failed (delivery orders)'));
+getUsersColumns().catch(e => console.warn('Background cache warm failed (users)'));
 
 module.exports = new BookingRepository();

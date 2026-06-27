@@ -37,8 +37,10 @@ const { connectRedis, client: redisPublishClient, getRedisConnectionOptions, nor
 const { initializeFirebase } = require('./utils/firebase');
 const watchdog = require('./utils/watchdog');
 
-// 🛡️ Activate System Guardian
-watchdog.start();
+// 🛡️ Activate System Guardian (disable in local dev with GUARDIAN_ENABLED=false)
+if (String(process.env.GUARDIAN_ENABLED || 'true').toLowerCase() === 'true') {
+    watchdog.start();
+}
 
 // Initialize Firebase SDK early
 initializeFirebase();
@@ -180,7 +182,14 @@ app.use('/api/health', healthRoutes);
 // Note: Initial login/register won't have a token yet, but they usually don't need CSRF 
 // because they are the "entry" points. However, we can exclude them explicitly.
 app.use('/api', (req, res, next) => {
-    const excludedPaths = ['/auth/login', '/auth/register', '/auth/google-sync', '/auth/guest-login', '/health'];
+    const excludedPaths = [
+        '/auth/login',
+        '/auth/register',
+        '/auth/google-sync',
+        '/auth/guest-login',
+        '/halan/auth/login',
+        '/health'
+    ];
     if (excludedPaths.some(path => req.path.startsWith(path))) {
         return next();
     }

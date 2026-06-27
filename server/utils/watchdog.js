@@ -29,12 +29,16 @@ class GuardianWatchdog {
 
     checkHealth() {
         const mem = process.memoryUsage();
-        const heapUsed = mem.heapUsed / mem.heapTotal;
+        const v8 = require('v8');
+        const heapStats = v8.getHeapStatistics();
+        
+        // Use heap_size_limit instead of heapTotal to avoid false positives during normal heap expansion
+        const heapUsedPercentage = mem.heapUsed / heapStats.heap_size_limit;
         let problemDetected = false;
 
         // A. Memory Guard
-        if (heapUsed > this.thresholds.memory) {
-            this.heal('CRITICAL_MEMORY_USAGE', `Heap usage at ${(heapUsed * 100).toFixed(1)}% (RSS: ${(mem.rss / 1024 / 1024).toFixed(0)}MB)`);
+        if (heapUsedPercentage > this.thresholds.memory) {
+            this.heal('CRITICAL_MEMORY_USAGE', `Heap usage at ${(heapUsedPercentage * 100).toFixed(1)}% of limit (RSS: ${(mem.rss / 1024 / 1024).toFixed(0)}MB)`);
             problemDetected = true;
         }
 

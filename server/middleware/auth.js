@@ -48,12 +48,11 @@ const USER_CACHE_TTL = 60;
 // ==========================================
 // If Redis dies, 10,000 requests will hit the DB concurrently, bringing down Postgres.
 // We intercept DB fallback requests with a Circuit Breaker.
+const AUTH_USER_COLUMNS = 'id, name, email, password, user_type, phone, avatar, is_banned, token_version, cancellation_count, role';
 const dbQueryBreaker = new CircuitBreaker(
     async (userId) => {
         return await db.query(
-            // Use SELECT * to stay compatible with older schemas where optional
-            // auth columns (e.g. role/cancellation_count/token_version) may not exist yet.
-            'SELECT * FROM users WHERE id = $1',
+            `SELECT ${AUTH_USER_COLUMNS} FROM users WHERE id = $1`,
             [userId]
         );
     },
@@ -116,7 +115,7 @@ async function getUserWithCache(userId) {
     if (user.cancellation_count === undefined || user.cancellation_count === null) {
         user.cancellation_count = 0;
     }
-    if (!user.role) {
+    if (!user.role || user.role === 'user') {
         user.role = user.user_type;
     }
 
@@ -242,7 +241,14 @@ const isPartnerOrAdmin = (req, res, next) => {
  */
 const verifySocketToken = async (socket, next) => {
     try {
-        const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+        let token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+        if (!token && socket.handshake.headers?.cookie) {
+            const cookies = socket.handshake.headers.cookie.split(';').map((c) => c.trim());
+            const accessCookie = cookies.find((c) => c.startsWith('accessToken='));
+            if (accessCookie) {
+                token = accessCookie.substring('accessToken='.length);
+            }
+        }
         if (!token) return next(new Error('Authentication error: Token missing'));
 
         const decoded = verifyJWT(token, 'access');

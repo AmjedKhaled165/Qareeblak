@@ -100,4 +100,40 @@ router.get('/halan-users-count', async (req, res) => {
     }
 });
 
+router.get('/run-migration', async (req, res) => {
+    try {
+        await db.query(`DROP TABLE IF EXISTS chat_messages CASCADE`);
+        await db.query(`DROP TABLE IF EXISTS consultations CASCADE`);
+        
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS consultations (
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+                status VARCHAR(50) DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id SERIAL PRIMARY KEY,
+                consultation_id INTEGER REFERENCES consultations(id) ON DELETE CASCADE,
+                sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                sender_type VARCHAR(50) DEFAULT 'customer',
+                message TEXT,
+                message_type VARCHAR(50) DEFAULT 'text',
+                image_url TEXT,
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        res.json({ success: true, message: 'Tables created!' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 module.exports = router;

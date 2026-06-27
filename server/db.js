@@ -83,8 +83,8 @@ pool.query = async function (text, params) {
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const verifyDatabaseConnection = async () => {
     const isProd = process.env.NODE_ENV === 'production';
-    const attempts = isProd ? 5 : 1;
-    const initialDelayMs = Number(process.env.DB_INITIAL_CONNECT_DELAY_MS || (isProd ? 2000 : 0));
+    const attempts = isProd ? 5 : 3;
+    const initialDelayMs = Number(process.env.DB_INITIAL_CONNECT_DELAY_MS || (isProd ? 2000 : 1000));
     let connected = false;
 
     if (initialDelayMs > 0) {

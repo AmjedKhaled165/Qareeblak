@@ -22,6 +22,7 @@ import ConfirmModal from "@/components/ui/confirm-modal";
 
 interface Order {
     id: number;
+    display_id?: number | string;
     order_number: string;
     customer_name: string;
     customer_phone: string;
@@ -300,14 +301,14 @@ export default function OrdersPage() {
                     <div className="flex items-center justify-center py-20">
                         <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
                     </div>
-                ) : filteredOrders.length === 0 ? (
+                ) : filteredOrders?.length === 0 ? (
                     <div className="text-center py-16">
                         <Package className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
                         <p className="text-slate-500 dark:text-slate-400 text-lg">لا توجد طلبات</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {filteredOrders.map((order, index) => {
+                        {filteredOrders?.map((order, index) => {
                             const StatusIcon = getStatusIcon(order.status);
                             return (
                                 <motion.div
@@ -331,7 +332,7 @@ export default function OrdersPage() {
                                             <div className="flex items-center gap-2">
                                                 <StatusIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                                                 <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                    {order.customer_name} #{order.id}
+                                                    {order.customer_name} #{order.display_id || order.id}
                                                 </span>
                                             </div>
                                             {(order as any).source === 'qareeblak' && (
@@ -373,8 +374,8 @@ export default function OrdersPage() {
                                                 {new Date(order.created_at).toLocaleDateString('ar-EG')}
                                             </span>
                                             {(() => {
-                                                const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
-                                                const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+                                                const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+                                                const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item?.price || item?.unit_price) || 0) * (parseFloat(item?.quantity) || 1)), 0);
                                                 const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
                                                 const grandTotal = itemsTotal + deliFee;
 

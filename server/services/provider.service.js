@@ -59,10 +59,11 @@ class ProviderService {
         const provider = await providerRepo.getByEmail(email);
         if (!provider) return null;
 
-        const services = await providerRepo.getServices(provider.id);
+        const [services, reviews] = await Promise.all([
+            providerRepo.getServices(provider.id),
+            providerRepo.getReviews(provider.id)
+        ]);
         provider.services = this._formatServices(services);
-
-        const reviews = await providerRepo.getReviews(provider.id);
         provider.reviewsList = this._formatReviews(reviews);
 
         this._sanitizeProvider(provider);
@@ -97,8 +98,9 @@ class ProviderService {
     }
 
     _sanitizeProvider(p) {
-        p.id = p.id.toString();
-        p.userId = p.user_id?.toString();
+        const { encodeEntityId } = require('../utils/obfuscate');
+        p.id = encodeEntityId('provider', p.id);
+        p.userId = p.user_id ? encodeEntityId('user', p.user_id) : undefined;
         p.isApproved = p.is_approved;
         p.joinedDate = p.joined_date;
         delete p.user_id;

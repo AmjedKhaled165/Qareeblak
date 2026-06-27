@@ -29,9 +29,11 @@ import {
 } from "lucide-react";
 
 import { apiCall } from "@/lib/api";
+import { useDebounce } from "@/lib/use-debounce";
 
 interface Order {
     id: number;
+    display_id?: number | string;
     order_number: string;
     customer_name: string;
     customer_phone: string;
@@ -83,8 +85,8 @@ const mapSourceLabel = (source: string | undefined) => {
 
 // Order Details Modal Component
 function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }: { order: Order; drivers: UserOption[]; managers: UserOption[]; onClose: () => void; onUpdateOrder: (id: number, payload: any) => Promise<void> }) {
-    const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
-    const editHistory = typeof order.edit_history === 'string' ? JSON.parse(order.edit_history || '[]') : (order.edit_history || []);
+    const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+    const editHistory = Array.isArray(order.edit_history) ? order.edit_history : (typeof order.edit_history === 'string' ? JSON.parse(order.edit_history || '[]') : []);
     const resolvedSupervisorName = order.supervisor_name || (order.supervisor_id ? (managers.find((m) => Number(m.id) === Number(order.supervisor_id))?.name || null) : null);
 
     const getSourceLabel = (source: string | undefined) => mapSourceLabel(source);
@@ -120,7 +122,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                     <div className="sticky top-0 bg-white dark:bg-slate-900 p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center z-10">
                         <div>
                             <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-bold">{order.customer_name} - طلب #{order.id}</h2>
+                                <h2 className="text-lg font-bold">{order.customer_name} - طلب #{order.display_id || order.id}</h2>
                                 {order.is_edited && (
                                     <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">معدل</span>
                                 )}
@@ -166,7 +168,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                                 </div>
                                 <div className="flex items-start gap-3">
                                     <MapPin className="w-4 h-4 text-green-500 mt-1" />
-                                    <span className="text-slate-700 dark:text-slate-300 text-sm">{order.delivery_address}</span>
+                                    <span className="text-slate-700 dark:text-slate-300 text-sm">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span>
                                 </div>
                             </div>
                         </div>
@@ -186,6 +188,9 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                                     aria-label="تعيين المندوب"
                                 >
                                     <option value="">غير معين</option>
+                                    {order.courier_id && !drivers.some(d => Number(d.id) === Number(order.courier_id)) && (
+                                        <option value={order.courier_id}>{order.courier_name || `مندوب #${order.courier_id}`}</option>
+                                    )}
                                     {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                 </select>
                             </div>
@@ -337,6 +342,7 @@ export default function OwnerAllOrdersPage() {
     const [managerFilter, setManagerFilter] = useState<string>(searchParams.get('supervisorId') || 'all');
     const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') || 'all');
     const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('search') || '');
+    const debouncedSearch = useDebounce(searchQuery, 350);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     // Keep latest fetchOrders for socket callbacks without re-registering listeners each render.
@@ -347,8 +353,8 @@ export default function OwnerAllOrdersPage() {
             const usersData = await apiCall('/halan/users');
             if (usersData.success) {
                 const allUsers = usersData.data;
-                setDrivers(allUsers.filter((u: any) => u.role === 'courier'));
-                setManagers(allUsers.filter((u: any) => u.role === 'supervisor'));
+                setDrivers(allUsers.filter((u: any) => u.role === 'courier' && u.isAvailable === true));
+                setManagers(allUsers.filter((u: any) => u.role === 'supervisor' && u.isAvailable === true));
             }
         } catch (error: any) {
             const message = String(error?.message || '');
@@ -368,7 +374,7 @@ export default function OwnerAllOrdersPage() {
             if (driverFilter !== 'all') params.append('courierId', driverFilter);
             if (managerFilter !== 'all') params.append('supervisorId', managerFilter);
             if (sourceFilter !== 'all') params.append('source', sourceFilter);
-            if (searchQuery.trim()) params.append('search', searchQuery.trim());
+            if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
 
             // Pagination params
             params.append('page', page.toString());
@@ -399,7 +405,7 @@ export default function OwnerAllOrdersPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [statusFilter, driverFilter, managerFilter, sourceFilter, searchQuery, page]);
+    }, [statusFilter, driverFilter, managerFilter, sourceFilter, debouncedSearch, page]);
 
     useEffect(() => {
         fetchOrdersRef.current = fetchOrders;
@@ -674,7 +680,22 @@ export default function OwnerAllOrdersPage() {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.03 }}
-                                    onClick={() => setSelectedOrder(order)}
+                                    onClick={async () => {
+                                        // Optimistic: show immediately with list data
+                                        setSelectedOrder(order);
+                                        // Then silently enrich with full detail (items, delivery_address, price)
+                                        try {
+                                            const full = await apiCall(`/halan/orders/${order.id}`);
+                                            if (full?.success && full?.data) {
+                                                const enriched = { ...order, ...full.data };
+                                                // Parse items if string
+                                                if (typeof enriched.items === 'string') {
+                                                    try { enriched.items = JSON.parse(enriched.items); } catch { enriched.items = []; }
+                                                }
+                                                setSelectedOrder(enriched);
+                                            }
+                                        } catch { /* keep optimistic data */ }
+                                    }}
                                     className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden"
                                 >
                                     {/* Source Indicator Strip */}
@@ -693,7 +714,7 @@ export default function OwnerAllOrdersPage() {
                                             <div className="flex items-center gap-2 mb-1">
                                                 <StatusIcon className="w-4 h-4 text-slate-500" />
                                                 <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                    {order.customer_name} #{order.id}
+                                                    {order.customer_name} #{order.display_id || order.id}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -721,7 +742,7 @@ export default function OwnerAllOrdersPage() {
                                         </span>
                                         <span className="flex items-center gap-1">
                                             <MapPin className="w-3 h-3" />
-                                            <span className="truncate max-w-[150px]">{order.delivery_address}</span>
+                                            <span className="truncate max-w-[150px]">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span>
                                         </span>
                                     </div>
 
@@ -732,8 +753,8 @@ export default function OwnerAllOrdersPage() {
                                         </span>
 
                                         {(() => {
-                                            const items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
-                                            const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+                                            const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+                                            const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item?.price || item?.unit_price) || 0) * (parseFloat(item?.quantity) || 1)), 0);
                                             const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
                                             const grandTotal = itemsTotal + deliFee;
 

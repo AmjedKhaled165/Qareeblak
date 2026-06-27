@@ -27,8 +27,10 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
     const socketRef = useRef<Socket | null>(null);
     const watchIdRef = useRef<number | null>(null);
     const userRef = useRef<any>(null);
+    const latestLocationRef = useRef<GeolocationPosition | null>(null);
 
     const applyLocationUpdate = (position: GeolocationPosition) => {
+        latestLocationRef.current = position;
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         const accuracy = position.coords.accuracy;
@@ -72,16 +74,24 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
                 userRef.current = user;
 
                 // Initialize Socket
-                const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || '';
+                const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || 'https://api.qareeblak.com';
+                const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
+                
                 socketRef.current = io(SOCKET_URL, {
                     transports: ['websocket', 'polling'],
                     reconnection: true,
-                    reconnectionAttempts: 10
+                    reconnectionAttempts: 10,
+                    auth: { token }
                 });
 
                 socketRef.current.on('connect', () => {
                     console.log('📡 Courier Tracking Socket Connected');
                     socketRef.current?.emit('driver-online', user.id);
+                    
+                    // If we already have a location, send it immediately upon connection
+                    if (latestLocationRef.current) {
+                        applyLocationUpdate(latestLocationRef.current);
+                    }
                 });
 
                 // Auto-start tracking if already active and not expired

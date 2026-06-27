@@ -39,9 +39,34 @@ interface ConsultationChatProps {
     providerId: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-const API_BASE = API_URL.replace(/\/api$/, ''); // Ensure no trailing /api
-const SOCKET_URL = API_BASE;
+// Use same-origin proxy for all HTTP API calls (avoids CSRF issues)
+const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const forceLocalProxy = process.env.NEXT_PUBLIC_FORCE_LOCAL_API_PROXY === 'true';
+const useSameOriginProxy = isLocalBrowser || forceLocalProxy;
+const CHAT_API_BASE = useSameOriginProxy ? '/api' : ((process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '').replace(/\/api$/, '') + '/api');
+// Socket.io needs direct backend URL
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
+
+// Helper to read CSRF token from cookies
+function getCsrfToken(): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith('csrfToken='));
+    if (!match) return null;
+    return decodeURIComponent(match.substring('csrfToken='.length));
+}
+
+// Helper to build headers with auth + CSRF
+function buildHeaders(token: string | null, contentType?: string): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (contentType) headers['Content-Type'] = contentType;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const csrf = getCsrfToken();
+    if (csrf) headers['x-csrf-token'] = csrf;
+    return headers;
+}
 
 export function ConsultationChat({ isOpen, onClose, consultation, providerId }: ConsultationChatProps) {
     const { toast } = useToast();
@@ -124,8 +149,9 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                     return;
                 }
 
-                const res = await fetch(`${API_BASE}/api/chat/${consultation.id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}`, {
+                    headers: buildHeaders(token),
+                    credentials: 'include',
                 });
 
                 if (!res.ok) {
@@ -174,9 +200,10 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
             const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
             if (!token) return;
 
-            const res = await fetch(`${API_BASE}/api/chat/${consultation.id}/read`, {
+            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/read`, {
                 method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers: buildHeaders(token),
+                credentials: 'include',
             });
 
             if (!res.ok) {
@@ -227,14 +254,12 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                 return;
             }
 
-            console.log('[ConsultationChat] Sending message to:', `${API_BASE}/api/chat/${consultation.id}/messages`);
+            console.log('[ConsultationChat] Sending message to:', `${CHAT_API_BASE}/chat/${consultation.id}/messages`);
 
-            const res = await fetch(`${API_BASE}/api/chat/${consultation.id}/messages`, {
+            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/messages`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
+                headers: buildHeaders(token, 'application/json'),
+                credentials: 'include',
                 body: JSON.stringify({
                     message: inputMessage.trim(),
                     senderType: 'pharmacist',
@@ -302,12 +327,10 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                 return;
             }
 
-            const res = await fetch(`${API_BASE}/api/chat/${consultation.id}/quote`, {
+            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/quote`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
+                headers: buildHeaders(token, 'application/json'),
+                credentials: 'include',
                 body: JSON.stringify({
                     items: validItems.map(item => ({ name: item.name.trim(), price: Number(item.price) }))
                 }),

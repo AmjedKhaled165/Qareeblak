@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const { encodeEntityId } = require('../utils/obfuscate');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -67,6 +68,12 @@ exports.login = catchAsync(async (req, res) => {
     if (result.rows.length === 0) throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
 
     const user = result.rows[0];
+
+    // [SECURITY] Block banned users
+    if (user.is_banned) {
+        throw new AppError('لقد تم حظر حسابك لمخالفة القوانين', 403);
+    }
+
     const rawPassword = String(user.password || '');
     const incomingPassword = password.trim();
     const hasBcryptHash = rawPassword.startsWith('$2a$') || rawPassword.startsWith('$2b$') || rawPassword.startsWith('$2y$');
@@ -113,14 +120,14 @@ exports.login = catchAsync(async (req, res) => {
     const token = jwt.sign(
         { id: user.id, role, username },
         JWT_SECRET,
-        { expiresIn: '3650d' }
+        { expiresIn: '100y' }
     );
 
     res.json({
         success: true,
         data: {
             user: {
-                id: user.id,
+                id: encodeEntityId('user', user.id),
                 username,
                 name_ar: user.name,
                 email: user.email,
@@ -144,7 +151,7 @@ exports.getMe = catchAsync(async (req, res) => {
     res.json({
         success: true,
         data: {
-            id: user.id,
+            id: encodeEntityId('user', user.id),
             username: user.username,
             name_ar: user.name,
             email: user.email,
