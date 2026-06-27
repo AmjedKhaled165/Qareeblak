@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import dynamic from "next/dynamic";
 import { User, Navigation } from "lucide-react";
+import { apiCall } from "@/lib/api";
 
 const MapBoundsUpdater = dynamic(
     () => import("react-leaflet").then((mod) => {
@@ -67,20 +68,16 @@ export default function DriversMap({ user }: DriversMapProps) {
     useEffect(() => {
         const fetchAvailableDrivers = async () => {
             try {
-                const token = localStorage.getItem('halan_token');
-                let url = `${process.env.NEXT_PUBLIC_API_URL || 'https://api.qareeblak.com/api'}/halan/users?role=courier`;
+                let url = `/halan/users?role=courier`;
 
                 if (user?.role === 'supervisor') {
                     url += `&supervisorId=${user.id}`;
                 }
 
-                const res = await fetch(url, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const data = await res.json();
+                const data = await apiCall(url);
                 console.log('🔍 Drivers API response:', data);
 
-                if (data.success) {
+                if (data.success && Array.isArray(data.data)) {
                     // Include all drivers returned by the API (the backend already filters by supervisor)
                     const ids = new Set<string>(data.data.map((d: any) => String(d.id)));
                     console.log('🔍 Available driver IDs:', [...ids]);
