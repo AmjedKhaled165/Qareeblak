@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../widgets/search_bar.dart';
+import 'service_detail_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({Key? key}) : super(key: key);
@@ -46,7 +47,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
           ).animate().fadeIn(duration: 500.ms),
           const SizedBox(height: 16),
-          const SearchBar().animate().slideY(begin: 0.2, duration: 500.ms),
+          const CustomSearchBar().animate().slideY(begin: 0.2, duration: 500.ms),
         ],
       ),
     );
@@ -295,7 +296,21 @@ class ServiceListItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {},
+          onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ServiceDetailScreen(
+                    title: names[index],
+                    rating: ratings[index],
+                    reviews: reviewCounts[index],
+                    category: categories[index],
+                    price: prices[index],
+                    heroTag: 'explore_$index',
+                  ),
+                ),
+              );
+            },
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(

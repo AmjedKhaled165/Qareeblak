@@ -37,6 +37,10 @@ class CustomBottomNav extends StatelessWidget {
             label: 'استكشف',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_rounded),
+            label: 'الطلبات',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.mail_rounded),
             label: 'الرسائل',
           ),

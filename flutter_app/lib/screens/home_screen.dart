@@ -4,6 +4,7 @@ import '../widgets/gradient_text.dart';
 import '../widgets/search_bar.dart';
 import '../widgets/category_card.dart';
 import '../widgets/service_card.dart';
+import 'service_detail_screen.dart';
 import 'wheel_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -113,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 24),
                   // Search Bar
-                  const SearchBar(),
+                  const CustomSearchBar(),
                   const SizedBox(height: 20),
                   // Popular Searches
                   SingleChildScrollView(
@@ -228,6 +229,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             title: ['مطعم البيتزا', 'صباغ الجدران', 'صيدلية العمدة', 'ميكانيكي أحمد'][index],
                             rating: 4.5 + (index * 0.1),
                             reviews: 120 + (index * 20),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ServiceDetailScreen(
+                                    title: ['مطعم البيتزا', 'صباغ الجدران', 'صيدلية العمدة', 'ميكانيكي أحمد'][index],
+                                    rating: 4.5 + (index * 0.1),
+                                    reviews: 120 + (index * 20),
+                                    category: ['مطاعم', 'صيانة', 'صيدليات', 'صيانة'][index],
+                                    price: 50 + (index * 20),
+                                    heroTag: 'home_$index',
+                                  ),
+                                ),
+                              );
+                            },
                           )
                               .animate()
                               .fadeIn(

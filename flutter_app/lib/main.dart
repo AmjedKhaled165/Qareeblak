@@ -7,6 +7,7 @@ import 'screens/chat_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/auth/login_choice_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/orders_screen.dart';
 import 'providers/auth_provider.dart';
 import 'widgets/custom_bottom_nav.dart';
 
@@ -69,6 +70,7 @@ class _MainAppState extends ConsumerState<MainApp> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const ExploreScreen(),
+    const OrdersScreen(),
     const ChatScreen(),
     const ProfileScreen(),
   ];
