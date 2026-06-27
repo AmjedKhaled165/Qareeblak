@@ -771,16 +771,6 @@ export default function TrackOrderPage() {
                                 </span>
                             )}
                         </h1>
-                        <div className="flex items-center gap-2 mt-1">
-                            <p className="text-[10px] text-slate-500">كود التتبع:</p>
-                            <input 
-                                type="text" 
-                                readOnly 
-                                value={trackingId as string} 
-                                className="bg-transparent text-[10px] text-slate-400 font-mono outline-none w-32"
-                                onClick={(e) => (e.target as HTMLInputElement).select()}
-                            />
-                        </div>
                     </div>
                     <button onClick={fetchOrder} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-900 dark:text-white" title="تحديث البيانات" aria-label="تحديث بيانات الطلب">
                         <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
