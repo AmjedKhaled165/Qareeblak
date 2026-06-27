@@ -419,7 +419,10 @@ exports.customerAddItemsBulk = catchAsync(async (req, res) => {
     const io = req.app.get('io');
     const { decodeEntityId } = require('../utils/obfuscate');
     const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
-    const { items = [], providerId = null } = req.body || {};
+    const { items = [], providerId: rawProviderId = null } = req.body || {};
+    
+    const providerId = rawProviderId ? (decodeEntityId('provider', rawProviderId) || decodeEntityId('user', rawProviderId) || rawProviderId) : null;
+
     const result = await deliveryService.customerAddItemsBulk(id, items, providerId, io);
     return res.status(200).json({ success: true, message: 'تمت إضافة المنتجات بنجاح', ...result });
 });
