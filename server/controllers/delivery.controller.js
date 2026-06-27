@@ -397,10 +397,32 @@ exports.trackOrderByCode = catchAsync(async (req, res) => {
     return exports.trackOrderPublic(req, res);
 });
 
+async function resolveDeliveryOrderId(rawId) {
+    const { decodeEntityId } = require('../utils/obfuscate');
+    
+    const orderId = decodeEntityId('order', rawId);
+    if (orderId !== null) return orderId;
+
+    const parentId = decodeEntityId('parent_order', rawId);
+    if (parentId !== null) {
+        const res = await db.query(`SELECT halan_order_id FROM bookings WHERE parent_order_id = $1 LIMIT 1`, [parentId]);
+        if (res.rows.length > 0) return res.rows[0].halan_order_id;
+    }
+
+    const bookingId = decodeEntityId('booking', rawId);
+    if (bookingId !== null) {
+        const res = await db.query(`SELECT halan_order_id FROM bookings WHERE id = $1 LIMIT 1`, [bookingId]);
+        if (res.rows.length > 0) return res.rows[0].halan_order_id;
+    }
+
+    if (/^\d+$/.test(rawId)) return Number(rawId);
+
+    throw new AppError('معرف الطلب غير صالح', 400);
+}
+
 exports.customerCancel = catchAsync(async (req, res) => {
     const io = req.app.get('io');
-    const { decodeEntityId } = require('../utils/obfuscate');
-    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
+    const id = await resolveDeliveryOrderId(req.params.id);
     const order = await deliveryService.customerCancel(id, req.body || {}, io);
     return res.status(200).json({ success: true, message: 'تم إلغاء الطلب بنجاح', order });
 });
@@ -408,7 +430,7 @@ exports.customerCancel = catchAsync(async (req, res) => {
 exports.customerRemoveItem = catchAsync(async (req, res) => {
     const io = req.app.get('io');
     const { decodeEntityId } = require('../utils/obfuscate');
-    const id = decodeEntityId('order', req.params.id) || req.params.id;
+    const id = await resolveDeliveryOrderId(req.params.id);
     const itemIndex = Number(req.body?.itemIndex);
     
     const bookingIdHash = req.body?.bookingId;
@@ -421,7 +443,7 @@ exports.customerRemoveItem = catchAsync(async (req, res) => {
 exports.customerAddItemsBulk = catchAsync(async (req, res) => {
     const io = req.app.get('io');
     const { decodeEntityId } = require('../utils/obfuscate');
-    const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
+    const id = await resolveDeliveryOrderId(req.params.id);
     const { items = [], providerId: rawProviderId = null } = req.body || {};
     
     const providerId = rawProviderId ? (decodeEntityId('provider', rawProviderId) || decodeEntityId('user', rawProviderId) || rawProviderId) : null;
