@@ -249,14 +249,14 @@ export default function OrderDetailsPage({ params }: PageProps) {
     useEffect(() => {
         if (!order) return;
         const originalItems = Array.isArray(order.items) ? order.items : [];
-        
+
         const normalizedOriginalItems = originalItems.map((item: any) => ({
             name: item.name || item.product_name || 'منتج',
             quantity: Number(item.quantity) || 1,
             price: Number(item.price || item.unit_price) || 0,
             notes: item.notes || ''
         }));
-        
+
         const normalizedEditableItems = editableItems.map((item: any) => ({
             name: item.name || item.product_name || 'منتج',
             quantity: Number(item.quantity) || 1,
@@ -268,7 +268,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         const originalFee = Number(order.delivery_fee) || 0;
         const feeChanged = Number(editableDeliveryFee) !== originalFee;
         const notesChanged = editableNotes !== (order.notes || '');
-        
+
         if (user?.role === 'courier') {
             setHasChanges(feeChanged || notesChanged);
         } else {
@@ -508,7 +508,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         : true;
     // Couriers CANNOT edit items (products, prices, quantities) - only delivery_fee and notes
     const canEditItems = user && (user.role === 'owner' || user.role === 'supervisor') && order.status !== 'delivered' && order.status !== 'cancelled';
-    const canEditDeliveryFee = isCourier && 
+    const canEditDeliveryFee = isCourier &&
         (order.status === 'in_transit' || order.status === 'picked_up');
     // Legacy canEdit for backwards compatibility - now only for non-courier roles
     const canEdit = canEditItems;
@@ -546,10 +546,10 @@ export default function OrderDetailsPage({ params }: PageProps) {
             <div className="bg-white dark:bg-slate-900 px-4 py-3 border-b dark:border-slate-800 flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-500 whitespace-nowrap">كود التتبع للبحث:</span>
                 <div className="flex-1 bg-slate-50 dark:bg-slate-950 border dark:border-slate-800 rounded-lg flex items-center overflow-hidden">
-                    <input 
-                        type="text" 
-                        readOnly 
-                        value={order.id} 
+                    <input
+                        type="text"
+                        readOnly
+                        value={order.id}
                         className="w-full bg-transparent text-xs text-slate-600 dark:text-slate-400 px-3 py-2 outline-none font-mono"
                         onClick={(e) => (e.target as HTMLInputElement).select()}
                     />
@@ -969,8 +969,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
                             (nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
                         }
                         className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${(nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
-                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700'
+                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700'
                             }`}
                     >
                         {updating ? (
