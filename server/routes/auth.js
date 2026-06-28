@@ -20,8 +20,8 @@ router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/guest-login', guestLoginLimiter, authController.guestLogin);
 router.post('/provider-request', authLimiter, validate(providerRequestSchema), authController.submitProviderRequest);
 
-// Registration OTP
-router.post('/send-register-otp', authLimiter, authController.sendRegisterOtp);
+// Registration OTP (reuses forgotPasswordSchema for email validation)
+router.post('/send-register-otp', authLimiter, validate(forgotPasswordSchema), authController.sendRegisterOtp);
 
 // Password Recovery
 router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);

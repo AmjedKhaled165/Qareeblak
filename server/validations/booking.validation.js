@@ -2,6 +2,7 @@ const { z } = require('zod');
 
 const checkoutSchema = z.object({
     items: z.array(z.object({
+        id: z.union([z.string(), z.number()]).optional(),
         providerId: z.union([z.string(), z.number()]),
         providerName: z.string().min(1, 'اسم مقدم الخدمة مطلوب'),
         price: z.number().nonnegative('السعر يجب أن يكون رقماً موجباً'),

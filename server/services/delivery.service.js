@@ -210,16 +210,40 @@ class DeliveryService {
             throw new AppError('لا توجد منتجات لإضافتها', 400);
         }
 
+        // [SECURITY PATCH] Zero-Trust Price Verification
+        const verifiableIds = Array.from(new Set(
+            incoming.filter(i => i.id && !isNaN(Number(i.id))).map(i => Number(i.id))
+        ));
+
+        let serverPriceMap = new Map();
+        if (verifiableIds.length > 0) {
+            const pricesResult = await db.query('SELECT id, price FROM services WHERE id = ANY($1)', [verifiableIds]);
+            serverPriceMap = new Map(pricesResult.rows.map(r => [Number(r.id), Number(r.price)]));
+        }
+
         const normalized = incoming
-            .map((item) => ({
-                name: String(item?.name || item?.product_name || '').trim(),
-                quantity: Math.max(1, Number(item?.quantity || 1)),
-                price: Math.max(0, Number(item?.price || item?.unit_price || 0)),
-                notes: item?.notes ? String(item.notes) : undefined,
-                providerId: providerId ? Number(providerId) : (item?.providerId ? Number(item.providerId) : undefined),
-                providerName: item?.providerName ? String(item.providerName) : undefined
-            }))
-            .filter((item) => item.name.length > 0);
+            .map((item) => {
+                const itemId = item.id && !isNaN(Number(item.id)) ? Number(item.id) : null;
+                if (!itemId) {
+                    // Reject items without a verifiable service ID
+                    return null;
+                }
+                const serverPrice = serverPriceMap.get(itemId);
+                if (serverPrice === undefined) {
+                    // Item ID not found in services table — reject to prevent price tampering
+                    return null;
+                }
+                return {
+                    id: itemId,
+                    name: String(item?.name || item?.product_name || '').trim(),
+                    quantity: Math.max(1, Number(item?.quantity || 1)),
+                    price: serverPrice,
+                    notes: item?.notes ? String(item.notes) : undefined,
+                    providerId: providerId ? Number(providerId) : (item?.providerId ? Number(item.providerId) : undefined),
+                    providerName: item?.providerName ? String(item.providerName) : undefined
+                };
+            })
+            .filter((item) => item !== null && item.name.length > 0);
 
         if (normalized.length === 0) {
             throw new AppError('بيانات المنتجات غير صالحة', 400);

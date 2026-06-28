@@ -4,17 +4,17 @@ const logger = require('../utils/logger');
 
 const crypto = require('crypto');
 
-// [PERSISTENT LOGIN] Cookies last 100 years — only logout button clears session
+// [SECURITY ROTATION] Cookies lifetimes align with JWT lifetimes
 const COOKIE_OPTIONS = {
     httpOnly: true, // Prevents JavaScript access (Immune to XSS)
     secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS
     sameSite: 'Lax', // Protects against some CSRF
-    maxAge: 100 * 365 * 24 * 60 * 60 * 1000 // 100 years
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (Refresh Token)
 };
 
 const ACCESS_COOKIE_OPTIONS = {
     ...COOKIE_OPTIONS,
-    maxAge: 100 * 365 * 24 * 60 * 60 * 1000 // 100 years
+    maxAge: 15 * 60 * 1000 // 15 minutes (Access Token)
 };
 
 // [SECURITY] CSRF Cookie Option - MUST BE httpOnly: false for client to read and send in header
@@ -202,6 +202,7 @@ exports.refreshToken = catchAsync(async (req, res, next) => {
     const tokens = await authService.refreshToken(tokenFromCookie);
     setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
 
-    res.status(200).json({ success: true });
+    // [SECURITY ROTATION] Return new access token in body for localStorage sync
+    res.status(200).json({ success: true, token: tokens.accessToken, accessToken: tokens.accessToken });
 });
 

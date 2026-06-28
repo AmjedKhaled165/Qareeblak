@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const db = require('../db');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
+const { sendMail } = require('../utils/mailer');
 
 // SECURITY: Use separate secrets for access vs refresh tokens
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
@@ -20,18 +21,18 @@ const { client: redisClient } = require('../utils/redis');
 
 class AuthService {
     generateTokens(user, isGuest = false) {
-        // [PERSISTENT LOGIN] Tokens last 100 years — only logout button clears session
+        // [SECURITY ROTATION] Access tokens: 15 minutes
         const accessToken = jwt.sign(
             { id: user.id, email: user.email, type: user.user_type, isGuest, v: user.token_version || 1 },
             JWT_ACCESS_SECRET,
-            { expiresIn: '100y' }
+            { expiresIn: '15m' }
         );
 
-        // [PERSISTENT LOGIN] Refresh token also 100 years
+        // [SECURITY ROTATION] Refresh tokens: 7 days
         const refreshToken = jwt.sign(
             { id: user.id, email: user.email, type: 'refresh', v: user.token_version || 1 },
             JWT_REFRESH_SECRET,
-            { expiresIn: '100y' }
+            { expiresIn: '7d' }
         );
 
         return { accessToken, refreshToken, token: accessToken };
@@ -42,6 +43,9 @@ class AuthService {
         if (existingUser.rows.length > 0) {
             throw new AppError('البريد الإلكتروني مسجل مسبقاً', 400);
         }
+
+        // Generate secure 6-digit OTP code
+        const otpCode = crypto.randomInt(100000, 1000000).toString();
 
         // Store OTP in Redis (High Reliability)
         const otpKey = `otp:reg:${email}`;
@@ -58,51 +62,37 @@ class AuthService {
             throw new AppError('خدمة التسجيل غير متاحة حالياً بسبب عطل فني (Redis)', 503);
         }
 
-        // Try to send via Nodemailer (if configured)
+        // Send OTP via reusable mailer utility
         try {
-            const nodemailer = require('nodemailer');
-            if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-                const transporter = nodemailer.createTransport({
-                    host: process.env.SMTP_HOST || 'smtp.zoho.com',
-                    port: process.env.SMTP_PORT || 465,
-                    secure: true,
-                    auth: {
-                        user: process.env.SMTP_USER,
-                        pass: process.env.SMTP_PASS
-                    }
-                });
-
-                await transporter.sendMail({
-                    from: `"Qareeblak | قريبلك" <${process.env.SMTP_USER}>`,
-                    to: email,
-                    subject: 'رمز التحقق لتسجيل حساب جديد 🚀',
-                    html: `
-                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc; direction: rtl;">
-                            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #e2e8f0;">
-                                <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 40px 20px; color: white;">
-                                    <h1 style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">مرحباً بك في أسرة قريبلك! 💙</h1>
+            const sent = await sendMail({
+                to: email,
+                subject: 'رمز التحقق لتسجيل حساب جديد 🚀',
+                html: `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc; direction: rtl;">
+                        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #e2e8f0;">
+                            <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 40px 20px; color: white;">
+                                <h1 style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">مرحباً بك في أسرة قريبلك! 💙</h1>
+                            </div>
+                            <div style="padding: 40px 30px;">
+                                <p style="color: #475569; font-size: 18px; margin-bottom: 30px; line-height: 1.6; font-weight: 500;">شكراً لانضمامك لأكبر منصة خدمات في أسيوط الجديدة. لتأكيد حسابك، يرجى استخدام رمز التحقق التالي:</p>
+                                <div style="background-color: #f1f5f9; padding: 25px 40px; border-radius: 16px; border: 2px dashed #818cf8; display: inline-block; margin: 10px 0;">
+                                    <h2 style="margin: 0; color: #4f46e5; font-size: 46px; letter-spacing: 16px; font-weight: 900; text-shadow: 1px 1px 0px rgba(79,70,229,0.2);">${otpCode}</h2>
                                 </div>
-                                <div style="padding: 40px 30px;">
-                                    <p style="color: #475569; font-size: 18px; margin-bottom: 30px; line-height: 1.6; font-weight: 500;">شكراً لانضمامك لأكبر منصة خدمات في أسيوط الجديدة. لتأكيد حسابك، يرجى استخدام رمز التحقق التالي:</p>
-                                    <div style="background-color: #f1f5f9; padding: 25px 40px; border-radius: 16px; border: 2px dashed #818cf8; display: inline-block; margin: 10px 0;">
-                                        <h2 style="margin: 0; color: #4f46e5; font-size: 46px; letter-spacing: 16px; font-weight: 900; text-shadow: 1px 1px 0px rgba(79,70,229,0.2);">${otpCode}</h2>
-                                    </div>
-                                    <p style="color: #64748b; font-size: 15px; margin-top: 35px; line-height: 1.5;">هذا الرمز صالح لمدة <strong style="color: #4f46e5;">10 دقائق</strong> فقط.<br>إذا لم تقم بطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p>
-                                </div>
-                                <div style="background-color: #f8fafc; padding: 20px; color: #94a3b8; font-size: 13px; border-top: 1px solid #f1f5f9;">
-                                    © ${new Date().getFullYear()} قريبلك المشاع - كل الحقوق محفوظة.
-                                </div>
+                                <p style="color: #64748b; font-size: 15px; margin-top: 35px; line-height: 1.5;">هذا الرمز صالح لمدة <strong style="color: #4f46e5;">10 دقائق</strong> فقط.<br>إذا لم تقم بطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p>
+                            </div>
+                            <div style="background-color: #f8fafc; padding: 20px; color: #94a3b8; font-size: 13px; border-top: 1px solid #f1f5f9;">
+                                © ${new Date().getFullYear()} قريبلك المشاع - كل الحقوق محفوظة.
                             </div>
                         </div>
-                    `
-                });
-                logger.info(`OTP Email sent successfully via Zoho to ${email}`);
-            } else {
-                logger.warn(`SMTP credentials missing in .env. Mock OTP for ${email}: ${otpCode}`);
+                    </div>
+                `
+            });
+            if (!sent) {
+                logger.warn(`[OTP] SMTP not configured. Mock OTP for ${email}: ${otpCode}`);
             }
         } catch (error) {
-            logger.error(`Failed to send OTP email: ${error.message}`);
-            logger.warn(`Fallback Mock OTP for ${email}: ${otpCode}`);
+            logger.error(`[OTP] Failed to send registration email: ${error.message}`);
+            logger.warn(`[OTP] Fallback — Mock OTP for ${email}: ${otpCode}`);
         }
 
         return true;
@@ -155,6 +145,17 @@ class AuthService {
         );
 
         const user = result.rows[0];
+
+        // Auto-create wallet for the new user (required for useWallet checkout flow)
+        try {
+            await db.query(
+                'INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
+                [user.id]
+            );
+        } catch (walletErr) {
+            logger.warn(`Failed to auto-create wallet for user #${user.id}: ${walletErr.message}`);
+        }
+
         const tokens = this.generateTokens(user);
 
         return { user, ...tokens };
@@ -251,13 +252,14 @@ class AuthService {
     }
 
     async forgotPassword(email) {
-        const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+        const userRes = await db.query('SELECT id, name FROM users WHERE email = $1', [email]);
         if (userRes.rows.length === 0) {
             // Security: Don't reveal if email exists, just say "If it exists, check your email"
             return true;
         }
 
         const userId = userRes.rows[0].id;
+        const userName = userRes.rows[0].name || 'عميلنا العزيز';
         // SECURITY: Use crypto.randomInt for OTP — Math.random() is NOT cryptographically secure
         const token = crypto.randomInt(100000, 999999).toString();
         const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
@@ -270,9 +272,42 @@ class AuthService {
             [userId, token, expiresAt]
         );
 
-        // SECURITY: NEVER log OTP tokens. Send via SMS/Email ONLY.
-        // TODO: Integrate Twilio/SendGrid here.
-        logger.info(`Password reset OTP issued for user #${userId}`);
+        // Send password reset OTP via email
+        try {
+            const sent = await sendMail({
+                to: email,
+                subject: 'استعادة كلمة المرور 🔑',
+                html: `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 40px 20px; background-color: #f8fafc; direction: rtl;">
+                        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #e2e8f0;">
+                            <div style="background: linear-gradient(135deg, #dc2626, #ef4444); padding: 40px 20px; color: white;">
+                                <h1 style="margin: 0; font-size: 28px; font-weight: 800;">استعادة كلمة المرور 🔑</h1>
+                            </div>
+                            <div style="padding: 40px 30px;">
+                                <p style="color: #475569; font-size: 18px; margin-bottom: 10px; line-height: 1.6; font-weight: 500;">مرحباً ${userName}،</p>
+                                <p style="color: #475569; font-size: 16px; margin-bottom: 30px; line-height: 1.6;">لقد تلقينا طلباً لاستعادة كلمة المرور الخاصة بحسابك. استخدم الرمز التالي:</p>
+                                <div style="background-color: #fef2f2; padding: 25px 40px; border-radius: 16px; border: 2px dashed #f87171; display: inline-block; margin: 10px 0;">
+                                    <h2 style="margin: 0; color: #dc2626; font-size: 46px; letter-spacing: 16px; font-weight: 900;">${token}</h2>
+                                </div>
+                                <p style="color: #64748b; font-size: 15px; margin-top: 35px; line-height: 1.5;">هذا الرمز صالح لمدة <strong style="color: #dc2626;">30 دقيقة</strong> فقط.<br>إذا لم تقم بطلب استعادة كلمة المرور، يرجى تجاهل هذه الرسالة.</p>
+                            </div>
+                            <div style="background-color: #f8fafc; padding: 20px; color: #94a3b8; font-size: 13px; border-top: 1px solid #f1f5f9;">
+                                © ${new Date().getFullYear()} قريبلك المشاع - كل الحقوق محفوظة.
+                            </div>
+                        </div>
+                    </div>
+                `
+            });
+            if (!sent) {
+                logger.warn(`[PasswordReset] SMTP not configured. Reset OTP for user #${userId}: ${token}`);
+            }
+        } catch (error) {
+            logger.error(`[PasswordReset] Failed to send reset email to ${email}: ${error.message}`);
+            // Log the token as emergency fallback so support can assist the user
+            logger.warn(`[PasswordReset] Emergency fallback — Reset OTP for user #${userId}: ${token}`);
+        }
+
+        logger.info(`[PasswordReset] OTP issued for user #${userId}`);
         return true;
     }
 
@@ -289,11 +324,22 @@ class AuthService {
         const userId = tokenRes.rows[0].user_id;
         const hashedPassword = await bcrypt.hash(newPassword, 12);
 
+        // [SECURITY] Atomically update password AND invalidate all existing sessions
+        // by incrementing token_version. This ensures that even if an attacker had
+        // a stolen JWT, it becomes invalid the moment the password is changed.
         await Promise.all([
-            db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, userId]),
+            db.query(
+                'UPDATE users SET password = $1, token_version = token_version + 1 WHERE id = $2',
+                [hashedPassword, userId]
+            ),
             db.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId])
         ]);
 
+        // Invalidate Redis session cache so the version check takes effect immediately
+        const { invalidateUserCache } = require('../middleware/auth');
+        await invalidateUserCache(userId);
+
+        logger.info(`[PasswordReset] Password changed and all sessions revoked for user #${userId}`);
         return true;
     }
 
@@ -505,7 +551,7 @@ class AuthService {
                 ...tokens
             };
         } catch (error) {
-            console.error('Google Sync Error:', error);
+            logger.error(`[GoogleSync] Error: ${error.message}`);
             if (error instanceof AppError) {
                 throw error;
             }

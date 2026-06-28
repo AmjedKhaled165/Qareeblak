@@ -319,7 +319,20 @@ class AdminRepository {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
-            
+
+            // [FINANCIAL INTEGRITY] Verify payout amount does not exceed unpaid balance
+            const balanceCheck = await client.query(`
+                SELECT COALESCE(SUM(net_provider_amount), 0) as unpaid_balance
+                FROM bookings
+                WHERE provider_id = $1 AND status = 'completed' AND is_paid_to_provider = false
+                FOR UPDATE
+            `, [providerId]);
+
+            const unpaidBalance = Number(balanceCheck.rows[0].unpaid_balance);
+            if (amount > unpaidBalance) {
+                throw new Error(`مبلغ الصرف (${amount}) يتجاوز الرصيد المتاح (${unpaidBalance}) للمقدم #${providerId}`);
+            }
+
             const payoutResult = await client.query(`
                 INSERT INTO payouts (provider_id, amount, payout_method, reference_number, status, processed_at)
                 VALUES ($1, $2, $3, $4, 'completed', NOW())

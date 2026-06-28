@@ -8,6 +8,11 @@ const reconciliation = require('./reconciliation');
  * Adjusts throughput based on Database Load.
  */
 async function processOutbox() {
+    // [RESILIENCE] Skip if BullMQ workers haven't initialized (Redis unavailable)
+    if (!maintenanceQueue) {
+        return;
+    }
+
     // [ELITE: BACKPRESSURE] Check system load before processing
     const activeConns = await reconciliation.getSystemPressure();
     if (activeConns > 40) { // Threshold: 40 active DB connections

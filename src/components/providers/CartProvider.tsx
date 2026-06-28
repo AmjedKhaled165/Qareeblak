@@ -111,6 +111,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setIsLoadingCart(true);
         try {
             const checkoutItems = globalCart.map((item) => ({
+                id: item.id,
                 providerId: item.providerId,
                 providerName: item.providerName,
                 price: Number(item.price),

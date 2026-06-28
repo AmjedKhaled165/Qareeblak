@@ -115,6 +115,41 @@ function getCookieValue(name: string): string | null {
     return decodeURIComponent(match.substring(name.length + 1));
 }
 
+// [SECURITY ROTATION] Silent token refresh mechanism
+let _refreshPromise: Promise<boolean> | null = null;
+
+async function attemptTokenRefresh(): Promise<boolean> {
+    // Deduplicate concurrent refresh attempts
+    if (_refreshPromise) return _refreshPromise;
+
+    _refreshPromise = (async () => {
+        try {
+            const refreshUrl = `${BASE_URL}/auth/refresh`;
+            const res = await fetch(refreshUrl, {
+                method: 'POST',
+                credentials: 'include', // Send HttpOnly refresh cookie
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) return false;
+            const data = await res.json();
+            // If the server returned a new token in the body, update localStorage
+            if (data.token || data.accessToken) {
+                const newToken = data.token || data.accessToken;
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('qareeblak_token', newToken);
+                }
+            }
+            return true;
+        } catch {
+            return false;
+        } finally {
+            _refreshPromise = null;
+        }
+    })();
+
+    return _refreshPromise;
+}
+
 // Helper function for API calls
 export async function apiCall<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = getAuthToken(endpoint);
@@ -230,17 +265,19 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
         if (response.status === 404) {
             throw new Error(`الطلب غير موجود (${response.status}) - ${endpoint}`);
         } else if (response.status === 401) {
-            console.warn(`[API] 401 Unauthorized for ${endpoint}.`);
-            console.log('[API] Current token status:', {
-                hasToken: !!token,
-                isHalanEndpoint,
-                halanTokenExists: !!halanToken,
-                qareeblakTokenExists: !!qareeblakToken
-            });
+            // [SECURITY ROTATION] Attempt silent token refresh before giving up
+            const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') ||
+                endpoint.includes('/auth/refresh') || endpoint.includes('/auth/guest-login');
 
-            // For 401 errors, don't automatically clear tokens
-            // Only explicit logout should clear authentication
-            // This prevents accidental logout on transient auth errors
+            if (!isAuthEndpoint) {
+                const refreshed = await attemptTokenRefresh();
+                if (refreshed) {
+                    // Retry the original request with the new token
+                    return apiCall<T>(endpoint, options);
+                }
+            }
+
+            console.warn(`[API] 401 Unauthorized for ${endpoint}.`);
             throw new Error(data?.error || data?.message || `عدم التفويض - يرجى تسجيل الدخول`);
         } else if (response.status === 429) {
             throw new Error(data?.error || data?.message || '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.');

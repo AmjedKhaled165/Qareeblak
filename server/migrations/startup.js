@@ -356,6 +356,24 @@ async function runStartupMigrations() {
             )
         `);
 
+        // Seed default prizes if wheel_prizes is empty
+        try {
+            const prizeCount = await query('SELECT COUNT(*) FROM wheel_prizes');
+            if (parseInt(prizeCount.rows[0].count, 10) === 0) {
+                logger.info('🌱 Seeding default fortune wheel prizes...');
+                await query(`
+                    INSERT INTO wheel_prizes (name, prize_type, prize_value, probability, color) VALUES
+                    ('توصيل مجاني', 'free_delivery', 0, 30, '#4CAF50'),
+                    ('خصم 10% مجاني', 'discount_percent', 10, 40, '#2196F3'),
+                    ('خصم 20% مجاني', 'discount_percent', 20, 20, '#FFC107'),
+                    ('خصم 50 جنيه', 'discount_flat', 50, 10, '#E91E63')
+                `);
+                logger.info('✅ Default fortune wheel prizes seeded successfully');
+            }
+        } catch (err) {
+            logger.error('Failed to seed default wheel prizes: ' + err.message);
+        }
+
         // 7. Migration: Add discount columns to orders
         await query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
         await query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS prize_id INTEGER REFERENCES user_prizes(id)");
@@ -397,6 +415,9 @@ async function runStartupMigrations() {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        // Ensure is_locked column exists (required by WalletService fraud protection)
+        await query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE`);
+
         await query(`
             CREATE TABLE IF NOT EXISTS wallet_transactions (
                 id SERIAL PRIMARY KEY,
@@ -408,6 +429,23 @@ async function runStartupMigrations() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        // Ensure hash-chain ledger columns exist (required by WalletService immutable ledger)
+        const walletTxCols = [
+            'balance_after DECIMAL(15, 2)',
+            'record_hash TEXT',
+            'previous_record_hash TEXT',
+            'sequence_number INTEGER DEFAULT 0',
+            "status VARCHAR(20) DEFAULT 'success'",
+            'metadata JSONB',
+            'device_id VARCHAR(100)'
+        ];
+        for (const colDef of walletTxCols) {
+            const colName = colDef.split(' ')[0];
+            try {
+                await query(`ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS ${colDef}`);
+            } catch(e) { /* column may already exist */ }
+        }
 
         // 11. Migration: Promo Code Engine
         await query(`

@@ -61,7 +61,10 @@ const pool = new Pool({
     statement_timeout: DB_STATEMENT_TIMEOUT_MS,
     idle_in_transaction_session_timeout: DB_IDLE_IN_TX_TIMEOUT_MS,
     maxUses: 7500, // Close idle connections after usage to prevent memory leaks
-    ...(shouldUseSsl && { ssl: { rejectUnauthorized: false } })
+    ssl: shouldUseSsl ? {
+        rejectUnauthorized: process.env.DB_SSL_STRICT === 'true' || isManagedCloudDb,
+        ca: process.env.DB_CA_CERT || undefined
+    } : false
 });
 
 // 📊 [Big Tech Tier] Database Instrumentation

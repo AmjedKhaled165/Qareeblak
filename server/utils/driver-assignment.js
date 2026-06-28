@@ -142,13 +142,13 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
                 return null;
             }
 
-            // Strategy: most orders today first, then currently most active workload, then stable by id.
+            // Strategy: least active workload first, then least orders today, then stable by id.
             const selectedSupervisor = [...candidates].sort((a, b) => {
-                const todayDiff = Number(b.today_orders || 0) - Number(a.today_orders || 0);
-                if (todayDiff !== 0) return todayDiff;
-
-                const activeDiff = Number(b.active_orders || 0) - Number(a.active_orders || 0);
+                const activeDiff = Number(a.active_orders || 0) - Number(b.active_orders || 0);
                 if (activeDiff !== 0) return activeDiff;
+
+                const todayDiff = Number(a.today_orders || 0) - Number(b.today_orders || 0);
+                if (todayDiff !== 0) return todayDiff;
 
                 return Number(a.id || 0) - Number(b.id || 0);
             })[0];

@@ -33,6 +33,8 @@ const globalErrorHandler = require('./middleware/errorHandler');
 // ================== UTILS & SERVICES ==================
 const healthRoutes = require('./routes/health');
 const { initializeWorkers } = require('./utils/queues');
+const { startOutboxPoller } = require('./utils/outbox-poller');
+const reconciliation = require('./utils/reconciliation');
 const { connectRedis, client: redisPublishClient, getRedisConnectionOptions, normalizeRedisUrl } = require('./utils/redis');
 const { initializeFirebase } = require('./utils/firebase');
 const watchdog = require('./utils/watchdog');
@@ -257,6 +259,12 @@ server.keepAliveTimeout = 65000; // Slightly higher than load balancer (Nginx)
 // 2. Start Server
 server.listen(PORT, '0.0.0.0', () => {
     logger.info(`✅ [Ready] Qareeblak Elite Backend listening on port ${PORT}`);
+    try {
+        startOutboxPoller();
+        reconciliation.start();
+    } catch (err) {
+        logger.error({ err }, '💥 Failed to start background services');
+    }
 });
 
 // 3. Graceful Shutdown (Elite Protocol)

@@ -95,6 +95,12 @@ class ApiService {
       case DioExceptionType.receiveTimeout:
         return 'Receive timeout';
       case DioExceptionType.badResponse:
+        if (error.response?.data is Map && error.response?.data['message'] != null) {
+          return error.response?.data['message'].toString();
+        }
+        if (error.response?.data is Map && error.response?.data['error'] != null) {
+          return error.response?.data['error'].toString();
+        }
         return 'Bad response: ${error.response?.statusCode}';
       case DioExceptionType.cancel:
         return 'Request cancelled';

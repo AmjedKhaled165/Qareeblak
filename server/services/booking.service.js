@@ -6,6 +6,7 @@ const { syncParentOrderStatus } = require('../utils/parent-sync');
 const { createNotification } = require('../routes/notifications');
 const { performAutoAssign } = require('../utils/driver-assignment');
 const { maintenanceQueue } = require('../utils/queues');
+const db = require('../db');
 
 const { client: redisClient } = require('../utils/redis');
 
@@ -22,30 +23,72 @@ class BookingService {
             const { WalletService, PromoService } = require('./loyalty.service');
 
             // [SECURITY PATCH] Zero-Trust Client Pricing
+            const { decodeEntityId } = require('../utils/obfuscate');
             const verifiableIds = Array.from(new Set(
-                items.filter(i => i.id && !String(i.id).startsWith('custom_')).map(i => i.id)
+                items.filter(i => i.id && !String(i.id).startsWith('custom_')).map(i => Number(i.id))
             ));
 
+            if (items.some(i => !i.id || String(i.id).startsWith('custom_'))) {
+                throw new AppError('يجب أن تحتوي كل الخدمات على معرف صالح من المتجر', 400);
+            }
+
             if (verifiableIds.length > 0) {
-                const pricesResult = await client.query('SELECT id, price FROM services WHERE id = ANY($1)', [verifiableIds]);
-                const priceMap = new Map(pricesResult.rows.map(r => [String(r.id), Number(r.price)]));
-                items.forEach(item => {
-                    if (item.id && !String(item.id).startsWith('custom_')) {
-                        const serverPrice = priceMap.get(String(item.id));
-                        if (serverPrice !== undefined) item.price = serverPrice;
+                const pricesResult = await client.query('SELECT id, price, provider_id FROM services WHERE id = ANY($1)', [verifiableIds]);
+                const priceMap = new Map(pricesResult.rows.map(r => [Number(r.id), { price: Number(r.price), providerId: Number(r.provider_id) }]));
+
+                for (const item of items) {
+                    const itemId = Number(item.id);
+                    const dbService = priceMap.get(itemId);
+                    if (!dbService) {
+                        throw new AppError(`الخدمة أو المنتج غير متوفر حالياً`, 400);
                     }
-                });
+
+                    const decodedProviderId = Number(decodeEntityId('provider', item.providerId) || item.providerId);
+                    if (dbService.providerId !== decodedProviderId) {
+                        throw new AppError('معلومات الخدمة ومقدم الخدمة غير متطابقة', 400);
+                    }
+
+                    // Overwrite price with database price
+                    item.price = dbService.price;
+                }
             }
 
             const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             let totalDiscount = 0;
             let validatedPrizeId = null;
+            let prizeProviderId = null; // Track provider-scoped prizes
+            let isFreeDelivery = false; // Track free delivery prize separately
 
             if (userPrizeId) {
                 const prize = await bookingRepo.getUnusedUserPrize(userPrizeId, userId, client);
-                if (!prize) throw new AppError('Prize already used', 400);
+                if (!prize) throw new AppError('الجائزة مستخدمة بالفعل أو منتهية الصلاحية', 400);
                 validatedPrizeId = prize.id;
-                totalDiscount += prize.prize_type === 'discount_percent' ? (totalPrice * (prize.prize_value / 100)) : prize.prize_value;
+                prizeProviderId = prize.provider_id || null; // null = global, ID = provider-specific
+
+                if (prize.prize_type === 'free_delivery') {
+                    // Free delivery is handled separately — not a product discount
+                    isFreeDelivery = true;
+                } else {
+                    // Calculate the correct discount base (provider-scoped or global)
+                    let discountBase = totalPrice;
+                    if (prizeProviderId) {
+                        // Only discount items belonging to the prize's provider
+                        const { decodeEntityId: decId } = require('../utils/obfuscate');
+                        discountBase = items
+                            .filter(i => {
+                                const decodedPId = decId('provider', i.providerId) || i.providerId;
+                                return String(decodedPId) === String(prizeProviderId);
+                            })
+                            .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    }
+
+                    if (prize.prize_type === 'discount_percent') {
+                        totalDiscount += Math.round(discountBase * (prize.prize_value / 100) * 100) / 100;
+                    } else {
+                        // discount_flat: cap at the discount base to prevent over-discounting
+                        totalDiscount += Math.min(prize.prize_value, discountBase);
+                    }
+                }
             }
 
             if (promoCode) {
@@ -68,7 +111,6 @@ class BookingService {
 
             const parentId = await bookingRepo.createParentOrder(userId, finalPrice, totalDiscount, validatedPrizeId, summaryStr, encryptedAddress, client);
 
-            const { decodeEntityId } = require('../utils/obfuscate');
             const grouped = {};
             items.forEach(item => {
                 const pId = decodeEntityId('provider', item.providerId) || item.providerId;
@@ -76,9 +118,26 @@ class BookingService {
                 grouped[pId].items.push(item);
             });
 
-            const bookingPromises = Object.entries(grouped).map(([pId, group]) => {
+            // Smart discount distribution: provider-scoped vs global
+            let prizeTargetBookingIndex = 0; // Track which booking gets the prize link
+            const groupEntries = Object.entries(grouped);
+            const bookingPromises = groupEntries.map(([pId, group], index) => {
                 const pSubtotal = group.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                const pDiscount = totalDiscount > 0 ? (pSubtotal / totalPrice) * totalDiscount : 0;
+
+                let pDiscount = 0;
+                if (totalDiscount > 0) {
+                    if (prizeProviderId && !promoCode) {
+                        // Provider-scoped prize: ALL discount goes to the matching provider only
+                        if (String(pId) === String(prizeProviderId)) {
+                            pDiscount = totalDiscount;
+                            prizeTargetBookingIndex = index;
+                        }
+                    } else {
+                        // Global prize or promo code: distribute proportionally with proper rounding
+                        pDiscount = Math.round((pSubtotal / totalPrice) * totalDiscount * 100) / 100;
+                    }
+                }
+
                 return bookingRepo.createBookingItem([
                     userId, pId, 'User', `Order #${parentId}`, group.providerName, Math.max(0, pSubtotal - pDiscount), pDiscount, summaryStr,
                     JSON.stringify(group.items), parentId, `BUNDLE-${parentId}`
@@ -87,7 +146,8 @@ class BookingService {
             
             const bookingIds = await Promise.all(bookingPromises);
 
-            if (validatedPrizeId) await bookingRepo.markPrizeAsUsed(bookingIds[0], validatedPrizeId, client);
+            // Link the prize to the correct booking (the provider's booking, not always the first)
+            if (validatedPrizeId) await bookingRepo.markPrizeAsUsed(bookingIds[prizeTargetBookingIndex], validatedPrizeId, client);
 
             // [HALAN SYNC]
             let halanOrderId = null;
@@ -97,10 +157,11 @@ class BookingService {
                 trackingCode = generateTrackingCode();
                 const userRes = await client.query('SELECT name, phone FROM users WHERE id = $1 LIMIT 1', [userId]);
                 const user = userRes.rows[0] || {};
+                const notes = isFreeDelivery ? 'توصيل مجاني (جائزة العجلة)' : null;
                 const dResult = await client.query(`
-                    INSERT INTO delivery_orders (order_number, customer_name, customer_phone, customer_id, pickup_address, delivery_address, status, source, order_type, tracking_code)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
-                `, [orderNum, addressInfo.name || user.name || 'Client', addressInfo.phone || user.phone || '', userId, Object.values(grouped).map(g => g.providerName).join(' | '), deliveryAddressStr, 'pending', 'qareeblak', 'app', trackingCode]);
+                    INSERT INTO delivery_orders (order_number, customer_name, customer_phone, customer_id, pickup_address, delivery_address, status, source, order_type, tracking_code, delivery_fee, notes)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id
+                `, [orderNum, addressInfo.name || user.name || 'Client', addressInfo.phone || user.phone || '', userId, Object.values(grouped).map(g => g.providerName).join(' | '), deliveryAddressStr, 'pending', 'qareeblak', 'app', trackingCode, 0, notes]);
                 halanOrderId = dResult.rows[0].id;
                 await client.query('UPDATE bookings SET halan_order_id = $1 WHERE parent_order_id = $2', [halanOrderId, parentId]);
             }

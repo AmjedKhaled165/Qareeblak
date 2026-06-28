@@ -7,7 +7,7 @@
         "node": ">=20.0.0"
     },
     "scripts": {
-        "start": "node --max-old-space-size=4096 index.js",
+        "start": "node --max-old-space-size=4096 --expose-gc index.js",
         "start:short": "node scripts/start-short.js",
         "dev": "nodemon index.js",
         "prisma:validate": "prisma validate --schema ./prisma/schema.prisma",

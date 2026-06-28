@@ -304,8 +304,8 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         return res.status(200).json({ success: true, order: encryptedResponse });
     }
 
-    const bookingId = decodedBookingId !== null ? decodedBookingId : Number(rawId);
-    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+    const bookingId = decodedBookingId;
+    if (bookingId === null || !Number.isInteger(bookingId) || bookingId <= 0) {
         throw new AppError('معرف الطلب غير صالح', 400);
     }
 
@@ -415,8 +415,7 @@ async function resolveDeliveryOrderId(rawId) {
         if (res.rows.length > 0) return res.rows[0].halan_order_id;
     }
 
-    if (/^\d+$/.test(rawId)) return Number(rawId);
-
+    // Do NOT allow raw integer IDs on public endpoints to prevent IDOR attacks.
     throw new AppError('معرف الطلب غير صالح', 400);
 }
 

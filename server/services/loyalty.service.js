@@ -2,6 +2,7 @@ const db = require('../db');
 const AppError = require('../utils/appError');
 const crypto = require('crypto');
 const fraudService = require('./fraud.service');
+const logger = require('../utils/logger');
 
 /**
  * [ELITE MASTERCLASS - FINAL VERSION]
@@ -103,4 +104,79 @@ class WalletService {
     }
 }
 
-module.exports = new WalletService();
+/**
+ * Promo Code Validation & Redemption Service
+ * Validates promo codes against the promo_codes table and atomically increments usage.
+ */
+class PromoService {
+    /**
+     * Validates a promo code and marks it as used within the provided transaction client.
+     * @param {string} code - The promo code string
+     * @param {number} orderTotal - The order subtotal to validate min_order_value against
+     * @param {object} client - PostgreSQL transaction client (required for atomicity)
+     * @returns {{ discount: number }} The calculated discount amount
+     */
+    async validateAndUse(code, orderTotal, client) {
+        if (!client) throw new Error('Transaction client required for promo validation');
+        if (!code || typeof code !== 'string') throw new AppError('كود الخصم غير صالح', 400);
+
+        const normalizedCode = code.trim().toUpperCase();
+
+        // Lock the row to prevent concurrent redemption past usage_limit
+        const result = await client.query(
+            `SELECT id, discount_type, discount_value, min_order_value, max_discount, usage_limit, usage_count, expires_at, is_active
+             FROM promo_codes WHERE UPPER(code) = $1 FOR UPDATE`,
+            [normalizedCode]
+        );
+
+        if (result.rowCount === 0) {
+            throw new AppError('كود الخصم غير موجود', 404);
+        }
+
+        const promo = result.rows[0];
+
+        if (!promo.is_active) {
+            throw new AppError('كود الخصم غير نشط', 400);
+        }
+
+        if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+            throw new AppError('كود الخصم منتهي الصلاحية', 400);
+        }
+
+        if (promo.usage_limit !== null && promo.usage_count >= promo.usage_limit) {
+            throw new AppError('تم استنفاد عدد مرات استخدام هذا الكود', 400);
+        }
+
+        const minOrder = Number(promo.min_order_value) || 0;
+        if (orderTotal < minOrder) {
+            throw new AppError(`الحد الأدنى للطلب لاستخدام هذا الكود هو ${minOrder} ج.م`, 400);
+        }
+
+        // Calculate discount using Banker's Rounding
+        let discount = 0;
+        if (promo.discount_type === 'percentage') {
+            discount = Math.round(orderTotal * (Number(promo.discount_value) / 100) * 100) / 100;
+        } else {
+            // 'fixed' discount
+            discount = Number(promo.discount_value);
+        }
+
+        // Cap at max_discount if set
+        if (promo.max_discount !== null && discount > Number(promo.max_discount)) {
+            discount = Number(promo.max_discount);
+        }
+
+        // Cap at order total to prevent negative prices
+        discount = Math.min(discount, orderTotal);
+
+        // Atomically increment usage count
+        await client.query(
+            'UPDATE promo_codes SET usage_count = usage_count + 1 WHERE id = $1',
+            [promo.id]
+        );
+
+        return { discount };
+    }
+}
+
+module.exports = { WalletService: new WalletService(), PromoService: new PromoService() };

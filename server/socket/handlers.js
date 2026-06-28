@@ -1,10 +1,46 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { client: redisClient } = require('../utils/redis');
 
 // In-memory state for driver locations
 const driverLocations = new Map();
 const driverStatuses = new Map();
 const driverSockets = new Map();
+const lastDbUpdateTimes = new Map();
+
+async function setRedisDriverLocation(driverId, locationData) {
+    try {
+        if (redisClient && redisClient.status === 'ready') {
+            await redisClient.hset('driver_locations', String(driverId), JSON.stringify(locationData));
+            await redisClient.expire('driver_locations', 86400); // 24 hours TTL
+        }
+    } catch (e) {
+        logger.warn('Failed to set driver location in Redis: ' + e.message);
+    }
+}
+
+async function setRedisDriverStatus(driverId, status) {
+    try {
+        if (redisClient && redisClient.status === 'ready') {
+            await redisClient.hset('driver_statuses', String(driverId), status);
+            await redisClient.expire('driver_statuses', 86400); // 24 hours TTL
+        }
+    } catch (e) {
+        logger.warn('Failed to set driver status in Redis: ' + e.message);
+    }
+}
+
+async function deleteRedisDriver(driverId) {
+    try {
+        if (redisClient && redisClient.status === 'ready') {
+            await redisClient.hdel('driver_locations', String(driverId));
+            await redisClient.hdel('driver_statuses', String(driverId));
+        }
+    } catch (e) {
+        logger.warn('Failed to delete driver from Redis: ' + e.message);
+    }
+}
+
 
 /**
  * Register all Socket.io handlers
@@ -54,10 +90,7 @@ module.exports = function registerSocketHandlers(io) {
         });
 
         // ========== MANAGERS TRACKING ==========
-        socket.on('join-managers', () => {
-            socket.join('managers');
-            logger.info(`Client joined managers room: ${socket.id}`);
-        });
+
 
         socket.on('leave-managers', () => {
             socket.leave('managers');
@@ -200,7 +233,7 @@ module.exports = function registerSocketHandlers(io) {
                 const existingLoc = driverLocations.get(sid);
                 const driverName = data.name || (existingLoc ? existingLoc.name : null);
 
-                driverLocations.set(sid, {
+                const locationData = {
                     driverId: courierId,
                     latitude,
                     longitude,
@@ -209,10 +242,14 @@ module.exports = function registerSocketHandlers(io) {
                     accuracy: accuracy || 0,
                     timestamp,
                     name: driverName
-                });
+                };
+
+                driverLocations.set(sid, locationData);
+                await setRedisDriverLocation(courierId, locationData);
 
                 if (driverStatuses.get(sid) !== 'online') {
                     driverStatuses.set(sid, 'online');
+                    await setRedisDriverStatus(courierId, 'online');
                     io.emit('driver-status-changed', { driverId: courierId, status: 'online' });
                 }
 
@@ -236,7 +273,9 @@ module.exports = function registerSocketHandlers(io) {
                             const name = res.rows[0].name;
                             const current = driverLocations.get(sid);
                             if (current) {
-                                driverLocations.set(sid, { ...current, name });
+                                const updatedLoc = { ...current, name };
+                                driverLocations.set(sid, updatedLoc);
+                                await setRedisDriverLocation(courierId, updatedLoc);
                                 broadcastLocation(name);
                             }
                         }
@@ -247,13 +286,19 @@ module.exports = function registerSocketHandlers(io) {
 
                 broadcastLocation();
 
-                try {
-                    await db.query(
-                        'UPDATE users SET latitude = $1, longitude = $2, last_location_update = NOW() WHERE id = $3',
-                        [latitude, longitude, courierId]
-                    );
-                } catch (err) {
-                    logger.error('Error persisting location:', err?.message || err);
+                // Persist to database, but throttled to at most once every 30 seconds to prevent table bloat & write amplification
+                const nowMs = Date.now();
+                const lastUpdate = lastDbUpdateTimes.get(sid) || 0;
+                if (nowMs - lastUpdate > 30000) {
+                    lastDbUpdateTimes.set(sid, nowMs);
+                    try {
+                        await db.query(
+                            'UPDATE users SET latitude = $1, longitude = $2, last_location_update = NOW() WHERE id = $3',
+                            [latitude, longitude, courierId]
+                        );
+                    } catch (err) {
+                        logger.error('Error persisting location:', err?.message || err);
+                    }
                 }
 
                 logger.info(`Location from driver: ${courierId} (${driverName || 'NO NAME'}) at (${latitude}, ${longitude})`);
@@ -261,7 +306,7 @@ module.exports = function registerSocketHandlers(io) {
         });
 
         // Driver becomes online
-        socket.on('driver-online', (driverId) => {
+        socket.on('driver-online', async (driverId) => {
             if (!driverId) return;
             
             // Decode driverId if it's an encoded hash from the app
@@ -276,35 +321,86 @@ module.exports = function registerSocketHandlers(io) {
             const sid = String(driverId);
             socket.driverId = driverId;
             driverStatuses.set(driverId, 'online');
+            await setRedisDriverStatus(driverId, 'online');
             logger.info(`Driver ${driverId} is now online`);
             io.emit('driver-status-changed', { driverId, status: 'online' });
 
             if (driverLocations.has(driverId)) {
                 io.to(`driver-${driverId}`).emit('updateLocation', driverLocations.get(driverId));
+            } else {
+                try {
+                    if (redisClient && redisClient.status === 'ready') {
+                        const locStr = await redisClient.hget('driver_locations', sid);
+                        if (locStr) {
+                            const loc = JSON.parse(locStr);
+                            driverLocations.set(sid, loc);
+                            io.to(`driver-${driverId}`).emit('updateLocation', loc);
+                        }
+                    }
+                } catch (_) {}
             }
         });
 
         // Manager joins to track a driver
-        socket.on('join-driver-tracking', (driverId) => {
+        socket.on('join-driver-tracking', async (driverId) => {
             socket.join(`driver-${driverId}`);
             logger.info(`Manager joined tracking for driver: ${driverId}`);
 
+            const sid = String(driverId);
             if (driverStatuses.has(driverId)) {
                 socket.emit('driver-status-changed', { driverId, status: driverStatuses.get(driverId) });
+            } else {
+                try {
+                    if (redisClient && redisClient.status === 'ready') {
+                        const status = await redisClient.hget('driver_statuses', sid);
+                        if (status) {
+                            socket.emit('driver-status-changed', { driverId, status });
+                        }
+                    }
+                } catch (_) {}
             }
+
             if (driverLocations.has(driverId)) {
                 socket.emit('updateLocation', driverLocations.get(driverId));
+            } else {
+                try {
+                    if (redisClient && redisClient.status === 'ready') {
+                        const locStr = await redisClient.hget('driver_locations', sid);
+                        if (locStr) {
+                            socket.emit('updateLocation', JSON.parse(locStr));
+                        }
+                    }
+                } catch (_) {}
             }
         });
 
         // Manager joins to track ALL drivers (Fleet Map)
-        socket.on('join-managers', () => {
+        socket.on('join-managers', async () => {
             socket.join('managers');
             logger.info('Manager joined global fleet tracking');
 
+            // Send local in-memory locations first
             driverLocations.forEach((location, driverId) => {
                 socket.emit('updateLocation', { ...location, driverId });
             });
+
+            // Fetch other driver locations from Redis (horizontal scale sync)
+            try {
+                if (redisClient && redisClient.status === 'ready') {
+                    const allLocations = await redisClient.hgetall('driver_locations');
+                    if (allLocations) {
+                        Object.entries(allLocations).forEach(([dId, locStr]) => {
+                            if (!driverLocations.has(dId)) {
+                                try {
+                                    socket.emit('updateLocation', JSON.parse(locStr));
+                                } catch (_) {}
+                            }
+                        });
+                    }
+                }
+            } catch (err) {
+                logger.warn('Failed to sync global locations from Redis on join-managers: ' + err.message);
+            }
         });
 
         // Customer joins order tracking
@@ -324,7 +420,7 @@ module.exports = function registerSocketHandlers(io) {
         });
 
         // Driver explicitly logs out
-        socket.on('driver-logout', (driverId) => {
+        socket.on('driver-logout', async (driverId) => {
             if (driverId) {
                 const sid = String(driverId);
                 logger.info(`Driver ${driverId} logged out, clearing location`);
@@ -335,6 +431,8 @@ module.exports = function registerSocketHandlers(io) {
 
                 driverLocations.delete(sid);
                 driverStatuses.set(sid, 'offline');
+                lastDbUpdateTimes.delete(sid);
+                await deleteRedisDriver(driverId);
 
                 db.query(
                     'UPDATE users SET latitude = NULL, longitude = NULL, last_location_update = NULL WHERE id = $1',
@@ -346,7 +444,7 @@ module.exports = function registerSocketHandlers(io) {
             }
         });
 
-        socket.on('disconnect', () => {
+        socket.on('disconnect', async () => {
             logger.info('Client disconnected:', socket.id);
             if (socket.driverId) {
                 const driverId = socket.driverId;
@@ -359,6 +457,8 @@ module.exports = function registerSocketHandlers(io) {
                     if (sockets.size === 0) {
                         driverSockets.delete(sid);
                         driverStatuses.set(sid, 'offline');
+                        lastDbUpdateTimes.delete(sid);
+                        await setRedisDriverStatus(driverId, 'offline');
                         io.to('managers').emit('driver-status-changed', { driverId, status: 'offline' });
                         io.emit('driver-status-changed', { driverId, status: 'offline' });
                         logger.info(`Driver ${driverId} is now offline (no more sockets) - location preserved`);

@@ -68,7 +68,14 @@ async function withEliteLock(req, idempotencyKey, action) {
                 if (record.request_hash !== requestHash) throw new Error('IDEMPOTENCY_KEY_REUSE_DETECTED');
                 if (record.status === 'processing') throw new Error('PROCESS_IN_PROGRESS');
                 await client.query('ROLLBACK');
-                return record.response_data;
+                
+                let parsedResponse = record.response_data;
+                if (typeof parsedResponse === 'string') {
+                    try {
+                        parsedResponse = JSON.parse(parsedResponse);
+                    } catch (_) {}
+                }
+                return parsedResponse;
             }
 
             await client.query(

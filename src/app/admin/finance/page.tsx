@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -12,97 +12,187 @@ import {
     AlertCircle,
     Info,
     CheckCircle2,
-    Search
+    Search,
+    ChevronLeft,
+    Settings
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { apiCall } from "@/lib/api";
+
+// ==========================================
+// CONSTANTS & TYPES
+// ==========================================
+
+const API_ENDPOINTS = {
+    GET_SUMMARY: '/admin/finance/summary'
+} as const;
+
+const NAVIGATION_ROUTES = {
+    PAYOUTS: '/admin/finance/payouts',
+    PRICING: '/admin/catalog/pricing'
+} as const;
+
+interface FinanceSummary {
+    total_gross_value: number;
+    total_platform_commission: number;
+    total_provider_earnings: number;
+    unpaid_bookings_count: number;
+    total_payouts_made: number;
+}
+
+interface StatCardProps {
+    title: string;
+    value: string | number;
+    icon: React.ComponentType<{ className?: string }>;
+    color: 'indigo' | 'emerald' | 'blue' | 'amber';
+    subtitle: string;
+}
+
+interface QuickLinkProps {
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    href: string;
+}
+
+// ==========================================
+// DOMAIN UTILITIES
+// ==========================================
+
+const formatCurrency = (value: number): string => {
+    return `${value.toFixed(2)} ج.م`;
+};
+
+// ==========================================
+// RENDER COMPONENTS
+// ==========================================
 
 export default function FinancePage() {
-    const [summary, setSummary] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const [summary, setSummary] = useState<FinanceSummary | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchSummary();
-    }, []);
+    const activeControllerRef = useRef<AbortController | null>(null);
 
-    const fetchSummary = async () => {
+    const fetchSummary = async (signal?: AbortSignal) => {
         setLoading(true);
+        setError(null);
+
         try {
-            const token = localStorage.getItem("qareeblak_token");
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/finance/summary`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (data.success) {
-                setSummary(data.data);
+            const res = await apiCall<{ success: boolean; data: FinanceSummary; error?: string }>(
+                API_ENDPOINTS.GET_SUMMARY, 
+                { signal }
+            );
+            if (res.success && res.data) {
+                setSummary(res.data);
             } else {
-                setError(data.error || "فشل تحميل البيانات");
+                setError(res.error || "فشل تحميل البيانات");
             }
-        } catch (err) {
-            setError("حدث خطأ في الاتصال بالسيرفر");
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name === 'AbortError') return;
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message || "حدث خطأ في الاتصال بالسيرفر");
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) return <div className="flex items-center justify-center h-96"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>;
+    useEffect(() => {
+        const controller = new AbortController();
+        activeControllerRef.current = controller;
+        fetchSummary(controller.signal);
+
+        return () => {
+            controller.abort();
+        };
+    }, []);
+
+    const handleRefetch = () => {
+        if (activeControllerRef.current) {
+            activeControllerRef.current.abort();
+        }
+        const controller = new AbortController();
+        activeControllerRef.current = controller;
+        fetchSummary(controller.signal);
+    };
+
+    if (loading) {
+        return (
+            <div 
+                className="flex items-center justify-center h-96" 
+                role="status" 
+                aria-label="تحميل البيانات المالية"
+            >
+                <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    const remainingPayouts = (summary?.total_provider_earnings ?? 0) - (summary?.total_payouts_made ?? 0);
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6" dir="rtl">
+            <header className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">الإدارة المالية</h1>
                     <p className="text-slate-500 text-sm">متابعة الأرباح، العمولات، وتسوية حسابات مقدمي الخدمة.</p>
                 </div>
-                <Button onClick={fetchSummary} variant="outline" size="sm" className="gap-2">
-                    <History className="w-4 h-4" /> تحديث البيانات
+                <Button 
+                    onClick={handleRefetch} 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    aria-label="تحديث البيانات المالية"
+                >
+                    <History className="w-4 h-4" aria-hidden="true" /> تحديث البيانات
                 </Button>
-            </div>
+            </header>
 
             {error && (
-                <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl text-red-600 dark:text-red-400 flex items-center gap-3">
-                    <AlertCircle className="w-5 h-5" />
-                    <p>{error}</p>
+                <div 
+                    className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl text-red-600 dark:text-red-400 flex items-center gap-3"
+                    role="alert"
+                >
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+                    <p className="text-sm font-medium">{error}</p>
                 </div>
             )}
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <section aria-label="خلاصة الإحصائيات المالية" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard 
                     title="إجمالي قيمة التداول" 
-                    value={`${summary?.total_gross_value || 0} ج.م`} 
+                    value={formatCurrency(summary?.total_gross_value ?? 0)} 
                     icon={TrendingUp} 
                     color="indigo" 
                     subtitle="إجمالي قيمة جميع الطلبات المكتملة"
                 />
                 <StatCard 
                     title="عمولة التطبيق" 
-                    value={`${summary?.total_platform_commission || 0} ج.م`} 
+                    value={formatCurrency(summary?.total_platform_commission ?? 0)} 
                     icon={ArrowUpRight} 
                     color="emerald" 
                     subtitle="صافي الربح المستحق للمنصة"
                 />
                 <StatCard 
                     title="مستحقات مقدمي الخدمة" 
-                    value={`${summary?.total_provider_earnings || 0} ج.m`} 
+                    value={formatCurrency(summary?.total_provider_earnings ?? 0)} 
                     icon={Wallet} 
                     color="blue" 
                     subtitle="إجمالي مستحقات الشركاء (صافي)"
                 />
                 <StatCard 
                     title="طلبات قيد التسوية" 
-                    value={summary?.unpaid_bookings_count || 0} 
+                    value={summary?.unpaid_bookings_count ?? 0} 
                     icon={Info} 
                     color="amber" 
                     subtitle="عدد الطلبات المكتملة التي لم تُصرف بعد"
                 />
-            </div>
+            </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2 border-slate-200 dark:border-slate-800">
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500" aria-hidden="true" />
                             إجمالي الحسابات المالية
                         </CardTitle>
                     </CardHeader>
@@ -111,20 +201,21 @@ export default function FinancePage() {
                             <div className="flex justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
                                 <div>
                                     <p className="text-sm text-slate-500">تم صرفه للملاك/الشركاء</p>
-                                    <p className="text-xl font-bold text-slate-900 dark:text-white">{summary?.total_payouts_made || 0} ج.م</p>
+                                    <p className="text-xl font-bold text-slate-900 dark:text-white">
+                                        {formatCurrency(summary?.total_payouts_made ?? 0)}
+                                    </p>
                                 </div>
                                 <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center text-emerald-600">
-                                    <ArrowDownRight className="w-6 h-6" />
+                                    <ArrowDownRight className="w-6 h-6" aria-hidden="true" />
                                 </div>
                             </div>
                             
                             <div className="p-4 border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20 rounded-xl">
                                 <div className="flex items-center gap-2 mb-2 text-indigo-700 dark:text-indigo-400 font-bold text-sm">
-                                    <AlertCircle className="w-4 h-4" /> تنبيه مالي
+                                    <AlertCircle className="w-4 h-4" aria-hidden="true" /> تنبيه مالي
                                 </div>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    هناك ما يعادل <span className="font-bold text-slate-900 dark:text-white">{(summary?.total_provider_earnings - summary?.total_payouts_made).toFixed(2)} ج.م</span> 
-                                    مستحقات لم يتم تسويتها بعد لمقدمي الخدمة.
+                                    هناك ما يعادل <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(remainingPayouts)}</span> مستحقات لم يتم تسويتها بعد لمقدمي الخدمة.
                                 </p>
                             </div>
                         </div>
@@ -136,8 +227,18 @@ export default function FinancePage() {
                         <CardTitle className="text-lg">روابط سريعة</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                        <QuickLink label="كشف حساب مقدم خدمة" icon={Search} href="/admin/finance/payouts" />
-                        <QuickLink label="تعديل نسبة العمولة" icon={Settings} href="/admin/catalog/pricing" />
+                        <nav aria-label="روابط الإدارة المالية السريعة" className="space-y-2">
+                            <QuickLink 
+                                label="كشف حساب مقدم خدمة" 
+                                icon={Search} 
+                                href={NAVIGATION_ROUTES.PAYOUTS} 
+                            />
+                            <QuickLink 
+                                label="تعديل نسبة العمولة" 
+                                icon={Settings} 
+                                href={NAVIGATION_ROUTES.PRICING} 
+                            />
+                        </nav>
                     </CardContent>
                 </Card>
             </div>
@@ -145,8 +246,12 @@ export default function FinancePage() {
     );
 }
 
-function StatCard({ title, value, icon: Icon, color, subtitle }: any) {
-    const colors: any = {
+// ==========================================
+// SUB-COMPONENTS
+// ==========================================
+
+function StatCard({ title, value, icon: Icon, color, subtitle }: StatCardProps) {
+    const colors: Record<string, string> = {
         indigo: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400",
         emerald: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
         blue: "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
@@ -158,7 +263,7 @@ function StatCard({ title, value, icon: Icon, color, subtitle }: any) {
             <CardContent className="p-5">
                 <div className="flex justify-between items-start mb-4">
                     <div className={`p-2 rounded-lg ${colors[color]}`}>
-                        <Icon className="w-5 h-5" />
+                        <Icon className="w-5 h-5" aria-hidden="true" />
                     </div>
                 </div>
                 <div>
@@ -171,56 +276,17 @@ function StatCard({ title, value, icon: Icon, color, subtitle }: any) {
     );
 }
 
-function QuickLink({ label, icon: Icon, href }: any) {
+function QuickLink({ label, icon: Icon, href }: QuickLinkProps) {
     return (
         <a 
             href={href}
-            className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-sm font-medium text-slate-600 dark:text-slate-400"
+            className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-sm font-medium text-slate-600 dark:text-slate-400 focus-visible:ring-2 focus-visible:ring-indigo-500"
         >
             <div className="flex items-center gap-2">
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4" aria-hidden="true" />
                 {label}
             </div>
-            <ArrowLeft className="w-3 h-3" />
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
         </a>
-    );
-}
-
-function Settings(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-            <circle cx="12" cy="12" r="3" />
-        </svg>
-    );
-}
-
-function ArrowLeft(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="m15 18-6-6 6-6" />
-        </svg>
     );
 }

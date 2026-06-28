@@ -582,6 +582,11 @@ class BookingRepository {
         return result.rows[0]?.user_id;
     }
 
+    async getProviderIdByUserId(userId) {
+        const result = await pool.query('SELECT id FROM providers WHERE user_id = $1 LIMIT 1', [userId]);
+        return result.rows[0]?.id;
+    }
+
     async getProviderFinanceInfo(providerId) {
         const result = await pool.query('SELECT commission_rate FROM providers WHERE id = $1', [providerId]);
         return result.rows[0];

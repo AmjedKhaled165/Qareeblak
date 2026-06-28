@@ -262,6 +262,7 @@ const initializeWorkers = async () => {
 
 module.exports = {
     get notificationQueue() { return _notificationQueue; },
+    get maintenanceQueue() { return _maintenanceQueue; },
     addNotificationJob,
     initializeWorkers
 };
