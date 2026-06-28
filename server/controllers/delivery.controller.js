@@ -289,7 +289,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             is_parent: true,
             courier_name: first.courier_name || undefined,
             courier_phone: first.courier_phone || undefined,
-            sub_orders: subOrders.map(s => obfuscateOrder(s))
+            sub_orders: subOrders
         };
 
         const encryptedId = encodeEntityId(entityType, entityId);
@@ -458,10 +458,7 @@ exports.getOrders = catchAsync(async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const hasMore = result.hasMore !== undefined ? result.hasMore : (records.length === limit);
 
-    const obfuscated = records.map(o => obfuscateOrder({
-        ...o,
-        ...(o.sub_orders ? { sub_orders: o.sub_orders.map(s => obfuscateOrder(s)) } : {})
-    }));
+    const obfuscated = records.map(o => obfuscateOrder(o));
 
     res.status(200).json({
         success: true,

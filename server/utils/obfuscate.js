@@ -62,6 +62,7 @@ function obfuscateOrder(order) {
         ...(order.customer_id ? { customer_id: Number(order.customer_id) } : {}),
         ...(order.sub_orders ? { sub_orders: order.sub_orders.map(s => ({
             ...s,
+            display_id: s.display_id || s.id,
             id: encode(s.id, 'booking')
         })) } : {}),
     };
