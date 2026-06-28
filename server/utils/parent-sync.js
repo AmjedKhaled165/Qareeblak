@@ -72,7 +72,7 @@ async function syncParentOrderStatus(parentId, io) {
     const parentUpdatedAtCol = pickColumn(parentCols, ['updated_at']);
     const bookingStatusCol = pickColumn(bookingCols, ['status', 'order_status', 'state']);
     const bookingParentCol = pickColumn(bookingCols, ['parent_order_id', 'parent_id']);
-    const bookingDeliveryCol = pickColumn(bookingCols, ['halan_order_id', 'delivery_order_id']);
+    const bookingDeliveryCol = pickColumn(bookingCols, ['delivery_order_id', 'halan_order_id']);
     const deliveryStatusCol = pickColumn(deliveryCols, ['status', 'order_status', 'state']);
 
     // Fallback to safe defaults if columns not found
@@ -115,7 +115,7 @@ async function syncParentOrderStatus(parentId, io) {
         const bookingDeliveryColForSelect = bookingDeliveryCol || 'halan_order_id';
         
         const bookingStatusSelect = `b.${bookingStatusColForSelect}`;
-        const deliveryJoin = `LEFT JOIN delivery_orders d ON b.${bookingDeliveryColForSelect} = d.id`;
+        const deliveryJoin = `LEFT JOIN delivery_orders d ON b.${bookingDeliveryColForSelect}::text = d.id::text`;
         const deliveryStatusSelect = `d.${deliveryStatusColForSelect}`;
         
         const result = await client.query(

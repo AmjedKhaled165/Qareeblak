@@ -149,8 +149,17 @@ export default function TrackOrderPage() {
                 const elapsedSeconds = Math.floor((now - createdAt) / 1000);
                 const remaining = Math.max(0, 300 - elapsedSeconds);
                 setTimeRemaining(remaining);
-                const normalizedStatus = normalizeTrackingStatus(data.order.status);
-                setCanModify(remaining > 0 && !['delivered', 'cancelled'].includes(normalizedStatus));
+                
+                const isPastAssigned = (status: string) => {
+                    const norm = normalizeTrackingStatus(status);
+                    return ['ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'cancelled', 'completed'].includes(norm);
+                };
+                
+                const hasAnyProviderPrepared = 
+                    (data.order.sub_orders && data.order.sub_orders.some((sub: any) => isPastAssigned(sub.status))) || 
+                    isPastAssigned(data.order.status);
+
+                setCanModify(remaining > 0 && !hasAnyProviderPrepared);
             } else {
                 setError(data.error || 'الطلب غير موجود');
             }
@@ -437,7 +446,7 @@ export default function TrackOrderPage() {
 
 
     // Can add items until 'In Transit' (picked_up or in_transit)
-    const canAddItems = order && !['in_transit', 'delivered', 'cancelled'].includes(normalizeTrackingStatus(order.status));
+    const canAddItems = canModify;
 
     // Cancel order
     const handleCancelOrder = async () => {

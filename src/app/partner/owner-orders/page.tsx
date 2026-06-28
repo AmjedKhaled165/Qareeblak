@@ -200,13 +200,19 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                                     <UserCheck className="w-3 h-3" />
                                     المسؤول
                                 </h3>
-                                <div
-                                    className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-indigo-200 dark:border-indigo-700"
-                                    title="تعيين المسؤول يتم تلقائيا"
-                                    aria-label="المسؤول المحدد تلقائيا"
+                                <select 
+                                    className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-indigo-200 dark:border-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={order.supervisor_id || ''}
+                                    onChange={(e) => onUpdateOrder(order.id, { supervisor_id: e.target.value || null })}
+                                    title="تغيير المسؤول"
+                                    aria-label="تغيير المسؤول"
                                 >
-                                    {resolvedSupervisorName || 'يتم التعيين تلقائيا'}
-                                </div>
+                                    <option value="">غير معين</option>
+                                    {order.supervisor_id && !managers.some(m => Number(m.id) === Number(order.supervisor_id)) && (
+                                        <option value={order.supervisor_id}>{resolvedSupervisorName || `مسؤول #${order.supervisor_id}`}</option>
+                                    )}
+                                    {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                </select>
                             </div>
 
                             <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
@@ -513,7 +519,6 @@ export default function OwnerAllOrdersPage() {
                 });
             } else {
                 const metaPayload: any = { ...payload };
-                delete metaPayload.supervisor_id;
                 await apiCall(`/halan/orders/${id}/meta`, {
                     method: 'PATCH',
                     body: JSON.stringify(metaPayload)
@@ -525,6 +530,9 @@ export default function OwnerAllOrdersPage() {
                 const updatedOrder = { ...selectedOrder, ...payload };
                 if (payload.courier_id !== undefined) {
                     updatedOrder.courier_name = drivers.find(d => d.id == payload.courier_id)?.name || null;
+                }
+                if (payload.supervisor_id !== undefined) {
+                    updatedOrder.supervisor_name = managers.find(m => Number(m.id) === Number(payload.supervisor_id))?.name || null;
                 }
                 setSelectedOrder(updatedOrder);
             }

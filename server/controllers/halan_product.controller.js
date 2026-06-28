@@ -8,7 +8,7 @@ exports.getAll = catchAsync(async (req, res) => {
 });
 
 exports.create = catchAsync(async (req, res) => {
-    if (req.user.role !== 'owner') throw new AppError('Unauthorized', 403);
+    if (req.user.user_type !== 'partner_owner' && req.user.user_type !== 'admin' && req.user.role !== 'owner') throw new AppError('Unauthorized', 403);
     const { name } = req.body;
     if (!name) throw new AppError('اسم المنتج مطلوب', 400);
 
@@ -19,7 +19,7 @@ exports.create = catchAsync(async (req, res) => {
 });
 
 exports.delete = catchAsync(async (req, res) => {
-    if (req.user.role !== 'owner') throw new AppError('Unauthorized', 403);
+    if (req.user.user_type !== 'partner_owner' && req.user.user_type !== 'admin' && req.user.role !== 'owner') throw new AppError('Unauthorized', 403);
     await productRepo.delete(req.params.id);
     res.json({ success: true, message: 'تم حذف المنتج' });
 });

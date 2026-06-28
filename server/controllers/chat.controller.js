@@ -136,8 +136,21 @@ exports.acceptQuote = catchAsync(async (req, res, next) => {
 });
 
 exports.getProviderConsultations = catchAsync(async (req, res, next) => {
-    const { providerId } = req.params;
+    const { providerId: rawProviderId } = req.params;
     const { status, limit = 20, lastId = null } = req.query; // cursor-based
+
+    const { decodeEntityId } = require('../utils/obfuscate');
+    let providerId = decodeEntityId('provider', String(rawProviderId)) || String(rawProviderId);
+    
+    // Legacy support
+    if (typeof providerId === 'string' && providerId.toUpperCase().startsWith('P')) {
+        providerId = providerId.slice(1);
+    }
+    providerId = parseInt(providerId, 10);
+
+    if (isNaN(providerId) || providerId <= 0) {
+        throw new AppError('معرف مقدم الخدمة غير صالح', 400);
+    }
 
     // Security check: only the owner of this provider can view their consultations
     const check = await pool.query('SELECT user_id FROM providers WHERE id = $1', [providerId]);

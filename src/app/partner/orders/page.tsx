@@ -332,7 +332,7 @@ export default function OrdersPage() {
                                             <div className="flex items-center gap-2">
                                                 <StatusIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                                                 <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                    {order.customer_name} #{order.display_id || order.id}
+                                                    {user?.role === 'courier' ? `${order.customer_name} ` : ''}#{order.display_id || order.id}
                                                 </span>
                                             </div>
                                             {(order as any).source === 'qareeblak' && (
@@ -352,20 +352,24 @@ export default function OrdersPage() {
                                     </div>
 
                                     {/* Customer Info */}
-                                    <div className="mb-3">
-                                        <p className="font-bold text-slate-800 dark:text-slate-100">{order.customer_name}</p>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">{order.customer_phone}</p>
-                                    </div>
+                                    {user?.role === 'courier' && (
+                                        <div className="mb-3">
+                                            <p className="font-bold text-slate-800 dark:text-slate-100">{order.customer_name}</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">{order.customer_phone}</p>
+                                        </div>
+                                    )}
 
                                     {/* Address */}
-                                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-sm">
-                                        <div className="flex items-start gap-2">
-                                            <div className="w-5 h-5 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                <MapPin className="w-3 h-3 text-green-600 dark:text-green-400" />
+                                    {user?.role === 'courier' && (
+                                        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-sm">
+                                            <div className="flex items-start gap-2">
+                                                <div className="w-5 h-5 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                    <MapPin className="w-3 h-3 text-green-600 dark:text-green-400" />
+                                                </div>
+                                                <span className="text-slate-700 dark:text-slate-200">{order.delivery_address}</span>
                                             </div>
-                                            <span className="text-slate-700 dark:text-slate-200">{order.delivery_address}</span>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Footer (Date + Actions) */}
                                     <div className="flex justify-between items-center mt-3 pt-3 border-t dark:border-slate-700">

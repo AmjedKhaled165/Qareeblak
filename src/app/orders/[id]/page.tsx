@@ -88,12 +88,12 @@ export default function OrderTrackingPage() {
     const canModifyOrder = (): { allowed: boolean; reason?: string } => {
         if (!order) return { allowed: false, reason: "جاري تحميل البيانات..." };
 
-        // Rule B: Check status for "Out for Delivery" - IMMEDIATELY BLOCK
-        const outForDeliveryStatuses = ['in_transit', 'picked_up'];
-        if (outForDeliveryStatuses.includes(order.halanStatus)) {
+        // Rule B: Check status for "Out for Delivery" or "Prepared" - IMMEDIATELY BLOCK
+        const outForDeliveryStatuses = ['ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed'];
+        if (outForDeliveryStatuses.includes(order.halanStatus) || outForDeliveryStatuses.includes(order.status)) {
             return {
                 allowed: false,
-                reason: "لا يمكن تعديل الطلب أثناء توصيله"
+                reason: "لا يمكن تعديل الطلب بعد بدء تحضيره"
             };
         }
 
