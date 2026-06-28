@@ -255,13 +255,31 @@ class DeliveryService {
                 const booking = bookingResult.rows[0];
                 const bookingItems = this._parseItems(booking.items);
                 const mergedBookingItems = [...bookingItems, ...normalized];
-                await db.query('UPDATE bookings SET items = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(mergedBookingItems), booking.id]);
+                const newPrice = mergedBookingItems.reduce((sum, i) => sum + (parseFloat(i.price || i.unit_price || 0) * (parseFloat(i.quantity) || 1)), 0);
+                await db.query('UPDATE bookings SET items = $1, price = $2, updated_at = NOW() WHERE id = $3', [JSON.stringify(mergedBookingItems), newPrice, booking.id]);
             } else {
                 const parentResult = await db.query('SELECT MAX(parent_order_id) as parent_id FROM bookings WHERE CAST(halan_order_id AS TEXT) = $1', [String(orderId)]);
                 const parentId = parentResult.rows[0]?.parent_id || null;
                 const price = normalized.reduce((sum, i) => sum + (parseFloat(i.price || i.unit_price || 0) * (parseFloat(i.quantity) || 1)), 0);
-                const pRes = await db.query('SELECT name FROM users WHERE id = $1', [providerId]);
-                const providerName = pRes.rows[0]?.name || normalized[0]?.providerName || 'متجر غير معروف';
+                
+                let providerName = normalized[0]?.providerName;
+                if (providerId) {
+                    try {
+                        const pRes = await db.query('SELECT name FROM providers WHERE id = $1 LIMIT 1', [providerId]);
+                        if (pRes.rows.length > 0) {
+                            providerName = pRes.rows[0].name;
+                        } else {
+                            const uRes = await db.query('SELECT name FROM users WHERE id = $1 LIMIT 1', [providerId]);
+                            if (uRes.rows.length > 0) {
+                                providerName = uRes.rows[0].name;
+                            }
+                        }
+                    } catch (err) {
+                        console.error('[customerAddItemsBulk] Error fetching provider name:', err.message);
+                    }
+                }
+                providerName = providerName || 'متجر غير معروف';
+                
                 const userId = currentOrder.customer_id || null;
                 const userName = currentOrder.customer_name || 'عميل';
                 const details = `الهاتف: ${currentOrder.customer_phone || ''} | العنوان: ${currentOrder.delivery_address || ''}`;

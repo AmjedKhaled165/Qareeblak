@@ -185,6 +185,7 @@ exports.getCustomerOrdersPublic = catchAsync(async (req, res) => {
         return {
             ...orderWithoutStatuses,
             id: encryptedId,
+            display_id: order.is_parent ? String(order.id).slice(1) : order.id,
             order_number: String(order.id)
         };
     });
@@ -200,34 +201,30 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
     let decodedBookingId = decodeEntityId('booking', rawId);
     const decodedOrderId = decodeEntityId('order', rawId);
 
-    if (decodedOrderId !== null && decodedParentId === null && decodedBookingId === null) {
-        const bResult = await db.query(
-            `SELECT b.id, b.parent_order_id FROM bookings b WHERE b.halan_order_id::TEXT = $1 LIMIT 1`,
-            [String(decodedOrderId)]
-        );
-        if (bResult.rows.length > 0) {
-            const booking = bResult.rows[0];
-            if (booking.parent_order_id) {
-                decodedParentId = booking.parent_order_id;
-            } else {
-                decodedBookingId = booking.id;
-            }
-        }
-    }
-
     // Legacy: support P{id} prefix for backward compatibility
     if (decodedParentId === null && rawId.toUpperCase().startsWith('P')) {
         const legacyParentId = Number(rawId.slice(1));
-        if (!Number.isInteger(legacyParentId) || legacyParentId <= 0) {
-            throw new AppError('معرف الطلب غير صالح', 400);
+        if (Number.isInteger(legacyParentId) && legacyParentId > 0) {
+            decodedParentId = legacyParentId;
         }
-        decodedParentId = legacyParentId;
     }
 
-    if (decodedParentId !== null) {
-        const parentId = decodedParentId;
-        if (!Number.isInteger(parentId) || parentId <= 0) {
-            throw new AppError('معرف الطلب غير صالح', 400);
+    if (decodedOrderId !== null || decodedParentId !== null) {
+        let whereClause = '';
+        let params = [];
+        let entityType = '';
+        let entityId = null;
+
+        if (decodedOrderId !== null) {
+            whereClause = 'b.halan_order_id::TEXT = $1';
+            params = [String(decodedOrderId)];
+            entityType = 'order';
+            entityId = decodedOrderId;
+        } else {
+            whereClause = 'b.parent_order_id = $1';
+            params = [decodedParentId];
+            entityType = 'parent_order';
+            entityId = decodedParentId;
         }
 
         const result = await db.query(
@@ -253,9 +250,9 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
              LEFT JOIN delivery_orders d ON CAST(b.halan_order_id AS TEXT) = CAST(d.id AS TEXT)
              LEFT JOIN parent_orders p ON p.id = b.parent_order_id
              LEFT JOIN users c ON c.id = d.courier_id
-             WHERE b.parent_order_id = $1
+             WHERE ${whereClause}
              ORDER BY b.id ASC`,
-            [parentId]
+            params
         );
 
         if (result.rows.length === 0) throw new AppError('الطلب غير موجود', 404);
@@ -263,6 +260,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         const first = result.rows[0];
         const subOrders = result.rows.map((r) => ({
             id: r.id,
+            display_id: r.id,
             provider_name: r.provider_name,
             status: r.effective_status || r.status,
             price: Number(r.price || 0),
@@ -276,8 +274,8 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         const effectiveParentStatus = parentStatus === 'cancelled' ? 'cancelled' : aggregateStatus;
 
         const order = {
-            id: encodeEntityId('parent_order', parentId),
-            order_number: String(parentId),
+            id: encodeEntityId(entityType, entityId),
+            order_number: String(entityId),
             customer_name: first.customer_name || 'عميل',
             customer_phone: first.customer_phone || '',
             delivery_address: first.delivery_address || first.details || 'غير متاح',
@@ -294,9 +292,10 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             sub_orders: subOrders.map(s => obfuscateOrder(s))
         };
 
-        const encryptedId = encodeEntityId('parent_order', parentId);
+        const encryptedId = encodeEntityId(entityType, entityId);
         const encryptedResponse = {
             ...obfuscateOrder(order),
+            display_id: entityId,
             id: encryptedId,
             order_number: encryptedId,
         };
@@ -357,7 +356,8 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         courier_phone: booking.courier_phone || undefined
     };
 
-    return res.status(200).json({ success: true, order: obfuscateOrder(order) });
+    const obfuscatedBooking = obfuscateOrder(order);
+    return res.status(200).json({ success: true, order: { ...obfuscatedBooking, display_id: booking.id } });
 });
 
 exports.trackOrderByCode = catchAsync(async (req, res) => {
