@@ -65,6 +65,13 @@ class WheelService {
 
             await client.query('COMMIT');
 
+            // Send Notification
+            const { createNotification } = require('../routes/notifications');
+            if (winningPrize.prize_type !== 'hard_luck') {
+                createNotification(userId, 'عجلة الحظ', `مبروك! لقد فزت بـ ${winningPrize.name} 🎉 من عجلة الحظ.`, 'wheel_spin', String(winningPrize.id)).catch(e => logger.error('Wheel notification error:', e));
+            }
+
+
             return {
                 id: winningPrize.id,
                 name: winningPrize.name,

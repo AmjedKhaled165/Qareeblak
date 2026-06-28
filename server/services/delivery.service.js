@@ -202,6 +202,10 @@ class DeliveryService {
             this._emitOrderSync(io, orderId, { updates: { items }, extraBooking: { items } });
         }
 
+        // Send Notification
+        const { createNotification } = require('../routes/notifications');
+        createNotification(currentOrder.user_id, 'تحديث في الطلب', logMsg, 'status_update', String(orderId), io).catch(e => logger.error('Remove item notification error:', e));
+
         return updated;
     }
 
@@ -330,6 +334,10 @@ class DeliveryService {
         if (io) {
             this._emitOrderSync(io, orderId, { updates: { items: merged }, extraBooking: { items: merged } });
         }
+
+        // Send Notification
+        const { createNotification } = require('../routes/notifications');
+        createNotification(currentOrder.user_id, 'تحديث في الطلب', `أضاف العميل ${normalized.length} منتج/منتجات للطلب.`, 'status_update', String(orderId), io).catch(e => logger.error('Add item notification error:', e));
 
         return { order: updated, items: merged };
     }
@@ -562,6 +570,20 @@ class DeliveryService {
             }
             await Promise.all(parentIds.map(pid => syncParentOrderStatus(pid, io).catch(e => logger.error(`syncParentOrderStatus #${pid} failed:`, e.message))));
         }
+
+        // Send Notification
+        const { createNotification } = require('../routes/notifications');
+        const statusMap = {
+            'pending': 'قيد الانتظار',
+            'assigned': 'تم التعيين',
+            'picked_up': 'جاري التوصيل',
+            'in_transit': 'في الطريق',
+            'delivered': 'تم التوصيل',
+            'cancelled': 'تم الإلغاء'
+        };
+        const statusMsg = `تم تحديث حالة طلبك إلى: ${statusMap[status] || status}`;
+        createNotification(currentOrder.user_id || currentOrder.customer_id, 'تحديث حالة الطلب', statusMsg, 'status_update', String(id), io).catch(e => logger.error('Status notification error:', e));
+
 
         // Auto-send WhatsApp invoice once courier marks order as delivered
         const normalizedStatus = String(status || '').trim().toLowerCase();

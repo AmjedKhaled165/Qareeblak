@@ -1,0 +1,1 @@
+require('dotenv').config({path:'../.env'}); require('dotenv').config({path:'.env'}); const db = require('./db'); db.query('SELECT column_name, data_type FROM information_schema.columns WHERE table_name = \'notifications\'').then(r => console.log(JSON.stringify(r.rows, null, 2))).catch(console.error).finally(() => process.exit(0));

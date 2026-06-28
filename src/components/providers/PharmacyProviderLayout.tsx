@@ -38,7 +38,7 @@ interface Service {
 }
 
 interface Provider {
-    id: number;
+    id: number | string;
     name: string;
     category: string;
     description?: string;

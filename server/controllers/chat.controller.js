@@ -8,7 +8,20 @@ const logger = require('../utils/logger');
 exports.startConsultation = catchAsync(async (req, res, next) => {
     const { providerId: rawProviderId } = req.body;
     const { decodeEntityId } = require('../utils/obfuscate');
-    const providerId = decodeEntityId('provider', rawProviderId) || rawProviderId;
+    
+    let providerId = decodeEntityId('provider', String(rawProviderId)) || String(rawProviderId);
+    
+    // Legacy support: strip any 'P' or 'p' prefixes, etc., and convert to Number
+    if (typeof providerId === 'string' && providerId.toUpperCase().startsWith('P')) {
+        providerId = providerId.slice(1);
+    }
+    
+    providerId = parseInt(providerId, 10);
+
+    if (isNaN(providerId) || providerId <= 0) {
+        throw new AppError('معرف مقدم الخدمة غير صالح', 400);
+    }
+
     const customerId = req.user.id; // From verifyToken
 
     const result = await chatService.startConsultation(customerId, providerId);

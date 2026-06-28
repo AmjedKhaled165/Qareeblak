@@ -48,7 +48,8 @@ router.get('/', async (req, res, next) => {
             SELECT
                 id,
                 user_id,
-                ${messageCol ? `${messageCol}::text` : `'إشعار جديد'`} AS message,
+                ${cols.has('title') ? 'title' : `'إشعار'`} AS title,
+                ${cols.has('message') ? 'message' : `'إشعار جديد'`} AS message,
                 ${typeCol ? `${typeCol}::text` : `'info'`} AS type,
                 ${refCol ? `${refCol}::text` : 'NULL'} AS reference_id,
                 ${readCol ? `${readCol}` : 'FALSE'} AS is_read,
@@ -172,10 +173,10 @@ router.post('/', async (req, res, next) => {
 // ==========================================
 // Helper: Create a notification (used internally by other routes)
 // ==========================================
-async function createNotification(userId, message, type, referenceId = null, io = null) {
+async function createNotification(userId, title, message, type, referenceId = null, io = null) {
     try {
         const cols = await getNotificationsColumns();
-        const messageCol = pickFirstExisting(cols, ['message', 'body', 'content', 'title']);
+        
         const typeCol = pickFirstExisting(cols, ['type', 'notification_type']);
         const refCol = pickFirstExisting(cols, ['reference_id', 'reference', 'related_id']);
         const readCol = pickFirstExisting(cols, ['is_read', 'read']);
@@ -190,7 +191,8 @@ async function createNotification(userId, message, type, referenceId = null, io 
             values.push(`$${params.length}`);
         };
 
-        if (messageCol) push(messageCol, message);
+        if (cols.has('title')) push('title', title);
+        if (cols.has('message')) push('message', message);
         if (typeCol) push(typeCol, type);
         if (refCol) push(refCol, referenceId);
         if (readCol) push(readCol, false);
@@ -203,7 +205,8 @@ async function createNotification(userId, message, type, referenceId = null, io 
         const raw = result.rows[0] || {};
         const notification = {
             ...raw,
-            message: messageCol ? raw[messageCol] : message,
+            title: cols.has('title') ? raw.title : title,
+            message: cols.has('message') ? raw.message : message,
             type: typeCol ? raw[typeCol] : type,
             reference_id: refCol ? raw[refCol] : referenceId,
             is_read: readCol ? raw[readCol] : false

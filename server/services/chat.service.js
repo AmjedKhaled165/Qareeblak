@@ -33,7 +33,7 @@ class ChatService {
     }
 
     async sendMessage(consultationId, userId, { senderType, message, imageUrl }) {
-        await this._verifyOwnership(consultationId, userId);
+        const consult = await this._verifyOwnership(consultationId, userId);
 
         const savedMessage = await chatRepo.saveMessage({
             consultationId,
@@ -44,6 +44,13 @@ class ChatService {
         });
 
         await chatRepo.updateConsultationTimestamp(consultationId);
+        
+        // Notify the other party
+        const recipientId = userId === consult.customer_id ? consult.provider_id : consult.customer_id;
+        const msgType = imageUrl ? 'أرسل صورة' : message;
+        const { createNotification } = require('../routes/notifications');
+        createNotification(recipientId, 'رسالة جديدة', msgType, 'chat_alert', String(consultationId)).catch(e => logger.error('Chat notification error:', e));
+
         return savedMessage;
     }
 

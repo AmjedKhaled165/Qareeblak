@@ -165,7 +165,7 @@ export default function ProviderProfile() {
         return (
             <PharmacyProviderLayout
                 provider={{
-                    id: Number(provider.id),
+                    id: provider.id,
                     name: provider.name,
                     category: provider.category,
                     description: '',

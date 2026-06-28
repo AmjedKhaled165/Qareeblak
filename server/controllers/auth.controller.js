@@ -68,7 +68,13 @@ exports.login = catchAsync(async (req, res, next) => {
     setAuthCookies(res, accessToken, refreshToken);
 
     const { obfuscateUser } = require('../utils/obfuscate');
+    const { createNotification } = require('../routes/notifications');
     logger.info(`User logged in: ${user.email}`);
+
+    // Trigger notification
+    const io = req.app.get('io');
+    createNotification(user.id, 'تسجيل دخول جديد', 'تم تسجيل الدخول إلى حسابك بنجاح للتو. إذا لم تكن أنت، يرجى تغيير كلمة المرور.', 'system', null, io).catch(e => logger.error('Failed to create login notification:', e));
+
     res.status(200).json({
         success: true,
         message: 'تم تسجيل الدخول بنجاح',
