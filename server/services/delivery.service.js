@@ -260,7 +260,8 @@ class DeliveryService {
                 const parentResult = await db.query('SELECT MAX(parent_order_id) as parent_id FROM bookings WHERE CAST(halan_order_id AS TEXT) = $1', [String(orderId)]);
                 const parentId = parentResult.rows[0]?.parent_id || null;
                 const price = normalized.reduce((sum, i) => sum + (parseFloat(i.price || i.unit_price || 0) * (parseFloat(i.quantity) || 1)), 0);
-                const providerName = normalized[0]?.providerName || 'متجر غير معروف';
+                const pRes = await db.query('SELECT name FROM users WHERE id = $1', [providerId]);
+                const providerName = pRes.rows[0]?.name || normalized[0]?.providerName || 'متجر غير معروف';
                 const userId = currentOrder.customer_id || null;
                 const userName = currentOrder.customer_name || 'عميل';
                 const details = `الهاتف: ${currentOrder.customer_phone || ''} | العنوان: ${currentOrder.delivery_address || ''}`;
