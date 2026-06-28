@@ -256,6 +256,22 @@ class DeliveryService {
                 const bookingItems = this._parseItems(booking.items);
                 const mergedBookingItems = [...bookingItems, ...normalized];
                 await db.query('UPDATE bookings SET items = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(mergedBookingItems), booking.id]);
+            } else {
+                const parentResult = await db.query('SELECT MAX(parent_order_id) as parent_id FROM bookings WHERE CAST(halan_order_id AS TEXT) = $1', [String(orderId)]);
+                const parentId = parentResult.rows[0]?.parent_id || null;
+                const price = normalized.reduce((sum, i) => sum + (parseFloat(i.price || i.unit_price || 0) * (parseFloat(i.quantity) || 1)), 0);
+                const providerName = normalized[0]?.providerName || 'متجر غير معروف';
+                const userId = currentOrder.customer_id || null;
+                const userName = currentOrder.customer_name || 'عميل';
+                const details = `الهاتف: ${currentOrder.customer_phone || ''} | العنوان: ${currentOrder.delivery_address || ''}`;
+                
+                await db.query(`
+                    INSERT INTO bookings 
+                    (user_id, provider_id, user_name, service_name, provider_name, price, details, items, parent_order_id, halan_order_id, status)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                `, [
+                    userId, providerId, userName, `إضافة منتجات (${normalized.length} أصناف)`, providerName, price, details, JSON.stringify(normalized), parentId, orderId, 'pending'
+                ]);
             }
         }
 
