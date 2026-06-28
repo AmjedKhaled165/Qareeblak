@@ -24,7 +24,8 @@ import {
     AlertCircle,
     ArrowRight,
     RefreshCw,
-    Loader2
+    Loader2,
+    Trash2
 } from "lucide-react";
 
 interface OrderItem {
@@ -465,7 +466,7 @@ export default function TrackOrderPage() {
     };
 
     // Remove item from order
-    const handleRemoveItem = async (index: number, subId?: string | number) => {
+    const handleRemoveItem = async (index: number, subId?: string | number, quantityToRemove?: number) => {
         if (!order || !canModify) return;
         setIsSubmitting(true);
 
@@ -473,7 +474,7 @@ export default function TrackOrderPage() {
             const { apiCall } = await import('@/lib/api');
             const data = await apiCall(`/halan/orders/${order.id}/customer-remove-item`, {
                 method: 'POST',
-                body: JSON.stringify({ itemIndex: index, bookingId: subId })
+                body: JSON.stringify({ itemIndex: index, bookingId: subId, quantityToRemove })
             });
 
             if (data.success) {
@@ -1289,14 +1290,26 @@ export default function TrackOrderPage() {
                                                     </div>
                                                 </div>
                                                 {!isItemLocked ? (
-                                                    <button
-                                                        onClick={() => handleRemoveItem(item.originalIdx, item.subId)}
-                                                        disabled={isSubmitting}
-                                                        className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg transition-colors"
-                                                        title="حذف المنتج"
-                                                    >
-                                                        <X className="w-5 h-5" />
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        {(item.quantity || 1) > 1 && (
+                                                            <button
+                                                                onClick={() => handleRemoveItem(item.originalIdx, item.subId, 1)}
+                                                                disabled={isSubmitting}
+                                                                className="p-2 bg-orange-100 hover:bg-orange-200 dark:bg-orange-500/10 dark:hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-lg transition-colors"
+                                                                title="حذف قطعة واحدة"
+                                                            >
+                                                                <Minus className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => handleRemoveItem(item.originalIdx, item.subId)}
+                                                            disabled={isSubmitting}
+                                                            className="p-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+                                                            title="حذف المنتج بالكامل"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
                                                 ) : (
                                                     <span className="text-[10px] text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">غير قابل للتعديل</span>
                                                 )}

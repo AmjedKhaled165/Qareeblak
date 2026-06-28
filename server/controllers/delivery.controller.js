@@ -434,9 +434,10 @@ exports.customerRemoveItem = catchAsync(async (req, res) => {
     
     const bookingIdHash = req.body?.bookingId;
     const bookingId = bookingIdHash ? (decodeEntityId('booking', bookingIdHash) || bookingIdHash) : null;
+    const quantityToRemove = req.body?.quantityToRemove ? Number(req.body.quantityToRemove) : undefined;
 
-    const order = await deliveryService.customerRemoveItem(id, itemIndex, bookingId, io);
-    return res.status(200).json({ success: true, message: 'تم حذف المنتج بنجاح', order });
+    const order = await deliveryService.customerRemoveItem(id, itemIndex, bookingId, quantityToRemove, io);
+    return res.status(200).json({ success: true, message: 'تم تعديل/حذف المنتج بنجاح', order });
 });
 
 exports.customerAddItemsBulk = catchAsync(async (req, res) => {

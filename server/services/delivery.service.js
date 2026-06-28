@@ -132,7 +132,7 @@ class DeliveryService {
         return updated;
     }
 
-    async customerRemoveItem(orderId, itemIndex, bookingId, io) {
+    async customerRemoveItem(orderId, itemIndex, bookingId, quantityToRemove, io) {
         const currentOrder = await deliveryRepo.getOrderById(orderId);
         if (!currentOrder) {
             throw new AppError('الطلب غير موجود', 404);
@@ -153,10 +153,26 @@ class DeliveryService {
             if (bookingRes.rows.length > 0) {
                 const bookingItems = this._parseItems(bookingRes.rows[0].items);
                 if (itemIndex >= 0 && itemIndex < bookingItems.length) {
-                    const removedItem = bookingItems.splice(itemIndex, 1)[0];
-                    await db.query('UPDATE bookings SET items = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(bookingItems), bookingId]);
-                    deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `قام العميل بحذف منتج (${removedItem?.name}) من طلب المتجر`);
-                    if (io) this._emitOrderSync(io, orderId, { updates: {}, extraBooking: { items: bookingItems } });
+                    const itemToRemove = bookingItems[itemIndex];
+                    let logMsg = '';
+                    if (quantityToRemove && quantityToRemove < (itemToRemove.quantity || 1)) {
+                        itemToRemove.quantity -= quantityToRemove;
+                        logMsg = `قام العميل بتقليل كمية منتج (${itemToRemove.name}) بـ ${quantityToRemove}`;
+                    } else {
+                        const removedItem = bookingItems.splice(itemIndex, 1)[0];
+                        logMsg = `قام العميل بحذف منتج (${removedItem?.name}) من طلب المتجر`;
+                    }
+                    
+                    const newBookingPrice = bookingItems.reduce((sum, i) => sum + (parseFloat(i.price || i.unit_price || 0) * (parseFloat(i.quantity) || 1)), 0);
+                    await db.query('UPDATE bookings SET items = $1, price = $2, updated_at = NOW() WHERE id = $3', [JSON.stringify(bookingItems), newBookingPrice, bookingId]);
+                    
+                    // Sync parent order items
+                    const allBookingsRes = await db.query('SELECT items FROM bookings WHERE CAST(halan_order_id AS TEXT) = $1', [String(orderId)]);
+                    const allItems = allBookingsRes.rows.flatMap(r => this._parseItems(r.items));
+                    await deliveryRepo.updateOrder(orderId, { items: JSON.stringify(allItems) });
+                    
+                    deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, logMsg);
+                    if (io) this._emitOrderSync(io, orderId, { updates: { items: allItems }, extraBooking: { items: bookingItems } });
                     return await deliveryRepo.getOrderById(orderId); // return updated order
                 }
             }
@@ -167,10 +183,19 @@ class DeliveryService {
             throw new AppError('العنصر المطلوب غير موجود', 400);
         }
 
-        items.splice(itemIndex, 1);
+        const targetItem = items[itemIndex];
+        let logMsg = '';
+        if (quantityToRemove && quantityToRemove < (targetItem.quantity || 1)) {
+            targetItem.quantity -= quantityToRemove;
+            logMsg = `قام العميل بتقليل كمية منتج (${targetItem.name}) بـ ${quantityToRemove}`;
+        } else {
+            items.splice(itemIndex, 1);
+            logMsg = `قام العميل بحذف منتج من الطلب (index: ${itemIndex})`;
+        }
+
         const [updated] = await Promise.all([
             deliveryRepo.updateOrder(orderId, { items: JSON.stringify(items) }),
-            deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `قام العميل بحذف منتج من الطلب (index: ${itemIndex})`)
+            deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, logMsg)
         ]);
 
         if (io) {
