@@ -169,7 +169,7 @@ class DeliveryService {
 
         items.splice(itemIndex, 1);
         const [updated] = await Promise.all([
-            deliveryRepo.updateOrder(orderId, { items }),
+            deliveryRepo.updateOrder(orderId, { items: JSON.stringify(items) }),
             deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `قام العميل بحذف منتج من الطلب (index: ${itemIndex})`)
         ]);
 
@@ -263,7 +263,7 @@ class DeliveryService {
         const merged = [...currentItems, ...normalized];
 
         const [updated] = await Promise.all([
-            deliveryRepo.updateOrder(orderId, { items: merged }),
+            deliveryRepo.updateOrder(orderId, { items: JSON.stringify(merged) }),
             deliveryRepo.addHistory(orderId, currentOrder.status || 'pending', null, `أضاف العميل ${normalized.length} منتج/منتجات للطلب`)
         ]);
 
