@@ -46,10 +46,22 @@ class ChatService {
         await chatRepo.updateConsultationTimestamp(consultationId);
         
         // Notify the other party
-        const recipientId = userId === consult.customer_id ? consult.provider_id : consult.customer_id;
-        const msgType = imageUrl ? 'أرسل صورة' : message;
-        const { createNotification } = require('../routes/notifications');
-        createNotification(recipientId, 'رسالة جديدة', msgType, 'chat_alert', String(consultationId)).catch(e => logger.error('Chat notification error:', e));
+        let recipientId;
+        if (String(userId) === String(consult.customer_id)) {
+            const providerRepo = require('../repositories/provider.repository');
+            const provider = await providerRepo.getById(consult.provider_id);
+            if (provider && provider.user_id) {
+                recipientId = provider.user_id;
+            }
+        } else {
+            recipientId = consult.customer_id;
+        }
+        
+        if (recipientId) {
+            const msgType = imageUrl ? 'أرسل صورة' : message;
+            const { createNotification } = require('../routes/notifications');
+            createNotification(recipientId, 'رسالة جديدة', msgType, 'chat_alert', String(consultationId)).catch(e => logger.error('Chat notification error:', e));
+        }
 
         return savedMessage;
     }

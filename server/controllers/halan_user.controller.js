@@ -15,8 +15,13 @@ exports.assignCourier = catchAsync(async (req, res) => {
     res.json({ success: true, message: 'تم التحديث بنجاح' });
 });
 
+const { decodeEntityId } = require('../utils/obfuscate');
+
 exports.getUsers = catchAsync(async (req, res) => {
-    const { role, supervisorId } = req.query;
+    let { role, supervisorId } = req.query;
+    if (supervisorId) {
+        supervisorId = decodeEntityId('user', supervisorId) || supervisorId;
+    }
     const currentUserId = req.user.userId || req.user.id;
     const currentUserRole = req.user.role;
 

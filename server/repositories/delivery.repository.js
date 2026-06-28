@@ -248,11 +248,14 @@ class DeliveryRepository {
                 params.push(userId);
                 conditions.push(`(
                     o.supervisor_id = $${params.length}
-                    OR EXISTS (
-                        SELECT 1
-                        FROM courier_supervisors cs
-                        WHERE cs.supervisor_id = $${params.length}
-                          AND cs.courier_id = o.courier_id
+                    OR (
+                        o.supervisor_id IS NULL 
+                        AND EXISTS (
+                            SELECT 1
+                            FROM courier_supervisors cs
+                            WHERE cs.supervisor_id = $${params.length}
+                              AND cs.courier_id = o.courier_id
+                        )
                     )
                 )`);
             } else {

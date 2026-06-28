@@ -396,7 +396,7 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                             <X className="w-5 h-5" />
                         </button>
                         <span className="text-sm bg-white/20 px-2 py-1 rounded-full">
-                            استشارة #{consultation.id.slice(-6)}
+                            استشارة #{String(consultation.id).slice(-6)}
                         </span>
                     </div>
 

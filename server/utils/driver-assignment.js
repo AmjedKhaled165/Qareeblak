@@ -65,7 +65,7 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
         const maxActiveOrdersExpr = userCols.has('max_active_orders') ? `u.max_active_orders` : `100`;
 
         // Pick supervisors who are explicitly active only.
-        const supervisorsResult = await pool.query(`
+        let supervisorsResult = await pool.query(`
             SELECT u.id, u.name, u.username, ${maxActiveOrdersExpr} as max_active_orders,
                    COALESCE((
                        SELECT COUNT(*) FROM delivery_orders d
@@ -84,7 +84,28 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
             AND COALESCE(u.is_available, false) = true
         `);
 
-        logger.info(`[Auto-Assign] وجدنا ${supervisorsResult.rows.length} مسؤول نشط`);
+        if (supervisorsResult.rows.length === 0) {
+            logger.warn(`[Auto-Assign] ⚠️ No active supervisors found! Falling back to ANY supervisor.`);
+            supervisorsResult = await pool.query(`
+                SELECT u.id, u.name, u.username, ${maxActiveOrdersExpr} as max_active_orders,
+                       COALESCE((
+                           SELECT COUNT(*) FROM delivery_orders d
+                           WHERE d.supervisor_id = u.id
+                           AND d.status IN ('pending', 'assigned', 'ready_for_pickup', 'picked_up', 'in_transit')
+                           AND COALESCE(d.is_deleted, false) = false
+                       ), 0)::int as active_orders,
+                       COALESCE((
+                           SELECT COUNT(*) FROM delivery_orders d2
+                           WHERE d2.supervisor_id = u.id
+                           AND DATE(d2.created_at) = CURRENT_DATE
+                           AND COALESCE(d2.is_deleted, false) = false
+                       ), 0)::int as today_orders
+                FROM users u
+                WHERE ${roleExpr} IN ('supervisor', 'partner_supervisor', 'manager')
+            `);
+        }
+
+        logger.info(`[Auto-Assign] وجدنا ${supervisorsResult.rows.length} مسؤول`);
 
         if (supervisorsResult.rows.length === 0) {
             logger.error(`[Auto-Assign] ❌ لا يوجد أي مسؤول في النظام!`);
@@ -130,16 +151,19 @@ const performAutoAssign = async (orderId, userId, appIo, targetStatus = 'assigne
                 return map;
             }, {});
 
-            const candidates = lockRes.rows.map(s => ({
+            let candidates = lockRes.rows.map(s => ({
                 ...s,
                 active_orders: workloadMap[s.id] || 0,
                 today_orders: todayMap[s.id] || 0
             })).filter(s => s.active_orders < (s.max_active_orders || 100));
 
             if (candidates.length === 0) {
-                await client.query('ROLLBACK');
-                logger.error(`[Auto-Assign] ❌ All candidates are at full capacity!`);
-                return null;
+                logger.warn(`[Auto-Assign] ⚠️ All candidates are at full capacity! Forcing assignment to least loaded.`);
+                candidates = lockRes.rows.map(s => ({
+                    ...s,
+                    active_orders: workloadMap[s.id] || 0,
+                    today_orders: todayMap[s.id] || 0
+                }));
             }
 
             // Strategy: least active workload first, then least orders today, then stable by id.

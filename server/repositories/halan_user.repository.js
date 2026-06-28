@@ -31,7 +31,7 @@ class HalanUserRepository {
             }
         }
 
-        if (currentUserRole === 'supervisor' && role === 'courier') {
+        if ((currentUserRole === 'supervisor' || currentUserRole === 'partner_supervisor') && role === 'courier') {
             params.push(currentUserId);
             query += ` AND EXISTS (SELECT 1 FROM courier_supervisors sub_cs WHERE sub_cs.courier_id = u.id AND sub_cs.supervisor_id = $${params.length})`;
         } else if (supervisorId) {

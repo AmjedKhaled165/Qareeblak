@@ -227,8 +227,7 @@ export default function OrdersPage() {
 
     // Client-side filtering for status groups
     const filteredOrders = orders.filter(order => {
-        // If courier, hide delivered orders (they go to stats/history)
-        if (isCourier && ['delivered', 'تم التوصيل'].includes(order.status)) return false;
+        // Removed filtering of delivered orders for couriers so they can view them
 
         if (filter === 'all') return true;
         if (filter === 'cancelled' || filter === 'edited') return true; // Already filtered by backend
