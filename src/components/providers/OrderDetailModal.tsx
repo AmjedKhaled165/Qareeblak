@@ -148,7 +148,7 @@ export function OrderDetailModal({
     const address = extractAddress(details);
     const price = getBookingPrice(booking);
     const isMaintenance = booking.appointmentType === 'maintenance';
-    const isAppointment = ['maintenance', 'medical', 'playgrounds', 'car_service'].includes(booking.appointmentType) || (!booking.halanOrderId && ['pending_appointment', 'provider_rescheduled', 'customer_rescheduled'].includes(booking.status));
+    const isAppointment = ['maintenance', 'medical', 'playgrounds', 'car_service'].includes(booking.appointmentType || '') || (!booking.halanOrderId && ['pending_appointment', 'provider_rescheduled', 'customer_rescheduled'].includes(booking.status));
     const statusConfig = getStatusConfig(booking.status);
     const isPending = booking.status === 'pending' || booking.status === 'pending_appointment' || booking.status === 'customer_rescheduled';
     const isConfirmed = booking.status === 'confirmed';
