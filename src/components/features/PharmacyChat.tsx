@@ -564,17 +564,6 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
 
                 {/* Messages Area */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-950">
-                    {/* Socket status indicator (non-blocking) */}
-                    {!socketConnected && consultationId && !isLoading && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 p-2 rounded-lg flex items-center gap-2 text-xs"
-                        >
-                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                            <span>وضع الرسائل العادي - الرسائل الفورية غير متاحة حالياً</span>
-                        </motion.div>
-                    )}
 
                     {/* Loading State removed/minimized */}
                     {isLoading ? (
