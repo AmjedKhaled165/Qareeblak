@@ -78,7 +78,7 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
                 const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
                 
                 socketRef.current = io(SOCKET_URL, {
-                    transports: ['websocket', 'polling'],
+                    transports: ['polling', 'websocket'],
                     reconnection: true,
                     reconnectionAttempts: 10,
                     auth: { token }

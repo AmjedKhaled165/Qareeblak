@@ -116,7 +116,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
 
             const auth = token ? { token } : undefined;
             socketRef.current = io(SOCKET_URL, {
-                transports: ['websocket', 'polling'],
+                transports: ['polling', 'websocket'],
                 auth,
                 reconnection: true,
                 reconnectionDelay: 2000,
@@ -147,6 +147,17 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
                     if (prev.some(m => m.id === message.id)) return prev;
                     return [...prev, message];
                 });
+
+                // If the message is from the provider, mark it as read
+                if (message.sender_type !== 'customer') {
+                    try {
+                        fetch(`${CHAT_API_BASE}/chat/${consultId}/read`, {
+                            method: 'PUT',
+                            headers: buildHeaders(token),
+                            credentials: 'include',
+                        }).catch(e => console.error(e));
+                    } catch (e) {}
+                }
             });
 
             socketRef.current.on('pharmacist-status', ({ providerId: pid, status }: { providerId: string; status: string }) => {
@@ -278,6 +289,17 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
                         const msgData = await msgRes.json();
                         if (msgData.success) {
                             setMessages(Array.isArray(msgData.messages) ? msgData.messages : []);
+                            
+                            // Mark messages as read
+                            try {
+                                await fetch(`${CHAT_API_BASE}/chat/${startData.consultationId}/read`, {
+                                    method: 'PUT',
+                                    headers: buildHeaders(token),
+                                    credentials: 'include',
+                                });
+                            } catch (e) {
+                                console.error('[PharmacyChat] Error marking as read:', e);
+                            }
                         }
                     }
                 } else {
