@@ -17,7 +17,10 @@ const sendQuoteSchema = z.object({
     items: z.array(z.object({
         name: z.string().min(1, 'اسم المنتج مطلوب').max(200),
         price: z.number().positive('السعر يجب أن يكون رقماً صحيحاً')
-    })).min(1, 'يجب إضافة منتج واحد على الأقل').max(50, 'تم تجاوز الحد الأقصى للمنتجات')
+    })).min(1, 'يجب إضافة منتج واحد على الأقل').max(50, 'تم تجاوز الحد الأقصى للمنتجات'),
+    appointmentDate: z.string().optional(),
+    appointmentTime: z.string().optional(),
+    appointmentType: z.string().optional()
 });
 
 const acceptQuoteSchema = z.object({

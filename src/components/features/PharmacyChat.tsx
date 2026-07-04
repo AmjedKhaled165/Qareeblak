@@ -26,6 +26,7 @@ interface PharmacyChatProps {
     onClose: () => void;
     providerId: string;
     providerName: string;
+    providerCategory?: string;
 }
 
 // Use same-origin proxy for all HTTP API calls (avoids CSRF issues)
@@ -60,7 +61,10 @@ function buildHeaders(token: string | null, contentType?: string): Record<string
     return headers;
 }
 
-export function PharmacyChat({ isOpen, onClose, providerId, providerName }: PharmacyChatProps) {
+import { isCarServiceProvider } from "@/lib/category-utils";
+
+export function PharmacyChat({ isOpen, onClose, providerId, providerName, providerCategory }: PharmacyChatProps) {
+    const isCarService = isCarServiceProvider(providerCategory);
     const { currentUser } = useAppStore();
     const { toast } = useToast();
 
@@ -445,7 +449,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
     const acceptQuote = async () => {
         if (!acceptingQuote || !consultationId) return;
 
-        if (!addressArea.trim()) {
+        if (!isCarService && !addressArea.trim()) {
             toast("يرجى إدخال العنوان", "error");
             return;
         }
@@ -592,19 +596,37 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                                                 {/* Header */}
                                                 <div className="bg-gradient-to-l from-emerald-600 to-teal-600 text-white px-4 py-3 flex items-center gap-2">
                                                     <ShoppingCart className="w-5 h-5" />
-                                                    <span className="font-bold">عرض سعر من الصيدلية</span>
+                                                    <span className="font-bold">{isCarService ? 'عرض رحلة / توصيل' : 'عرض سعر من الصيدلية'}</span>
                                                     {isAccepted && (
                                                         <span className="mr-auto bg-white/20 text-xs px-2 py-1 rounded-full">✅ تم القبول</span>
                                                     )}
                                                 </div>
                                                 {/* Items */}
                                                 <div className="bg-white dark:bg-slate-800 p-4 space-y-3">
-                                                    {quoteData.items.map((item: any, idx: number) => (
-                                                        <div key={idx} className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 last:pb-0">
-                                                            <span className="text-slate-700 dark:text-slate-300 font-medium">{item.name}</span>
-                                                            <span className="font-bold text-emerald-600">{item.price} ج.م</span>
-                                                        </div>
-                                                    ))}
+                                                    {isCarService ? (
+                                                        <>
+                                                            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-700 pb-2">
+                                                                <span className="text-slate-500 font-medium">الخدمة:</span>
+                                                                <span className="font-bold text-slate-800 dark:text-slate-200">{quoteData.items[0]?.name}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-700 pb-2">
+                                                                <span className="text-slate-500 font-medium">تاريخ الرحلة:</span>
+                                                                <span className="font-bold text-slate-800 dark:text-slate-200">{quoteData.appointmentDate}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-700 pb-2">
+                                                                <span className="text-slate-500 font-medium">وقت الرحلة:</span>
+                                                                <span className="font-bold text-slate-800 dark:text-slate-200">{quoteData.appointmentTime}</span>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        quoteData.items.map((item: any, idx: number) => (
+                                                            <div key={idx} className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 last:pb-0">
+                                                                <span className="text-slate-700 dark:text-slate-300 font-medium">{item.name}</span>
+                                                                <span className="font-bold text-emerald-600">{item.price} ج.م</span>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                    
                                                     <div className="border-t-2 border-emerald-200 dark:border-emerald-800 pt-3 flex justify-between items-center">
                                                         <span className="font-bold text-slate-900 dark:text-white text-base">الإجمالي</span>
                                                         <span className="font-black text-xl text-emerald-600">{quoteData.totalPrice} ج.م</span>
@@ -617,12 +639,13 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                                                             onClick={() => setAcceptingQuote({
                                                                 messageId: msg.id,
                                                                 items: quoteData.items,
-                                                                totalPrice: quoteData.totalPrice
-                                                            })}
+                                                                totalPrice: quoteData.totalPrice,
+                                                                appointmentType: quoteData.appointmentType
+                                                            } as any)}
                                                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-base"
                                                         >
                                                             <ShoppingCart className="w-5 h-5" />
-                                                            إضافة للسلة وإتمام الطلب
+                                                            {isCarService ? 'قبول العرض' : 'إضافة للسلة وإتمام الطلب'}
                                                         </button>
                                                     </div>
                                                 ) : (
@@ -826,21 +849,30 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                             <div className="flex items-center justify-between">
                                 <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
                                     <ShoppingCart className="w-5 h-5 text-emerald-600" />
-                                    تأكيد الطلب
+                                    {isCarService ? 'تأكيد وحجز الرحلة' : 'تأكيد وإتمام الطلب'}
                                 </h3>
-                                <button onClick={() => setAcceptingQuote(null)} className="text-slate-400 hover:text-slate-600" title="إغلاق التنبيه" aria-label="إغلاق نافذة تأكيد الطلب">
+                                <button onClick={() => setAcceptingQuote(null)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
 
                             {/* Order Summary */}
                             <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 space-y-2">
-                                {acceptingQuote.items.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between text-sm">
-                                        <span>{item.name}</span>
-                                        <span className="font-bold text-emerald-600">{item.price} ج.م</span>
-                                    </div>
-                                ))}
+                                {isCarService ? (
+                                    <>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-500">الخدمة:</span>
+                                            <span className="font-medium">{acceptingQuote.items[0]?.name}</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    acceptingQuote.items.map((item: any, idx: number) => (
+                                        <div key={idx} className="flex justify-between text-sm">
+                                            <span>{item.name}</span>
+                                            <span className="font-bold text-emerald-600">{item.price} ج.م</span>
+                                        </div>
+                                    ))
+                                )}
                                 <div className="border-t pt-2 flex justify-between font-bold">
                                     <span>الإجمالي</span>
                                     <span className="text-emerald-600 text-lg">{acceptingQuote.totalPrice} ج.م</span>
@@ -848,58 +880,62 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName }: Phar
                             </div>
 
                             {/* Address Input */}
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-1">
-                                        <MapPin className="w-4 h-4 text-emerald-600" />
-                                        المنطقة / الحي *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={addressArea}
-                                        onChange={(e) => setAddressArea(e.target.value)}
-                                        placeholder="مثال: حي الأربعين، أسيوط"
-                                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                    />
+                            {!isCarService && (
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-1">
+                                            <MapPin className="w-4 h-4 text-emerald-600" />
+                                            المنطقة / الحي *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={addressArea}
+                                            onChange={(e) => setAddressArea(e.target.value)}
+                                            placeholder="مثال: المعادي، مدينة نصر..."
+                                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-1">
+                                            <MapPin className="w-4 h-4 text-emerald-600" />
+                                            تفاصيل العنوان
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={addressDetails}
+                                            onChange={(e) => setAddressDetails(e.target.value)}
+                                            placeholder="اسم الشارع، رقم العمارة، الدور..."
+                                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-1">
+                                            <PhoneIcon className="w-4 h-4 text-emerald-600" />
+                                            رقم الهاتف للتواصل
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={customerPhone}
+                                            onChange={(e) => setCustomerPhone(e.target.value)}
+                                            placeholder="رقم الموبايل"
+                                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-1 block">تفاصيل العنوان</label>
-                                    <input
-                                        type="text"
-                                        value={addressDetails}
-                                        onChange={(e) => setAddressDetails(e.target.value)}
-                                        placeholder="رقم المبنى، الشارع، علامة مميزة..."
-                                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-1">
-                                        <PhoneIcon className="w-4 h-4 text-emerald-600" />
-                                        رقم الهاتف
-                                    </label>
-                                    <input
-                                        type="tel"
-                                        value={customerPhone}
-                                        onChange={(e) => setCustomerPhone(e.target.value)}
-                                        placeholder={currentUser?.phone || "01xxxxxxxxx"}
-                                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                        dir="ltr"
-                                    />
-                                </div>
-                            </div>
+                            )}
 
                             {/* Confirm Button */}
                             <Button
                                 onClick={acceptQuote}
-                                disabled={isAcceptingOrder || !addressArea.trim()}
+                                disabled={isAcceptingOrder || (!isCarService && !addressArea.trim())}
                                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 h-12 rounded-xl text-base disabled:opacity-50"
                             >
                                 {isAcceptingOrder ? (
                                     <Loader2 className="w-5 h-5 animate-spin" />
                                 ) : (
                                     <>
-                                        <ShoppingCart className="w-5 h-5 ml-2" />
-                                        تأكيد الطلب ({acceptingQuote.totalPrice} ج.م)
+                                        {isCarService ? null : <ShoppingCart className="w-5 h-5 ml-2" />}
+                                        {isCarService ? `تأكيد وحجز الرحلة (${acceptingQuote.totalPrice} ج.م)` : `تأكيد الطلب (${acceptingQuote.totalPrice} ج.م)`}
                                     </>
                                 )}
                             </Button>

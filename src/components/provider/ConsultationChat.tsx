@@ -37,6 +37,7 @@ interface ConsultationChatProps {
     onClose: () => void;
     consultation: Consultation;
     providerId: string;
+    providerCategory?: string;
 }
 
 // Use same-origin proxy for all HTTP API calls (avoids CSRF issues)
@@ -68,7 +69,9 @@ function buildHeaders(token: string | null, contentType?: string): Record<string
     return headers;
 }
 
-export function ConsultationChat({ isOpen, onClose, consultation, providerId }: ConsultationChatProps) {
+import { isCarServiceProvider } from "@/lib/category-utils";
+
+export function ConsultationChat({ isOpen, onClose, consultation, providerId, providerCategory }: ConsultationChatProps) {
     const { toast } = useToast();
 
     const [messages, setMessages] = useState<Message[]>([]);
@@ -80,7 +83,9 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
     const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [showQuoteForm, setShowQuoteForm] = useState(false);
     const [quoteItems, setQuoteItems] = useState<{ name: string; price: string }[]>([{ name: '', price: '' }]);
+    const [carServiceQuote, setCarServiceQuote] = useState({ date: '', time: '', price: '', serviceName: '' });
     const [isSendingQuote, setIsSendingQuote] = useState(false);
+    const isCarService = isCarServiceProvider(providerCategory);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const socketRef = useRef<Socket | null>(null);
@@ -149,7 +154,7 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                     return;
                 }
 
-                const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}`, {
+                const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}?providerId=${providerId}`, {
                     headers: buildHeaders(token),
                     credentials: 'include',
                 });
@@ -200,7 +205,7 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
             const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
             if (!token) return;
 
-            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/read`, {
+            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/read?providerId=${providerId}`, {
                 method: 'PUT',
                 headers: buildHeaders(token),
                 credentials: 'include',
@@ -256,13 +261,14 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
 
             console.log('[ConsultationChat] Sending message to:', `${CHAT_API_BASE}/chat/${consultation.id}/messages`);
 
-            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/messages`, {
+            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/messages?providerId=${providerId}`, {
                 method: 'POST',
                 headers: buildHeaders(token, 'application/json'),
                 credentials: 'include',
                 body: JSON.stringify({
                     message: inputMessage.trim(),
                     senderType: 'pharmacist',
+                    senderId: providerId,
                 }),
             });
 
@@ -313,10 +319,17 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
 
     // Send order quote
     const sendQuote = async () => {
-        const validItems = quoteItems.filter(item => item.name.trim() && Number(item.price) > 0);
-        if (validItems.length === 0) {
-            toast("يجب إضافة منتج واحد على الأقل مع السعر", "error");
-            return;
+        if (isCarService) {
+            if (!carServiceQuote.serviceName.trim() || !carServiceQuote.date || !carServiceQuote.time || !carServiceQuote.price) {
+                toast("يرجى تعبئة جميع حقول العرض (الخدمة، التاريخ، الوقت، والسعر)", "error");
+                return;
+            }
+        } else {
+            const validItems = quoteItems.filter(item => item.name.trim() && Number(item.price) > 0);
+            if (validItems.length === 0) {
+                toast("يجب إضافة منتج واحد على الأقل مع السعر", "error");
+                return;
+            }
         }
 
         setIsSendingQuote(true);
@@ -327,20 +340,28 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                 return;
             }
 
-            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/quote`, {
+            const payload = isCarService ? {
+                appointmentType: 'car_service',
+                appointmentDate: carServiceQuote.date,
+                appointmentTime: carServiceQuote.time,
+                items: [{ name: carServiceQuote.serviceName.trim(), price: Number(carServiceQuote.price) }]
+            } : {
+                items: quoteItems.filter(item => item.name.trim() && Number(item.price) > 0).map(item => ({ name: item.name.trim(), price: Number(item.price) }))
+            };
+
+            const res = await fetch(`${CHAT_API_BASE}/chat/${consultation.id}/quote?providerId=${providerId}`, {
                 method: 'POST',
                 headers: buildHeaders(token, 'application/json'),
                 credentials: 'include',
-                body: JSON.stringify({
-                    items: validItems.map(item => ({ name: item.name.trim(), price: Number(item.price) }))
-                }),
+                body: JSON.stringify(payload),
             });
 
             const data = await res.json();
             if (data.success) {
                 setShowQuoteForm(false);
                 setQuoteItems([{ name: '', price: '' }]);
-                toast("تم إرسال عرض السعر للعميل ✅", "success");
+                setCarServiceQuote({ date: '', time: '', price: '', serviceName: '' });
+                toast("تم إرسال العرض للعميل ✅", "success");
             } else {
                 toast(data.error || "فشل إرسال العرض", "error");
             }
@@ -548,8 +569,8 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                             <div className="p-4 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <h4 className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-                                        <ShoppingBag className="w-4 h-4" />
-                                        إنشاء عرض طلب
+                                        {isCarService ? <ShoppingBag className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
+                                        {isCarService ? 'إرسال عرض توصيل' : 'إنشاء عرض سعر'}
                                     </h4>
                                     <button onClick={() => { setShowQuoteForm(false); setQuoteItems([{ name: '', price: '' }]); }}
                                         className="text-slate-400 hover:text-red-500 transition"
@@ -559,70 +580,121 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId }: 
                                         <X className="w-4 h-4" />
                                     </button>
                                 </div>
-
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
-                                    {quoteItems.map((item, idx) => (
-                                        <div key={idx} className="flex items-center gap-2">
-                                            <input
-                                                type="text"
-                                                value={item.name}
-                                                onChange={(e) => {
-                                                    const newItems = [...quoteItems];
-                                                    newItems[idx].name = e.target.value;
-                                                    setQuoteItems(newItems);
-                                                }}
-                                                placeholder="اسم المنتج"
-                                                className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                            />
-                                            <input
-                                                type="number"
-                                                value={item.price}
-                                                onChange={(e) => {
-                                                    const newItems = [...quoteItems];
-                                                    newItems[idx].price = e.target.value;
-                                                    setQuoteItems(newItems);
-                                                }}
-                                                placeholder="السعر"
-                                                className="w-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                            />
-                                            <span className="text-xs text-slate-400">ج.م</span>
-                                            {quoteItems.length > 1 && (
-                                                <button onClick={() => setQuoteItems(quoteItems.filter((_, i) => i !== idx))}
-                                                    className="text-red-400 hover:text-red-600 transition p-1"
-                                                    title="حذف المنتج"
-                                                    aria-label={`حذف المنتج ${item.name}`}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            )}
+                                <div className="p-4 space-y-4">
+                                    {isCarService ? (
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-xs text-slate-500 mb-1 block">الخدمة</label>
+                                                <input
+                                                    type="text"
+                                                    value={carServiceQuote.serviceName}
+                                                    onChange={e => setCarServiceQuote({ ...carServiceQuote, serviceName: e.target.value })}
+                                                    placeholder="مثال: توصيل من المطار"
+                                                    className="w-full text-sm p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-xs text-slate-500 mb-1 block">تاريخ الرحلة</label>
+                                                    <input
+                                                        type="date"
+                                                        value={carServiceQuote.date}
+                                                        onChange={e => setCarServiceQuote({ ...carServiceQuote, date: e.target.value })}
+                                                        className="w-full text-sm p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-slate-500 mb-1 block">وقت الرحلة</label>
+                                                    <input
+                                                        type="time"
+                                                        value={carServiceQuote.time}
+                                                        onChange={e => setCarServiceQuote({ ...carServiceQuote, time: e.target.value })}
+                                                        className="w-full text-sm p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-500 mb-1 block">السعر (ج.م)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={carServiceQuote.price}
+                                                    onChange={e => setCarServiceQuote({ ...carServiceQuote, price: e.target.value })}
+                                                    placeholder="0"
+                                                    className="w-full text-sm p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500"
+                                                />
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    ) : (
+                                        <>
+                                            <div className="space-y-3">
+                                                {quoteItems.map((item, idx) => (
+                                                    <div key={idx} className="flex items-start gap-2 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 relative group">
+                                                        <div className="flex-1 space-y-2">
+                                                            <input
+                                                                type="text"
+                                                                placeholder="اسم المنتج / الخدمة..."
+                                                                value={item.name}
+                                                                onChange={e => {
+                                                                    const newItems = [...quoteItems];
+                                                                    newItems[idx].name = e.target.value;
+                                                                    setQuoteItems(newItems);
+                                                                }}
+                                                                className="w-full text-sm p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all outline-none"
+                                                            />
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    placeholder="السعر"
+                                                                    value={item.price}
+                                                                    onChange={e => {
+                                                                        const newItems = [...quoteItems];
+                                                                        newItems[idx].price = e.target.value;
+                                                                        setQuoteItems(newItems);
+                                                                    }}
+                                                                    className="w-24 text-sm p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all outline-none"
+                                                                />
+                                                                <span className="text-xs text-slate-500 font-medium">ج.م</span>
+                                                            </div>
+                                                        </div>
+                                                        {quoteItems.length > 1 && (
+                                                            <button onClick={() => setQuoteItems(quoteItems.filter((_, i) => i !== idx))}
+                                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
+                                                                title="حذف"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
 
-                                <button
-                                    onClick={() => setQuoteItems([...quoteItems, { name: '', price: '' }])}
-                                    className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 transition"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    إضافة منتج آخر
-                                </button>
+                                            <button
+                                                onClick={() => setQuoteItems([...quoteItems, { name: '', price: '' }])}
+                                                className="w-full py-2 border-2 border-dashed border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                                إضافة منتج آخر
+                                            </button>
+                                        </>
+                                    )}
 
-                                {quoteItems.some(i => i.name && Number(i.price) > 0) && (
-                                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2 text-sm flex justify-between items-center border border-slate-200 dark:border-slate-700">
-                                        <span className="text-slate-600 dark:text-slate-400">الإجمالي:</span>
-                                        <span className="font-black text-emerald-600 text-lg">
-                                            {quoteItems.reduce((sum, i) => sum + (Number(i.price) || 0), 0)} ج.م
-                                        </span>
+                                    <div className="pt-2 flex items-center justify-between border-t border-emerald-200 dark:border-emerald-800">
+                                        <div className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                                            الإجمالي: <span className="text-emerald-600 dark:text-emerald-400 text-lg">
+                                                {isCarService ? (Number(carServiceQuote.price) || 0) : quoteItems.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0)} ج.م
+                                            </span>
+                                        </div>
+                                        <Button
+                                            onClick={sendQuote}
+                                            disabled={isSendingQuote || (isCarService ? (!carServiceQuote.serviceName || !carServiceQuote.date || !carServiceQuote.time || !carServiceQuote.price) : quoteItems.some(i => !i.name || !i.price))}
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                                        >
+                                            {isSendingQuote ? <Loader2 className="w-4 h-4 animate-spin" /> : "إرسال العرض"}
+                                        </Button>
                                     </div>
-                                )}
-
-                                <Button
-                                    onClick={sendQuote}
-                                    disabled={isSendingQuote || !quoteItems.some(i => i.name.trim() && Number(i.price) > 0)}
-                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 font-bold"
-                                >
-                                    {isSendingQuote ? <Loader2 className="w-5 h-5 animate-spin" /> : 'إرسال العرض للعميل'}
-                                </Button>
+                                </div>
                             </div>
                         </motion.div>
                     )}

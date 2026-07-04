@@ -160,7 +160,9 @@ export default function JoinPage() {
                                         <option value="">اختر التخصص...</option>
                                         <option value="مطاعم">مطاعم وكافيهات</option>
                                         <option value="صيانة">صيانة وخدمات منزلية (سباكة/كهرباء)</option>
-                                        <option value="طبي">طبي وصيدليات</option>
+                                        <option value="صيدليات">صيدليات</option>
+                                        <option value="دكتور وممرض">دكتور وممرض</option>
+                                        <option value="ملاعب">ملاعب</option>
                                         <option value="سيارات">خدمات سيارات</option>
                                         <option value="بقالة">سوبر ماركت</option>
                                         <option value="أخرى">أخرى</option>

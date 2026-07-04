@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, SlidersHorizontal, Utensils, Wrench, Pill, Car, ShoppingBag, ShoppingCart, Star } from "lucide-react";
+import { Search, SlidersHorizontal, Utensils, Wrench, Pill, Car, ShoppingBag, ShoppingCart, Star, Stethoscope } from "lucide-react";
 import { useState, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,7 +31,9 @@ const CATEGORIES = [
     { id: "all", label: "الكل", icon: null },
     { id: "مطاعم", label: "مطاعم وكافيهات", icon: Utensils },
     { id: "صيانة", label: "صيانة وسباكة", icon: Wrench },
-    { id: "طبي", label: "طبي وصيدليات", icon: Pill },
+    { id: "صيدليات", label: "صيدليات", icon: Pill },
+    { id: "دكتور وممرض", label: "دكتور وممرض", icon: Stethoscope },
+    { id: "ملاعب", label: "ملاعب", icon: Star },
     { id: "سيارات", label: "خدمات سيارات", icon: Car },
     { id: "بقالة", label: "سوبر ماركت", icon: ShoppingBag },
 ];
@@ -39,7 +41,9 @@ const CATEGORIES = [
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
     "مطاعم": ["مطعم", "كافيه", "اكل", "بيتزا", "برجر", "قهوة", "مقهى", "مشويات", "طعام", "كريب", "شاورما"],
     "صيانة": ["صيانة", "سباك", "سباكة", "كهرباء", "كهربائي", "نجار", "نقاش", "تكييف", "تصليح", "دهانات", "دش"],
-    "طبي": ["طبيب", "دكتور", "صيدلية", "علاج", "دواء", "مستشفى", "عيادة", "تحاليل", "اشعة", "اسنان"],
+    "صيدليات": ["صيدلية", "علاج", "دواء", "روشتة"],
+    "دكتور وممرض": ["طبيب", "دكتور", "ممرض", "ممرضة", "مستشفى", "عيادة", "تحاليل", "اشعة", "اسنان", "علاج طبيعي"],
+    "ملاعب": ["ملعب", "ملاعب", "كورة", "كرة", "قدم", "رياضة", "حجز", "خماسي", "مباراة"],
     "سيارات": ["سيارة", "عربية", "كاوتش", "ميكانيكي", "غسيل", "ونش", "بطارية", "عفشة"],
     "بقالة": ["سوبر ماركت", "بقالة", "خضار", "فاكهة", "لحوم", "فراخ", "جزاره", "عطارة", "مخبز", "تسوق"],
 };

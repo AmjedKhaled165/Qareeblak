@@ -168,17 +168,17 @@ class ChatRepository {
     }
 
     async getProviderInfo(providerId) {
-        const result = await pool.query('SELECT id, name FROM providers WHERE id = $1', [providerId]);
+        const result = await pool.query('SELECT id, name, user_id FROM providers WHERE id = $1', [providerId]);
         return result.rows[0] || null;
     }
 
     async createBooking(bookingData, client = pool) {
-        const { customerId, providerId, customerName, providerName, totalPrice, details, items } = bookingData;
+        const { customerId, providerId, customerName, providerName, totalPrice, details, items, appointmentType = null, appointmentDate = null } = bookingData;
         const result = await client.query(`
-            INSERT INTO bookings (user_id, provider_id, service_id, user_name, service_name, provider_name, price, status, details, items)
-            VALUES ($1, $2, NULL, $3, 'طلب من المحادثة', $4, $5, 'pending', $6, $7)
+            INSERT INTO bookings (user_id, provider_id, service_id, user_name, service_name, provider_name, price, status, details, items, appointment_type, appointment_date)
+            VALUES ($1, $2, NULL, $3, 'طلب من المحادثة', $4, $5, 'pending', $6, $7, $8, $9)
             RETURNING *
-        `, [customerId, providerId, customerName, providerName, totalPrice, details, items]);
+        `, [customerId, providerId, customerName, providerName, totalPrice, details, items, appointmentType, appointmentDate]);
         return result.rows[0];
     }
 

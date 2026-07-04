@@ -97,3 +97,40 @@ export function isMaintenanceProvider(category: string | undefined | null): bool
         normalized.includes(keyword.toLowerCase())
     );
 }
+
+// Keywords for car service providers
+const CAR_SERVICE_KEYWORDS = [
+    'سيارة',
+    'سيارات',
+    'توصيل',
+    'سيارات للتوصيل',
+    'car',
+    'delivery car',
+    'transportation'
+];
+
+/**
+ * Check if a provider is a car service / delivery car provider
+ * @param category - The provider's category string
+ * @returns true if the provider is a car service provider
+ */
+export function isCarServiceProvider(category: string | undefined | null): boolean {
+    if (!category) return false;
+
+    const normalized = category.toLowerCase().trim();
+    return CAR_SERVICE_KEYWORDS.some(keyword =>
+        normalized.includes(keyword.toLowerCase())
+    );
+}
+
+export function isDoctorProvider(category: string | undefined | null): boolean {
+    if (!category) return false;
+    const normalized = category.toLowerCase().trim();
+    return normalized.includes("دكتور") || normalized.includes("ممرض");
+}
+
+export function isPlaygroundProvider(category: string | undefined | null): boolean {
+    if (!category) return false;
+    const normalized = category.toLowerCase().trim();
+    return normalized.includes("ملاعب") || normalized.includes("ملعب");
+}

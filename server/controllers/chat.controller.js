@@ -110,7 +110,7 @@ exports.sendQuote = catchAsync(async (req, res, next) => {
     const { consultationId } = req.params;
     const userId = req.user.id;
 
-    const savedMessage = await chatService.sendOrderQuote(consultationId, userId, req.body.items);
+    const savedMessage = await chatService.sendOrderQuote(consultationId, userId, req.body);
 
     const io = req.app.get('io');
     if (io) {

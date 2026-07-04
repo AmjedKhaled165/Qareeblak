@@ -9,6 +9,7 @@ import { ShoppingBag, ChevronLeft, Clock, MapPin, CheckCircle2, Package, Truck, 
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { bookingsApi } from "@/lib/api";
+import { OrderDetailModal } from "@/components/providers/OrderDetailModal";
 
 export default function MyOrdersPage() {
     const router = useRouter();
@@ -16,6 +17,7 @@ export default function MyOrdersPage() {
     const [orders, setOrders] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'active' | 'previous'>('active');
+    const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
     useEffect(() => {
         if (!currentUser) {
@@ -182,35 +184,45 @@ export default function MyOrdersPage() {
                                                     const statusInfo = getStatusInfo(order.status);
                                                     const StatusIcon = statusInfo.icon;
 
-                                                    return (
-                                                        <Link key={order.id} href={`/track/${order.id}`}>
-                                                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-all flex items-center justify-between cursor-pointer group">
-                                                                <div className="flex items-center gap-4">
-                                                                    <div className={`w-2 h-12 rounded-full ${statusInfo.color.split(' ')[1]}`} />
-                                                                    <div>
-                                                                        <h4 className="font-bold text-slate-800">{order.providerName}</h4>
-                                                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                                                                            <span className={`px-2 py-0.5 rounded-md ${statusInfo.color} font-bold`}>
-                                                                                {statusInfo.label}
-                                                                            </span>
-                                                                            <span>• {order.serviceName}</span>
-                                                                        </div>
+                                                    const isAppointment = ['maintenance', 'medical', 'playgrounds', 'car_service'].includes(order.appointmentType) || (!order.halanOrderId && ['pending_appointment', 'provider_rescheduled', 'customer_rescheduled'].includes(order.status));
+                                                    
+                                                    const content = (
+                                                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-all flex items-center justify-between cursor-pointer group">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={`w-2 h-12 rounded-full ${statusInfo.color.split(' ')[1]}`} />
+                                                                <div>
+                                                                    <h4 className="font-bold text-slate-800">{order.providerName}</h4>
+                                                                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                                                                        <span className={`px-2 py-0.5 rounded-md ${statusInfo.color} font-bold`}>
+                                                                            {statusInfo.label}
+                                                                        </span>
+                                                                        <span>• {order.serviceName}</span>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-3">
-                                                                    <span className="font-bold text-slate-700">
-                                                                        {(() => {
-                                                                            if (Number(order.price) > 0) return order.price;
-                                                                            const itemsArr = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
-                                                                            if (itemsArr.length > 0) {
-                                                                                return itemsArr.reduce((sum: number, i: any) => sum + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
-                                                                            }
-                                                                            return order.price || '0';
-                                                                        })()} ج.م
-                                                                    </span>
-                                                                    <ChevronLeft className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 group-hover:-translate-x-1 transition-all" />
-                                                                </div>
                                                             </div>
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="font-bold text-slate-700">
+                                                                    {(() => {
+                                                                        if (Number(order.price) > 0) return order.price;
+                                                                        const itemsArr = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+                                                                        if (itemsArr.length > 0) {
+                                                                            return itemsArr.reduce((sum: number, i: any) => sum + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
+                                                                        }
+                                                                        return order.price || '0';
+                                                                    })()} ج.م
+                                                                </span>
+                                                                <ChevronLeft className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 group-hover:-translate-x-1 transition-all" />
+                                                            </div>
+                                                        </div>
+                                                    );
+
+                                                    return isAppointment ? (
+                                                        <div key={order.id} onClick={() => setSelectedOrder(order)}>
+                                                            {content}
+                                                        </div>
+                                                    ) : (
+                                                        <Link key={order.id} href={`/track/${order.id}`}>
+                                                            {content}
                                                         </Link>
                                                     );
                                                 })}
@@ -222,6 +234,62 @@ export default function MyOrdersPage() {
                                 const order = item.data;
                                 const statusInfo = getStatusInfo(order.status);
                                 const StatusIcon = statusInfo.icon;
+                                const isAppointment = ['maintenance', 'medical', 'playgrounds', 'car_service'].includes(order.appointmentType) || (!order.halanOrderId && ['pending_appointment', 'provider_rescheduled', 'customer_rescheduled'].includes(order.status));
+
+                                const content = (
+                                    <Card className="rounded-2xl border-none shadow-sm hover:shadow-md transition-all cursor-pointer group overflow-hidden bg-white border border-slate-200">
+                                        <CardContent className="p-0">
+                                            <div className="p-5 flex justify-between items-start border-b border-slate-50">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-bold text-lg font-cairo text-slate-800">{order.providerName}</h3>
+                                                        {order.halanOrderId && (
+                                                            <span className="flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold">
+                                                                <Truck className="w-3 h-3" />
+                                                                دليفري سريع
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-slate-500 flex items-center gap-1 font-bold">
+                                                        <Clock className="w-3.5 h-3.5" />
+                                                        {new Date(order.date).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                    </p>
+                                                </div>
+                                                <div className={`px-3 py-1.5 rounded-xl flex items-center gap-2 ${statusInfo.color} font-bold text-sm shadow-sm`}>
+                                                    <StatusIcon className="w-4 h-4" />
+                                                    {statusInfo.label}
+                                                </div>
+                                            </div>
+
+                                            <div className="p-5 flex justify-between items-center bg-slate-50/50">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="bg-indigo-100 text-indigo-600 w-10 h-10 rounded-xl flex items-center justify-center">
+                                                        <ShoppingBag className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-800">{order.serviceName}</p>
+                                                        {order.parentOrderId && (
+                                                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">جزء من طلب مجمع</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-lg font-black text-indigo-600 font-cairo">
+                                                        {(() => {
+                                                            if (Number(order.price) > 0) return order.price;
+                                                            const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+                                                            if (items.length > 0) {
+                                                                return items.reduce((sum: number, i: any) => sum + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
+                                                            }
+                                                            return order.price || '0';
+                                                        })()} ج.م
+                                                    </span>
+                                                    <ChevronLeft className="w-5 h-5 text-indigo-400 group-hover:text-indigo-600 group-hover:-translate-x-1 transition-all" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
 
                                 return (
                                     <motion.div
@@ -230,56 +298,15 @@ export default function MyOrdersPage() {
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: idx * 0.05 }}
                                     >
-                                        <Link href={`/track/${order.id}`}>
-                                            <Card className="rounded-2xl border-none shadow-sm hover:shadow-md transition-all cursor-pointer group overflow-hidden bg-white border border-slate-200">
-                                                <CardContent className="p-0">
-                                                    <div className="p-5 flex justify-between items-start border-b border-slate-50">
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <h3 className="font-bold text-lg font-cairo text-slate-800">{order.providerName}</h3>
-                                                                {order.halanOrderId && (
-                                                                    <span className="flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold">
-                                                                        <Truck className="w-3 h-3" />
-                                                                        دليفري سريع
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <p className="text-sm text-slate-500 flex items-center gap-1 font-bold">
-                                                                <Clock className="w-3.5 h-3.5" />
-                                                                {new Date(order.date).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}
-                                                            </p>
-                                                        </div>
-                                                        <div className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-bold ${statusInfo.color}`}>
-                                                            <StatusIcon className="w-3.5 h-3.5" />
-                                                            {statusInfo.label}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="p-5 bg-slate-50/30 flex items-center justify-between">
-                                                        <div className="space-y-1">
-                                                            <p className="text-xs text-slate-400 font-bold">الخدمة / الطلب:</p>
-                                                            <p className="text-sm font-bold text-slate-700 truncate max-w-[200px]">{order.serviceName}</p>
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <p className="text-xs text-slate-400 font-bold mb-1">المبلغ الإجمالي:</p>
-                                                            <p className="text-lg font-black text-indigo-600 font-cairo">
-                                                                {(() => {
-                                                                    if (Number(order.price) > 0) return order.price;
-                                                                    const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
-                                                                    if (items.length > 0) {
-                                                                        return items.reduce((sum: number, i: any) => sum + (Number(i.price || 0) * Number(i.quantity || 1)), 0);
-                                                                    }
-                                                                    return order.price || '0';
-                                                                })()} ج.م
-                                                            </p>
-                                                        </div>
-                                                        <div className="bg-white p-2 rounded-full border border-slate-100 group-hover:translate-x-[-4px] transition-transform">
-                                                            <ChevronLeft className="w-4 h-4 text-indigo-600" />
-                                                        </div>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        </Link>
+                                        {isAppointment ? (
+                                            <div onClick={() => setSelectedOrder(order)}>
+                                                {content}
+                                            </div>
+                                        ) : (
+                                            <Link href={`/track/${order.id}`}>
+                                                {content}
+                                            </Link>
+                                        )}
                                     </motion.div>
                                 );
                             });
@@ -287,6 +314,19 @@ export default function MyOrdersPage() {
                     )}
                 </div>
             </div>
+
+            {selectedOrder && (
+                <OrderDetailModal 
+                    booking={selectedOrder} 
+                    isOpen={!!selectedOrder} 
+                    onClose={() => setSelectedOrder(null)} 
+                    onAccept={() => {}}
+                    onReschedule={() => {}}
+                    onReject={() => {}}
+                    onComplete={() => {}}
+                    isPharmacy={false}
+                />
+            )}
         </div>
     );
 }

@@ -2,14 +2,14 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, CheckCircle2, MapPin, Wrench, Calendar, Clock, Phone, FileText } from "lucide-react";
+import { X, CheckCircle2, MapPin, Stethoscope, Calendar, Clock, Phone, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { apiCall } from "@/lib/api";
 
-interface MaintenanceBookingModalProps {
+interface DoctorBookingModalProps {
     provider: {
         id: string;
         name: string;
@@ -21,15 +21,14 @@ interface MaintenanceBookingModalProps {
     onOpenChange: (open: boolean) => void;
 }
 
-export function MaintenanceBookingModal({ provider, serviceName, open, onOpenChange }: MaintenanceBookingModalProps) {
+export function DoctorBookingModal({ provider, serviceName, open, onOpenChange }: DoctorBookingModalProps) {
     const { toast } = useToast();
     const { currentUser } = useAppStore();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
 
     // Form fields
-    const [area, setArea] = useState("الحي الأول");
-    const [address, setAddress] = useState("");
+    const [patientName, setPatientName] = useState(currentUser?.name || "");
     const [phone, setPhone] = useState("");
     const [appointmentDate, setAppointmentDate] = useState("");
     const [appointmentTime, setAppointmentTime] = useState("");
@@ -66,7 +65,7 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
         onOpenChange(false);
         setTimeout(() => {
             setStep(1);
-            setAddress("");
+            setPatientName(currentUser?.name || "");
             setPhone("");
             setAppointmentDate("");
             setAppointmentTime("");
@@ -76,7 +75,7 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
     };
 
     const handleSubmit = async () => {
-        if (!address || !phone || !appointmentDate || !appointmentTime) {
+        if (!patientName || !phone || !appointmentDate || !appointmentTime) {
             toast("يرجى ملء جميع الحقول المطلوبة", "error");
             return;
         }
@@ -88,9 +87,9 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
 
         setLoading(true);
         try {
-            const finalServiceName = isCustom ? `طلب صيانة مخصص: ${customServiceType}` : serviceName;
+            const finalServiceName = isCustom ? `حجز مخصص: ${customServiceType}` : serviceName;
             const fullDate = `${appointmentDate}T${appointmentTime}:00`;
-            const detailsStr = `المنطقة: ${area} | العنوان: ${address} | الهاتف: ${phone} | الموعد: ${appointmentDate} ${appointmentTime}${notes ? ` | ملاحظات: ${notes}` : ''}`;
+            const detailsStr = `المريض: ${patientName} | الهاتف: ${phone} | الموعد: ${appointmentDate} ${appointmentTime}${notes ? ` | تفاصيل: ${notes}` : ''}`;
 
             const result = await apiCall('/bookings', {
                 method: 'POST',
@@ -98,19 +97,20 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
                     userId: currentUser?.id || null,
                     providerId: provider.id,
                     serviceId: null,
-                    userName: currentUser?.name || 'عميل',
+                    userName: patientName,
                     serviceName: finalServiceName,
                     providerName: provider.name,
                     price: 0,
                     details: detailsStr,
                     items: [],
                     appointmentDate: fullDate,
-                    appointmentType: 'maintenance'
+                    appointmentType: 'medical'
                 })
             });
 
             if (result.id) {
-                // We rely on the provider dashboard to mark the slot as booked
+                // Here we ideally want to mark the slot as booked, but since we are a customer, we can't edit the provider's service directly.
+                // We rely on the provider dashboard to mark it as booked.
                 setStep(2); // success step
             } else {
                 toast("حدث خطأ في إنشاء الحجز", "error");
@@ -124,6 +124,9 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
     };
 
     if (!open) return null;
+
+    // Get minimum date (today)
+    const today = new Date().toISOString().split('T')[0];
 
     return (
         <AnimatePresence>
@@ -142,10 +145,10 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
                 >
-                    <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-blue-50 dark:bg-blue-950/30">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-cyan-50 dark:bg-cyan-950/30">
                         <div className="flex items-center gap-2">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-full">
-                                <Wrench className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <div className="p-2 bg-cyan-100 dark:bg-cyan-900/50 rounded-full">
+                                <Stethoscope className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                             </div>
                             <h3 className="font-bold text-lg">
                                 {step === 2 ? "تم بنجاح ✓" : `حجز موعد - ${provider.name}`}
@@ -160,17 +163,17 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
                         {step === 1 && (
                             <div className="p-6 space-y-5">
                                 {serviceName ? (
-                                    <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center">
-                                        <span className="text-sm text-blue-700 dark:text-blue-300 font-semibold">🔧 الخدمة المطلوبة: {serviceName}</span>
+                                    <div className="bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800 rounded-lg p-3 text-center">
+                                        <span className="text-sm text-cyan-700 dark:text-cyan-300 font-semibold">👨‍⚕️ الخدمة المطلوبة: {serviceName}</span>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold flex items-center gap-2">
-                                            <FileText className="h-4 w-4 text-blue-500" />
-                                            نوع الخدمة <span className="text-destructive">*</span>
+                                            <FileText className="h-4 w-4 text-cyan-500" />
+                                            الخدمة المطلوبة <span className="text-destructive">*</span>
                                         </label>
                                         <Input
-                                            placeholder="مثال: تصليح تكييف، صيانة غسالة..."
+                                            placeholder="مثال: كشف، تنظيف أسنان، إبرة..."
                                             value={customServiceType}
                                             onChange={(e) => setCustomServiceType(e.target.value)}
                                             className="h-11"
@@ -179,42 +182,21 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
                                 )}
 
                                 <div className="space-y-2">
-                                    <label htmlFor="maint-area" className="text-sm font-bold flex items-center gap-2">
-                                        <MapPin className="h-4 w-4 text-blue-500" />
-                                        المنطقة
-                                    </label>
-                                    <select
-                                        id="maint-area"
-                                        aria-label="اختر المنطقة"
-                                        className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                        value={area}
-                                        onChange={(e) => setArea(e.target.value)}
-                                    >
-                                        <option>الحي الأول</option>
-                                        <option>الحي الثاني</option>
-                                        <option>الحي الثالث</option>
-                                        <option>ابني بيتك</option>
-                                        <option>المنطقة الصناعية</option>
-                                        <option>المنطقة الخامسة</option>
-                                    </select>
-                                </div>
-
-                                <div className="space-y-2">
                                     <label className="text-sm font-bold flex items-center gap-2">
-                                        <MapPin className="h-4 w-4 text-blue-500" />
-                                        العنوان بالتفصيل <span className="text-destructive">*</span>
+                                        <Stethoscope className="h-4 w-4 text-cyan-500" />
+                                        اسم المريض <span className="text-destructive">*</span>
                                     </label>
                                     <Input
-                                        placeholder="اسم الشارع، رقم العمارة، الشقة..."
-                                        value={address}
-                                        onChange={(e) => setAddress(e.target.value)}
+                                        placeholder="الاسم الثلاثي"
+                                        value={patientName}
+                                        onChange={(e) => setPatientName(e.target.value)}
                                         className="h-11"
                                     />
                                 </div>
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-blue-500" />
+                                        <Phone className="h-4 w-4 text-cyan-500" />
                                         رقم الهاتف <span className="text-destructive">*</span>
                                     </label>
                                     <Input
@@ -231,11 +213,11 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
                                     <>
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold flex items-center gap-2">
-                                                <Calendar className="h-4 w-4 text-blue-500" />
+                                                <Calendar className="h-4 w-4 text-cyan-500" />
                                                 تاريخ الموعد (المتاح) <span className="text-destructive">*</span>
                                             </label>
                                             <select
-                                                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
                                                 value={appointmentDate}
                                                 onChange={(e) => {
                                                     setAppointmentDate(e.target.value);
@@ -250,11 +232,11 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
                                         {appointmentDate && (
                                             <div className="space-y-2">
                                                 <label className="text-sm font-bold flex items-center gap-2">
-                                                    <Clock className="h-4 w-4 text-blue-500" />
+                                                    <Clock className="h-4 w-4 text-cyan-500" />
                                                     وقت الموعد <span className="text-destructive">*</span>
                                                 </label>
                                                 <select
-                                                    className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                    className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
                                                     value={appointmentTime}
                                                     onChange={(e) => setAppointmentTime(e.target.value)}
                                                 >
@@ -266,24 +248,24 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
                                     </>
                                 ) : (
                                     <>
-                                        {/* Fallback to simple inputs if no explicit availability */}
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold flex items-center gap-2">
-                                                <Calendar className="h-4 w-4 text-blue-500" />
-                                                تاريخ الموعد المفضل <span className="text-destructive">*</span>
+                                                <Calendar className="h-4 w-4 text-cyan-500" />
+                                                تاريخ الموعد <span className="text-destructive">*</span>
                                             </label>
                                             <Input
                                                 type="date"
                                                 value={appointmentDate}
                                                 onChange={(e) => setAppointmentDate(e.target.value)}
-                                                min={new Date().toISOString().split('T')[0]}
+                                                min={today}
                                                 className="h-11"
                                             />
+                                            <p className="text-xs text-slate-500 mt-1">الدكتور لم يحدد مواعيد مسبقة، سيتم تأكيد الموعد معه.</p>
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold flex items-center gap-2">
-                                                <Clock className="h-4 w-4 text-blue-500" />
-                                                وقت الموعد المفضل <span className="text-destructive">*</span>
+                                                <Clock className="h-4 w-4 text-cyan-500" />
+                                                الوقت المقترح <span className="text-destructive">*</span>
                                             </label>
                                             <Input
                                                 type="time"
@@ -297,13 +279,13 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold">
-                                        ملاحظات إضافية (اختياري)
+                                        ملاحظات للطبيب (اختياري)
                                     </label>
                                     <textarea
-                                        placeholder="وصف المشكلة أو أي ملاحظات خاصة..."
+                                        placeholder="وصف الحالة، أدوية يتم تناولها..."
                                         value={notes}
                                         onChange={(e) => setNotes(e.target.value)}
-                                        className="flex min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                        className="flex min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
                                     />
                                 </div>
                             </div>
@@ -314,36 +296,35 @@ export function MaintenanceBookingModal({ provider, serviceName, open, onOpenCha
                                 <div className="w-20 h-20 bg-green-100 dark:bg-green-950/50 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
                                 </div>
-                                <h2 className="text-2xl font-bold text-green-700 dark:text-green-400">تم إرسال طلبك!</h2>
+                                <h2 className="text-2xl font-bold text-green-700 dark:text-green-400">تم إرسال طلب الحجز!</h2>
                                 <p className="text-muted-foreground text-base">
-                                    سيقوم <span className="font-bold text-foreground">{provider.name}</span> بمراجعة طلبك وتأكيد أو تعديل الموعد خلال دقائق.
+                                    سيقوم <span className="font-bold text-foreground">{provider.name}</span> بمراجعة الطلب وسيصلك إشعار بالقبول.
                                 </p>
-                                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300 mt-4">
-                                    لا تنسَ متابعة الإشعارات في حسابك أو التحقق من قسم طلباتي لمعرفة حالة الحجز.
+                                <div className="bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800 rounded-lg p-3 text-sm text-cyan-700 dark:text-cyan-300 mt-4">
+                                    📅 الموعد المطلوب: {appointmentDate} — {appointmentTime}
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                        {step === 1 ? (
+                    {step === 1 && (
+                        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                             <Button
+                                className="w-full h-12 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-base rounded-xl shadow-lg shadow-cyan-500/20"
                                 onClick={handleSubmit}
-                                disabled={loading}
-                                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg"
+                                disabled={loading || !patientName || !phone || !appointmentDate || !appointmentTime || (isCustom && !customServiceType)}
                             >
-                                {loading ? "جاري التأكيد..." : "تأكيد الموعد"}
+                                {loading ? "جاري الإرسال..." : "تأكيد الحجز 📅"}
                             </Button>
-                        ) : (
-                            <Button
-                                onClick={handleClose}
-                                className="w-full h-12"
-                                variant="outline"
-                            >
-                                إغلاق
+                        </div>
+                    )}
+                    {step === 2 && (
+                        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                            <Button className="w-full h-12 font-bold rounded-xl" variant="outline" onClick={handleClose}>
+                                العودة
                             </Button>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </motion.div>
             </div>
         </AnimatePresence>

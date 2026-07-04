@@ -7,16 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { LayoutDashboard, ShoppingBag, Star, TrendingUp, Settings, LogOut, Utensils, Plus, Trash2, Edit, Check, X, Clock, Camera, Upload, User, MessageSquare } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Star, TrendingUp, Settings, LogOut, Utensils, Plus, Trash2, Edit, Check, X, Clock, Camera, Upload, User, MessageSquare, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useConfirm } from "@/components/providers/ConfirmProvider";
 import { OrderDetailModal } from "@/components/providers/OrderDetailModal";
+import { DoctorAppointmentsTab } from "@/components/features/doctor-appointments-tab";
+import { PlaygroundAppointmentsTab } from "@/components/features/playground-appointments-tab";
+import { MaintenanceAppointmentsTab } from "@/components/features/maintenance-appointments-tab";
 import { apiCall, bookingsApi, servicesApi } from "@/lib/api";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { format } from "date-fns";
-import { isPharmacyProvider, isMaintenanceProvider } from "@/lib/category-utils";
+import { isPharmacyProvider, isMaintenanceProvider, isPlaygroundProvider, isDoctorProvider, isCarServiceProvider } from "@/lib/category-utils";
 import dynamic from "next/dynamic";
 import { io } from "socket.io-client";
 
@@ -162,7 +165,7 @@ export default function ProviderDashboard() {
     const { toast } = useToast();
     const { confirm } = useConfirm();
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'services' | 'reviews' | 'conversations'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'services' | 'reviews' | 'conversations' | 'appointments'>('overview');
     const prevBookingsRef = useRef<Booking[]>([]);
     const [chatOpen, setChatOpen] = useState(false);
     const [consultations, setConsultations] = useState<any[]>([]);
@@ -429,6 +432,16 @@ export default function ProviderDashboard() {
         }
     }, [isInitialized, providerId, fetchProviderServices]);
 
+    const hasSetDefaultTabRef = useRef(false);
+    useEffect(() => {
+        if (isInitialized && myProviderProfile && !hasSetDefaultTabRef.current) {
+            if (isCarServiceProvider(myProviderProfile.category)) {
+                setActiveTab('conversations');
+            }
+            hasSetDefaultTabRef.current = true;
+        }
+    }, [isInitialized, myProviderProfile]);
+
     useEffect(() => {
         if (!isInitialized || !providerId || activeTab !== 'services') return;
 
@@ -630,18 +643,21 @@ export default function ProviderDashboard() {
     useEffect(() => {
         if (!providerId || !isInitialized) return;
 
-        const qareeblakToken = localStorage.getItem('qareeblak_token');
-        if (!qareeblakToken) return;
+        const qareeblakToken = localStorage.getItem('qareeblak_token') || localStorage.getItem('token') || localStorage.getItem('halan_token');
+        const hasCookieSession = localStorage.getItem('qareeblak_cookie_session') === 'true';
+        
+        if (!qareeblakToken && !hasCookieSession) return;
 
         console.log('[ProviderDashboard] Starting global socket listener for provider:', providerId);
 
         let socket: any = null;
         try {
             const SOCKET_URL = API_BASE;
+            const authConfig = qareeblakToken ? { token: qareeblakToken } : {};
             socket = io(SOCKET_URL, {
                 transports: ['polling', 'websocket'],
                 reconnection: true,
-                auth: { token: qareeblakToken },
+                auth: authConfig,
             });
 
             socket.on('connect', () => {
@@ -737,6 +753,15 @@ export default function ProviderDashboard() {
             socket.on('new-message', (message: any) => {
                 console.log('[ProviderDashboard] New message, refreshing...');
                 syncConsultations();
+                
+                // Show notification for new message if it's from a customer
+                if (message && message.sender_type !== 'pharmacist') {
+                    toast(`رسالة جديدة من ${message.sender_name || 'عميل'} 💬`, "success");
+                    try {
+                        const audio = new Audio('/notification.mp3');
+                        audio.play().catch(e => console.log('Audio play blocked'));
+                    } catch (e) { }
+                }
             });
         } catch (err) {
             console.error('[ProviderDashboard] Socket setup failed:', err);
@@ -1114,13 +1139,14 @@ export default function ProviderDashboard() {
 
             // Check if this is a maintenance booking (skip Halan delivery)
             const providerIsMaintenance = isMaintenanceProvider(myProviderProfile?.category);
+            const providerIsDoctor = myProviderProfile?.category?.includes('دكتور') || myProviderProfile?.category?.includes('ممرض');
 
-            // For maintenance bookings, skip Halan delivery entirely
-            if (providerIsMaintenance) {
+            // For maintenance and medical bookings, skip Halan delivery entirely
+            if (providerIsMaintenance || providerIsDoctor) {
                 if (status === 'confirmed') {
-                    toast("تم قبول موعد الصيانة بنجاح ✅", "success");
+                    toast(providerIsDoctor ? "تم تأكيد موعد العميل بنجاح ✅" : "تم قبول موعد الصيانة بنجاح ✅", "success");
                 } else if (status === 'completed') {
-                    toast("تم إتمام خدمة الصيانة بنجاح ✅", "success");
+                    toast(providerIsDoctor ? "تم إتمام الكشف بنجاح ✅" : "تم إتمام خدمة الصيانة بنجاح ✅", "success");
                 } else {
                     toast("تم رفض الطلب", "info");
                 }
@@ -1316,6 +1342,48 @@ export default function ProviderDashboard() {
                     </Button>
                 </nav>
 
+                {/* Specific Tab for Doctor Providers */}
+                {(isDoctorProvider(myProviderProfile?.category)) && (
+                    <div className="px-6 pb-2">
+                        <Button
+                            variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
+                            className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20' : 'text-muted-foreground hover:text-cyan-600 hover:bg-cyan-500/10'}`}
+                            onClick={() => setActiveTab('appointments')}
+                        >
+                            <Calendar className="w-5 h-5" />
+                            المواعيد المتاحة
+                        </Button>
+                    </div>
+                )}
+
+                {/* Specific Tab for Maintenance Providers */}
+                {(isMaintenanceProvider(myProviderProfile?.category)) && (
+                    <div className="px-6 pb-2">
+                        <Button
+                            variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
+                            className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-muted-foreground hover:text-blue-600 hover:bg-blue-500/10'}`}
+                            onClick={() => setActiveTab('appointments')}
+                        >
+                            <Calendar className="w-5 h-5" />
+                            المواعيد المتاحة
+                        </Button>
+                    </div>
+                )}
+
+                {/* Specific Tab for Playground Providers */}
+                {(isPlaygroundProvider(myProviderProfile?.category)) && (
+                    <div className="px-6 pb-2">
+                        <Button
+                            variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
+                            className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-green-600 text-white shadow-lg shadow-green-500/20' : 'text-muted-foreground hover:text-green-600 hover:bg-green-500/10'}`}
+                            onClick={() => setActiveTab('appointments')}
+                        >
+                            <Calendar className="w-5 h-5" />
+                            المواعيد المتاحة
+                        </Button>
+                    </div>
+                )}
+
                 {/* Specific Tab for Pharmacy/Medical Providers */}
                 {isPharmacyProvider(myProviderProfile?.category) && (
                     <div className="px-6 pb-2">
@@ -1327,9 +1395,9 @@ export default function ProviderDashboard() {
                             <MessageSquare className="w-5 h-5" />
                             المحادثات الطبية
                             {/* Unread Badge */}
-                            {consultations.reduce((acc: number, c: any) => acc + (c.unread_count || 0), 0) > 0 && (
+                            {consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) > 0 && (
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 animate-pulse">
-                                    {consultations.reduce((acc: number, c: any) => acc + (c.unread_count || 0), 0)}
+                                    {consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0)}
                                 </span>
                             )}
                         </Button>
@@ -2021,6 +2089,38 @@ export default function ProviderDashboard() {
                         </motion.div>
                     )}
 
+                    {/* 6. APPOINTMENTS TAB */}
+                    {activeTab === 'appointments' && (
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className={`p-3 rounded-2xl ${isPlaygroundProvider(myProviderProfile?.category) ? 'bg-green-100 dark:bg-green-900/50 text-green-600' : isMaintenanceProvider(myProviderProfile?.category) ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600' : 'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-600'}`}>
+                                    <Calendar className="w-6 h-6" />
+                                </div>
+                                <h2 className="text-2xl font-black font-cairo text-foreground">المواعيد المتاحة</h2>
+                            </div>
+                            
+                            {isPlaygroundProvider(myProviderProfile?.category) ? (
+                                <PlaygroundAppointmentsTab 
+                                    providerId={providerId} 
+                                    services={myServices} 
+                                    onServicesUpdated={() => fetchProviderServices(providerId!)} 
+                                />
+                            ) : isMaintenanceProvider(myProviderProfile?.category) ? (
+                                <MaintenanceAppointmentsTab 
+                                    providerId={providerId} 
+                                    services={myServices} 
+                                    onServicesUpdated={() => fetchProviderServices(providerId!)} 
+                                />
+                            ) : (
+                                <DoctorAppointmentsTab 
+                                    providerId={providerId} 
+                                    services={myServices} 
+                                    onServicesUpdated={() => fetchProviderServices(providerId!)} 
+                                />
+                            )}
+                        </motion.div>
+                    )}
+
                 </div>
             </main>
 
@@ -2130,6 +2230,7 @@ export default function ProviderDashboard() {
                     }}
                     consultation={selectedConsultation}
                     providerId={String(providerId)}
+                    providerCategory={myProviderProfile?.category}
                 />
             )}
 
@@ -2188,7 +2289,8 @@ export default function ProviderDashboard() {
                     { id: 'orders' as const, label: 'الطلبات', icon: ShoppingBag, badge: overviewBookings.filter((b: Booking) => b.status === 'pending').length },
                     { id: 'services' as const, label: 'المنيو', icon: Utensils },
                     { id: 'reviews' as const, label: 'التقييمات', icon: Star },
-                    ...(isPharmacyProvider(myProviderProfile?.category) ? [{ id: 'conversations' as const, label: 'محادثات', icon: MessageSquare, badge: consultations.reduce((acc: number, c: any) => acc + (c.unread_count || 0), 0) }] : []),
+                    ...(isPharmacyProvider(myProviderProfile?.category) || isCarServiceProvider(myProviderProfile?.category) ? [{ id: 'conversations' as const, label: 'محادثات', icon: MessageSquare, badge: consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) }] : []),
+                    ...(isDoctorProvider(myProviderProfile?.category) || isPlaygroundProvider(myProviderProfile?.category) || isMaintenanceProvider(myProviderProfile?.category) ? [{ id: 'appointments' as const, label: 'المواعيد', icon: Calendar }] : []),
                 ].map((tab) => (
                     <button
                         key={tab.id}

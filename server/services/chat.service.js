@@ -8,11 +8,21 @@ class ChatService {
         if (!consultation) {
             throw new AppError('المحادثة غير موجودة', 404);
         }
-        if (consultation.customer_id !== userId && consultation.provider_id !== userId) {
-            logger.warn(`Security Alert: User ${userId} attempted to access consultation ${consultationId} without ownership.`);
-            throw new AppError('غير مصرح لك بالوصول لهذه المحادثة', 403);
+        
+        // Check if user is the customer
+        if (String(consultation.customer_id) === String(userId)) {
+            return consultation;
         }
-        return consultation;
+
+        // Check if user owns the provider
+        const pool = require('../db');
+        const check = await pool.query('SELECT user_id FROM providers WHERE id = $1', [consultation.provider_id]);
+        if (check.rows.length > 0 && String(check.rows[0].user_id) === String(userId)) {
+            return consultation;
+        }
+
+        logger.warn(`Security Alert: User ${userId} attempted to access consultation ${consultationId} without ownership.`);
+        throw new AppError('غير مصرح لك بالوصول لهذه المحادثة', 403);
     }
 
     async startConsultation(customerId, providerId) {
@@ -72,10 +82,11 @@ class ChatService {
         return { markedCount: readMessages.length, messageIds: readMessages.map(r => r.id) };
     }
 
-    async sendOrderQuote(consultationId, userId, items) {
+    async sendOrderQuote(consultationId, userId, payload) {
+        const { items, appointmentDate, appointmentTime, appointmentType } = Array.isArray(payload) ? { items: payload } : payload;
         const consult = await this._verifyOwnership(consultationId, userId);
 
-        // Security: Only the provider (pharmacist) can send a quote
+        // Security: Only the provider (pharmacist/car service) can send a quote
         if (consult.provider_id !== userId) {
             throw new AppError('فقط مقدم الخدمة يمكنه إرسال عرض سعر', 403);
         }
@@ -93,7 +104,10 @@ class ChatService {
                 price: Number(item.price)
             })),
             totalPrice,
-            status: 'pending'
+            status: 'pending',
+            appointmentDate: appointmentDate || null,
+            appointmentTime: appointmentTime || null,
+            appointmentType: appointmentType || null
         };
 
         const savedMessage = await chatRepo.saveMessage({
@@ -150,10 +164,12 @@ class ChatService {
                 customerId: userId,
                 providerId: consult.provider_id,
                 customerName: customerInfo.name || 'عميل',
-                providerName: providerInfo.name || 'صيدلية',
+                providerName: providerInfo.name || 'مقدم خدمة',
                 totalPrice,
                 details: detailParts.join(' | '),
-                items: JSON.stringify(orderItems)
+                items: JSON.stringify(orderItems),
+                appointmentType: quoteData.appointmentType,
+                appointmentDate: quoteData.appointmentDate ? `${quoteData.appointmentDate}${quoteData.appointmentTime ? 'T' + quoteData.appointmentTime : ''}` : null
             }, client);
 
             quoteData.status = 'accepted';
@@ -171,6 +187,19 @@ class ChatService {
             }, client);
 
             await chatRepo.commitTransaction(client);
+            
+            // Send notification to provider
+            if (providerInfo && providerInfo.user_id) {
+                const { createNotification } = require('../routes/notifications');
+                createNotification(
+                    providerInfo.user_id,
+                    'طلب جديد',
+                    `تم إنشاء طلب جديد برقم #${booking.id} من العميل ${customerInfo.name}`,
+                    'order_alert',
+                    String(booking.id)
+                ).catch(e => logger.error('Booking notification error:', e));
+            }
+            
             return { booking, sysMsg };
 
         } catch (error) {

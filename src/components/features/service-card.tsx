@@ -34,14 +34,17 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
     const providerCategory = provider?.category || "عام";
     const providerLocation = provider?.location || "غير محدد";
 
-    // Robust check for category
+    const isPharmacy = providerCategory.includes("صيدل");
     const isOrder = providerCategory.includes("مطعم") ||
         providerCategory.includes("مطاعم") ||
         providerCategory.includes("بقالة") ||
-        providerCategory.includes("سوبر") ||
-        providerCategory.includes("صيدلي");
+        providerCategory.includes("سوبر");
 
-    const ctaText = addToOrderId ? "أضف للطلب" : (isOrder ? "اطلب الآن" : "احجز موعد");
+    const ctaText = addToOrderId 
+        ? "أضف للطلب" 
+        : isPharmacy 
+            ? "تواصل أو اطلب"
+            : (isOrder ? "اطلب الآن" : "احجز موعد");
 
     // Dynamic styling based on category
     let headerColor = "bg-accent/50";
@@ -55,7 +58,15 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
         headerColor = "bg-blue-100 dark:bg-blue-950/30";
         iconColor = "text-blue-500 dark:text-blue-400";
     }
-    else if (providerCategory.includes("طبي")) {
+    else if (providerCategory.includes("صيدل")) {
+        headerColor = "bg-green-100 dark:bg-green-950/30";
+        iconColor = "text-green-500 dark:text-green-400";
+    }
+    else if (providerCategory.includes("دكتور") || providerCategory.includes("ممرض")) {
+        headerColor = "bg-cyan-100 dark:bg-cyan-950/30";
+        iconColor = "text-cyan-500 dark:text-cyan-400";
+    }
+    else if (providerCategory.includes("ملاعب")) {
         headerColor = "bg-green-100 dark:bg-green-950/30";
         iconColor = "text-green-500 dark:text-green-400";
     }
@@ -81,12 +92,16 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
                         <div className={`absolute -top-10 -left-10 w-40 h-40 rounded-full blur-[40px] ${
                             providerCategory.includes("مطعم") ? "bg-orange-400" : 
                             providerCategory.includes("صيانة") ? "bg-blue-400" : 
-                            providerCategory.includes("طبي") ? "bg-emerald-400" : "bg-indigo-400"
+                            providerCategory.includes("صيدل") ? "bg-emerald-400" : 
+                            providerCategory.includes("ملاعب") ? "bg-green-400" : 
+                            providerCategory.includes("دكتور") || providerCategory.includes("ممرض") ? "bg-cyan-400" : "bg-indigo-400"
                         }`} />
                         <div className={`absolute bottom-[-20px] -right-10 w-40 h-40 rounded-full blur-[50px] ${
                             providerCategory.includes("مطعم") ? "bg-rose-400" : 
                             providerCategory.includes("صيانة") ? "bg-cyan-400" : 
-                            providerCategory.includes("طبي") ? "bg-teal-400" : "bg-violet-400"
+                            providerCategory.includes("صيدل") ? "bg-teal-400" : 
+                            providerCategory.includes("ملاعب") ? "bg-emerald-400" : 
+                            providerCategory.includes("دكتور") || providerCategory.includes("ممرض") ? "bg-sky-400" : "bg-violet-400"
                         }`} />
                     </div>
                 </div>
@@ -102,7 +117,9 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
                                     <span className={`text-3xl font-black ${
                                         providerCategory.includes("مطعم") ? "text-orange-500" : 
                                         providerCategory.includes("صيانة") ? "text-blue-500" : 
-                                        providerCategory.includes("طبي") ? "text-emerald-500" : "text-indigo-500"
+                                        providerCategory.includes("صيدل") ? "text-emerald-500" : 
+                                        providerCategory.includes("ملاعب") ? "text-green-500" : 
+                                        providerCategory.includes("دكتور") || providerCategory.includes("ممرض") ? "text-cyan-500" : "text-indigo-500"
                                     }`}>
                                         {providerName.charAt(0)}
                                     </span>

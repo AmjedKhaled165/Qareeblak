@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Star, MapPin, Phone, User, Calendar, MessageSquare, ShoppingBag, Utensils, Tag, ShoppingCart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CartModal } from "@/components/features/cart-modal";
-import { isPharmacyProvider, isMaintenanceProvider } from "@/lib/category-utils";
+import { isPharmacyProvider, isMaintenanceProvider, isDoctorProvider, isCarServiceProvider } from "@/lib/category-utils";
 import { PharmacyProviderLayout } from "@/components/providers/PharmacyProviderLayout";
 import { MaintenanceBookingModal } from "@/components/features/maintenance-booking-modal";
+import { DoctorBookingModal } from "@/components/features/doctor-booking-modal";
+import { PlaygroundsBookingModal } from "@/components/features/playgrounds-booking-modal";
 import { apiCall } from "@/lib/api";
 
 // Type definitions
@@ -71,6 +73,14 @@ export default function ProviderProfile() {
     // Maintenance booking modal state - MOVED UP TO FIX HOOK ORDER
     const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
     const [selectedMaintenanceService, setSelectedMaintenanceService] = useState<string | undefined>(undefined);
+
+    // Doctor booking modal state
+    const [doctorModalOpen, setDoctorModalOpen] = useState(false);
+    const [selectedDoctorService, setSelectedDoctorService] = useState<string | undefined>(undefined);
+
+    // Playground booking modal state
+    const [playgroundModalOpen, setPlaygroundModalOpen] = useState(false);
+    const [selectedPlaygroundService, setSelectedPlaygroundService] = useState<string | undefined>(undefined);
 
     const addToOrderId = searchParams.get('addToOrderId');
     const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
@@ -160,8 +170,8 @@ export default function ProviderProfile() {
         );
     }
 
-    // Render pharmacy-specific layout for medical/pharmacy providers
-    if (isPharmacyProvider(provider.category)) {
+    // Render pharmacy-specific layout for medical/pharmacy/car service providers
+    if (isPharmacyProvider(provider.category) || isCarServiceProvider(provider.category)) {
         return (
             <PharmacyProviderLayout
                 provider={{
@@ -264,7 +274,9 @@ export default function ProviderProfile() {
         }
     };
 
-    const isRestaurant = provider.category.includes("مطعم") || provider.category.includes("مطاعم");
+    const isRestaurant = provider.category?.includes('مطعم') || provider.category?.includes('كافيه');
+    const isDoctor = provider.category?.includes('دكتور') || provider.category?.includes('ممرض');
+    const isPlayground = provider.category?.includes('ملاعب') || provider.category?.includes('ملعب');
     const isMaintenance = isMaintenanceProvider(provider.category);
     const services = provider.services || [];
 
@@ -523,13 +535,19 @@ export default function ProviderProfile() {
                                                                 if (isMaintenance) {
                                                                     setSelectedMaintenanceService(service.name);
                                                                     setMaintenanceModalOpen(true);
+                                                                } else if (isDoctor) {
+                                                                    setSelectedDoctorService(service.name);
+                                                                    setDoctorModalOpen(true);
+                                                                } else if (isPlayground) {
+                                                                    setSelectedPlaygroundService(service.name);
+                                                                    setPlaygroundModalOpen(true);
                                                                 } else {
                                                                     handleOrder(service);
                                                                 }
                                                             }}
-                                                            className={isMaintenance ? "bg-blue-600 hover:bg-blue-700" : isRestaurant ? "bg-orange-500 hover:bg-orange-600" : ""}
+                                                            className={isMaintenance ? "bg-blue-600 hover:bg-blue-700" : isDoctor ? "bg-cyan-600 hover:bg-cyan-700" : isPlayground ? "bg-green-600 hover:bg-green-700" : isRestaurant ? "bg-orange-500 hover:bg-orange-600" : ""}
                                                         >
-                                                            {isMaintenance ? "احجز موعد" : addToOrderId ? "إضافة للطلب" : "إضافة للسلة"}
+                                                            {isMaintenance || isDoctor || isPlayground ? "احجز موعد" : addToOrderId ? "إضافة للطلب" : "إضافة للسلة"}
                                                         </Button>
                                                     </div>
                                                 </CardContent>
@@ -733,6 +751,26 @@ export default function ProviderProfile() {
                         serviceName={selectedMaintenanceService}
                         open={maintenanceModalOpen}
                         onOpenChange={setMaintenanceModalOpen}
+                    />
+                )}
+
+                {/* Doctor Booking Modal */}
+                {isDoctor && (
+                    <DoctorBookingModal
+                        provider={provider}
+                        serviceName={selectedDoctorService}
+                        open={doctorModalOpen}
+                        onOpenChange={setDoctorModalOpen}
+                    />
+                )}
+
+                {/* Playground Booking Modal */}
+                {isPlayground && (
+                    <PlaygroundsBookingModal
+                        provider={provider}
+                        serviceName={selectedPlaygroundService}
+                        open={playgroundModalOpen}
+                        onOpenChange={setPlaygroundModalOpen}
                     />
                 )}
             </div >
