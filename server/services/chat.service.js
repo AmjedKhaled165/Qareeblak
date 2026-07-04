@@ -92,8 +92,8 @@ class ChatService {
         const { items, appointmentDate, appointmentTime, appointmentType } = Array.isArray(payload) ? { items: payload } : payload;
         const consult = await this._verifyOwnership(consultationId, userId);
 
-        // Security: Only the provider (pharmacist/car service) can send a quote
-        if (consult.provider_id !== userId) {
+        // Security: Only the provider (pharmacist/car service) or admin can send a quote
+        if (String(consult.customer_id) === String(userId)) {
             throw new AppError('فقط مقدم الخدمة يمكنه إرسال عرض سعر', 403);
         }
 
@@ -132,8 +132,13 @@ class ChatService {
         const consult = await this._verifyOwnership(consultationId, userId);
 
         // Security: Only the customer can accept a quote
-        if (consult.customer_id !== userId) {
-            throw new AppError('فقط العميل يمكنه قبول عرض السعر', 403);
+        if (String(consult.customer_id) !== String(userId)) {
+            // Allow admin to bypass if needed, but normally only customer
+            const pool = require('../db');
+            const userCheck = await pool.query('SELECT user_type FROM users WHERE id = $1', [userId]);
+            if (!userCheck.rows.length || userCheck.rows[0].user_type !== 'admin') {
+                throw new AppError('فقط العميل يمكنه قبول عرض السعر', 403);
+            }
         }
 
         const client = await chatRepo.beginTransaction();
