@@ -79,14 +79,16 @@ module.exports = function registerSocketHandlers(io) {
         // ========== CHAT HANDLERS ==========
         // Join a consultation chat room
         socket.on('join-consultation', (consultationId) => {
-            socket.join(consultationId);
-            logger.info(`Client joined chat: ${consultationId}`);
+            const roomName = `chat-${consultationId}`;
+            socket.join(roomName);
+            logger.info(`Client joined chat: ${roomName}`);
         });
 
         // Leave a consultation chat room
         socket.on('leave-consultation', (consultationId) => {
-            socket.leave(consultationId);
-            logger.info(`Client left chat: ${consultationId}`);
+            const roomName = `chat-${consultationId}`;
+            socket.leave(roomName);
+            logger.info(`Client left chat: ${roomName}`);
         });
 
         // ========== MANAGERS TRACKING ==========

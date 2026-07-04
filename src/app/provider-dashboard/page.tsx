@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { isPharmacyProvider, isMaintenanceProvider, isPlaygroundProvider, isDoctorProvider, isCarServiceProvider } from "@/lib/category-utils";
 import dynamic from "next/dynamic";
 import { io } from "socket.io-client";
+import { NotificationBell } from "@/components/features/notification-bell";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const API_BASE = API_URL.replace(/\/api$/, ''); // Ensure no trailing /api
@@ -1385,7 +1386,7 @@ export default function ProviderDashboard() {
                 )}
 
                 {/* Specific Tab for Pharmacy/Medical Providers */}
-                {isPharmacyProvider(myProviderProfile?.category) && (
+                {(isPharmacyProvider(myProviderProfile?.category) || isDoctorProvider(myProviderProfile?.category)) && (
                     <div className="px-6 pb-2">
                         <Button
                             variant={activeTab === 'conversations' ? 'secondary' : 'ghost'}
@@ -1397,7 +1398,7 @@ export default function ProviderDashboard() {
                             {/* Unread Badge */}
                             {consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) > 0 && (
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 animate-pulse">
-                                    {consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0)}
+                                    {consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) > 99 ? '+99' : consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0)}
                                 </span>
                             )}
                         </Button>
@@ -1424,15 +1425,35 @@ export default function ProviderDashboard() {
 
                 <div className="w-full space-y-10 relative z-10">
 
-                    {/* Header Mobile */}
-                    <div className="md:hidden flex items-center justify-between p-4 bg-card rounded-2xl border border-border/50 shadow-lg">
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-xl font-black text-foreground font-cairo">لوحة الشركاء</h1>
-                        </div>
+                {/* Header Mobile */}
+                <div className="md:hidden flex items-center justify-between p-4 bg-card rounded-2xl border border-border/50 shadow-lg mb-4">
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-xl font-black text-foreground font-cairo">لوحة الشركاء</h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {currentUser && <NotificationBell />}
                         <Button size="sm" variant="ghost" className="text-destructive font-bold h-10 px-4 rounded-xl" onClick={() => logout()}>خروج</Button>
                     </div>
+                </div>
 
-                    {/* 1. OVERVIEW TAB */}
+                <header className="h-16 flex items-center justify-between px-6 bg-card/80 backdrop-blur-md sticky top-0 z-30 shadow-[0_2px_10px_rgba(0,0,0,0.05)] border-b border-border/50 hidden md:flex mb-6 rounded-b-2xl">
+                    <h2 className="text-2xl font-black font-cairo">
+                        {activeTab === 'overview' && 'نظرة عامة'}
+                        {activeTab === 'orders' && 'إدارة الطلبات'}
+                        {activeTab === 'services' && 'الخدمات والمنيو'}
+                        {activeTab === 'reviews' && 'التقييمات'}
+                        {activeTab === 'conversations' && 'المحادثات'}
+                        {activeTab === 'appointments' && 'المواعيد'}
+                    </h2>
+                    <div className="flex items-center gap-4">
+                        {currentUser && <NotificationBell />}
+                        <Button variant="outline" className="h-10 px-6 rounded-xl font-bold hover:bg-destructive hover:text-white transition-colors" onClick={() => logout()}>
+                            تسجيل الخروج
+                        </Button>
+                    </div>
+                </header>
+
+                {/* 1. OVERVIEW TAB */}
                     {activeTab === 'overview' && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
                             <div className="grid gap-6 md:grid-cols-3">
@@ -2289,7 +2310,7 @@ export default function ProviderDashboard() {
                     { id: 'orders' as const, label: 'الطلبات', icon: ShoppingBag, badge: overviewBookings.filter((b: Booking) => b.status === 'pending').length },
                     { id: 'services' as const, label: 'المنيو', icon: Utensils },
                     { id: 'reviews' as const, label: 'التقييمات', icon: Star },
-                    ...(isPharmacyProvider(myProviderProfile?.category) || isCarServiceProvider(myProviderProfile?.category) ? [{ id: 'conversations' as const, label: 'محادثات', icon: MessageSquare, badge: consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) }] : []),
+                    ...(isPharmacyProvider(myProviderProfile?.category) || isCarServiceProvider(myProviderProfile?.category) || isDoctorProvider(myProviderProfile?.category) ? [{ id: 'conversations' as const, label: 'محادثات', icon: MessageSquare, badge: consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) }] : []),
                     ...(isDoctorProvider(myProviderProfile?.category) || isPlaygroundProvider(myProviderProfile?.category) || isMaintenanceProvider(myProviderProfile?.category) ? [{ id: 'appointments' as const, label: 'المواعيد', icon: Calendar }] : []),
                 ].map((tab) => (
                     <button
@@ -2308,7 +2329,7 @@ export default function ProviderDashboard() {
                             <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-primary' : ''}`} />
                             {tab.badge && tab.badge > 0 && (
                                 <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 animate-pulse">
-                                    {tab.badge}
+                                    {tab.badge > 99 ? '+99' : tab.badge}
                                 </span>
                             )}
                         </div>

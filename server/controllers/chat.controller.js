@@ -48,10 +48,10 @@ exports.getMessages = catchAsync(async (req, res, next) => {
 exports.sendMessage = catchAsync(async (req, res, next) => {
     const { consultationId } = req.params;
     const userId = req.user.id;
-
-    const savedMessage = await chatService.sendMessage(consultationId, userId, req.body);
-
     const io = req.app.get('io');
+
+    const savedMessage = await chatService.sendMessage(consultationId, userId, { ...req.body, io });
+
     if (io) {
         io.to(`chat-${consultationId}`).emit('new-message', savedMessage);
     }
@@ -75,12 +75,13 @@ exports.uploadImage = catchAsync(async (req, res, next) => {
         ? req.file.location
         : `/uploads/chat/${req.file.filename}`;
 
+    const io = req.app.get('io');
     const savedMessage = await chatService.sendMessage(consultationId, userId, {
         senderType: senderType || 'customer',
-        imageUrl
+        imageUrl,
+        io
     });
 
-    const io = req.app.get('io');
     if (io) {
         io.to(`chat-${consultationId}`).emit('new-message', savedMessage);
     }

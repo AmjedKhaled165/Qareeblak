@@ -21,6 +21,12 @@ class ChatService {
             return consultation;
         }
 
+        // Check if user is an admin
+        const userCheck = await pool.query('SELECT user_type FROM users WHERE id = $1', [userId]);
+        if (userCheck.rows.length > 0 && userCheck.rows[0].user_type === 'admin') {
+            return consultation;
+        }
+
         logger.warn(`Security Alert: User ${userId} attempted to access consultation ${consultationId} without ownership.`);
         throw new AppError('غير مصرح لك بالوصول لهذه المحادثة', 403);
     }
@@ -42,7 +48,7 @@ class ChatService {
         return { messages, consultation, nextLastId, hasMore: messages.length === limit };
     }
 
-    async sendMessage(consultationId, userId, { senderType, message, imageUrl }) {
+    async sendMessage(consultationId, userId, { senderType, message, imageUrl, io }) {
         const consult = await this._verifyOwnership(consultationId, userId);
 
         const savedMessage = await chatRepo.saveMessage({
@@ -70,7 +76,7 @@ class ChatService {
         if (recipientId) {
             const msgType = imageUrl ? 'أرسل صورة' : message;
             const { createNotification } = require('../routes/notifications');
-            createNotification(recipientId, 'رسالة جديدة', msgType, 'chat_alert', String(consultationId)).catch(e => logger.error('Chat notification error:', e));
+            createNotification(recipientId, 'رسالة جديدة', msgType, 'chat_alert', String(consultationId), io).catch(e => logger.error('Chat notification error:', e));
         }
 
         return savedMessage;
