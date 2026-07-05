@@ -16,6 +16,7 @@ import { PharmacyProviderLayout } from "@/components/providers/PharmacyProviderL
 import { MaintenanceBookingModal } from "@/components/features/maintenance-booking-modal";
 import { DoctorBookingModal } from "@/components/features/doctor-booking-modal";
 import { PlaygroundsBookingModal } from "@/components/features/playgrounds-booking-modal";
+import { PlaygroundInlineBooking } from "@/components/features/playground-inline-booking";
 import { apiCall } from "@/lib/api";
 
 // Type definitions
@@ -419,9 +420,9 @@ export default function ProviderProfile() {
                             }
                         `}
                     >
-                        {isRestaurant ? <Utensils className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
-                        {isRestaurant ? "المنيو" : "الخدمات"}
-                        {services.length > 0 && (
+                        {isRestaurant ? <Utensils className="w-4 h-4" /> : isPlayground ? <Calendar className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
+                        {isRestaurant ? "المنيو" : isPlayground ? "جدول المواعيد" : "الخدمات"}
+                        {services.length > 0 && !isPlayground && (
                             <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">
                                 {services.length}
                             </span>
@@ -450,7 +451,9 @@ export default function ProviderProfile() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                         >
-                            {services.length === 0 ? (
+                            {isPlayground ? (
+                                <PlaygroundInlineBooking provider={provider} />
+                            ) : services.length === 0 ? (
                                 <Card className="text-center py-16 border-dashed">
                                     <div className="text-slate-400">
                                         <ShoppingBag className="w-12 h-12 mx-auto mb-4 opacity-30" />
