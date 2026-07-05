@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Calendar, Clock, Trophy, MapPin, Check } from "lucide-react";
+import { CheckCircle2, Calendar, Clock, Trophy, MapPin, Check, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/components/providers/AppProvider";
@@ -48,18 +48,27 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
     const [customerName, setCustomerName] = useState(currentUser?.name || "");
     const [phone, setPhone] = useState(currentUser?.phone || "");
     const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
-    const [appointmentTime, setAppointmentTime] = useState("");
+    const [appointmentTimes, setAppointmentTimes] = useState<string[]>([]);
     
-    // Extract availability
+    // Extract availability and pricing
     const availabilityService = provider.services?.find(s => s.name === '__AVAILABILITY__');
-    const allSavedSlots = useMemo(() => {
-        if (!availabilityService?.description) return [];
+    const { allSavedSlots, pricing } = useMemo(() => {
+        let slots: any[] = [];
+        let pr = { morning: 0, night: 0 };
+        
+        if (!availabilityService?.description) return { allSavedSlots: slots, pricing: pr };
         try {
             const parsed = JSON.parse(availabilityService.description);
-            return Array.isArray(parsed) ? parsed : [];
+            if (Array.isArray(parsed)) {
+                slots = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+                if (Array.isArray(parsed.slots)) slots = parsed.slots;
+                if (parsed.pricing) pr = { morning: parsed.pricing.morning || 0, night: parsed.pricing.night || 0 };
+            }
         } catch (e) {
-            return [];
+            console.error("Failed to parse availability", e);
         }
+        return { allSavedSlots: slots, pricing: pr };
     }, [availabilityService]);
 
     const timesForSelectedDate = useMemo(() => {
@@ -71,16 +80,42 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
         return statuses;
     }, [appointmentDate, allSavedSlots]);
 
+    // Calculate total price based on selected times
+    const totalPrice = useMemo(() => {
+        let total = 0;
+        const fallbackPrice = pricing.morning || pricing.night || 0;
+        
+        appointmentTimes.forEach(time => {
+            const isMorning = time.includes('ص');
+            if (pricing.morning && pricing.night) {
+                total += isMorning ? pricing.morning : pricing.night;
+            } else {
+                total += fallbackPrice;
+            }
+        });
+        return total;
+    }, [appointmentTimes, pricing]);
+
+    const handleToggleTime = (time: string) => {
+        setAppointmentTimes(prev => {
+            if (prev.includes(time)) {
+                return prev.filter(t => t !== time);
+            } else {
+                return [...prev, time].sort((a, b) => ALL_DAY_SLOTS.indexOf(a) - ALL_DAY_SLOTS.indexOf(b));
+            }
+        });
+    };
+
     const handleSubmit = async () => {
-        if (!customerName || !appointmentDate || !appointmentTime) {
-            toast("يرجى ملء جميع الحقول المطلوبة واختيار وقت", "error");
+        if (!customerName || !appointmentDate || appointmentTimes.length === 0) {
+            toast("يرجى ملء جميع الحقول المطلوبة واختيار وقت واحد على الأقل", "error");
             return;
         }
 
         setLoading(true);
         try {
-            const finalServiceName = `حجز ملعب`;
-            const detailsStr = `الاسم: ${customerName} | الموعد: ${appointmentDate} ${appointmentTime}`;
+            const finalServiceName = `حجز ملعب (${appointmentTimes.length} ساعات)`;
+            const detailsStr = `الاسم: ${customerName} | الموعد: ${appointmentDate} | الساعات: ${appointmentTimes.join(' و ')}`;
 
             await apiCall('/bookings', {
                 method: 'POST',
@@ -94,16 +129,12 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                     location: "ملاعب",
                     serviceName: finalServiceName,
                     details: detailsStr,
-                    price: 0,
+                    price: totalPrice,
                     appointmentDate: `${appointmentDate}T00:00:00`,
                     appointmentType: 'playground'
                 })
             });
 
-            // The backend handles the booking request.
-            // We do NOT update the provider's __AVAILABILITY__ service here because the customer 
-            // does not have permission (HTTP 403). The provider will confirm the booking and update their slots.
-            
             setStep(2); // Success step
         } catch (error) {
             console.error('Booking failed:', error);
@@ -145,7 +176,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                 value={appointmentDate}
                                 onChange={(e) => {
                                     setAppointmentDate(e.target.value);
-                                    setAppointmentTime(""); // Reset time on date change
+                                    setAppointmentTimes([]); // Reset time on date change
                                 }}
                                 className="h-14 rounded-2xl bg-muted/50 border-transparent focus:border-green-500 focus:bg-background text-lg font-bold max-w-sm"
                             />
@@ -180,7 +211,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                     {ALL_DAY_SLOTS.map((time, idx) => {
                                         const status = timesForSelectedDate[time]; // 'available', 'unavailable', 'booked', or undefined
                                         const isAvailable = status !== 'unavailable' && status !== 'booked';
-                                        const isSelected = appointmentTime === time;
+                                        const isSelected = appointmentTimes.includes(time);
                                         const isBooked = status === 'booked';
                                         
                                         // Check if the time slot has already passed today
@@ -198,8 +229,6 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                                 isPast = true;
                                             }
                                         }
-
-                                        const isUnavailable = status === 'unavailable' || isPast;
 
                                         let btnClass = "bg-muted/30 border-border/50 text-muted-foreground opacity-60 cursor-not-allowed";
                                         let statusText = "غير متوفر";
@@ -223,7 +252,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                                 key={idx}
                                                 type="button"
                                                 disabled={(!isAvailable || isPast) && !isSelected}
-                                                onClick={() => setAppointmentTime(time)}
+                                                onClick={() => handleToggleTime(time)}
                                                 className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all font-bold ${btnClass}`}
                                             >
                                                 <span className="text-[13px] dir-ltr">{time}</span>
@@ -235,6 +264,31 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                         );
                                     })}
                                 </div>
+
+                                {/* Total Price Section */}
+                                <AnimatePresence>
+                                    {appointmentTimes.length > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-800 flex justify-between items-center"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+                                                    <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-green-800 dark:text-green-300">التكلفة الإجمالية</p>
+                                                    <p className="text-xs text-green-600/80 dark:text-green-400/80">لعدد {appointmentTimes.length} ساعات مختارة</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-2xl font-black text-green-700 dark:text-green-400 font-cairo">
+                                                {totalPrice} ج.م
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         </div>
 
@@ -263,7 +317,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
 
                         <Button
                             onClick={handleSubmit}
-                            disabled={loading || !appointmentTime || !customerName}
+                            disabled={loading || appointmentTimes.length === 0 || !customerName}
                             className="w-full md:w-auto min-w-[200px] h-14 bg-green-600 hover:bg-green-700 text-white rounded-2xl text-lg font-black font-cairo shadow-xl shadow-green-500/20 mt-4"
                         >
                             {loading ? "جاري الحجز..." : "تأكيد الحجز"}
@@ -280,14 +334,18 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                         </div>
                         <h3 className="text-2xl font-black text-green-600 mb-2 font-cairo">تم إرسال طلب الحجز بنجاح!</h3>
                         <p className="text-muted-foreground mb-8">
-                            تم تسجيل حجزك في ملعب "{provider.name}" ليوم {appointmentDate} الساعة {appointmentTime}.
+                            تم تسجيل حجزك في ملعب "{provider.name}" ليوم {appointmentDate}.
+                            <br />
+                            الساعات: {appointmentTimes.join(' و ')}
+                            <br />
+                            التكلفة: {totalPrice} ج.م
                             <br />
                             في انتظار تأكيد الحجز من صاحب الملعب.
                         </p>
                         <Button
                             onClick={() => {
                                 setStep(1);
-                                setAppointmentTime("");
+                                setAppointmentTimes([]);
                             }}
                             className="h-12 px-8 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold"
                         >

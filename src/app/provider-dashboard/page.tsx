@@ -1380,8 +1380,8 @@ export default function ProviderDashboard() {
                         className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all ${activeTab === 'services' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
                         onClick={() => setActiveTab('services')}
                     >
-                        <Utensils className="w-5 h-5" />
-                        المنيو / الخدمات
+                        {myProviderProfile?.category === 'playground' ? <Calendar className="w-5 h-5" /> : <Utensils className="w-5 h-5" />}
+                        {myProviderProfile?.category === 'playground' ? 'المواعيد المتاحة' : 'المنيو / الخدمات'}
                     </Button>
                     <Button
                         variant={activeTab === 'reviews' ? 'secondary' : 'ghost'}
@@ -1650,7 +1650,9 @@ export default function ProviderDashboard() {
                         <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
                             <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-card/50 p-6 rounded-[2rem] border border-border/50 backdrop-blur-sm">
                                 <div>
-                                    <h2 className="text-3xl font-black text-foreground font-cairo">الخدمات / المنيو</h2>
+                                    <h2 className="text-3xl font-black text-foreground font-cairo">
+                                        {myProviderProfile?.category === 'playground' ? 'المواعيد المتاحة' : 'الخدمات / المنيو'}
+                                    </h2>
                                     <p className="text-muted-foreground font-medium mt-1 font-cairo">أضف عدل أو احذف خدماتك المعروضة للعملاء</p>
                                 </div>
                                 <Dialog open={isServiceModalOpen} onOpenChange={(open: boolean) => {

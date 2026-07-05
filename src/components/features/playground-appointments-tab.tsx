@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Save, Calendar, Clock, Trophy } from "lucide-react";
+import { Save, Calendar, Clock, Trophy, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -28,6 +28,7 @@ const ALL_DAY_SLOTS = generateDaySlots();
 export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpdated }: any) {
     const { toast } = useToast();
     const [allSavedSlots, setAllSavedSlots] = useState<any[]>([]); // All slots across all dates
+    const [pricing, setPricing] = useState<{ morning: number; night: number }>({ morning: 0, night: 0 });
     
     const today = new Date().toISOString().split('T')[0];
     const [selectedDate, setSelectedDate] = useState(today);
@@ -37,14 +38,19 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
     const [currentDayStatuses, setCurrentDayStatuses] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
 
-    // Initialize all saved slots from the backend service
+    // Initialize all saved slots and pricing from the backend service
     useEffect(() => {
         const availabilityService = services?.find((s: any) => s.name === '__AVAILABILITY__');
         if (availabilityService?.description) {
             try {
                 const parsed = JSON.parse(availabilityService.description);
                 if (Array.isArray(parsed)) {
+                    // Backward compatibility: it was just an array of slots
                     setAllSavedSlots(parsed);
+                } else if (parsed && typeof parsed === 'object') {
+                    // New format: { slots: [], pricing: { morning, night } }
+                    if (Array.isArray(parsed.slots)) setAllSavedSlots(parsed.slots);
+                    if (parsed.pricing) setPricing({ morning: parsed.pricing.morning || 0, night: parsed.pricing.night || 0 });
                 }
             } catch (e) {
                 console.error("Failed to parse availability slots", e);
@@ -69,16 +75,16 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
             const currentStatus = prev[time];
             
             // Default is 'available' (undefined in state)
-            // Flow: undefined (available) -> 'unavailable' -> undefined (available)
+            // Flow: undefined (available) -> 'unavailable' -> 'booked' -> undefined (available)
             // We only need to store 'unavailable' or 'booked' states.
             
-            if (currentStatus === 'booked') return prev; // Cannot toggle booked slots directly from here
-
             let newStatus;
             if (!currentStatus) {
                 newStatus = 'unavailable'; // Clicking an available slot makes it unavailable
             } else if (currentStatus === 'unavailable') {
-                newStatus = undefined; // Clicking an unavailable slot makes it available (default)
+                newStatus = 'booked'; // Clicking an unavailable slot makes it booked
+            } else if (currentStatus === 'booked') {
+                newStatus = undefined; // Clicking a booked slot makes it available again
             }
 
             const updated = { ...prev };
@@ -103,12 +109,13 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
             }));
 
             const finalSlots = [...otherDatesSlots, ...newSlotsForDate];
+            const updatedDescription = JSON.stringify({ slots: finalSlots, pricing });
 
             const availabilityService = services?.find((s: any) => s.name === '__AVAILABILITY__');
             const serviceData = {
                 name: '__AVAILABILITY__',
-                description: JSON.stringify(finalSlots),
-                price: 0,
+                description: updatedDescription,
+                price: Math.max(pricing.morning, pricing.night) || 0, // save the highest as base price just in case
                 is_active: false // Hidden service
             };
 
@@ -125,7 +132,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
             }
 
             setAllSavedSlots(finalSlots);
-            toast("تم حفظ المواعيد لهذا اليوم بنجاح", "success");
+            toast("تم حفظ الإعدادات لهذا اليوم بنجاح", "success");
             if (onServicesUpdated) onServicesUpdated();
         } catch (error) {
             console.error('Failed to save availability:', error);
@@ -137,6 +144,49 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Pricing Section */}
+            <div className="bg-card p-6 rounded-2xl border border-border/50 shadow-sm">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-primary" />
+                    تسعيرة الملعب
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-muted-foreground">سعر الساعة (صباحاً)</label>
+                        <div className="relative">
+                            <Input
+                                type="number"
+                                min="0"
+                                value={pricing.morning || ''}
+                                onChange={(e) => setPricing(p => ({ ...p, morning: Number(e.target.value) }))}
+                                placeholder="مثال: 100"
+                                className="pl-10 h-12"
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">ج.م</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">يُطبق على أي ساعة تحتوي على (ص)</p>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-muted-foreground">سعر الساعة (مساءً)</label>
+                        <div className="relative">
+                            <Input
+                                type="number"
+                                min="0"
+                                value={pricing.night || ''}
+                                onChange={(e) => setPricing(p => ({ ...p, night: Number(e.target.value) }))}
+                                placeholder="مثال: 150"
+                                className="pl-10 h-12"
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">ج.م</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">يُطبق على أي ساعة تحتوي على (م)</p>
+                    </div>
+                </div>
+                <p className="text-xs font-bold text-green-600 mt-4">
+                    * ملاحظة: إذا قمت بتحديد سعر واحد فقط (مثلاً في الصباح) وترك الآخر فارغاً، سيتم تطبيقه على جميع الساعات.
+                </p>
+            </div>
+
             {/* Header: Date Selection & Save */}
             <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-card p-4 rounded-2xl border border-border/50 shadow-sm">
                 <div className="space-y-2 w-full md:w-1/3">
@@ -158,7 +208,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                         className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto px-8 font-bold"
                     >
                         <Save className="w-5 h-5 ml-2" />
-                        {loading ? "جاري الحفظ..." : "حفظ مواعيد هذا اليوم"}
+                        {loading ? "جاري الحفظ..." : "حفظ التغييرات"}
                     </Button>
                     <p className="text-xs text-muted-foreground">اضغط على الساعة لتغيير حالتها</p>
                 </div>
@@ -197,7 +247,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                             btnClass = "bg-muted/30 border-border/50 text-foreground hover:bg-muted/50";
                             statusText = "غير متاح";
                         } else if (status === 'booked') {
-                            btnClass = "bg-red-500 border-red-600 text-white shadow-sm shadow-red-500/20 opacity-90 cursor-not-allowed";
+                            btnClass = "bg-red-500 border-red-600 text-white shadow-sm shadow-red-500/20 opacity-90";
                             statusText = "محجوز";
                         }
 
