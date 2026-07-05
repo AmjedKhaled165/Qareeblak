@@ -491,7 +491,6 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
             const data = await res.json();
             if (data.success) {
                 toast("تمت الإضافة للسلة بنجاح ✅", "success");
-                setAcceptingQuote(null);
                 // Refresh messages to show updated quote status
                 const msgRes = await fetch(`${CHAT_API_BASE}/chat/${consultationId}`, {
                     headers: buildHeaders(token),
