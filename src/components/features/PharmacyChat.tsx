@@ -262,7 +262,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
 
                 if (!startRes.ok) {
                     if (startRes.status === 401) {
-                        localStorage.clear();
+                        console.warn('[PharmacyChat] Token invalid (401). Removing token to attempt silent refresh.');
+                        localStorage.removeItem('qareeblak_token');
                         location.reload();
                     }
                     throw new Error(`Server error: ${startRes.status}`);

@@ -162,10 +162,10 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId, pr
                 if (!res.ok) {
                     console.error('[ConsultationChat] Failed to fetch messages:', res.status);
 
-                    // If 401, token is invalid - clear and reload
                     if (res.status === 401) {
-                        console.warn('[ConsultationChat] Token invalid (401). Clearing localStorage.');
-                        localStorage.clear();
+                        console.warn('[ConsultationChat] Token invalid (401). Removing token to attempt silent refresh.');
+                        localStorage.removeItem('qareeblak_token');
+                        localStorage.removeItem('halan_token');
                         location.reload();
                     }
 
@@ -276,10 +276,10 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId, pr
                 const errorText = await res.text();
                 console.error('[ConsultationChat] Send failed:', res.status, errorText);
 
-                // If 401, token is invalid - clear and reload
                 if (res.status === 401) {
-                    console.warn('[ConsultationChat] Token invalid (401). Clearing localStorage.');
-                    localStorage.clear();
+                    console.warn('[ConsultationChat] Token invalid (401). Removing token to attempt silent refresh.');
+                    localStorage.removeItem('qareeblak_token');
+                    localStorage.removeItem('halan_token');
                     location.reload();
                 }
 
