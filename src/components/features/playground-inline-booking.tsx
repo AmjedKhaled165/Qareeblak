@@ -182,7 +182,24 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                         const isAvailable = status !== 'unavailable' && status !== 'booked';
                                         const isSelected = appointmentTime === time;
                                         const isBooked = status === 'booked';
-                                        const isUnavailable = status === 'unavailable';
+                                        
+                                        // Check if the time slot has already passed today
+                                        let isPast = false;
+                                        const todayStr = new Date().toISOString().split('T')[0];
+                                        if (appointmentDate === todayStr) {
+                                            const startPart = time.split(' - ')[0]; // "01:00 م"
+                                            const [hourStr, ampm] = startPart.split(' ');
+                                            let hours = parseInt(hourStr.split(':')[0], 10);
+                                            if (ampm === 'م' && hours !== 12) hours += 12;
+                                            if (ampm === 'ص' && hours === 12) hours = 0;
+                                            
+                                            const currentHour = new Date().getHours();
+                                            if (hours <= currentHour) {
+                                                isPast = true;
+                                            }
+                                        }
+
+                                        const isUnavailable = status === 'unavailable' || isPast;
 
                                         let btnClass = "bg-muted/30 border-border/50 text-muted-foreground opacity-60 cursor-not-allowed";
                                         let statusText = "غير متوفر";
@@ -193,6 +210,9 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                         } else if (isBooked) {
                                             btnClass = "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 opacity-70 cursor-not-allowed";
                                             statusText = "محجوز";
+                                        } else if (isPast) {
+                                            btnClass = "bg-muted/30 border-border/50 text-muted-foreground opacity-60 cursor-not-allowed";
+                                            statusText = "انتهى الوقت";
                                         } else if (isAvailable) {
                                             btnClass = "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 hover:border-green-500 hover:bg-green-100 dark:hover:bg-green-900/40 cursor-pointer shadow-sm";
                                             statusText = "متاح للحجز";
@@ -202,7 +222,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                             <button
                                                 key={idx}
                                                 type="button"
-                                                disabled={!isAvailable && !isSelected}
+                                                disabled={(!isAvailable || isPast) && !isSelected}
                                                 onClick={() => setAppointmentTime(time)}
                                                 className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all font-bold ${btnClass}`}
                                             >

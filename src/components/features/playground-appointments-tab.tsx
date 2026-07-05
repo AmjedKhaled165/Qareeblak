@@ -146,7 +146,6 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                     </label>
                     <Input
                         type="date"
-                        min={today}
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
                         className="h-11"
