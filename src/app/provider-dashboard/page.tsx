@@ -1389,7 +1389,17 @@ export default function ProviderDashboard() {
                         <ShoppingBag className="w-5 h-5" />
                         الطلبات ({overviewBookings.filter((b: Booking) => b.status === 'pending').length})
                     </Button>
-                    {!isPlaygroundProvider(myProviderProfile?.category) && (
+                    {/* Services OR Appointments based on category */}
+                    {isPlaygroundProvider(myProviderProfile?.category) || isDoctorProvider(myProviderProfile?.category) || isMaintenanceProvider(myProviderProfile?.category) ? (
+                        <Button
+                            variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
+                            className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                            onClick={() => setActiveTab('appointments')}
+                        >
+                            <Calendar className="w-5 h-5" />
+                            المواعيد المتاحة
+                        </Button>
+                    ) : (
                         <Button
                             variant={activeTab === 'services' ? 'secondary' : 'ghost'}
                             className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all ${activeTab === 'services' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
@@ -1397,41 +1407,6 @@ export default function ProviderDashboard() {
                         >
                             <Utensils className="w-5 h-5" />
                             المنيو / الخدمات
-                        </Button>
-                    )}
-                    {/* Specific Tab for Doctor Providers */}
-                    {(isDoctorProvider(myProviderProfile?.category)) && (
-                        <Button
-                            variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
-                            className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20' : 'text-muted-foreground hover:text-cyan-600 hover:bg-cyan-500/10'}`}
-                            onClick={() => setActiveTab('appointments')}
-                        >
-                            <Calendar className="w-5 h-5" />
-                            المواعيد المتاحة
-                        </Button>
-                    )}
-
-                    {/* Specific Tab for Maintenance Providers */}
-                    {(isMaintenanceProvider(myProviderProfile?.category)) && (
-                        <Button
-                            variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
-                            className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-muted-foreground hover:text-blue-600 hover:bg-blue-500/10'}`}
-                            onClick={() => setActiveTab('appointments')}
-                        >
-                            <Calendar className="w-5 h-5" />
-                            المواعيد المتاحة
-                        </Button>
-                    )}
-
-                    {/* Specific Tab for Playground Providers */}
-                    {(isPlaygroundProvider(myProviderProfile?.category)) && (
-                        <Button
-                            variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
-                            className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-green-600 text-white shadow-lg shadow-green-500/20' : 'text-muted-foreground hover:text-green-600 hover:bg-green-500/10'}`}
-                            onClick={() => setActiveTab('appointments')}
-                        >
-                            <Calendar className="w-5 h-5" />
-                            المواعيد المتاحة
                         </Button>
                     )}
 
@@ -2389,10 +2364,9 @@ export default function ProviderDashboard() {
                 {[
                     { id: 'overview' as const, label: 'نظرة عامة', icon: LayoutDashboard },
                     { id: 'orders' as const, label: 'الطلبات', icon: ShoppingBag, badge: overviewBookings.filter((b: Booking) => b.status === 'pending').length },
-                    { id: 'services' as const, label: 'المنيو', icon: Utensils },
+                    ...(isDoctorProvider(myProviderProfile?.category) || isPlaygroundProvider(myProviderProfile?.category) || isMaintenanceProvider(myProviderProfile?.category) ? [{ id: 'appointments' as const, label: 'المواعيد', icon: Calendar }] : [{ id: 'services' as const, label: 'المنيو', icon: Utensils }]),
                     { id: 'reviews' as const, label: 'التقييمات', icon: Star },
                     ...(isPharmacyProvider(myProviderProfile?.category) || isCarServiceProvider(myProviderProfile?.category) || isDoctorProvider(myProviderProfile?.category) ? [{ id: 'conversations' as const, label: 'محادثات', icon: MessageSquare, badge: consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) }] : []),
-                    ...(isDoctorProvider(myProviderProfile?.category) || isPlaygroundProvider(myProviderProfile?.category) || isMaintenanceProvider(myProviderProfile?.category) ? [{ id: 'appointments' as const, label: 'المواعيد', icon: Calendar }] : []),
                 ].map((tab) => (
                     <button
                         key={tab.id}
