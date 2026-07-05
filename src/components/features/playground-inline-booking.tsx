@@ -152,6 +152,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                 body: JSON.stringify({
                     userId: currentUser?.id || null,
                     providerId: provider.id,
+                    providerName: provider.name || "ملعب",
                     serviceId: null,
                     userName: customerName,
                     phone: phone || "0000000000",
@@ -160,8 +161,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                     serviceName: finalServiceName,
                     details: detailsStr,
                     price: totalPrice,
-                    appointmentDate: `${appointmentDate}T00:00:00`,
-                    appointmentType: 'playground'
+                    appointmentDate: new Date(`${appointmentDate}T00:00:00`).toISOString()
                 })
             });
 
