@@ -102,10 +102,25 @@ class ProviderService {
         p.id = encodeEntityId('provider', p.id);
         p.userId = p.user_id ? encodeEntityId('user', p.user_id) : undefined;
         p.isApproved = p.is_approved;
+        p.isOnline = p.is_online;
         p.joinedDate = p.joined_date;
         delete p.user_id;
         delete p.is_approved;
+        delete p.is_online;
         delete p.joined_date;
+    }
+
+    async updateStatus(userId, isOnline) {
+        const providerId = await providerRepo.getProviderIdByUserId(userId);
+        if (!providerId) throw new Error('Provider not found for user');
+
+        const result = await providerRepo.updateStatus(providerId, isOnline);
+        
+        // Invalidate cache
+        const { clearCachePattern } = require('../utils/redis-cache');
+        await clearCachePattern('providers:*');
+
+        return result;
     }
 }
 

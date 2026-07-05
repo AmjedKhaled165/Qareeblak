@@ -17,6 +17,7 @@ router.post('/:id/reviews', authLimiter, validate(addReviewSchema), providerCont
 // Provider/Admin Protected Routes
 router.use(verifyToken);
 router.put('/profile', isProviderOrAdmin, providerController.updateProfile);
+router.put('/status', isProviderOrAdmin, providerController.updateStatus);
 
 // Admin-only Routes
 router.delete('/:id', isAdmin, providerController.deleteProvider);

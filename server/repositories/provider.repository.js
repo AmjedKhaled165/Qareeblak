@@ -47,6 +47,9 @@ class ProviderRepository {
             if (cols.has('is_banned')) {
                 conditions.push('p.is_banned = FALSE');
             }
+            if (cols.has('is_online')) {
+                conditions.push('p.is_online = TRUE');
+            }
 
             if (category && cols.has('category')) {
                 params.push(category);
@@ -96,6 +99,7 @@ class ProviderRepository {
         const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
         const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
         const reviewUserNameSelect = reviewCols.has('user_name')
             ? 'user_name'
@@ -110,7 +114,7 @@ class ProviderRepository {
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
-                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${joinedDateSelect},
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect},
                 COALESCE(
                     (SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id),
                     '[]'::json
@@ -166,12 +170,13 @@ class ProviderRepository {
     async search(query) {
         const cols = await getProvidersColumns();
         const approvalCondition = cols.has('is_approved') ? 'is_approved = TRUE AND' : '';
+        const onlineCondition = cols.has('is_online') ? 'is_online = TRUE AND' : '';
         const categoryField = cols.has('category') ? 'category' : 'name';
 
         const result = await pool.query(`
             SELECT id, name, ${categoryField} AS category, phone
             FROM providers
-            WHERE ${approvalCondition} (name ILIKE $1 OR ${categoryField} ILIKE $1)
+            WHERE ${approvalCondition} ${onlineCondition} (name ILIKE $1 OR ${categoryField} ILIKE $1)
             ORDER BY name ASC
             LIMIT 20
         `, [`%${query.trim()}%`]);
@@ -184,12 +189,13 @@ class ProviderRepository {
         const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
         const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
 
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
-                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${joinedDateSelect}
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}
             FROM providers p
             WHERE p.id = $1
         `, [id]);
@@ -201,12 +207,13 @@ class ProviderRepository {
         const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
         const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
 
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone,
-                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${joinedDateSelect}
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}
             FROM providers p
             WHERE p.email = $1
         `, [email]);
@@ -230,6 +237,17 @@ class ProviderRepository {
             await pool.query('DELETE FROM users WHERE id = $1', [provider.user_id]);
         }
         return true;
+    }
+
+    async updateStatus(id, is_online) {
+        const cols = await getProvidersColumns();
+        if (!cols.has('is_online')) return null;
+
+        const result = await pool.query(
+            'UPDATE providers SET is_online = $1 WHERE id = $2 RETURNING *',
+            [is_online, id]
+        );
+        return result.rows[0];
     }
 
     async getProviderIdByUserId(userId) {

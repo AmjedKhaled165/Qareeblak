@@ -67,5 +67,17 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     }
 
     await providerRepo.updateProvider(providerId, req.body);
-    res.json({ success: true, message: 'تم تحديث بيانات المتجر بنجاح' });
+    res.json({ success: true, message: 'تم تحديث الملف الشخصي بنجاح' });
+});
+
+exports.updateStatus = catchAsync(async (req, res, next) => {
+    const userId = req.user.id;
+    const { isOnline } = req.body;
+
+    if (isOnline === undefined) {
+        throw new AppError('يرجى تحديد حالة الاتصال', 400);
+    }
+
+    await providerService.updateStatus(userId, isOnline);
+    res.json({ success: true, message: 'تم تحديث حالة الاتصال بنجاح', isOnline });
 });

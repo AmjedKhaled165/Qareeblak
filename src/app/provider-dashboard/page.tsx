@@ -72,6 +72,7 @@ interface Provider {
     services: Service[];
     reviewsList?: Review[];
     rating?: number;
+    isOnline?: boolean;
 }
 
 interface Booking {
@@ -189,6 +190,66 @@ export default function ProviderDashboard() {
     const [isPriceEstimationOpen, setIsPriceEstimationOpen] = useState(false);
     const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
     const [selectedOrderModal, setSelectedOrderModal] = useState<Booking | null>(null);
+
+    const [isOnline, setIsOnline] = useState<boolean>(true);
+    const [isTogglingStatus, setIsTogglingStatus] = useState<boolean>(false);
+
+    // Sync isOnline with provider profile when it loads
+    useEffect(() => {
+        if (currentUser && providers.length > 0) {
+            const profile = providers.find((p: Provider) =>
+                (p.userId && String(p.userId) === String(currentUser.id)) ||
+                (p.email && p.email === currentUser.email)
+            );
+            if (profile && profile.isOnline !== undefined) {
+                setIsOnline(profile.isOnline);
+            }
+        }
+    }, [currentUser, providers]);
+
+    const handleStatusToggle = async () => {
+        setIsTogglingStatus(true);
+        const newStatus = !isOnline;
+        // Optimistic update
+        setIsOnline(newStatus);
+        
+        try {
+            const res = await fetch(`${API_URL}/providers/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ isOnline: newStatus })
+            });
+
+            const data = await res.json();
+            if (!data.success) {
+                // Revert if failed
+                setIsOnline(!newStatus);
+                toast({
+                    title: "خطأ",
+                    description: data.message || "حدث خطأ أثناء تحديث حالة الاتصال",
+                    variant: "destructive",
+                });
+            } else {
+                toast({
+                    title: "تم التحديث",
+                    description: `أنت الآن ${newStatus ? 'متصل' : 'غير متصل'}`,
+                });
+            }
+        } catch (error) {
+            // Revert on network error
+            setIsOnline(!newStatus);
+            toast({
+                title: "خطأ في الشبكة",
+                description: "تعذر الاتصال بالخادم",
+                variant: "destructive",
+            });
+        } finally {
+            setIsTogglingStatus(false);
+        }
+    };
 
     const handleAcceptWithPrice = async (price: number) => {
         if (!selectedBookingId) return;
@@ -1431,8 +1492,18 @@ export default function ProviderDashboard() {
                         <h1 className="text-xl font-black text-foreground font-cairo">لوحة الشركاء</h1>
                     </div>
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-bold ${isOnline ? 'text-emerald-600' : 'text-gray-500'}`}>{isOnline ? 'متصل' : 'مخفي'}</span>
+                            <button
+                                onClick={handleStatusToggle}
+                                disabled={isTogglingStatus}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${isOnline ? 'bg-emerald-500' : 'bg-gray-300'} ${isTogglingStatus ? 'opacity-50' : ''}`}
+                            >
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isOnline ? '-translate-x-5' : '-translate-x-1'}`} />
+                            </button>
+                        </div>
                         {currentUser && <NotificationBell />}
-                        <Button size="sm" variant="ghost" className="text-destructive font-bold h-10 px-4 rounded-xl" onClick={() => logout()}>خروج</Button>
+                        <Button size="sm" variant="ghost" className="text-destructive font-bold h-10 px-2 rounded-xl" onClick={() => logout()}>خروج</Button>
                     </div>
                 </div>
 
@@ -1446,6 +1517,16 @@ export default function ProviderDashboard() {
                         {activeTab === 'appointments' && 'المواعيد'}
                     </h2>
                     <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 mr-4 bg-muted/30 px-3 py-1.5 rounded-full border border-border/50">
+                            <span className={`text-sm font-bold ${isOnline ? 'text-emerald-600' : 'text-gray-500'}`}>{isOnline ? 'متصل ومتاح' : 'غير متصل (مخفي)'}</span>
+                            <button
+                                onClick={handleStatusToggle}
+                                disabled={isTogglingStatus}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isOnline ? 'bg-emerald-500' : 'bg-gray-300'} ${isTogglingStatus ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isOnline ? '-translate-x-6' : '-translate-x-1'}`} />
+                            </button>
+                        </div>
                         {currentUser && <NotificationBell />}
                         <Button variant="outline" className="h-10 px-6 rounded-xl font-bold hover:bg-destructive hover:text-white transition-colors" onClick={() => logout()}>
                             تسجيل الخروج
