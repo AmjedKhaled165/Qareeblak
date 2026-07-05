@@ -2,13 +2,31 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Calendar, Clock, Trophy, MapPin } from "lucide-react";
+import { CheckCircle2, Calendar, Clock, Trophy, MapPin, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { apiCall } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
+
+const generateDaySlots = () => {
+    const slots = [];
+    for (let i = 0; i < 24; i++) {
+        const start = i;
+        const end = (i + 1) % 24;
+        
+        const formatHour = (h: number) => {
+            const ampm = h >= 12 ? 'م' : 'ص';
+            const hour12 = h % 12 || 12;
+            return `${hour12.toString().padStart(2, '0')}:00 ${ampm}`;
+        };
+        slots.push(`${formatHour(start)} - ${formatHour(end)}`);
+    }
+    return slots;
+};
+
+const ALL_DAY_SLOTS = generateDaySlots();
 
 interface PlaygroundInlineBookingProps {
     provider: {
@@ -34,7 +52,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
     
     // Extract availability
     const availabilityService = provider.services?.find(s => s.name === '__AVAILABILITY__');
-    const allSlots = useMemo(() => {
+    const allSavedSlots = useMemo(() => {
         if (!availabilityService?.description) return [];
         try {
             const parsed = JSON.parse(availabilityService.description);
@@ -45,9 +63,13 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
     }, [availabilityService]);
 
     const timesForSelectedDate = useMemo(() => {
-        if (!appointmentDate) return [];
-        return allSlots.filter((s: any) => s.date === appointmentDate);
-    }, [appointmentDate, allSlots]);
+        if (!appointmentDate) return {};
+        const statuses: Record<string, string> = {};
+        allSavedSlots.filter((s: any) => s.date === appointmentDate).forEach((slot: any) => {
+            statuses[slot.time] = slot.status;
+        });
+        return statuses;
+    }, [appointmentDate, allSavedSlots]);
 
     const handleSubmit = async () => {
         if (!customerName || !appointmentDate || !appointmentTime) {
@@ -78,14 +100,13 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                 })
             });
 
-            // If successful, we must also mark the slot as booked
+            // Mark slot as booked locally and update backend
             if (availabilityService) {
-                const updatedSlots = allSlots.map((slot: any) => {
-                    if (slot.date === appointmentDate && slot.time === appointmentTime) {
-                        return { ...slot, status: 'booked' };
-                    }
-                    return slot;
-                });
+                // Remove the old entry for this time if exists, then add the booked one
+                const otherSlots = allSavedSlots.filter((s: any) => !(s.date === appointmentDate && s.time === appointmentTime));
+                const newSlot = { date: appointmentDate, time: appointmentTime, status: 'booked' };
+                const updatedSlots = [...otherSlots, newSlot];
+
                 await apiCall(`/providers/${provider.id}/services/${availabilityService.id}`, {
                     method: 'PUT',
                     body: JSON.stringify({
@@ -136,53 +157,78 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                 type="date"
                                 min={new Date().toISOString().split('T')[0]}
                                 value={appointmentDate}
-                                onChange={(e) => setAppointmentDate(e.target.value)}
+                                onChange={(e) => {
+                                    setAppointmentDate(e.target.value);
+                                    setAppointmentTime(""); // Reset time on date change
+                                }}
                                 className="h-14 rounded-2xl bg-muted/50 border-transparent focus:border-green-500 focus:bg-background text-lg font-bold max-w-sm"
                             />
                         </div>
 
-                        {/* Time Grid */}
+                        {/* 24-Hour Time Grid */}
                         <div className="space-y-3 mt-8">
-                            <label className="text-sm font-bold flex items-center gap-2 text-foreground">
+                            <label className="text-sm font-bold flex items-center gap-2 text-foreground mb-4">
                                 <Clock className="w-4 h-4 text-green-600" />
                                 جدول الساعات المتاحة (يوم {new Date(appointmentDate).toLocaleDateString('ar-EG', { weekday: 'long' })})
                             </label>
                             
-                            <div className="bg-muted/30 border border-border/50 rounded-2xl p-4">
-                                {timesForSelectedDate.length === 0 ? (
-                                    <div className="text-center py-8 text-muted-foreground">
-                                        <Trophy className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                        <p className="font-bold">لا توجد مواعيد متاحة أو مسجلة في هذا اليوم</p>
+                            <div className="bg-muted/30 border border-border/50 rounded-2xl p-6">
+                                {/* Legend */}
+                                <div className="flex flex-wrap items-center gap-6 mb-6 pb-6 border-b border-border/50 text-sm font-medium">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded bg-green-500 border border-green-600"></div>
+                                        <span>متاح للحجز</span>
                                     </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                        {timesForSelectedDate.map((slot: any, idx: number) => {
-                                            const isBooked = slot.status === 'booked' || slot.status === 'unavailable';
-                                            const isSelected = appointmentTime === slot.time;
-                                            
-                                            return (
-                                                <button
-                                                    key={idx}
-                                                    type="button"
-                                                    disabled={isBooked}
-                                                    onClick={() => setAppointmentTime(slot.time)}
-                                                    className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${
-                                                        isBooked 
-                                                            ? 'bg-red-50 border-red-100 text-red-400 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-800 cursor-not-allowed opacity-60'
-                                                            : isSelected
-                                                                ? 'bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20 scale-105'
-                                                                : 'bg-card border-border hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-950/30'
-                                                    }`}
-                                                >
-                                                    {slot.time}
-                                                    {isBooked && <span className="block text-[10px] mt-1 text-red-500">غير متوفر</span>}
-                                                    {!isBooked && !isSelected && <span className="block text-[10px] mt-1 text-green-500">متاح للحجز</span>}
-                                                    {isSelected && <span className="block text-[10px] mt-1 text-green-100">تم الاختيار</span>}
-                                                </button>
-                                            );
-                                        })}
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded bg-muted/50 border border-border"></div>
+                                        <span>غير متوفر</span>
                                     </div>
-                                )}
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded bg-red-500 border border-red-600"></div>
+                                        <span>محجوز مسبقاً</span>
+                                    </div>
+                                </div>
+
+                                {/* Grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    {ALL_DAY_SLOTS.map((time, idx) => {
+                                        const status = timesForSelectedDate[time]; // 'available', 'unavailable', 'booked', or undefined
+                                        const isAvailable = status === 'available';
+                                        const isSelected = appointmentTime === time;
+                                        const isBooked = status === 'booked';
+                                        const isUnavailable = status === 'unavailable' || !status; // Treat undefined as unavailable for customers
+
+                                        let btnClass = "bg-muted/30 border-border/50 text-muted-foreground opacity-60 cursor-not-allowed";
+                                        let statusText = "غير متوفر";
+
+                                        if (isSelected) {
+                                            btnClass = "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20 scale-105 ring-2 ring-green-600 ring-offset-2 ring-offset-background";
+                                            statusText = "تم الاختيار";
+                                        } else if (isAvailable) {
+                                            btnClass = "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 hover:border-green-500 hover:bg-green-100 dark:hover:bg-green-900/40 cursor-pointer shadow-sm";
+                                            statusText = "متاح للحجز";
+                                        } else if (isBooked) {
+                                            btnClass = "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 opacity-70 cursor-not-allowed";
+                                            statusText = "محجوز";
+                                        }
+
+                                        return (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                disabled={!isAvailable && !isSelected}
+                                                onClick={() => setAppointmentTime(time)}
+                                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all font-bold ${btnClass}`}
+                                            >
+                                                <span className="text-[13px] dir-ltr">{time}</span>
+                                                <span className="text-[10px] mt-1 font-medium flex items-center gap-1">
+                                                    {isSelected && <Check className="w-3 h-3" />}
+                                                    {statusText}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
 
