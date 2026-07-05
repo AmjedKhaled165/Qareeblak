@@ -117,8 +117,10 @@ class ProviderService {
         const result = await providerRepo.updateStatus(providerId, isOnline);
         
         // Invalidate cache
-        const { clearCachePattern } = require('../utils/redis-cache');
-        await clearCachePattern('providers:*');
+        const { invalidatePattern } = require('../utils/redis-cache');
+        if (invalidatePattern) {
+            await invalidatePattern('providers:*');
+        }
 
         return result;
     }
