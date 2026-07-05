@@ -113,8 +113,19 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
     const status = appointmentType === 'maintenance' ? 'pending_appointment' : 'pending';
 
     const bId = await bookingRepo.legacyCreateBooking([
-        authenticatedUser, providerId, serviceId, userName, serviceName, providerName,
-        price, details, JSON.stringify(items || []), status, bundleId, appointmentDate || null, appointmentType || 'immediate'
+        authenticatedUser, 
+        providerId, 
+        serviceId || null, 
+        userName, 
+        serviceName, 
+        providerName,
+        price, 
+        details || null, 
+        JSON.stringify(items || []), 
+        status, 
+        bundleId || null, 
+        appointmentDate || null, 
+        appointmentType || 'immediate'
     ]);
 
     res.status(201).json({ success: true, message: 'تم إنشاء الحجز بنجاح', id: bId.toString() });
