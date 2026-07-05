@@ -13,6 +13,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
     const [slots, setSlots] = useState<any[]>([]);
     const [date, setDate] = useState("");
     const [time, setTime] = useState("");
+    const [status, setStatus] = useState("available");
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -35,7 +36,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
             return;
         }
 
-        const newSlot = { date, time, status: 'available' };
+        const newSlot = { date, time, status };
         
         // Prevent duplicates
         if (slots.some(s => s.date === date && s.time === time)) {
@@ -46,6 +47,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
         setSlots([...slots, newSlot]);
         setDate("");
         setTime("");
+        setStatus("available");
     };
 
     const handleRemoveSlot = (index: number) => {
@@ -80,7 +82,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                 });
             }
 
-            toast("تم حفظ المواعيد المتاحة بنجاح", "success");
+            toast("تم حفظ إدارة المواعيد بنجاح", "success");
             if (onServicesUpdated) onServicesUpdated();
         } catch (error) {
             console.error('Failed to save availability:', error);
@@ -102,7 +104,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row gap-4 items-end bg-card p-4 rounded-2xl border border-border/50 shadow-sm">
-                <div className="space-y-2 flex-1 w-full">
+                <div className="space-y-2 flex-1 w-full md:w-1/4">
                     <label className="text-sm font-bold flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-green-500" />
                         التاريخ
@@ -115,7 +117,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                         className="h-11"
                     />
                 </div>
-                <div className="space-y-2 flex-1 w-full">
+                <div className="space-y-2 flex-1 w-full md:w-1/4">
                     <label className="text-sm font-bold flex items-center gap-2">
                         <Clock className="w-4 h-4 text-green-500" />
                         الوقت (من - إلى)
@@ -129,9 +131,23 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                         dir="ltr"
                     />
                 </div>
+                <div className="space-y-2 flex-1 w-full md:w-1/4">
+                    <label className="text-sm font-bold flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-green-500" />
+                        حالة الموعد
+                    </label>
+                    <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <option value="available">متاح للحجز</option>
+                        <option value="unavailable">غير متاح (مغلق/محجوز)</option>
+                    </select>
+                </div>
                 <Button 
                     onClick={handleAddSlot}
-                    className="h-11 bg-green-600 hover:bg-green-700 text-white w-full md:w-auto"
+                    className="h-11 bg-green-600 hover:bg-green-700 text-white w-full md:w-auto px-6"
                 >
                     <Plus className="w-5 h-5 ml-1" />
                     إضافة موعد
@@ -155,7 +171,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                 {sortedSlots.length === 0 ? (
                     <div className="p-10 text-center text-muted-foreground">
                         <Trophy className="w-12 h-12 mx-auto mb-3 opacity-20 text-green-500" />
-                        <p>لم يتم إضافة أي مواعيد متاحة للملعب بعد.</p>
+                        <p>لم يتم إضافة أي مواعيد (متاحة أو غير متاحة) للملعب بعد.</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-border/50">
@@ -173,6 +189,16 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                                     {slot.status === 'booked' && (
                                         <div className="bg-red-100 text-red-700 px-2 py-1 text-xs rounded-md font-bold">
                                             محجوز
+                                        </div>
+                                    )}
+                                    {slot.status === 'unavailable' && (
+                                        <div className="bg-slate-200 text-slate-600 px-2 py-1 text-xs rounded-md font-bold border border-slate-300">
+                                            غير متاح
+                                        </div>
+                                    )}
+                                    {slot.status === 'available' && (
+                                        <div className="bg-emerald-100 text-emerald-700 px-2 py-1 text-xs rounded-md font-bold border border-emerald-200">
+                                            متاح
                                         </div>
                                     )}
                                 </div>

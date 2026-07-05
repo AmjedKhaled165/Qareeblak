@@ -187,7 +187,7 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
                                         ) : (
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                 {timesForSelectedDate.map((slot: any, idx: number) => {
-                                                    const isBooked = slot.status === 'booked';
+                                                    const isBooked = slot.status === 'booked' || slot.status === 'unavailable';
                                                     const isSelected = appointmentTime === slot.time;
                                                     
                                                     return (
