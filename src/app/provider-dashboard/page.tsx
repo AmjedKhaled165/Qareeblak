@@ -1375,14 +1375,16 @@ export default function ProviderDashboard() {
                         <ShoppingBag className="w-5 h-5" />
                         الطلبات ({overviewBookings.filter((b: Booking) => b.status === 'pending').length})
                     </Button>
-                    <Button
-                        variant={activeTab === 'services' ? 'secondary' : 'ghost'}
-                        className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all ${activeTab === 'services' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
-                        onClick={() => setActiveTab('services')}
-                    >
-                        {myProviderProfile?.category === 'playground' ? <Calendar className="w-5 h-5" /> : <Utensils className="w-5 h-5" />}
-                        {myProviderProfile?.category === 'playground' ? 'المواعيد المتاحة' : 'المنيو / الخدمات'}
-                    </Button>
+                    {!isPlaygroundProvider(myProviderProfile?.category) && (
+                        <Button
+                            variant={activeTab === 'services' ? 'secondary' : 'ghost'}
+                            className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all ${activeTab === 'services' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                            onClick={() => setActiveTab('services')}
+                        >
+                            <Utensils className="w-5 h-5" />
+                            المنيو / الخدمات
+                        </Button>
+                    )}
                     <Button
                         variant={activeTab === 'reviews' ? 'secondary' : 'ghost'}
                         className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all ${activeTab === 'reviews' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
