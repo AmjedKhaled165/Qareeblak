@@ -214,27 +214,17 @@ export default function ProviderDashboard() {
         setIsOnline(newStatus);
         
         try {
-            const res = await fetch(`${API_URL}/providers/status`, {
+            const res = await apiCall('/providers/status', {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
                 body: JSON.stringify({ isOnline: newStatus })
             });
 
-            const data = await res.json();
-            if (!data.success) {
-                // Revert if failed
-                setIsOnline(!newStatus);
-                toast(data.message || "حدث خطأ أثناء تحديث حالة الاتصال", "error");
-            } else {
-                toast(`أنت الآن ${newStatus ? 'متصل' : 'غير متصل'}`, "success");
-            }
-        } catch (error) {
-            // Revert on network error
+            // apiCall directly returns JSON or throws on non-2xx
+            toast(`أنت الآن ${newStatus ? 'متصل' : 'غير متصل'}`, "success");
+        } catch (error: any) {
+            // Revert on network or API error
             setIsOnline(!newStatus);
-            toast("تعذر الاتصال بالخادم", "error");
+            toast(error?.message || "حدث خطأ أثناء تحديث حالة الاتصال", "error");
         } finally {
             setIsTogglingStatus(false);
         }
