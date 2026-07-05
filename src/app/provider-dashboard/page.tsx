@@ -194,18 +194,38 @@ export default function ProviderDashboard() {
     const [isOnline, setIsOnline] = useState<boolean>(true);
     const [isTogglingStatus, setIsTogglingStatus] = useState<boolean>(false);
 
-    // Sync isOnline with provider profile when it loads
+    const [realProviderProfile, setRealProviderProfile] = useState<Provider | null>(null);
+
+    // Sync isOnline with provider profile when it loads (fetch directly to include offline status)
     useEffect(() => {
-        if (currentUser && providers.length > 0) {
-            const profile: any = providers.find((p: any) =>
-                (p.userId && String(p.userId) === String(currentUser.id)) ||
-                (p.email && p.email === currentUser.email)
-            );
-            if (profile && profile.isOnline !== undefined) {
-                setIsOnline(profile.isOnline);
-            }
+        if (currentUser?.email) {
+            import('@/lib/api').then(({ apiCall }) => {
+                apiCall(`/providers/by-email/${currentUser.email}`)
+                    .then((profile: any) => {
+                        if (profile) {
+                            setRealProviderProfile(profile);
+                            if (profile.isOnline !== undefined) {
+                                setIsOnline(profile.isOnline);
+                            } else if (profile.is_online !== undefined) {
+                                setIsOnline(profile.is_online);
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.warn('[ProviderDashboard] Failed to fetch exact profile, falling back to providers list:', err);
+                        if (providers.length > 0) {
+                            const profile: any = providers.find((p: any) =>
+                                (p.userId && String(p.userId) === String(currentUser.id)) ||
+                                (p.email && p.email === currentUser.email)
+                            );
+                            if (profile && profile.isOnline !== undefined) {
+                                setIsOnline(profile.isOnline);
+                            }
+                        }
+                    });
+            });
         }
-    }, [currentUser, providers]);
+    }, [currentUser, providers.length]);
 
     const handleStatusToggle = async () => {
         setIsTogglingStatus(true);
@@ -338,13 +358,17 @@ export default function ProviderDashboard() {
     let providerId: string | undefined = undefined;
 
     if (currentUser) {
-        // Always derive providerId from the providers list (which gives us providers.id).
+        // Always derive providerId from the providers list or real profile (which gives us id).
         // Halan providers are not in the Qareeblak providers list, so providerId stays
         // undefined for them — they use the Halan partner dashboard for consultations.
-        myProviderProfile = providers.find((p: Provider) =>
-            (p.userId && String(p.userId) === String(currentUser.id)) ||
-            (p.email && p.email === currentUser.email)
-        );
+        if (realProviderProfile) {
+            myProviderProfile = realProviderProfile;
+        } else {
+            myProviderProfile = providers.find((p: Provider) =>
+                (p.userId && String(p.userId) === String(currentUser.id)) ||
+                (p.email && p.email === currentUser.email)
+            );
+        }
         providerId = myProviderProfile?.id;
     }
 
