@@ -100,24 +100,10 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                 })
             });
 
-            // Mark slot as booked locally and update backend
-            if (availabilityService) {
-                // Remove the old entry for this time if exists, then add the booked one
-                const otherSlots = allSavedSlots.filter((s: any) => !(s.date === appointmentDate && s.time === appointmentTime));
-                const newSlot = { date: appointmentDate, time: appointmentTime, status: 'booked' };
-                const updatedSlots = [...otherSlots, newSlot];
-
-                await apiCall(`/providers/${provider.id}/services/${availabilityService.id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        name: '__AVAILABILITY__',
-                        description: JSON.stringify(updatedSlots),
-                        price: 0,
-                        is_active: false
-                    })
-                });
-            }
-
+            // The backend handles the booking request.
+            // We do NOT update the provider's __AVAILABILITY__ service here because the customer 
+            // does not have permission (HTTP 403). The provider will confirm the booking and update their slots.
+            
             setStep(2); // Success step
         } catch (error) {
             console.error('Booking failed:', error);
@@ -193,10 +179,10 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                     {ALL_DAY_SLOTS.map((time, idx) => {
                                         const status = timesForSelectedDate[time]; // 'available', 'unavailable', 'booked', or undefined
-                                        const isAvailable = status === 'available';
+                                        const isAvailable = status !== 'unavailable' && status !== 'booked';
                                         const isSelected = appointmentTime === time;
                                         const isBooked = status === 'booked';
-                                        const isUnavailable = status === 'unavailable' || !status; // Treat undefined as unavailable for customers
+                                        const isUnavailable = status === 'unavailable';
 
                                         let btnClass = "bg-muted/30 border-border/50 text-muted-foreground opacity-60 cursor-not-allowed";
                                         let statusText = "غير متوفر";
@@ -204,12 +190,12 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                                         if (isSelected) {
                                             btnClass = "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20 scale-105 ring-2 ring-green-600 ring-offset-2 ring-offset-background";
                                             statusText = "تم الاختيار";
-                                        } else if (isAvailable) {
-                                            btnClass = "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 hover:border-green-500 hover:bg-green-100 dark:hover:bg-green-900/40 cursor-pointer shadow-sm";
-                                            statusText = "متاح للحجز";
                                         } else if (isBooked) {
                                             btnClass = "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 opacity-70 cursor-not-allowed";
                                             statusText = "محجوز";
+                                        } else if (isAvailable) {
+                                            btnClass = "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 hover:border-green-500 hover:bg-green-100 dark:hover:bg-green-900/40 cursor-pointer shadow-sm";
+                                            statusText = "متاح للحجز";
                                         }
 
                                         return (

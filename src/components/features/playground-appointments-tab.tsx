@@ -68,19 +68,17 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
         setCurrentDayStatuses(prev => {
             const currentStatus = prev[time];
             
-            // If it's booked, the provider shouldn't easily toggle it off without a warning, 
-            // but for simplicity, let's allow them to toggle it to 'available' or 'unavailable'.
-            // Flow: undefined -> available -> unavailable -> undefined
+            // Default is 'available' (undefined in state)
+            // Flow: undefined (available) -> 'unavailable' -> undefined (available)
+            // We only need to store 'unavailable' or 'booked' states.
             
+            if (currentStatus === 'booked') return prev; // Cannot toggle booked slots directly from here
+
             let newStatus;
             if (!currentStatus) {
-                newStatus = 'available';
-            } else if (currentStatus === 'available') {
-                newStatus = 'unavailable';
-            } else {
-                // If it's unavailable or booked, clicking it will reset it or make it available
-                // Let's just reset it to undefined (not set)
-                newStatus = undefined;
+                newStatus = 'unavailable'; // Clicking an available slot makes it unavailable
+            } else if (currentStatus === 'unavailable') {
+                newStatus = undefined; // Clicking an unavailable slot makes it available (default)
             }
 
             const updated = { ...prev };
@@ -96,17 +94,14 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
     const handleSave = async () => {
         setLoading(true);
         try {
-            // First, remove all slots for the currently selected date from allSavedSlots
             const otherDatesSlots = allSavedSlots.filter(s => s.date !== selectedDate);
             
-            // Build the new slots for the selected date based on currentDayStatuses
             const newSlotsForDate = Object.entries(currentDayStatuses).map(([time, status]) => ({
                 date: selectedDate,
                 time,
                 status
             }));
 
-            // Merge them
             const finalSlots = [...otherDatesSlots, ...newSlotsForDate];
 
             const availabilityService = services?.find((s: any) => s.name === '__AVAILABILITY__');
@@ -118,14 +113,14 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
             };
 
             if (availabilityService) {
-                await apiCall(`/providers/${providerId}/services/${availabilityService.id}`, {
+                await apiCall(`/services/${availabilityService.id}`, {
                     method: 'PUT',
                     body: JSON.stringify(serviceData)
                 });
             } else {
-                await apiCall(`/providers/${providerId}/services`, {
+                await apiCall(`/services`, {
                     method: 'POST',
-                    body: JSON.stringify(serviceData)
+                    body: JSON.stringify({ ...serviceData, providerId })
                 });
             }
 
@@ -179,12 +174,12 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                 
                 <div className="flex items-center gap-6 mb-6 pb-6 border-b border-border/50 text-sm">
                     <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-muted/50 border border-border"></div>
-                        <span>غير محدد</span>
+                        <div className="w-4 h-4 rounded bg-green-500 border border-green-600"></div>
+                        <span>متاح للحجز (الافتراضي)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-green-500 border border-green-600"></div>
-                        <span>متاح للحجز</span>
+                        <div className="w-4 h-4 rounded bg-muted/50 border border-border"></div>
+                        <span>غير متاح / معطل</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded bg-red-500 border border-red-600"></div>
@@ -196,18 +191,15 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                     {ALL_DAY_SLOTS.map((time) => {
                         const status = currentDayStatuses[time];
                         
-                        let btnClass = "bg-muted/30 border-border/50 text-foreground hover:bg-muted/50"; // default
-                        let statusText = "غير محدد";
+                        let btnClass = "bg-green-100 dark:bg-green-900/40 border-green-500 text-green-700 dark:text-green-300 shadow-sm shadow-green-500/10 hover:bg-green-200 dark:hover:bg-green-800";
+                        let statusText = "متاح";
 
-                        if (status === 'available') {
-                            btnClass = "bg-green-100 dark:bg-green-900/40 border-green-500 text-green-700 dark:text-green-300 shadow-sm shadow-green-500/10";
-                            statusText = "متاح";
-                        } else if (status === 'unavailable') {
-                            btnClass = "bg-red-100 dark:bg-red-900/40 border-red-500 text-red-700 dark:text-red-300 shadow-sm shadow-red-500/10";
+                        if (status === 'unavailable') {
+                            btnClass = "bg-muted/30 border-border/50 text-foreground hover:bg-muted/50";
                             statusText = "غير متاح";
                         } else if (status === 'booked') {
-                            btnClass = "bg-red-500 border-red-600 text-white shadow-sm shadow-red-500/20 opacity-90";
-                            statusText = "محجوز عبر التطبيق";
+                            btnClass = "bg-red-500 border-red-600 text-white shadow-sm shadow-red-500/20 opacity-90 cursor-not-allowed";
+                            statusText = "محجوز";
                         }
 
                         return (
