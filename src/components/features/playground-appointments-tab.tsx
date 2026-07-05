@@ -28,7 +28,7 @@ const ALL_DAY_SLOTS = generateDaySlots();
 export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpdated }: any) {
     const { toast } = useToast();
     const [allSavedSlots, setAllSavedSlots] = useState<any[]>([]); // All slots across all dates
-    const [pricing, setPricing] = useState<{ morning: number; night: number }>({ morning: 0, night: 0 });
+    const [pricing, setPricing] = useState<{ morning: number; night: number; nightStartHour: string; nightEndHour: string }>({ morning: 0, night: 0, nightStartHour: "06:00 م", nightEndHour: "06:00 ص" });
     
     const today = new Date().toISOString().split('T')[0];
     const [selectedDate, setSelectedDate] = useState(today);
@@ -48,9 +48,16 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                     // Backward compatibility: it was just an array of slots
                     setAllSavedSlots(parsed);
                 } else if (parsed && typeof parsed === 'object') {
-                    // New format: { slots: [], pricing: { morning, night } }
+                    // New format: { slots: [], pricing: { morning, night, nightStartHour, nightEndHour } }
                     if (Array.isArray(parsed.slots)) setAllSavedSlots(parsed.slots);
-                    if (parsed.pricing) setPricing({ morning: parsed.pricing.morning || 0, night: parsed.pricing.night || 0 });
+                    if (parsed.pricing) {
+                        setPricing({ 
+                            morning: parsed.pricing.morning || 0, 
+                            night: parsed.pricing.night || 0,
+                            nightStartHour: parsed.pricing.nightStartHour || "06:00 م",
+                            nightEndHour: parsed.pricing.nightEndHour || "06:00 ص"
+                        });
+                    }
                 }
             } catch (e) {
                 console.error("Failed to parse availability slots", e);
@@ -164,22 +171,53 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                             />
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">ج.م</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">يُطبق على أي ساعة تحتوي على (ص)</p>
+                        <p className="text-xs text-muted-foreground">يُطبق خارج فترة المساء المحددة</p>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-muted-foreground">سعر الساعة (مساءً)</label>
-                        <div className="relative">
-                            <Input
-                                type="number"
-                                min="0"
-                                value={pricing.night || ''}
-                                onChange={(e) => setPricing(p => ({ ...p, night: Number(e.target.value) }))}
-                                placeholder="مثال: 150"
-                                className="pl-10 h-12"
-                            />
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">ج.م</span>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-muted-foreground">سعر الساعة (مساءً)</label>
+                            <div className="relative">
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    value={pricing.night || ''}
+                                    onChange={(e) => setPricing(p => ({ ...p, night: Number(e.target.value) }))}
+                                    placeholder="مثال: 150"
+                                    className="pl-10 h-12"
+                                />
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">ج.م</span>
+                            </div>
                         </div>
-                        <p className="text-xs text-muted-foreground">يُطبق على أي ساعة تحتوي على (م)</p>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-bold text-muted-foreground">يبدأ المساء من:</label>
+                                <select 
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                    value={pricing.nightStartHour}
+                                    onChange={(e) => setPricing(p => ({ ...p, nightStartHour: e.target.value }))}
+                                >
+                                    {ALL_DAY_SLOTS.map(slot => {
+                                        const hour = slot.split(' - ')[0];
+                                        return <option key={`start-${hour}`} value={hour}>{hour}</option>
+                                    })}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-bold text-muted-foreground">ينتهي المساء عند:</label>
+                                <select 
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                    value={pricing.nightEndHour}
+                                    onChange={(e) => setPricing(p => ({ ...p, nightEndHour: e.target.value }))}
+                                >
+                                    {ALL_DAY_SLOTS.map(slot => {
+                                        const hour = slot.split(' - ')[1];
+                                        return <option key={`end-${hour}`} value={hour}>{hour}</option>
+                                    })}
+                                </select>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">الساعات المختارة تقع ضمن تسعيرة المساء</p>
                     </div>
                 </div>
                 <p className="text-xs font-bold text-green-600 mt-4">

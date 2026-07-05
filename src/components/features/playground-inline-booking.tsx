@@ -54,7 +54,7 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
     const availabilityService = provider.services?.find(s => s.name === '__AVAILABILITY__');
     const { allSavedSlots, pricing } = useMemo(() => {
         let slots: any[] = [];
-        let pr = { morning: 0, night: 0 };
+        let pr = { morning: 0, night: 0, nightStartHour: "06:00 م", nightEndHour: "06:00 ص" };
         
         if (!availabilityService?.description) return { allSavedSlots: slots, pricing: pr };
         try {
@@ -63,7 +63,14 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                 slots = parsed;
             } else if (parsed && typeof parsed === 'object') {
                 if (Array.isArray(parsed.slots)) slots = parsed.slots;
-                if (parsed.pricing) pr = { morning: parsed.pricing.morning || 0, night: parsed.pricing.night || 0 };
+                if (parsed.pricing) {
+                    pr = { 
+                        morning: parsed.pricing.morning || 0, 
+                        night: parsed.pricing.night || 0,
+                        nightStartHour: parsed.pricing.nightStartHour || "06:00 م",
+                        nightEndHour: parsed.pricing.nightEndHour || "06:00 ص"
+                    };
+                }
             }
         } catch (e) {
             console.error("Failed to parse availability", e);
@@ -80,15 +87,38 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
         return statuses;
     }, [appointmentDate, allSavedSlots]);
 
+    const isNightTime = (timeStr: string) => {
+        const parseHourStr = (str: string) => {
+            if (!str) return 0;
+            const [hourStr, ampm] = str.split(' ');
+            let hour = parseInt(hourStr.split(':')[0], 10);
+            if (ampm === 'م' && hour !== 12) hour += 12;
+            if (ampm === 'ص' && hour === 12) hour = 0;
+            return hour;
+        };
+
+        const slotStartHourStr = timeStr.split(' - ')[0];
+        const slotHour = parseHourStr(slotStartHourStr);
+        const startNight = parseHourStr(pricing.nightStartHour);
+        const endNight = parseHourStr(pricing.nightEndHour);
+
+        if (startNight <= endNight) {
+            return slotHour >= startNight && slotHour < endNight;
+        } else {
+            // crosses midnight (e.g., 20 to 5)
+            return slotHour >= startNight || slotHour < endNight;
+        }
+    };
+
     // Calculate total price based on selected times
     const totalPrice = useMemo(() => {
         let total = 0;
         const fallbackPrice = pricing.morning || pricing.night || 0;
         
         appointmentTimes.forEach(time => {
-            const isMorning = time.includes('ص');
+            const isNight = isNightTime(time);
             if (pricing.morning && pricing.night) {
-                total += isMorning ? pricing.morning : pricing.night;
+                total += isNight ? pricing.night : pricing.morning;
             } else {
                 total += fallbackPrice;
             }
