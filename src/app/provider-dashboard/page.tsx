@@ -1375,19 +1375,8 @@ export default function ProviderDashboard() {
                             المنيو / الخدمات
                         </Button>
                     )}
-                    <Button
-                        variant={activeTab === 'reviews' ? 'secondary' : 'ghost'}
-                        className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all ${activeTab === 'reviews' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
-                        onClick={() => setActiveTab('reviews')}
-                    >
-                        <Star className="w-5 h-5" />
-                        التقييمات
-                    </Button>
-                </nav>
-
-                {/* Specific Tab for Doctor Providers */}
-                {(isDoctorProvider(myProviderProfile?.category)) && (
-                    <div className="px-6 pb-2">
+                    {/* Specific Tab for Doctor Providers */}
+                    {(isDoctorProvider(myProviderProfile?.category)) && (
                         <Button
                             variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
                             className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20' : 'text-muted-foreground hover:text-cyan-600 hover:bg-cyan-500/10'}`}
@@ -1396,12 +1385,10 @@ export default function ProviderDashboard() {
                             <Calendar className="w-5 h-5" />
                             المواعيد المتاحة
                         </Button>
-                    </div>
-                )}
+                    )}
 
-                {/* Specific Tab for Maintenance Providers */}
-                {(isMaintenanceProvider(myProviderProfile?.category)) && (
-                    <div className="px-6 pb-2">
+                    {/* Specific Tab for Maintenance Providers */}
+                    {(isMaintenanceProvider(myProviderProfile?.category)) && (
                         <Button
                             variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
                             className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-muted-foreground hover:text-blue-600 hover:bg-blue-500/10'}`}
@@ -1410,12 +1397,10 @@ export default function ProviderDashboard() {
                             <Calendar className="w-5 h-5" />
                             المواعيد المتاحة
                         </Button>
-                    </div>
-                )}
+                    )}
 
-                {/* Specific Tab for Playground Providers */}
-                {(isPlaygroundProvider(myProviderProfile?.category)) && (
-                    <div className="px-6 pb-2">
+                    {/* Specific Tab for Playground Providers */}
+                    {(isPlaygroundProvider(myProviderProfile?.category)) && (
                         <Button
                             variant={activeTab === 'appointments' ? 'secondary' : 'ghost'}
                             className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'appointments' ? 'bg-green-600 text-white shadow-lg shadow-green-500/20' : 'text-muted-foreground hover:text-green-600 hover:bg-green-500/10'}`}
@@ -1424,12 +1409,10 @@ export default function ProviderDashboard() {
                             <Calendar className="w-5 h-5" />
                             المواعيد المتاحة
                         </Button>
-                    </div>
-                )}
+                    )}
 
-                {/* Specific Tab for Pharmacy/Medical Providers */}
-                {(isPharmacyProvider(myProviderProfile?.category) || isDoctorProvider(myProviderProfile?.category)) && (
-                    <div className="px-6 pb-2">
+                    {/* Specific Tab for Pharmacy/Medical Providers */}
+                    {(isPharmacyProvider(myProviderProfile?.category) || isDoctorProvider(myProviderProfile?.category)) && (
                         <Button
                             variant={activeTab === 'conversations' ? 'secondary' : 'ghost'}
                             className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all relative ${activeTab === 'conversations' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' : 'text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10'}`}
@@ -1444,8 +1427,18 @@ export default function ProviderDashboard() {
                                 </span>
                             )}
                         </Button>
-                    </div>
-                )}
+                    )}
+
+                    <Button
+                        variant={activeTab === 'reviews' ? 'secondary' : 'ghost'}
+                        className={`w-full h-12 justify-start gap-4 rounded-xl font-bold font-cairo transition-all ${activeTab === 'reviews' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                        onClick={() => setActiveTab('reviews')}
+                    >
+                        <Star className="w-5 h-5" />
+                        التقييمات
+                    </Button>
+                </nav>
+
 
                 <div className="p-6 border-t border-border/50">
                     <Button
