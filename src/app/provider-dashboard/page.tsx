@@ -197,7 +197,7 @@ export default function ProviderDashboard() {
     // Sync isOnline with provider profile when it loads
     useEffect(() => {
         if (currentUser && providers.length > 0) {
-            const profile = providers.find((p: Provider) =>
+            const profile: any = providers.find((p: any) =>
                 (p.userId && String(p.userId) === String(currentUser.id)) ||
                 (p.email && p.email === currentUser.email)
             );
@@ -227,25 +227,14 @@ export default function ProviderDashboard() {
             if (!data.success) {
                 // Revert if failed
                 setIsOnline(!newStatus);
-                toast({
-                    title: "خطأ",
-                    description: data.message || "حدث خطأ أثناء تحديث حالة الاتصال",
-                    variant: "destructive",
-                });
+                toast(data.message || "حدث خطأ أثناء تحديث حالة الاتصال", "error");
             } else {
-                toast({
-                    title: "تم التحديث",
-                    description: `أنت الآن ${newStatus ? 'متصل' : 'غير متصل'}`,
-                });
+                toast(`أنت الآن ${newStatus ? 'متصل' : 'غير متصل'}`, "success");
             }
         } catch (error) {
             // Revert on network error
             setIsOnline(!newStatus);
-            toast({
-                title: "خطأ في الشبكة",
-                description: "تعذر الاتصال بالخادم",
-                variant: "destructive",
-            });
+            toast("تعذر الاتصال بالخادم", "error");
         } finally {
             setIsTogglingStatus(false);
         }
