@@ -119,7 +119,7 @@ class ProviderService {
         // Invalidate cache
         const { invalidatePattern } = require('../utils/redis-cache');
         if (invalidatePattern) {
-            await invalidatePattern('providers:*');
+            await invalidatePattern('route:*providers*');
         }
 
         return result;
