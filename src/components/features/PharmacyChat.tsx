@@ -82,10 +82,6 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
     const [socketConnected, setSocketConnected] = useState(false);
     const [socketError, setSocketError] = useState<string | null>(null);
     // Order quote states
-    const [acceptingQuote, setAcceptingQuote] = useState<{ messageId: number; items: any[]; totalPrice: number } | null>(null);
-    const [addressArea, setAddressArea] = useState('');
-    const [addressDetails, setAddressDetails] = useState('');
-    const [customerPhone, setCustomerPhone] = useState('');
     const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
     // Removed needsLogin state as requested
 
@@ -468,13 +464,8 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
     };
 
     // Accept order quote
-    const acceptQuote = async () => {
-        if (!acceptingQuote || !consultationId) return;
-
-        if (!isCarService && !addressArea.trim()) {
-            toast("يرجى إدخال العنوان", "error");
-            return;
-        }
+    const acceptQuote = async (messageId: number) => {
+        if (!consultationId) return;
 
         setIsAcceptingOrder(true);
         try {
@@ -490,20 +481,17 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
                 headers: buildHeaders(token, 'application/json'),
                 credentials: 'include',
                 body: JSON.stringify({
-                    messageId: acceptingQuote.messageId,
-                    addressArea: addressArea.trim(),
-                    addressDetails: addressDetails.trim(),
-                    phone: customerPhone.trim() || currentUser?.phone || '',
+                    messageId: messageId,
+                    addressArea: '',
+                    addressDetails: '',
+                    phone: currentUser?.phone || '',
                 }),
             });
 
             const data = await res.json();
             if (data.success) {
-                toast("تم إنشاء الطلب بنجاح! ✅ يمكنك متابعته من طلباتي", "success");
+                toast("تمت الإضافة للسلة بنجاح ✅", "success");
                 setAcceptingQuote(null);
-                setAddressArea('');
-                setAddressDetails('');
-                setCustomerPhone('');
                 // Refresh messages to show updated quote status
                 const msgRes = await fetch(`${CHAT_API_BASE}/chat/${consultationId}`, {
                     headers: buildHeaders(token),
@@ -647,16 +635,12 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
                                                 {!isAccepted ? (
                                                     <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50">
                                                         <button
-                                                            onClick={() => setAcceptingQuote({
-                                                                messageId: msg.id,
-                                                                items: quoteData.items,
-                                                                totalPrice: quoteData.totalPrice,
-                                                                appointmentType: quoteData.appointmentType
-                                                            } as any)}
+                                                            onClick={() => acceptQuote(msg.id)}
+                                                            disabled={isAcceptingOrder}
                                                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 text-base"
                                                         >
-                                                            <ShoppingCart className="w-5 h-5" />
-                                                            {isCarService ? 'قبول العرض' : 'إضافة للسلة وإتمام الطلب'}
+                                                            {isAcceptingOrder ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingCart className="w-5 h-5" />}
+                                                            {isCarService ? 'قبول العرض' : 'إضافة للسلة'}
                                                         </button>
                                                     </div>
                                                 ) : (
@@ -839,121 +823,6 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
                 </div>
             </motion.div>
 
-            {/* Accept Quote Dialog */}
-            <AnimatePresence>
-                {acceptingQuote && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center"
-                        onClick={() => setAcceptingQuote(null)}
-                    >
-                        <motion.div
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            transition={{ type: 'spring', damping: 25 }}
-                            className="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 space-y-4"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                                    <ShoppingCart className="w-5 h-5 text-emerald-600" />
-                                    {isCarService ? 'تأكيد وحجز الرحلة' : 'تأكيد وإتمام الطلب'}
-                                </h3>
-                                <button onClick={() => setAcceptingQuote(null)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            {/* Order Summary */}
-                            <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 space-y-2">
-                                {isCarService ? (
-                                    <>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">الخدمة:</span>
-                                            <span className="font-medium">{acceptingQuote.items[0]?.name}</span>
-                                        </div>
-                                    </>
-                                ) : (
-                                    acceptingQuote.items.map((item: any, idx: number) => (
-                                        <div key={idx} className="flex justify-between text-sm">
-                                            <span>{item.name}</span>
-                                            <span className="font-bold text-emerald-600">{item.price} ج.م</span>
-                                        </div>
-                                    ))
-                                )}
-                                <div className="border-t pt-2 flex justify-between font-bold">
-                                    <span>الإجمالي</span>
-                                    <span className="text-emerald-600 text-lg">{acceptingQuote.totalPrice} ج.م</span>
-                                </div>
-                            </div>
-
-                            {/* Address Input */}
-                            {!isCarService && (
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-1">
-                                            <MapPin className="w-4 h-4 text-emerald-600" />
-                                            المنطقة / الحي *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={addressArea}
-                                            onChange={(e) => setAddressArea(e.target.value)}
-                                            placeholder="مثال: المعادي، مدينة نصر..."
-                                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-1">
-                                            <MapPin className="w-4 h-4 text-emerald-600" />
-                                            تفاصيل العنوان
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={addressDetails}
-                                            onChange={(e) => setAddressDetails(e.target.value)}
-                                            placeholder="اسم الشارع، رقم العمارة، الدور..."
-                                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mb-1">
-                                            <PhoneIcon className="w-4 h-4 text-emerald-600" />
-                                            رقم الهاتف للتواصل
-                                        </label>
-                                        <input
-                                            type="tel"
-                                            value={customerPhone}
-                                            onChange={(e) => setCustomerPhone(e.target.value)}
-                                            placeholder="رقم الموبايل"
-                                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Confirm Button */}
-                            <Button
-                                onClick={acceptQuote}
-                                disabled={isAcceptingOrder || (!isCarService && !addressArea.trim())}
-                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 h-12 rounded-xl text-base disabled:opacity-50"
-                            >
-                                {isAcceptingOrder ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <>
-                                        {isCarService ? null : <ShoppingCart className="w-5 h-5 ml-2" />}
-                                        {isCarService ? `تأكيد وحجز الرحلة (${acceptingQuote.totalPrice} ج.م)` : `تأكيد الطلب (${acceptingQuote.totalPrice} ج.م)`}
-                                    </>
-                                )}
-                            </Button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* Image Zoom Modal */}
             <AnimatePresence>
