@@ -110,12 +110,16 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
     const authenticatedUser = req.user.id;
     const { providerId, serviceId, userName, serviceName, providerName, price, details, items, bundleId, appointmentDate, appointmentType } = req.body;
 
+    const { decodeEntityId } = require('../utils/obfuscate');
+    const decodedProviderId = decodeEntityId('provider', providerId) || providerId;
+    const decodedServiceId = serviceId ? (decodeEntityId('service', serviceId) || serviceId) : null;
+
     const status = appointmentType === 'maintenance' ? 'pending_appointment' : 'pending';
 
     const bId = await bookingRepo.legacyCreateBooking([
         authenticatedUser, 
-        providerId, 
-        serviceId || null, 
+        decodedProviderId, 
+        decodedServiceId, 
         userName, 
         serviceName, 
         providerName,
