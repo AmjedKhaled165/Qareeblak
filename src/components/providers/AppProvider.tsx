@@ -45,6 +45,7 @@ interface Provider {
     isApproved: boolean;
     joinedDate: string;
     services: ProviderService[];
+    cover_image?: string;
 }
 
 interface User {
