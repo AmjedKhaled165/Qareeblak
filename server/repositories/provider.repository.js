@@ -221,10 +221,22 @@ class ProviderRepository {
     }
 
     async addReview(data) {
+        const cols = await getReviewsColumns();
+        const userNameCol = cols.has('user_name') ? 'user_name' : (cols.has('customer_name') ? 'customer_name' : null);
+
+        const insertCols = ['provider_id', 'rating', 'comment'];
+        const values = ['$1', '$2', '$3'];
+        const params = [data.providerId, data.rating, data.comment];
+
+        if (userNameCol) {
+            insertCols.push(userNameCol);
+            params.push(data.userName);
+            values.push(`$${params.length}`);
+        }
+
         await pool.query(
-            `INSERT INTO reviews (provider_id, user_name, rating, comment) 
-             VALUES ($1, $2, $3, $4)`,
-            [data.providerId, data.userName, data.rating, data.comment]
+            `INSERT INTO reviews (${insertCols.join(', ')}) VALUES (${values.join(', ')})`,
+            params
         );
     }
 
