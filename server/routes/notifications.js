@@ -173,8 +173,9 @@ router.post('/', async (req, res, next) => {
 // ==========================================
 // Helper: Create a notification (used internally by other routes)
 // ==========================================
-async function createNotification(userId, title, message, type, referenceId = null, io = null) {
+async function createNotification(userId, message, type, referenceId = null, io = null) {
     try {
+        const title = 'إشعار جديد'; // Title is defaulted for backward compatibility
         const cols = await getNotificationsColumns();
         
         const typeCol = pickFirstExisting(cols, ['type', 'notification_type']);

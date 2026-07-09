@@ -55,6 +55,7 @@ interface Provider {
     reviews: number;
     reviewsList?: Review[];
     services?: Service[];
+    cover_image?: string;
 }
 
 export default function ProviderProfile() {
@@ -328,10 +329,16 @@ export default function ProviderProfile() {
                     <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200/50 dark:border-slate-800/50 bg-white dark:bg-slate-900/80 backdrop-blur-xl">
                         {/* Abstract Cover Photo */}
                         <div className={`h-36 md:h-64 w-full relative overflow-hidden ${isRestaurant ? "bg-gradient-to-r from-orange-400 via-rose-500 to-amber-500" : "bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600"}`}>
-                            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
-                            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-white/20 rounded-full blur-[50px] mix-blend-overlay" />
-                            <div className="absolute top-10 left-10 w-32 h-32 bg-black/10 rounded-full blur-[30px] mix-blend-overlay" />
-                            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white dark:from-slate-900 to-transparent" />
+                            {provider.cover_image ? (
+                                <img src={provider.cover_image} alt="Cover" className="w-full h-full object-cover absolute inset-0 opacity-80" />
+                            ) : (
+                                <>
+                                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
+                                    <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-white/20 rounded-full blur-[50px] mix-blend-overlay" />
+                                    <div className="absolute top-10 left-10 w-32 h-32 bg-black/10 rounded-full blur-[30px] mix-blend-overlay" />
+                                </>
+                            )}
+                            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white dark:from-slate-900 to-transparent z-10" />
                         </div>
 
                         <div className="px-6 md:px-10 pb-10 relative -mt-16 sm:-mt-20">

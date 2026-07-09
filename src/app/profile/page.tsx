@@ -23,6 +23,12 @@ export default function ProfilePage() {
     const [phone, setPhone] = useState("");
     const [avatar, setAvatar] = useState("");
 
+    // Provider States
+    const [category, setCategory] = useState("");
+    const [location, setLocation] = useState("");
+    const [coverImage, setCoverImage] = useState("");
+    const coverInputRef = useRef<HTMLInputElement>(null);
+
     // Password States
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -41,14 +47,30 @@ export default function ProfilePage() {
         setEmail(currentUser.email || "");
         setPhone(currentUser.phone || "");
         setAvatar(currentUser.avatar || "");
+
+        if (currentUser.type === 'provider' && currentUser.email) {
+            import("@/lib/api").then(({ providersApi }) => {
+                providersApi.getByEmail(currentUser.email as string).then(provider => {
+                    if (provider) {
+                        setCategory(provider.category || "");
+                        setLocation(provider.location || "");
+                        setCoverImage(provider.cover_image || "");
+                    }
+                }).catch(console.error);
+            });
+        }
     }, [currentUser, router]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover' = 'avatar') => {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
-                setAvatar(reader.result as string);
+                if (type === 'avatar') {
+                    setAvatar(reader.result as string);
+                } else {
+                    setCoverImage(reader.result as string);
+                }
                 setIsEditing(true);
             };
             reader.readAsDataURL(file);
@@ -72,8 +94,13 @@ export default function ProfilePage() {
                 phone,
                 avatar,
                 oldPassword: oldPassword || undefined,
-                newPassword: newPassword || undefined
-            });
+                newPassword: newPassword || undefined,
+                ...(currentUser.type === 'provider' && {
+                    category,
+                    location,
+                    coverImage
+                })
+            } as any);
 
             toast("تم حفظ التغييرات بنجاح ✅", "success");
             setIsEditing(false);
@@ -109,12 +136,34 @@ export default function ProfilePage() {
                     animate={{ opacity: 1, y: 0 }}
                 >
                     <Card className="overflow-hidden border-border bg-card shadow-2xl transition-colors duration-500">
-                        <div className="h-40 bg-gradient-to-r from-indigo-600 to-purple-700 relative">
-                            <div className="absolute -bottom-12 right-8">
+                        <div className="h-40 bg-gradient-to-r from-indigo-600 to-purple-700 relative overflow-hidden">
+                            {isProvider && coverImage && (
+                                <img src={coverImage} alt="Cover" className="w-full h-full object-cover absolute inset-0 opacity-80" />
+                            )}
+                            {isProvider && (
+                                <>
+                                    <input
+                                        type="file"
+                                        ref={coverInputRef}
+                                        hidden
+                                        accept="image/*"
+                                        onChange={(e) => handleFileChange(e, 'cover')}
+                                    />
+                                    <button
+                                        onClick={() => isEditing && coverInputRef.current?.click()}
+                                        title="تغيير الغلاف"
+                                        aria-label="تغيير الغلاف"
+                                        className={`absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full shadow-lg transition-all transform hover:scale-110 z-10 ${isEditing ? 'cursor-pointer' : 'opacity-0 pointer-events-none'}`}
+                                    >
+                                        <Camera className="w-5 h-5" />
+                                    </button>
+                                </>
+                            )}
+                            <div className="absolute -bottom-12 right-8 z-20">
                                 <div className="relative group/avatar">
                                     <div className="w-28 h-28 rounded-full p-1 shadow-2xl overflow-hidden bg-card border-4 border-background">
                                         {avatar ? (
-                                            <img src={avatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                                            <img src={avatar} alt="Avatar" className="w-full h-full rounded-full object-cover bg-white" />
                                         ) : (
                                             <div className="w-full h-full rounded-full flex items-center justify-center text-4xl font-bold bg-muted text-muted-foreground">
                                                 {name.charAt(0)}
@@ -126,7 +175,7 @@ export default function ProfilePage() {
                                         ref={fileInputRef}
                                         hidden
                                         accept="image/*"
-                                        onChange={handleFileChange}
+                                        onChange={(e) => handleFileChange(e, 'avatar')}
                                     />
                                     <button
                                         onClick={() => isEditing && fileInputRef.current?.click()}
@@ -229,6 +278,46 @@ export default function ProfilePage() {
                                         />
                                     </div>
                                 </div>
+
+                                {/* Provider Fields */}
+                                {isProvider && (
+                                    <>
+                                        {/* Category */}
+                                        <div className="grid gap-2 text-right">
+                                            <Label htmlFor="category" className="text-sm font-bold text-muted-foreground mr-1">تخصص الخدمة</Label>
+                                            <select
+                                                id="category"
+                                                value={category}
+                                                onChange={(e) => setCategory(e.target.value)}
+                                                disabled={!isEditing}
+                                                className={`h-12 px-4 rounded-xl transition-all border border-border bg-background text-foreground focus:ring-primary/20 ${!isEditing ? "opacity-70 bg-muted/30" : ""}`}
+                                            >
+                                                <option value="">اختر التخصص...</option>
+                                                <option value="مطاعم">مطاعم وكافيهات</option>
+                                                <option value="صيانة">صيانة وخدمات منزلية (سباكة/كهرباء)</option>
+                                                <option value="صيدليات">صيدليات</option>
+                                                <option value="دكتور وممرض">دكتور وممرض</option>
+                                                <option value="ملاعب">ملاعب</option>
+                                                <option value="سيارات">خدمات سيارات</option>
+                                                <option value="بقالة">سوبر ماركت</option>
+                                                <option value="أخرى">أخرى</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Location */}
+                                        <div className="grid gap-2 text-right">
+                                            <Label htmlFor="location" className="text-sm font-bold text-muted-foreground mr-1">الموقع / العنوان</Label>
+                                            <Input
+                                                id="location"
+                                                value={location}
+                                                onChange={(e) => setLocation(e.target.value)}
+                                                readOnly={!isEditing}
+                                                className={`h-12 px-4 rounded-xl transition-all border-border bg-background text-foreground focus:ring-primary/20 ${!isEditing ? "opacity-70 bg-muted/30" : ""}`}
+                                                placeholder="أدخل عنوان متجرك أو خدمتك"
+                                            />
+                                        </div>
+                                    </>
+                                )}
 
                                 {/* Password Section */}
                                 {isEditing && (

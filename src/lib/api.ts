@@ -396,6 +396,9 @@ export const authApi = {
         avatar?: string;
         oldPassword?: string;
         newPassword?: string;
+        category?: string;
+        location?: string;
+        coverImage?: string;
     }) {
         return apiCall('/auth/profile', {
             method: 'PUT',

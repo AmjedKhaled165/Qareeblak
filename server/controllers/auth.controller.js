@@ -134,6 +134,21 @@ exports.rejectRequest = catchAsync(async (req, res, next) => {
 
 exports.updateProfile = catchAsync(async (req, res, next) => {
     const updatedUser = await authService.updateProfile(req.user.id, req.body);
+    
+    // Sync to providers table if applicable
+    const userType = req.user.user_type || '';
+    if (userType.includes('provider') || userType.includes('partner') || userType.includes('restaurant') || userType.includes('pharmacy') || userType.includes('maintenance')) {
+        const providerRepo = require('../repositories/provider.repository');
+        try {
+            const providerId = await providerRepo.getProviderIdByUserId(req.user.id);
+            if (providerId) {
+                await providerRepo.updateProvider(providerId, req.body);
+            }
+        } catch (err) {
+            logger.warn(`Failed to sync profile update to provider record for user ${req.user.id}: ${err.message}`);
+        }
+    }
+
     logger.info(`User profile updated: ${req.user.id}`);
     res.status(200).json({
         success: true,

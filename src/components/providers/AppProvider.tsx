@@ -119,6 +119,9 @@ interface AppContextType {
         avatar?: string;
         oldPassword?: string;
         newPassword?: string;
+        category?: string;
+        location?: string;
+        coverImage?: string;
     }) => Promise<boolean>;
 }
 
@@ -505,6 +508,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         avatar?: string;
         oldPassword?: string;
         newPassword?: string;
+        category?: string;
+        location?: string;
+        coverImage?: string;
     }): Promise<boolean> => {
         try {
             setIsLoading(true);

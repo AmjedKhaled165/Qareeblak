@@ -180,22 +180,31 @@ class BookingService {
                 userId 
             }]);
 
-            return { parentId, bookingIds, finalPrice, walletUsed: walletDeduction, trackingCode };
+            return { parentId, bookingIds, finalPrice, walletUsed: walletDeduction, trackingCode, providerIds: Object.keys(grouped) };
         });
 
         // Send tracking code notification asynchronously
-        if (result.trackingCode && userId) {
-            setImmediate(async () => {
-                try {
+        setImmediate(async () => {
+            try {
+                if (result.trackingCode && userId) {
                     const countRes = await db.query('SELECT COUNT(*) FROM parent_orders WHERE user_id = $1', [userId]);
                     const orderCount = Number(countRes.rows[0]?.count || 0);
                     const msg = `كود الاوردر رقم ${orderCount} هو ${result.trackingCode}`;
                     await createNotification(userId, msg, 'tracking_code', String(result.parentId), io);
-                } catch (e) {
-                    logger.error(`Failed to send tracking code notification for user #${userId}:`, e.message);
                 }
-            });
-        }
+
+                // [NEW] Notify providers of the new order
+                const providerIds = result.providerIds || [];
+                for (const pId of providerIds) {
+                    const providerUserId = await bookingRepo.getUserIdByProviderId(pId);
+                    if (providerUserId) {
+                        await createNotification(providerUserId, 'لديك طلب جديد!', 'new_order', String(result.parentId), io);
+                    }
+                }
+            } catch (e) {
+                logger.error(`Failed to send async notifications for checkout Parent #${result.parentId}:`, e.message);
+            }
+        });
 
         return result;
     }
@@ -246,19 +255,21 @@ class BookingService {
                 const isAppointment = appointmentTypes.includes(currentBooking.appointment_type);
                 
                 let msg = null;
+                const providerName = currentBooking.provider_name || 'مقدم الخدمة';
+                
                 if (isAppointment) {
-                    if (status === 'confirmed') msg = 'تم قبول الموعد بنجاح 📅';
-                    else if (status === 'completed') msg = 'تم الانتهاء من الخدمة شكراً لك! ✨';
-                    else if (status === 'cancelled' || status === 'rejected') msg = 'تم إلغاء الموعد ❌';
+                    if (status === 'confirmed') msg = `تم قبول الموعد من قبل ${providerName} 📅`;
+                    else if (status === 'completed') msg = `تم الانتهاء من الخدمة بواسطة ${providerName}، شكراً لك! ✨`;
+                    else if (status === 'cancelled' || status === 'rejected') msg = `تم إلغاء الموعد من قبل ${providerName} ❌`;
                 } else {
-                    if (status === 'confirmed') msg = 'المتجر قَبِل طلبك وجاري التجهيز 🛒';
-                    else if (status === 'completed') msg = 'تم تجهيز طلبك بنجاح! 🛍️';
-                    else if (status === 'cancelled' || status === 'rejected') msg = 'تم إلغاء الطلب ❌';
+                    if (status === 'confirmed') msg = `تم قبول الأوردر وجاري التجهيز من قبل ${providerName} 🛒`;
+                    else if (status === 'completed') msg = `تم الانتهاء من تجهيز طلبك بواسطة ${providerName}! 🛍️`;
+                    else if (status === 'cancelled' || status === 'rejected') msg = `تم إلغاء الطلب من قبل ${providerName} ❌`;
                 }
 
                 if (msg) {
                     const { createNotification } = require('../routes/notifications');
-                    createNotification(customerId, msg, msg, 'order_status_update', String(id), io).catch(e => logger.warn(`Notification failed: ${e.message}`));
+                    createNotification(customerId, msg, 'order_status_update', String(id), io).catch(e => logger.warn(`Notification failed: ${e.message}`));
                 }
             }
             if (providerUserId) io.to(`user-${providerUserId}`).emit('booking-updated', payload);

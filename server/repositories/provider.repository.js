@@ -191,11 +191,12 @@ class ProviderRepository {
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
         const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+        const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
 
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
-                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}
             FROM providers p
             WHERE p.id = $1
         `, [id]);
@@ -209,11 +210,12 @@ class ProviderRepository {
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
         const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+        const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
 
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone,
-                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}
             FROM providers p
             WHERE p.email = $1
         `, [email]);
@@ -298,10 +300,11 @@ class ProviderRepository {
                 name = COALESCE($1, name),
                 category = COALESCE($2, category),
                 location = COALESCE($3, location),
-                phone = COALESCE($4, phone)
-            WHERE id = $5
+                phone = COALESCE($4, phone),
+                cover_image = COALESCE($5, cover_image)
+            WHERE id = $6
         `;
-        const params = [data.name, data.category, data.location, data.phone, id];
+        const params = [data.name, data.category, data.location, data.phone, data.coverImage || data.cover_image, id];
         await pool.query(query, params);
     }
 }

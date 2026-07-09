@@ -227,6 +227,16 @@ export default function ProviderDashboard() {
         }
     }, [currentUser, providers.length]);
 
+    useEffect(() => {
+        const handleStatusChange = (e: any) => {
+            if (e.detail !== undefined && typeof e.detail.isOnline === 'boolean') {
+                setIsOnline(e.detail.isOnline);
+            }
+        };
+        window.addEventListener('provider-status-changed', handleStatusChange);
+        return () => window.removeEventListener('provider-status-changed', handleStatusChange);
+    }, []);
+
     const handleStatusToggle = async () => {
         setIsTogglingStatus(true);
         const newStatus = !isOnline;
@@ -1464,20 +1474,6 @@ export default function ProviderDashboard() {
                     <div className="flex items-center gap-3">
                         <h1 className="text-xl font-black text-foreground font-cairo">لوحة الشركاء</h1>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5">
-                            <span className={`text-xs font-bold ${isOnline ? 'text-emerald-600' : 'text-gray-500'}`}>{isOnline ? 'متصل' : 'مخفي'}</span>
-                            <button
-                                onClick={handleStatusToggle}
-                                disabled={isTogglingStatus}
-                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${isOnline ? 'bg-emerald-500' : 'bg-gray-300'} ${isTogglingStatus ? 'opacity-50' : ''}`}
-                            >
-                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isOnline ? '-translate-x-5' : '-translate-x-1'}`} />
-                            </button>
-                        </div>
-                        {currentUser && <NotificationBell />}
-                        <Button size="sm" variant="ghost" className="text-destructive font-bold h-10 px-2 rounded-xl" onClick={() => logout()}>خروج</Button>
-                    </div>
                 </div>
 
                 <header className="h-16 flex items-center justify-between px-6 bg-card/80 backdrop-blur-md sticky top-0 z-30 shadow-[0_2px_10px_rgba(0,0,0,0.05)] border-b border-border/50 hidden md:flex mb-6 rounded-b-2xl">
@@ -1489,22 +1485,6 @@ export default function ProviderDashboard() {
                         {activeTab === 'conversations' && 'المحادثات'}
                         {activeTab === 'appointments' && 'المواعيد'}
                     </h2>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 mr-4 bg-muted/30 px-3 py-1.5 rounded-full border border-border/50">
-                            <span className={`text-sm font-bold ${isOnline ? 'text-emerald-600' : 'text-gray-500'}`}>{isOnline ? 'متصل ومتاح' : 'غير متصل (مخفي)'}</span>
-                            <button
-                                onClick={handleStatusToggle}
-                                disabled={isTogglingStatus}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isOnline ? 'bg-emerald-500' : 'bg-gray-300'} ${isTogglingStatus ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
-                            >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isOnline ? '-translate-x-6' : '-translate-x-1'}`} />
-                            </button>
-                        </div>
-                        {currentUser && <NotificationBell />}
-                        <Button variant="outline" className="h-10 px-6 rounded-xl font-bold hover:bg-destructive hover:text-white transition-colors" onClick={() => logout()}>
-                            تسجيل الخروج
-                        </Button>
-                    </div>
                 </header>
 
                 {/* 1. OVERVIEW TAB */}

@@ -32,7 +32,7 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
     const [customerName, setCustomerName] = useState(currentUser?.name || "");
     const [phone, setPhone] = useState("");
     const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
-    const [appointmentTime, setAppointmentTime] = useState("");
+    const [appointmentTimes, setAppointmentTimes] = useState<string[]>([]);
     
     // Extract availability
     const availabilityService = provider.services?.find(s => s.name === '__AVAILABILITY__');
@@ -58,20 +58,26 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
             setCustomerName(currentUser?.name || "");
             setPhone("");
             setAppointmentDate(new Date().toISOString().split('T')[0]);
-            setAppointmentTime("");
+            setAppointmentTimes([]);
         }, 300);
     };
 
+    const toggleTime = (time: string) => {
+        setAppointmentTimes(prev => 
+            prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time]
+        );
+    };
+
     const handleSubmit = async () => {
-        if (!customerName || !appointmentDate || !appointmentTime) {
-            toast("يرجى ملء جميع الحقول المطلوبة واختيار وقت", "error");
+        if (!customerName || !appointmentDate || appointmentTimes.length === 0) {
+            toast("يرجى ملء جميع الحقول المطلوبة واختيار وقت على الأقل", "error");
             return;
         }
 
         setLoading(true);
         try {
             const finalServiceName = serviceName || `حجز ملعب`;
-            const detailsStr = `الاسم: ${customerName} | الموعد: ${appointmentDate} ${appointmentTime}`;
+            const detailsStr = `الاسم: ${customerName} | الموعد: ${appointmentDate} (${appointmentTimes.join(' - ')})`;
 
             const result = await apiCall('/bookings', {
                 method: 'POST',
@@ -94,8 +100,8 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
             // If successful, we must also mark the slot as booked
             if (availabilityService) {
                 const updatedSlots = allSlots.map((slot: any) => {
-                    if (slot.date === appointmentDate && slot.time === appointmentTime) {
-                        return { ...slot, status: 'booked' };
+                    if (slot.date === appointmentDate && appointmentTimes.includes(slot.time)) {
+                        return { ...slot, status: 'booked', bookedBy: currentUser?.id };
                     }
                     return slot;
                 });
@@ -188,24 +194,26 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                 {timesForSelectedDate.map((slot: any, idx: number) => {
                                                     const isBooked = slot.status === 'booked' || slot.status === 'unavailable';
-                                                    const isSelected = appointmentTime === slot.time;
+                                                    const isBookedByMe = isBooked && slot.bookedBy && slot.bookedBy === currentUser?.id;
+                                                    const isSelected = appointmentTimes.includes(slot.time);
                                                     
                                                     return (
                                                         <button
                                                             key={idx}
                                                             type="button"
                                                             disabled={isBooked}
-                                                            onClick={() => setAppointmentTime(slot.time)}
+                                                            onClick={() => toggleTime(slot.time)}
                                                             className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${
                                                                 isBooked 
-                                                                    ? 'bg-red-50 border-red-100 text-red-400 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-800 cursor-not-allowed opacity-60'
+                                                                    ? 'bg-red-100 border-red-200 text-red-600 dark:bg-red-900/40 dark:border-red-800/50 dark:text-red-300 cursor-not-allowed opacity-90'
                                                                     : isSelected
                                                                         ? 'bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20 scale-105'
                                                                         : 'bg-card border-border hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-950/30'
                                                             }`}
                                                         >
                                                             {slot.time}
-                                                            {isBooked && <span className="block text-[10px] mt-1 text-red-500">غير متوفر</span>}
+                                                            {isBookedByMe && <span className="block text-[11px] mt-1 text-red-600 dark:text-red-400 font-black">محجوز من قبلك</span>}
+                                                            {isBooked && !isBookedByMe && <span className="block text-[11px] mt-1 text-red-600 dark:text-red-400 font-black">محجوز</span>}
                                                             {!isBooked && !isSelected && <span className="block text-[10px] mt-1 text-green-500">متاح للحجز</span>}
                                                             {isSelected && <span className="block text-[10px] mt-1 text-green-100">تم الاختيار</span>}
                                                         </button>
@@ -242,7 +250,7 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
 
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={loading || !appointmentTime || !customerName}
+                                    disabled={loading || appointmentTimes.length === 0 || !customerName}
                                     className="w-full h-14 bg-green-600 hover:bg-green-700 text-white rounded-2xl text-lg font-black font-cairo shadow-xl shadow-green-500/20 mt-4"
                                 >
                                     {loading ? "جاري الحجز..." : "تأكيد الحجز"}

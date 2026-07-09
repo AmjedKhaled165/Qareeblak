@@ -27,6 +27,53 @@ export function Navbar() {
 
     const [isVisible, setIsVisible] = useState(true);
     const lastScrollY = useRef(0);
+    const [isOnline, setIsOnline] = useState<boolean>(true);
+    const [isTogglingStatus, setIsTogglingStatus] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (currentUser?.type === 'provider') {
+            const token = localStorage.getItem('accessToken');
+            const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
+            if (token) {
+                fetch(`${apiBase}/api/providers/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data?.provider?.isOnline !== undefined) {
+                        setIsOnline(data.provider.isOnline);
+                    }
+                })
+                .catch(err => console.error("Error fetching provider status", err));
+            }
+        }
+    }, [currentUser]);
+
+    const handleStatusToggle = async () => {
+        try {
+            setIsTogglingStatus(true);
+            const token = localStorage.getItem('accessToken');
+            const newStatus = !isOnline;
+            const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
+            const res = await fetch(`${apiBase}/api/providers/me`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ isOnline: newStatus })
+            });
+            if (res.ok) {
+                setIsOnline(newStatus);
+                // Dispatch a custom event to notify other components (like provider-dashboard)
+                window.dispatchEvent(new CustomEvent('provider-status-changed', { detail: { isOnline: newStatus } }));
+            }
+        } catch (error) {
+            console.error('Failed to toggle status:', error);
+        } finally {
+            setIsTogglingStatus(false);
+        }
+    };
 
     useEffect(() => {
         const handleScroll = () => {
@@ -118,31 +165,47 @@ export function Navbar() {
                 </div>
 
                 {/* 2. Desktop Navigation - Center */}
-                <nav className="hidden md:flex shrink-0 justify-center items-center gap-6 lg:gap-8 text-[15px] font-bold font-cairo">
-                    {[
-                        { label: 'الرئيسية', href: '/' },
-                        { label: 'تصفح الخدمات', href: '/explore' },
-                        { label: 'تتبع طلبك', href: '/track' }
-                    ].map((item) => (
-                        <Link 
-                            key={item.href}
-                            href={item.href} 
-                            className={`relative text-slate-600 dark:text-slate-300 transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 after:content-[''] after:absolute after:bottom-[-4px] after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full ${
-                                pathname === item.href ? "text-primary dark:text-primary after:w-full" : ""
-                            }`}
-                        >
-                            {item.label}
+                {currentUser?.type !== 'provider' && (
+                    <nav className="hidden md:flex shrink-0 justify-center items-center gap-6 lg:gap-8 text-[15px] font-bold font-cairo">
+                        {[
+                            { label: 'الرئيسية', href: '/' },
+                            { label: 'تصفح الخدمات', href: '/explore' },
+                            { label: 'تتبع طلبك', href: '/track' }
+                        ].map((item) => (
+                            <Link 
+                                key={item.href}
+                                href={item.href} 
+                                className={`relative text-slate-600 dark:text-slate-300 transition-colors hover:text-indigo-600 dark:hover:text-indigo-400 after:content-[''] after:absolute after:bottom-[-4px] after:right-0 after:w-0 after:h-0.5 after:bg-primary after:transition-all hover:after:w-full ${
+                                    pathname === item.href ? "text-primary dark:text-primary after:w-full" : ""
+                                }`}
+                            >
+                                {item.label}
+                            </Link>
+                        ))}
+                        <Link href="/wheel" className="transition-all text-orange-500 hover:text-orange-600 dark:hover:text-orange-400 flex items-center gap-1.5 bg-orange-50 hover:bg-orange-100 dark:bg-orange-500/10 dark:hover:bg-orange-500/20 px-4 py-2 rounded-2xl border border-orange-200 dark:border-orange-500/20 shadow-sm hover:shadow-md group">
+                            <Gift className="w-4 h-4 group-hover:rotate-12 transition-transform" /> 
+                            <span>عجلة الحظ</span>
                         </Link>
-                    ))}
-                    <Link href="/wheel" className="transition-all text-orange-500 hover:text-orange-600 dark:hover:text-orange-400 flex items-center gap-1.5 bg-orange-50 hover:bg-orange-100 dark:bg-orange-500/10 dark:hover:bg-orange-500/20 px-4 py-2 rounded-2xl border border-orange-200 dark:border-orange-500/20 shadow-sm hover:shadow-md group">
-                        <Gift className="w-4 h-4 group-hover:rotate-12 transition-transform" /> 
-                        <span>عجلة الحظ</span>
-                    </Link>
-                </nav>
+                    </nav>
+                )}
 
                 {/* 3. User & Actions - Far Left */}
                 <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3 md:gap-4">
                     <ThemeToggle />
+
+                    {/* Provider Online Toggle */}
+                    {currentUser?.type === 'provider' && (
+                        <div className="hidden sm:flex items-center gap-2 bg-slate-100 dark:bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
+                            <span className={`text-xs font-bold ${isOnline ? 'text-emerald-600' : 'text-slate-500'}`}>{isOnline ? 'متصل' : 'مخفي'}</span>
+                            <button
+                                onClick={handleStatusToggle}
+                                disabled={isTogglingStatus}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'} ${isTogglingStatus ? 'opacity-50' : ''}`}
+                            >
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isOnline ? '-translate-x-5' : '-translate-x-1'}`} />
+                            </button>
+                        </div>
+                    )}
 
                     {/* Notification Bell - visible for all logged in users */}
                     {currentUser && <div className="pop-hover"><NotificationBell /></div>}
@@ -247,13 +310,19 @@ export function Navbar() {
                         </Link>
                     )}
 
-                    {/* Add Request CTA */}
-                    {currentUser?.type !== 'provider' && (
-                        <Link href="/explore">
-                            <Button size="lg" className="bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-500 text-white shadow-lg shadow-primary/25 hidden sm:flex rounded-2xl h-12 px-6 font-bold font-cairo active:scale-95 transition-all btn-3d">
-                                أضف طلبك
-                            </Button>
-                        </Link>
+
+
+                    {/* Provider Online Toggle (Mobile) */}
+                    {currentUser?.type === 'provider' && (
+                        <div className="md:hidden flex items-center gap-1.5 mr-1 bg-slate-100 dark:bg-slate-800/50 px-2 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
+                            <button
+                                onClick={handleStatusToggle}
+                                disabled={isTogglingStatus}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'} ${isTogglingStatus ? 'opacity-50' : ''}`}
+                            >
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isOnline ? '-translate-x-5' : '-translate-x-1'}`} />
+                            </button>
+                        </div>
                     )}
 
                     {/* Mobile Menu Button */}
@@ -277,13 +346,13 @@ export function Navbar() {
                         className="md:hidden w-full overflow-hidden border-t border-slate-200/50 dark:border-slate-800/50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg shadow-2xl"
                     >
                         <div className="space-y-2.5 p-6">
-                            {[
+                            {(currentUser?.type !== 'provider' ? [
                                 { label: 'الرئيسية', href: '/', icon: Home },
                                 { label: 'تصفح الخدمات', href: '/explore', icon: Search },
                                 ...(!currentUser ? [{ label: 'تسجيل الدخول', href: '/login', icon: UserCircle }] : []),
                                 { label: 'عجلة الحظ', href: '/wheel', icon: Gift, highlight: true },
                                 { label: 'تتبع طلبك', href: '/track', icon: Briefcase }
-                            ].map((item, i) => (
+                            ] : []).map((item, i) => (
                                 <motion.div
                                     key={item.href}
                                     initial={{ opacity: 0, x: 20 }}
@@ -307,18 +376,7 @@ export function Navbar() {
                                 </motion.div>
                             ))}
 
-                            <motion.div 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.4 }}
-                                className="pt-4"
-                            >
-                                <Link href="/explore" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Button className="w-full h-16 rounded-[1.5rem] bg-primary text-white text-xl font-bold shadow-xl shadow-primary/30">
-                                        أضف طلبك الآن
-                                    </Button>
-                                </Link>
-                            </motion.div>
+
                         </div>
                     </motion.div>
                 )}

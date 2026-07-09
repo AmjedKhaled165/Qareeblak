@@ -132,6 +132,14 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
         appointmentType || 'immediate'
     ]);
 
+    // [NEW] Notify the provider of the new booking/appointment
+    const providerUserId = await bookingRepo.getUserIdByProviderId(decodedProviderId);
+    if (providerUserId) {
+        const { createNotification } = require('../routes/notifications');
+        const io = req.app.get('io');
+        await createNotification(providerUserId, 'لديك طلب أو موعد جديد!', 'new_order', bId.toString(), io);
+    }
+
     res.status(201).json({ success: true, message: 'تم إنشاء الحجز بنجاح', id: bId.toString() });
 });
 
