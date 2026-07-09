@@ -267,7 +267,7 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
                                 </div>
                                 <h3 className="text-2xl font-black text-green-600 mb-2 font-cairo">تم إرسال طلب الحجز بنجاح!</h3>
                                 <p className="text-muted-foreground mb-8">
-                                    تم تسجيل حجزك في ملعب "{provider.name}" ليوم {appointmentDate} الساعة {appointmentTime}.
+                                    تم تسجيل حجزك في ملعب "{provider.name}" ليوم {appointmentDate} الساعات: {appointmentTimes.join('، ')}.
                                     <br />
                                     في انتظار قبول صاحب الملعب لإشعارك بالتأكيد.
                                 </p>
