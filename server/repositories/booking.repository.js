@@ -175,13 +175,47 @@ class BookingRepository {
     }
 
     async legacyCreateBooking(paramsArray) {
-        const query = `
-            INSERT INTO bookings 
-             (user_id, provider_id, service_id, user_name, service_name, provider_name, price, details, items, status, bundle_id, appointment_date, appointment_type) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
-             RETURNING id
-        `;
-        const result = await pool.query(query, paramsArray);
+        const [
+            userId, providerId, serviceId, userName, serviceName, providerName,
+            price, details, items, status, bundleId, appointmentDate, appointmentType
+        ] = paramsArray;
+
+        const cols = await getBookingsColumns();
+        const insertCols = [];
+        const values = [];
+        const params = [];
+
+        const pushColumn = (column, value) => {
+            insertCols.push(column);
+            params.push(value);
+            values.push(`$${params.length}`);
+        };
+
+        if (cols.has('user_id')) pushColumn('user_id', userId);
+        if (cols.has('provider_id')) pushColumn('provider_id', providerId);
+        if (cols.has('service_id')) pushColumn('service_id', serviceId || null);
+        
+        if (cols.has('user_name')) {
+            pushColumn('user_name', userName);
+        } else if (cols.has('customer_name')) {
+            pushColumn('customer_name', userName);
+        }
+        
+        if (cols.has('service_name')) pushColumn('service_name', serviceName);
+        if (cols.has('provider_name')) pushColumn('provider_name', providerName);
+        if (cols.has('price')) pushColumn('price', price);
+        if (cols.has('details')) pushColumn('details', details || null);
+        if (cols.has('items')) pushColumn('items', items || '[]');
+        if (cols.has('status')) pushColumn('status', status);
+        if (cols.has('bundle_id')) pushColumn('bundle_id', bundleId || null);
+        if (cols.has('appointment_date')) pushColumn('appointment_date', appointmentDate || null);
+        if (cols.has('appointment_type')) pushColumn('appointment_type', appointmentType || 'immediate');
+
+        const query = insertCols.length > 0
+            ? `INSERT INTO bookings (${insertCols.join(', ')}) VALUES (${values.join(', ')}) RETURNING id`
+            : 'INSERT INTO bookings DEFAULT VALUES RETURNING id';
+
+        const result = await pool.query(query, params);
         return result.rows[0].id;
     }
 
