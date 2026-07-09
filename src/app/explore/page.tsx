@@ -134,12 +134,16 @@ function ExploreContent() {
                 .join(' ');
 
             const _providerCategory = typeof provider?.category === 'string' ? provider.category : '';
-            const catLabel = CATEGORIES.find(c => c.id === _providerCategory)?.label || '';
-            const catKeywords = CATEGORY_KEYWORDS[_providerCategory]?.join(' ') || '';
+            // Match by id or label
+            const categoryObj = CATEGORIES.find(c => c.id === _providerCategory || c.label === _providerCategory);
+            const catLabel = categoryObj?.label || '';
+            const catId = categoryObj?.id || _providerCategory;
+            const catKeywords = CATEGORY_KEYWORDS[catId]?.join(' ') || '';
 
             return {
                 ...provider,
                 _providerCategory,
+                _mappedCategoryId: catId,
                 _searchIndex: normalizeText(`${providerName} ${providerLocation} ${servicesText} ${_providerCategory} ${catLabel} ${catKeywords}`),
             };
         });
@@ -150,7 +154,7 @@ function ExploreContent() {
         const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
 
         let result = normalizedProviders.filter(provider => {
-            const matchesCategory = activeCategory === "all" || provider._providerCategory === activeCategory;
+            const matchesCategory = activeCategory === "all" || provider._mappedCategoryId === activeCategory;
             
             const matchesSearch = queryWords.length === 0 || queryWords.every(word => {
                 const broadWord = word.startsWith('ال') && word.length > 3 ? word.substring(2) : word;

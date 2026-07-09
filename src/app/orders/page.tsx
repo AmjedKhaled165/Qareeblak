@@ -184,7 +184,7 @@ export default function MyOrdersPage() {
                                                     const statusInfo = getStatusInfo(order.status);
                                                     const StatusIcon = statusInfo.icon;
 
-                                                    const isAppointment = ['maintenance', 'medical', 'playgrounds', 'car_service'].includes(order.appointmentType) || (!order.halanOrderId && ['pending_appointment', 'provider_rescheduled', 'customer_rescheduled'].includes(order.status));
+                                                    const isAppointment = ['maintenance', 'medical', 'playgrounds', 'playground', 'car_service', 'home_service'].includes(order.appointmentType) || (!order.halanOrderId && ['pending_appointment', 'provider_rescheduled', 'customer_rescheduled'].includes(order.status));
                                                     
                                                     const content = (
                                                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-all flex items-center justify-between cursor-pointer group">
@@ -234,7 +234,7 @@ export default function MyOrdersPage() {
                                 const order = item.data;
                                 const statusInfo = getStatusInfo(order.status);
                                 const StatusIcon = statusInfo.icon;
-                                const isAppointment = ['maintenance', 'medical', 'playgrounds', 'car_service'].includes(order.appointmentType) || (!order.halanOrderId && ['pending_appointment', 'provider_rescheduled', 'customer_rescheduled'].includes(order.status));
+                                const isAppointment = ['maintenance', 'medical', 'playgrounds', 'playground', 'car_service', 'home_service'].includes(order.appointmentType) || (!order.halanOrderId && ['pending_appointment', 'provider_rescheduled', 'customer_rescheduled'].includes(order.status));
 
                                 const content = (
                                     <Card className="rounded-2xl border-none shadow-sm hover:shadow-md transition-all cursor-pointer group overflow-hidden bg-white border border-slate-200">

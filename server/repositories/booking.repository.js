@@ -462,7 +462,7 @@ class BookingRepository {
         // eliminates separate getUserIdByProviderId() and getProviderFinanceInfo() round-trips.
         const query = `
             SELECT b.user_id, b.provider_id, b.parent_order_id, b.halan_order_id,
-                   b.service_name, b.status, b.price,
+                   b.service_name, b.status, b.price, b.appointment_type,
                    p.user_id AS "providerUserId",
                    COALESCE(p.commission_rate, 10.00) AS "commissionRate"
             FROM bookings b

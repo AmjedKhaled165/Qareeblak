@@ -239,7 +239,28 @@ class BookingService {
 
         if (io) {
             const payload = { id, status, parentId: bookingInfo.parent_order_id };
-            if (customerId) io.to(`user-${customerId}`).emit('booking-updated', payload);
+            if (customerId) {
+                io.to(`user-${customerId}`).emit('booking-updated', payload);
+                
+                const appointmentTypes = ['medical', 'maintenance', 'playground', 'playgrounds', 'car_service', 'home_service'];
+                const isAppointment = appointmentTypes.includes(currentBooking.appointment_type);
+                
+                let msg = null;
+                if (isAppointment) {
+                    if (status === 'confirmed') msg = 'تم قبول الموعد بنجاح 📅';
+                    else if (status === 'completed') msg = 'تم الانتهاء من الخدمة شكراً لك! ✨';
+                    else if (status === 'cancelled' || status === 'rejected') msg = 'تم إلغاء الموعد ❌';
+                } else {
+                    if (status === 'confirmed') msg = 'المتجر قَبِل طلبك وجاري التجهيز 🛒';
+                    else if (status === 'completed') msg = 'تم تجهيز طلبك بنجاح! 🛍️';
+                    else if (status === 'cancelled' || status === 'rejected') msg = 'تم إلغاء الطلب ❌';
+                }
+
+                if (msg) {
+                    const { createNotification } = require('../routes/notifications');
+                    createNotification(customerId, msg, msg, 'order_status_update', String(id), io).catch(e => logger.warn(`Notification failed: ${e.message}`));
+                }
+            }
             if (providerUserId) io.to(`user-${providerUserId}`).emit('booking-updated', payload);
             io.to('admin').emit('booking-updated', payload);
         }

@@ -31,7 +31,7 @@ const createBookingSchema = z.object({
     items: z.array(z.any()).optional(),
     bundleId: z.string().optional().nullable(),
     appointmentDate: z.string().datetime({ message: "Invalid datetime array" }).optional().nullable(),
-    appointmentType: z.enum(['immediate', 'maintenance']).optional()
+    appointmentType: z.string().max(50).optional()
 });
 
 const updateStatusSchema = z.object({
