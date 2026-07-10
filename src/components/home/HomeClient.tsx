@@ -4,7 +4,7 @@ import { Hero3DCanvas } from "@/components/animations/Hero3DCanvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Wrench, Utensils, Pill, Car, Zap, Home, ShoppingBag, ShieldCheck, Star, Clock, CheckCircle2, ChevronLeft, Phone, Store, Sparkles } from "lucide-react";
+import { Search, Wrench, Utensils, Pill, Car, Zap, Home, ShoppingBag, ShieldCheck, Star, Clock, CheckCircle2, ChevronLeft, Phone, Store, Sparkles, Stethoscope } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useEffect, useState } from "react";
