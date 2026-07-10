@@ -39,8 +39,21 @@ exports.addReview = catchAsync(async (req, res) => {
     const { id } = req.params;
     const { decodeEntityId } = require('../utils/obfuscate');
     const decodedId = decodeEntityId('provider', id) || id;
-    const { userName, rating, comment } = req.body;
-    await providerRepo.addReview({ providerId: decodedId, userName, rating, comment });
+    const { rating, comment } = req.body;
+    
+    // Get name from logged in user
+    const userName = req.user ? req.user.name : 'مستخدم مجهول';
+    
+    // Ensure comment is null instead of undefined for node-postgres
+    const safeComment = comment || null;
+
+    await providerRepo.addReview({ providerId: decodedId, userName, rating, comment: safeComment });
+    
+    // Update provider rating and review count
+    if (providerRepo.updateProviderRating) {
+        await providerRepo.updateProviderRating(decodedId);
+    }
+    
     res.status(201).json({ message: 'تم إضافة التقييم بنجاح' });
 });
 

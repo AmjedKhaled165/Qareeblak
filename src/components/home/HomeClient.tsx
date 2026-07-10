@@ -41,11 +41,12 @@ export default function HomeClient() {
 
   const categories = [
     { name: "مطاعم وكافيهات", icon: Utensils, colorClass: "bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/20" },
+    { name: "سوبر ماركت", icon: ShoppingBag, colorClass: "bg-green-100 dark:bg-green-500/10 text-green-600 dark:text-green-400 border-green-200 dark:border-green-500/20" },
     { name: "صيانة وسباكة", icon: Wrench, colorClass: "bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/20" },
     { name: "صيدليات", icon: Pill, colorClass: "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" },
-    { name: "كهرباء", icon: Zap, colorClass: "bg-yellow-100 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/20" },
-    { name: "سيارات", icon: Car, colorClass: "bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/20" },
-    { name: "خدمات منزلية", icon: Home, colorClass: "bg-purple-100 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-500/20" },
+    { name: "دكتور وممرض", icon: Stethoscope, colorClass: "bg-teal-100 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-500/20" },
+    { name: "ملاعب", icon: Star, colorClass: "bg-yellow-100 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-500/20" },
+    { name: "خدمات سيارات", icon: Car, colorClass: "bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/20" },
   ];
 
   const popularSearches = ["سباك", "كهربائي", "صيدلية", "مشويات", "ونش انقاذ"];

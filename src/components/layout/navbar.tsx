@@ -165,7 +165,7 @@ export function Navbar() {
                 </div>
 
                 {/* 2. Desktop Navigation - Center */}
-                {currentUser?.type !== 'provider' && (
+                {!['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase()) && (
                     <nav className="hidden md:flex shrink-0 justify-center items-center gap-6 lg:gap-8 text-[15px] font-bold font-cairo">
                         {[
                             { label: 'الرئيسية', href: '/' },
@@ -211,7 +211,7 @@ export function Navbar() {
                     {currentUser && <div className="pop-hover"><NotificationBell /></div>}
 
                     {/* Cart Trigger */}
-                    {currentUser?.type !== 'provider' && (
+                    {!['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase()) && (
                         <button
                             onClick={() => setIsCartOpen(true)}
                             className="relative p-2.5 text-foreground hover:bg-accent rounded-full transition-colors group pop-hover"
@@ -260,6 +260,19 @@ export function Navbar() {
                                                     <p className="truncate font-medium mt-0.5 opacity-70">{currentUser.email}</p>
                                                 </div>
 
+                                                <button
+                                                    onClick={() => {
+                                                        setIsUserMenuOpen(false);
+                                                        handleLogout();
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors font-bold font-cairo"
+                                                >
+                                                    <div className="p-2 bg-rose-500/10 text-rose-600 rounded-lg">
+                                                        <LogOut className="w-5 h-5" />
+                                                    </div>
+                                                    تسجيل الخروج
+                                                </button>
+
                                                 <Link
                                                     href="/profile"
                                                     onClick={() => setIsUserMenuOpen(false)}
@@ -271,7 +284,7 @@ export function Navbar() {
                                                     إعدادات الحساب
                                                 </Link>
 
-                                                {currentUser.type === 'provider' && (
+                                                {['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser.type || '').toLowerCase()) && (
                                                     <Link
                                                         href="/provider-dashboard"
                                                         onClick={() => setIsUserMenuOpen(false)}
@@ -283,19 +296,6 @@ export function Navbar() {
                                                         لوحة التحكم
                                                     </Link>
                                                 )}
-
-                                                <button
-                                                    onClick={() => {
-                                                        setIsUserMenuOpen(false);
-                                                        handleLogout();
-                                                    }}
-                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors font-bold font-cairo mt-1"
-                                                >
-                                                    <div className="p-2 bg-rose-500/10 text-rose-600 rounded-lg">
-                                                        <LogOut className="w-5 h-5" />
-                                                    </div>
-                                                    تسجيل الخروج
-                                                </button>
                                             </div>
                                         </motion.div>
                                     </>
@@ -346,7 +346,7 @@ export function Navbar() {
                         className="md:hidden w-full overflow-hidden border-t border-slate-200/50 dark:border-slate-800/50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg shadow-2xl"
                     >
                         <div className="space-y-2.5 p-6">
-                            {(currentUser?.type !== 'provider' ? [
+                            {(!['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase()) ? [
                                 { label: 'الرئيسية', href: '/', icon: Home },
                                 { label: 'تصفح الخدمات', href: '/explore', icon: Search },
                                 ...(!currentUser ? [{ label: 'تسجيل الدخول', href: '/login', icon: UserCircle }] : []),

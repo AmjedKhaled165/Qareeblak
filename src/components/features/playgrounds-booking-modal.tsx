@@ -97,24 +97,6 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
                 })
             });
 
-            // If successful, we must also mark the slot as booked
-            if (availabilityService) {
-                const updatedSlots = allSlots.map((slot: any) => {
-                    if (slot.date === appointmentDate && appointmentTimes.includes(slot.time)) {
-                        return { ...slot, status: 'booked', bookedBy: currentUser?.id };
-                    }
-                    return slot;
-                });
-                await apiCall(`/providers/${provider.id}/services/${availabilityService.id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        name: '__AVAILABILITY__',
-                        description: JSON.stringify(updatedSlots),
-                        price: 0,
-                        is_active: false
-                    })
-                });
-            }
 
             setStep(2); // Success step
         } catch (error) {

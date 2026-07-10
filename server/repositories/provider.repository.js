@@ -242,6 +242,34 @@ class ProviderRepository {
         );
     }
 
+    async updateProviderRating(providerId) {
+        const providerCols = await getProvidersColumns();
+        if (!providerCols.has('rating') || !providerCols.has('reviews_count')) return;
+
+        // Calculate average rating and count
+        const result = await pool.query(
+            `SELECT COUNT(*) as count, AVG(rating) as average 
+             FROM reviews 
+             WHERE provider_id = $1`,
+            [providerId]
+        );
+
+        if (result.rows.length > 0) {
+            const count = parseInt(result.rows[0].count) || 0;
+            let average = parseFloat(result.rows[0].average) || 0;
+            
+            // Round to 1 decimal place
+            average = Math.round(average * 10) / 10;
+
+            await pool.query(
+                `UPDATE providers 
+                 SET rating = $1, reviews_count = $2 
+                 WHERE id = $3`,
+                [average, count, providerId]
+            );
+        }
+    }
+
     async deleteProvider(id) {
         const provider = await this.getById(id);
         if (!provider) return null;

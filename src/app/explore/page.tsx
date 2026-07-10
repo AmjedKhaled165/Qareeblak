@@ -16,6 +16,7 @@ import { SkeletonCard } from "@/components/features/skeleton-card";
 import { useMemo } from "react";
 
 import { useDebounce } from "@/hooks/use-debounce";
+import { isPharmacyProvider, isDoctorProvider, isMaintenanceProvider, isCarServiceProvider, isPlaygroundProvider, isRestaurantProvider } from "@/lib/category-utils";
 
 const ServiceCard = dynamic(
     () => import("@/components/features/service-card").then((m) => m.ServiceCard),
@@ -134,10 +135,28 @@ function ExploreContent() {
                 .join(' ');
 
             const _providerCategory = typeof provider?.category === 'string' ? provider.category : '';
-            // Match by id or label
-            const categoryObj = CATEGORIES.find(c => c.id === _providerCategory || c.label === _providerCategory);
+            
+            // Map the raw category from the backend to the frontend CATEGORIES ID using robust utilities
+            let catId = "all";
+            if (isPharmacyProvider(_providerCategory)) catId = "صيدليات";
+            else if (isDoctorProvider(_providerCategory)) catId = "دكتور وممرض";
+            else if (isMaintenanceProvider(_providerCategory)) catId = "صيانة";
+            else if (isCarServiceProvider(_providerCategory)) catId = "سيارات";
+            else if (isPlaygroundProvider(_providerCategory)) catId = "ملاعب";
+            else if (isRestaurantProvider(_providerCategory)) {
+                if (_providerCategory.includes('بقالة') || _providerCategory.includes('سوبر') || _providerCategory.includes('ماركت') || _providerCategory.includes('خضار') || _providerCategory.includes('لحوم')) {
+                    catId = "بقالة";
+                } else {
+                    catId = "مطاعم";
+                }
+            } else {
+                // Fallback: match by label or exact id
+                const categoryObj = CATEGORIES.find(c => c.id === _providerCategory || c.label === _providerCategory);
+                catId = categoryObj?.id || _providerCategory;
+            }
+
+            const categoryObj = CATEGORIES.find(c => c.id === catId);
             const catLabel = categoryObj?.label || '';
-            const catId = categoryObj?.id || _providerCategory;
             const catKeywords = CATEGORY_KEYWORDS[catId]?.join(' ') || '';
 
             return {

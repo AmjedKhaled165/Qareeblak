@@ -140,6 +140,40 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
         await createNotification(providerUserId, 'لديك طلب أو موعد جديد!', 'new_order', bId.toString(), io);
     }
 
+    // Auto-update availability slots for playgrounds
+    if (appointmentType === 'playground' && details) {
+        const serviceRepo = require('../repositories/service_item.repository');
+        const sr = new serviceRepo();
+        const services = await sr.getByProvider(decodedProviderId);
+        const availService = services.find(s => s.name === '__AVAILABILITY__');
+        if (availService) {
+            let slots = [];
+            try { slots = JSON.parse(availService.description); } catch (e) { }
+            if (Array.isArray(slots)) {
+                // Extract requested date and times from details
+                let requestedDate = null;
+                let requestedTimes = [];
+                const dateMatch = details.match(/الموعد:\s*([0-9-]{10})/);
+                if (dateMatch) requestedDate = dateMatch[1];
+                const timeMatch = details.match(/\(([^)]+)\)/);
+                if (timeMatch) requestedTimes = timeMatch[1].split(' - ').map(t => t.trim());
+
+                let modified = false;
+                slots = slots.map(slot => {
+                    if (slot.date === requestedDate && requestedTimes.includes(slot.time)) {
+                        modified = true;
+                        return { ...slot, status: 'booked', bookedBy: authenticatedUser };
+                    }
+                    return slot;
+                });
+                
+                if (modified) {
+                    await sr.update(availService.id, decodedProviderId, { description: JSON.stringify(slots) }, true); // isAdmin=true to bypass constraints
+                }
+            }
+        }
+    }
+
     res.status(201).json({ success: true, message: 'تم إنشاء الحجز بنجاح', id: bId.toString() });
 });
 

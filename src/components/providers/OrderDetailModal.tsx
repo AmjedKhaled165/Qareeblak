@@ -355,6 +355,18 @@ export function OrderDetailModal({
                         </div>
                     )}
 
+                    {/* --- Booking Details --- */}
+                    {booking.details && (
+                        <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
+                            <h3 className="text-xs font-black text-muted-foreground mb-3 font-cairo flex items-center gap-2">
+                                <Glyph symbol="📝" className="text-sm" /> تفاصيل الحجز
+                            </h3>
+                            <div className="text-foreground font-medium text-sm leading-relaxed whitespace-pre-wrap bg-background/60 p-4 rounded-xl border border-border/30">
+                                {booking.details}
+                            </div>
+                        </div>
+                    )}
+
                     {/* --- Pricing Section --- */}
                     <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
                         <h3 className="text-xs font-black text-muted-foreground mb-3 font-cairo">💰 التكلفة</h3>

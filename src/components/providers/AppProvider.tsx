@@ -183,7 +183,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const currentPath = pathname || '/';
 
         const isProvider = userType.includes('provider') || userType.includes('partner') || userType.includes('restaurant') || userType.includes('pharmacy') || userType.includes('maintenance');
-        const isProviderDashboardPath = currentPath === '/provider-dashboard' || currentPath.startsWith('/provider-dashboard/') || currentPath.startsWith('/partner/');
+        const isProviderDashboardPath = currentPath === '/provider-dashboard' || currentPath.startsWith('/provider-dashboard/') || currentPath.startsWith('/partner/') || currentPath === '/profile';
 
         if (isProvider && !isProviderDashboardPath) {
             router.replace('/provider-dashboard');

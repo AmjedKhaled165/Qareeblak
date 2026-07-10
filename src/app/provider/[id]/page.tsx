@@ -205,16 +205,23 @@ export default function ProviderProfile() {
     const reviewCount = provider.reviews || 0;
     const dynamicRating = Number(provider.rating) > 0 ? Number(provider.rating).toFixed(1) : "0.0";
 
-    const handleSubmitReview = () => {
+    const handleSubmitReview = async () => {
+        if (!currentUser) {
+            toast("يجب تسجيل الدخول أولاً لإضافة تقييم", "error");
+            return;
+        }
         if (!reviewForm.comment) return;
         setIsSubmitting(true);
 
-        addReview(provider.id, reviewForm.rating, reviewForm.comment);
+        const success = await addReview(provider.id, reviewForm.rating, reviewForm.comment);
 
-        setTimeout(() => {
-            setReviewForm({ rating: 5, comment: "" });
-            setIsSubmitting(false);
-        }, 500);
+        if (success) {
+            toast("تم إضافة تقييمك بنجاح", "success");
+            await fetchProviderDetails(provider.id);
+        }
+
+        setReviewForm({ rating: 5, comment: "" });
+        setIsSubmitting(false);
     };
 
     const handleOrder = async (service: Service) => {
@@ -596,7 +603,6 @@ export default function ProviderProfile() {
                                                             </div>
                                                             <div>
                                                                 <div className="font-semibold text-sm text-slate-900 dark:text-white">{review.userName}</div>
-                                                                <div className="text-xs text-slate-400">{review.date}</div>
                                                             </div>
                                                         </div>
                                                         <div className="flex gap-0.5">
@@ -666,10 +672,6 @@ export default function ProviderProfile() {
                                         >
                                             {isSubmitting ? "جاري النشر..." : "نشر التقييم"}
                                         </Button>
-
-                                        <p className="text-xs text-slate-400 text-center mt-2">
-                                            اسمك سيظهر كـ "مستخدم مجهول" للحفاظ على الخصوصية.
-                                        </p>
                                     </CardContent>
                                 </Card>
                             </div>
