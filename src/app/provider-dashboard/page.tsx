@@ -274,8 +274,8 @@ export default function ProviderDashboard() {
                     method: 'POST',
                     body: JSON.stringify({
                         userId: booking.userId,
-                        message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}`,
-                        type: 'order_confirmed',
+                        message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد.${isCarServiceProvider(myProviderProfile?.category) ? ` رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}` : ''}`,
+                        type: 'booking_confirmed',
                         relatedId: booking.id
                     })
                 });
@@ -306,8 +306,8 @@ export default function ProviderDashboard() {
                         method: 'POST',
                         body: JSON.stringify({
                             userId: booking.userId,
-                            message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}`,
-                            type: 'order_confirmed',
+                            message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد.${isCarServiceProvider(myProviderProfile?.category) ? ` رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}` : ''}`,
+                            type: 'booking_confirmed',
                             relatedId: booking.id
                         })
                     });
@@ -345,8 +345,8 @@ export default function ProviderDashboard() {
                     method: 'POST',
                     body: JSON.stringify({
                         userId: booking.userId,
-                        message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد. رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}`,
-                        type: 'order_confirmed',
+                        message: `تم قبول طلبك! مقدم الخدمة ${myProviderProfile?.name || booking.providerName} وافق على الموعد.${isCarServiceProvider(myProviderProfile?.category) ? ` رقم التواصل: ${(myProviderProfile as any)?.phone || currentUser?.phone || 'غير متوفر'}` : ''}`,
+                        type: 'booking_confirmed',
                         relatedId: booking.id
                     })
                 });

@@ -165,7 +165,7 @@ export function Navbar() {
                 </div>
 
                 {/* 2. Desktop Navigation - Center */}
-                {!['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase()) && (
+                {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase())) && (
                     <nav className="hidden md:flex shrink-0 justify-center items-center gap-6 lg:gap-8 text-[15px] font-bold font-cairo">
                         {[
                             { label: 'الرئيسية', href: '/' },
@@ -211,7 +211,7 @@ export function Navbar() {
                     {currentUser && <div className="pop-hover"><NotificationBell /></div>}
 
                     {/* Cart Trigger */}
-                    {!['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase()) && (
+                    {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase())) && (
                         <button
                             onClick={() => setIsCartOpen(true)}
                             className="relative p-2.5 text-foreground hover:bg-accent rounded-full transition-colors group pop-hover"
@@ -346,7 +346,7 @@ export function Navbar() {
                         className="md:hidden w-full overflow-hidden border-t border-slate-200/50 dark:border-slate-800/50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg shadow-2xl"
                     >
                         <div className="space-y-2.5 p-6">
-                            {(!['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase()) ? [
+                            {(!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase())) ? [
                                 { label: 'الرئيسية', href: '/', icon: Home },
                                 { label: 'تصفح الخدمات', href: '/explore', icon: Search },
                                 ...(!currentUser ? [{ label: 'تسجيل الدخول', href: '/login', icon: UserCircle }] : []),

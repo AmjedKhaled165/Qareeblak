@@ -378,8 +378,8 @@ export default function ProviderProfile() {
                                 <div className="flex-1 space-y-3 md:pb-2">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div>
-                                            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white font-cairo">{provider.name}</h1>
-                                            <p className="text-base sm:text-lg text-slate-500 dark:text-slate-400 font-medium font-cairo flex items-center gap-2 mt-1">
+                                            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white font-cairo drop-shadow-sm">{provider.name}</h1>
+                                            <p className="text-lg sm:text-xl text-slate-700 dark:text-slate-200 font-bold font-cairo flex items-center gap-2 mt-2 drop-shadow-sm">
                                                 {provider.category}
                                             </p>
                                         </div>

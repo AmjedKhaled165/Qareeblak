@@ -143,12 +143,11 @@ function ExploreContent() {
             else if (isMaintenanceProvider(_providerCategory)) catId = "صيانة";
             else if (isCarServiceProvider(_providerCategory)) catId = "سيارات";
             else if (isPlaygroundProvider(_providerCategory)) catId = "ملاعب";
+            else if (_providerCategory.includes('بقالة') || _providerCategory.includes('سوبر') || _providerCategory.includes('ماركت') || _providerCategory.includes('خضار') || _providerCategory.includes('لحوم') || _providerCategory.includes('مقاضي')) {
+                catId = "بقالة";
+            }
             else if (isRestaurantProvider(_providerCategory)) {
-                if (_providerCategory.includes('بقالة') || _providerCategory.includes('سوبر') || _providerCategory.includes('ماركت') || _providerCategory.includes('خضار') || _providerCategory.includes('لحوم')) {
-                    catId = "بقالة";
-                } else {
-                    catId = "مطاعم";
-                }
+                catId = "مطاعم";
             } else {
                 // Fallback: match by label or exact id
                 const categoryObj = CATEGORIES.find(c => c.id === _providerCategory || c.label === _providerCategory);

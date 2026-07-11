@@ -151,6 +151,8 @@ export function NotificationBell() {
         if (notification.reference_id) {
             if (notification.type === 'chat_alert') {
                 router.push(`/chat/${notification.reference_id}`);
+            } else if (notification.type === 'booking_confirmed' || notification.message?.includes('الموعد')) {
+                router.push(`/orders`);
             } else {
                 router.push(`/track/${notification.reference_id}`);
             }
