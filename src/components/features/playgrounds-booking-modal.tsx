@@ -101,7 +101,7 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
         setLoading(true);
         try {
             const finalServiceName = serviceName || `حجز ملعب`;
-            const detailsStr = `الاسم: ${customerName} | الموعد: ${appointmentDate} (${appointmentTimes.join(' - ')})`;
+            const detailsStr = `الاسم: ${customerName} | الموعد: ${appointmentDate} | الساعات: ${appointmentTimes.join(' و ')}`;
 
             const result = await apiCall('/bookings', {
                 method: 'POST',

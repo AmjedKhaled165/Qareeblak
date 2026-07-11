@@ -205,7 +205,15 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
                     } else {
                         updatedDescription = JSON.stringify(slots);
                     }
-                    await sr.update(availService.id, decodedProviderId, { description: updatedDescription }, true); // isAdmin=true to bypass constraints
+                    await sr.updateSecure(availService.id, decodedProviderId, { description: updatedDescription }, true); // isAdmin=true to bypass constraints
+                    
+                    // Invalidate provider cache to reflect new slots immediately
+                    const { invalidatePattern } = require('../utils/redis-cache');
+                    if (invalidatePattern) {
+                        await invalidatePattern('route:*services*provider*');
+                        await invalidatePattern(`route:*providers*`);
+                        await invalidatePattern(`providers:list:*`);
+                    }
                 }
             }
         }

@@ -39,8 +39,9 @@ export default function MyOrdersPage() {
         }
     };
 
-    const activeOrders = orders.filter(o => ['pending', 'confirmed'].includes(o.status));
-    const previousOrders = orders.filter(o => !['pending', 'confirmed'].includes(o.status));
+    const safeOrders = Array.isArray(orders) ? orders : [];
+    const activeOrders = safeOrders.filter(o => ['pending', 'confirmed'].includes(o?.status));
+    const previousOrders = safeOrders.filter(o => !['pending', 'confirmed'].includes(o?.status));
 
     const displayedOrders = activeTab === 'active' ? activeOrders : previousOrders;
 

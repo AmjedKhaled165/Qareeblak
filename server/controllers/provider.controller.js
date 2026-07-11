@@ -80,6 +80,14 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     }
 
     await providerRepo.updateProvider(providerId, req.body);
+    
+    // Invalidate cache
+    const { invalidatePattern } = require('../utils/redis-cache');
+    if (invalidatePattern) {
+        await invalidatePattern('route:*providers*');
+        await invalidatePattern('providers:list:*');
+    }
+
     res.json({ success: true, message: 'تم تحديث الملف الشخصي بنجاح' });
 });
 

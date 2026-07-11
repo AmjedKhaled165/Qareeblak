@@ -81,8 +81,8 @@ module.exports = function configureMiddleware(app, express) {
 
     // Body parsing (Strict limit against Memory Exhaustion/DoS)
     app.use(cookieParser());
-    app.use(express.json({ limit: '1mb' }));
-    app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+    app.use(express.json({ limit: '10mb' }));
+    app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
     // Data Sanitization against XSS
     app.use(xssSanitizer);

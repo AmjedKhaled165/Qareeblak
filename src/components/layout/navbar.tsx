@@ -59,18 +59,12 @@ export function Navbar() {
     const handleStatusToggle = async () => {
         try {
             setIsTogglingStatus(true);
-            const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
             const newStatus = !isOnline;
-            const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
-            const res = await fetch(`${apiBase}/api/providers/status`, {
+            const res = await apiCall('/providers/status', {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({ isOnline: newStatus })
             });
-            if (res.ok) {
+            if (res && res.success) {
                 setIsOnline(newStatus);
                 // Dispatch a custom event to notify other components (like provider-dashboard)
                 window.dispatchEvent(new CustomEvent('provider-status-changed', { detail: { isOnline: newStatus } }));

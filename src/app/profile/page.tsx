@@ -161,12 +161,20 @@ export default function ProfilePage() {
                             )}
                             <div className="absolute -bottom-12 right-8 z-20">
                                 <div className="relative group/avatar">
-                                    <div className="w-28 h-28 rounded-full p-1 shadow-2xl overflow-hidden bg-card border-4 border-background">
+                                    <div className="w-28 h-28 rounded-full p-1 shadow-2xl overflow-hidden bg-card border-4 border-background relative">
                                         {avatar ? (
                                             <img src={avatar} alt="Avatar" className="w-full h-full rounded-full object-cover bg-white" />
                                         ) : (
                                             <div className="w-full h-full rounded-full flex items-center justify-center text-4xl font-bold bg-muted text-muted-foreground">
                                                 {name.charAt(0)}
+                                            </div>
+                                        )}
+                                        {isEditing && (
+                                            <div 
+                                                className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer transition-opacity opacity-0 hover:opacity-100 rounded-full"
+                                                onClick={() => fileInputRef.current?.click()}
+                                            >
+                                                <Camera className="w-8 h-8 text-white" />
                                             </div>
                                         )}
                                     </div>
@@ -177,14 +185,6 @@ export default function ProfilePage() {
                                         accept="image/*"
                                         onChange={(e) => handleFileChange(e, 'avatar')}
                                     />
-                                    <button
-                                        onClick={() => isEditing && fileInputRef.current?.click()}
-                                        title="تغيير الصورة"
-                                        aria-label="تغيير الصورة"
-                                        className={`absolute bottom-2 left-2 bg-primary text-white p-2 rounded-full shadow-lg transition-all transform hover:scale-110 ${isEditing ? 'cursor-pointer' : 'opacity-0 pointer-events-none'}`}
-                                    >
-                                        <Camera className="w-5 h-5" />
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -193,9 +193,9 @@ export default function ProfilePage() {
                             <div className="flex justify-between items-center">
                                 <div>
                                     <CardTitle className="text-3xl font-black font-cairo text-foreground">{currentUser.name}</CardTitle>
-                                    <CardDescription className="font-bold text-muted-foreground">
-                                        {currentUser.type === 'customer' ? 'عميل نشط' : 'مقدم خدمة'}
-                                    </CardDescription>
+                                    <div className="text-lg font-black text-primary mt-1">
+                                        {currentUser.type === 'customer' ? 'عميل نشط' : (category || 'مقدم خدمة')}
+                                    </div>
                                 </div>
                                 {!isEditing && (
                                     <Button

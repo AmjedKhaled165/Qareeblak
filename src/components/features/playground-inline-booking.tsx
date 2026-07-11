@@ -161,7 +161,8 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                     serviceName: finalServiceName,
                     details: detailsStr,
                     price: totalPrice,
-                    appointmentDate: new Date(`${appointmentDate}T00:00:00`).toISOString()
+                    appointmentDate: new Date(`${appointmentDate}T00:00:00`).toISOString(),
+                    appointmentType: 'playground'
                 })
             });
 

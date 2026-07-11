@@ -143,6 +143,13 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
             const providerId = await providerRepo.getProviderIdByUserId(req.user.id);
             if (providerId) {
                 await providerRepo.updateProvider(providerId, req.body);
+                
+                // Invalidate cache
+                const { invalidatePattern } = require('../utils/redis-cache');
+                if (invalidatePattern) {
+                    await invalidatePattern('route:*providers*');
+                    await invalidatePattern('providers:list:*');
+                }
             }
         } catch (err) {
             logger.warn(`Failed to sync profile update to provider record for user ${req.user.id}: ${err.message}`);
