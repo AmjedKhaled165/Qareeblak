@@ -71,11 +71,14 @@ class ProviderRepository {
             const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
             const orderBy = cols.has('rating') ? 'p.rating DESC, p.id ASC' : 'p.id ASC';
 
+            const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL AS cover_image';
+            const avatarSelect = cols.has('avatar') ? 'p.avatar' : 'NULL AS avatar';
+
             const query = `
                 SELECT
                     p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
                     ${ratingSelect}, ${reviewsSelect}, ${joinedDateSelect},
-                    p.cover_image, p.image_url,
+                    ${coverImageSelect}, ${avatarSelect},
                     COALESCE((SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id), '[]'::json) as services_raw,
                     (SELECT COUNT(*) FROM bookings WHERE provider_id = p.id) AS orders_count,
                     (SELECT COUNT(*) FROM services WHERE provider_id = p.id AND has_offer = TRUE) AS offers_count
