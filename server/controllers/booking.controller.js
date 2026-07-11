@@ -147,34 +147,65 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
         const services = await sr.getByProvider(decodedProviderId);
         const availService = services.find(s => s.name === '__AVAILABILITY__');
         if (availService) {
+            let parsedData = null;
             let slots = [];
-            try { slots = JSON.parse(availService.description); } catch (e) { }
-            if (Array.isArray(slots)) {
-                // Extract requested date and times from details
-                let requestedDate = null;
-                let requestedTimes = [];
-                const dateMatch = details.match(/الموعد:\s*([0-9-]{10})/);
-                if (dateMatch) requestedDate = dateMatch[1];
-                
-                const timeMatch = details.match(/الساعات:\s*(.*)/);
-                if (timeMatch) {
-                    requestedTimes = timeMatch[1].split(' و ').map(t => t.trim());
-                } else {
-                    const legacyTimeMatch = details.match(/\(([^)]+)\)/);
-                    if (legacyTimeMatch) requestedTimes = legacyTimeMatch[1].split(' - ').map(t => t.trim());
+            try { 
+                parsedData = JSON.parse(availService.description); 
+                if (Array.isArray(parsedData)) {
+                    slots = parsedData;
+                } else if (parsedData && Array.isArray(parsedData.slots)) {
+                    slots = parsedData.slots;
                 }
+            } catch (e) { }
 
+            // Extract requested date and times from details
+            let requestedDate = null;
+            let requestedTimes = [];
+            const dateMatch = details.match(/الموعد:\s*([0-9-]{10})/);
+            if (dateMatch) requestedDate = dateMatch[1];
+            
+            const timeMatch = details.match(/الساعات:\s*(.*)/);
+            if (timeMatch) {
+                requestedTimes = timeMatch[1].split(' و ').map(t => t.trim());
+            } else {
+                const legacyTimeMatch = details.match(/\(([^)]+)\)/);
+                if (legacyTimeMatch) requestedTimes = legacyTimeMatch[1].split(' - ').map(t => t.trim());
+            }
+
+            if (requestedDate && requestedTimes.length > 0) {
                 let modified = false;
+                
+                // Update existing slots if they were somehow already in the array
                 slots = slots.map(slot => {
                     if (slot.date === requestedDate && requestedTimes.includes(slot.time)) {
                         modified = true;
+                        // remove from requestedTimes so we know we matched it
+                        requestedTimes = requestedTimes.filter(t => t !== slot.time);
                         return { ...slot, status: 'booked', bookedBy: authenticatedUser };
                     }
                     return slot;
                 });
                 
+                // Add completely new slots that weren't in the array
+                for (const time of requestedTimes) {
+                    slots.push({
+                        date: requestedDate,
+                        time: time,
+                        status: 'booked',
+                        bookedBy: authenticatedUser
+                    });
+                    modified = true;
+                }
+                
                 if (modified) {
-                    await sr.update(availService.id, decodedProviderId, { description: JSON.stringify(slots) }, true); // isAdmin=true to bypass constraints
+                    let updatedDescription = '';
+                    if (parsedData && !Array.isArray(parsedData)) {
+                        parsedData.slots = slots;
+                        updatedDescription = JSON.stringify(parsedData);
+                    } else {
+                        updatedDescription = JSON.stringify(slots);
+                    }
+                    await sr.update(availService.id, decodedProviderId, { description: updatedDescription }, true); // isAdmin=true to bypass constraints
                 }
             }
         }

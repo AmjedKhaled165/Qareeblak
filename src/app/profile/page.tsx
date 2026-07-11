@@ -115,7 +115,7 @@ export default function ProfilePage() {
 
     if (!currentUser) return null;
 
-    const isProvider = currentUser.type === 'provider';
+    const isProvider = ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground', 'market', 'library'].includes(String(currentUser?.type || (currentUser as any)?.user_type || '').toLowerCase());
 
     return (
         <div className={`min-h-screen transition-all duration-500 p-4 md:p-8 bg-background`}>
@@ -211,7 +211,7 @@ export default function ProfilePage() {
 
                         <CardContent className="space-y-8 p-8 border-t border-border/50">
                             {/* Stats/Quick Actions Grid */}
-                            {!isEditing && !['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || (currentUser as any)?.user_type || '').toLowerCase()) && (
+                            {!isEditing && !isProvider && (
                                 <div className="grid grid-cols-2 gap-4 pb-6">
                                     <Link href="/orders" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-all group">
                                         <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">

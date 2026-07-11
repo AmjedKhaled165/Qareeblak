@@ -40,7 +40,9 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
         if (!availabilityService?.description) return [];
         try {
             const parsed = JSON.parse(availabilityService.description);
-            return Array.isArray(parsed) ? parsed : [];
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && Array.isArray(parsed.slots)) return parsed.slots;
+            return [];
         } catch (e) {
             return [];
         }
@@ -48,7 +50,29 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
 
     const timesForSelectedDate = useMemo(() => {
         if (!appointmentDate) return [];
-        return allSlots.filter((s: any) => s.date === appointmentDate);
+        const savedSlots = allSlots.filter((s: any) => s.date === appointmentDate);
+        
+        // Generate all 24 hours slots
+        const slots = [];
+        for (let i = 0; i < 24; i++) {
+            const start = i;
+            const end = (i + 1) % 24;
+            const formatHour = (h: number) => {
+                const ampm = h >= 12 ? 'م' : 'ص';
+                const hour12 = h % 12 || 12;
+                return `${hour12.toString().padStart(2, '0')}:00 ${ampm}`;
+            };
+            const timeStr = `${formatHour(start)} - ${formatHour(end)}`;
+            
+            // Check if this slot was modified (booked/unavailable)
+            const savedSlot = savedSlots.find((s: any) => s.time === timeStr);
+            slots.push({
+                time: timeStr,
+                status: savedSlot ? savedSlot.status : 'available',
+                bookedBy: savedSlot ? savedSlot.bookedBy : null
+            });
+        }
+        return slots;
     }, [appointmentDate, allSlots]);
 
     const handleClose = () => {

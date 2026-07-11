@@ -136,8 +136,8 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
     const updatedUser = await authService.updateProfile(req.user.id, req.body);
     
     // Sync to providers table if applicable
-    const userType = req.user.user_type || '';
-    if (userType.includes('provider') || userType.includes('partner') || userType.includes('restaurant') || userType.includes('pharmacy') || userType.includes('maintenance')) {
+    const userType = String(req.user.user_type || '').toLowerCase();
+    if (['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground', 'market', 'library'].includes(userType)) {
         const providerRepo = require('../repositories/provider.repository');
         try {
             const providerId = await providerRepo.getProviderIdByUserId(req.user.id);
