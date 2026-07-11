@@ -199,7 +199,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
     // Try to decode as encrypted ID first
     let decodedParentId = decodeEntityId('parent_order', rawId);
     let decodedBookingId = decodeEntityId('booking', rawId);
-    const decodedOrderId = decodeEntityId('order', rawId);
+    let decodedOrderId = decodeEntityId('order', rawId);
 
     // Legacy: support P{id} prefix for backward compatibility
     if (decodedParentId === null && rawId.toUpperCase().startsWith('P')) {
@@ -209,6 +209,26 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         }
     }
 
+    // Allow plain integers for notifications backward compatibility
+    if (decodedParentId === null && decodedBookingId === null && decodedOrderId === null && /^\d+$/.test(rawId)) {
+        const fallbackId = Number(rawId);
+        const fallbackCheck = await db.query(
+            `SELECT id, parent_order_id, halan_order_id FROM bookings WHERE id = $1 OR parent_order_id = $1 OR halan_order_id::TEXT = $2 LIMIT 1`, 
+            [fallbackId, String(fallbackId)]
+        );
+        if (fallbackCheck.rows.length > 0) {
+            const row = fallbackCheck.rows[0];
+            if (row.parent_order_id === fallbackId) {
+                decodedParentId = fallbackId;
+            } else if (String(row.halan_order_id) === String(fallbackId)) {
+                decodedOrderId = fallbackId;
+            } else {
+                decodedBookingId = fallbackId;
+            }
+        } else {
+            decodedBookingId = fallbackId;
+        }
+    }
     if (decodedOrderId !== null || decodedParentId !== null) {
         let whereClause = '';
         let params = [];

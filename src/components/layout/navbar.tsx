@@ -39,14 +39,16 @@ export function Navbar() {
         if (isProviderUser) {
             const token = localStorage.getItem('accessToken');
             const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
-            if (token) {
-                fetch(`${apiBase}/api/providers/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
+            if (token && currentUser?.email) {
+                fetch(`${apiBase}/api/providers/by-email/${currentUser.email}`)
                 .then(res => res.json())
-                .then(data => {
-                    if (data?.provider?.isOnline !== undefined) {
-                        setIsOnline(data.provider.isOnline);
+                .then(profile => {
+                    if (profile) {
+                        if (profile.isOnline !== undefined) {
+                            setIsOnline(profile.isOnline);
+                        } else if (profile.is_online !== undefined) {
+                            setIsOnline(profile.is_online);
+                        }
                     }
                 })
                 .catch(err => console.error("Error fetching provider status", err));
@@ -60,7 +62,7 @@ export function Navbar() {
             const token = localStorage.getItem('accessToken');
             const newStatus = !isOnline;
             const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
-            const res = await fetch(`${apiBase}/api/providers/me`, {
+            const res = await fetch(`${apiBase}/api/providers/status`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,

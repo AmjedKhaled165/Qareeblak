@@ -155,8 +155,14 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
                 let requestedTimes = [];
                 const dateMatch = details.match(/الموعد:\s*([0-9-]{10})/);
                 if (dateMatch) requestedDate = dateMatch[1];
-                const timeMatch = details.match(/\(([^)]+)\)/);
-                if (timeMatch) requestedTimes = timeMatch[1].split(' - ').map(t => t.trim());
+                
+                const timeMatch = details.match(/الساعات:\s*(.*)/);
+                if (timeMatch) {
+                    requestedTimes = timeMatch[1].split(' و ').map(t => t.trim());
+                } else {
+                    const legacyTimeMatch = details.match(/\(([^)]+)\)/);
+                    if (legacyTimeMatch) requestedTimes = legacyTimeMatch[1].split(' - ').map(t => t.trim());
+                }
 
                 let modified = false;
                 slots = slots.map(slot => {
