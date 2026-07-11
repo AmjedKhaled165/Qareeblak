@@ -30,8 +30,13 @@ export function Navbar() {
     const [isOnline, setIsOnline] = useState<boolean>(true);
     const [isTogglingStatus, setIsTogglingStatus] = useState<boolean>(false);
 
+    // Helper to determine the actual user type (fallback for different backends)
+    const normalizedUserType = String(currentUser?.type || (currentUser as any)?.user_type || '').toLowerCase();
+    const isProviderOrPartner = ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(normalizedUserType);
+    const isProviderUser = normalizedUserType === 'provider';
+
     useEffect(() => {
-        if (currentUser?.type === 'provider') {
+        if (isProviderUser) {
             const token = localStorage.getItem('accessToken');
             const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
             if (token) {
@@ -47,7 +52,7 @@ export function Navbar() {
                 .catch(err => console.error("Error fetching provider status", err));
             }
         }
-    }, [currentUser]);
+    }, [currentUser, isProviderUser]);
 
     const handleStatusToggle = async () => {
         try {
@@ -144,7 +149,7 @@ export function Navbar() {
                 {/* 1. Logo - Far Right */}
                 <div className="flex flex-1 items-center justify-start shrink-0">
                     <Link
-                        href={currentUser?.type === 'provider' ? "/provider-dashboard" : "/"}
+                        href={isProviderUser ? "/provider-dashboard" : "/"}
                         className="flex items-center gap-2 transition-transform hover:scale-105 group"
                     >
                         <div className={`relative flex items-center justify-center bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl p-1 shadow-sm border border-slate-100 dark:border-slate-800 group-hover:shadow-md transition-all duration-500 ${
@@ -165,7 +170,7 @@ export function Navbar() {
                 </div>
 
                 {/* 2. Desktop Navigation - Center */}
-                {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase())) && (
+                {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || isProviderOrPartner) && (
                     <nav className="hidden md:flex shrink-0 justify-center items-center gap-6 lg:gap-8 text-[15px] font-bold font-cairo">
                         {[
                             { label: 'الرئيسية', href: '/' },
@@ -194,7 +199,7 @@ export function Navbar() {
                     <ThemeToggle />
 
                     {/* Provider Online Toggle */}
-                    {currentUser?.type === 'provider' && (
+                    {isProviderUser && (
                         <div className="hidden sm:flex items-center gap-2 bg-slate-100 dark:bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
                             <span className={`text-xs font-bold ${isOnline ? 'text-emerald-600' : 'text-slate-500'}`}>{isOnline ? 'متصل' : 'مخفي'}</span>
                             <button
@@ -211,7 +216,7 @@ export function Navbar() {
                     {currentUser && <div className="pop-hover"><NotificationBell /></div>}
 
                     {/* Cart Trigger */}
-                    {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase())) && (
+                    {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || isProviderOrPartner) && (
                         <button
                             onClick={() => setIsCartOpen(true)}
                             className="relative p-2.5 text-foreground hover:bg-accent rounded-full transition-colors group pop-hover"
@@ -284,7 +289,7 @@ export function Navbar() {
                                                     إعدادات الحساب
                                                 </Link>
 
-                                                {['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser.type || '').toLowerCase()) && (
+                                                {isProviderOrPartner && (
                                                     <Link
                                                         href="/provider-dashboard"
                                                         onClick={() => setIsUserMenuOpen(false)}
@@ -313,7 +318,7 @@ export function Navbar() {
 
 
                     {/* Provider Online Toggle (Mobile) */}
-                    {currentUser?.type === 'provider' && (
+                    {isProviderUser && (
                         <div className="md:hidden flex items-center gap-1.5 mr-1 bg-slate-100 dark:bg-slate-800/50 px-2 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
                             <button
                                 onClick={handleStatusToggle}
@@ -346,7 +351,7 @@ export function Navbar() {
                         className="md:hidden w-full overflow-hidden border-t border-slate-200/50 dark:border-slate-800/50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg shadow-2xl"
                     >
                         <div className="space-y-2.5 p-6">
-                            {(!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase())) ? [
+                            {(!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || isProviderOrPartner) ? [
                                 { label: 'الرئيسية', href: '/', icon: Home },
                                 { label: 'تصفح الخدمات', href: '/explore', icon: Search },
                                 ...(!currentUser ? [{ label: 'تسجيل الدخول', href: '/login', icon: UserCircle }] : []),

@@ -103,7 +103,7 @@ function ExploreContent() {
     const [activeCategory, setActiveCategory] = useState(initialCategory);
     const [searchQuery, setSearchQuery] = useState("");
     const [visibleCount, setVisibleCount] = useState(12);
-    const [sortBy, setSortBy] = useState<"default" | "top-rated">("default");
+    const [sortBy, setSortBy] = useState<"default" | "top-rated" | "most-ordered" | "most-offers">("default");
 
     // Debounce the search term to prevent lag
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -115,7 +115,9 @@ function ExploreContent() {
         }
     }, [initialCategory]);
 
-    // Smart category switching when typing in the search bar on the explore page
+    // User specifically requested NOT to auto-switch categories when typing in search
+    // to allow searching for a name or service globally.
+    /*
     useEffect(() => {
         if (debouncedSearchQuery) {
             const inferred = inferCategoryFromQuery(debouncedSearchQuery);
@@ -124,6 +126,7 @@ function ExploreContent() {
             }
         }
     }, [debouncedSearchQuery]); // purposely excluding activeCategory to avoid looping
+    */
 
     const normalizedProviders = useMemo(() => {
         return (providers || []).map((provider) => {
@@ -184,6 +187,10 @@ function ExploreContent() {
 
         if (sortBy === "top-rated") {
             result = result.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+        } else if (sortBy === "most-ordered") {
+            result = result.sort((a, b) => Number((b as any).orders_count || 0) - Number((a as any).orders_count || 0));
+        } else if (sortBy === "most-offers") {
+            result = result.sort((a, b) => Number((b as any).offers_count || 0) - Number((a as any).offers_count || 0));
         }
 
         return result;
@@ -261,18 +268,21 @@ function ExploreContent() {
                             />
                         </div>
                         <div className="flex gap-2 shrink-0">
-                            <button
-                                onClick={() => setSortBy(prev => prev === "default" ? "top-rated" : "default")}
-                                className={cn(
-                                    "px-5 h-14 rounded-2xl font-bold text-sm flex items-center gap-2 border transition-all pop-hover",
-                                    sortBy === "top-rated" 
-                                    ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200 dark:border-amber-800/50 shadow-inner" 
-                                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
-                                )}
-                            >
-                                <Star className={cn("w-4 h-4", sortBy === "top-rated" ? "fill-current" : "")} />
-                                الأعلى تقييم
-                            </button>
+                            <div className="relative h-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center px-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm cursor-pointer min-w-[140px]">
+                                <select 
+                                    value={sortBy} 
+                                    onChange={(e) => setSortBy(e.target.value as any)}
+                                    className="w-full h-full bg-transparent outline-none appearance-none pl-6 pr-2 font-bold text-slate-700 dark:text-slate-300 text-sm cursor-pointer"
+                                >
+                                    <option value="default" className="text-slate-900">الترتيب الافتراضي</option>
+                                    <option value="top-rated" className="text-slate-900">الأعلى تقييم</option>
+                                    <option value="most-ordered" className="text-slate-900">الأكثر طلباً</option>
+                                    <option value="most-offers" className="text-slate-900">الأكثر عروضاً</option>
+                                </select>
+                                <div className="absolute left-3 pointer-events-none text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </div>
+                            </div>
                             <Button
                                 className="h-14 w-14 shrink-0 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 hover:text-indigo-600 pop-hover"
                                 variant="outline"

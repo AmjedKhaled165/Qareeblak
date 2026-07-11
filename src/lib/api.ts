@@ -437,6 +437,13 @@ export const requestsApi = {
 
 // ==================== PROVIDERS API ====================
 export const providersApi = {
+    async updateProfile(data: any) {
+        return apiCall('/providers/profile', {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
     async getAll() {
         try {
             const result = await apiCall<any>('/providers');

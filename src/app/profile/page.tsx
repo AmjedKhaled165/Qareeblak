@@ -211,7 +211,7 @@ export default function ProfilePage() {
 
                         <CardContent className="space-y-8 p-8 border-t border-border/50">
                             {/* Stats/Quick Actions Grid */}
-                            {!isEditing && !['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || '').toLowerCase()) && (
+                            {!isEditing && !['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(String(currentUser?.type || (currentUser as any)?.user_type || '').toLowerCase()) && (
                                 <div className="grid grid-cols-2 gap-4 pb-6">
                                     <Link href="/orders" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-all group">
                                         <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
@@ -248,16 +248,16 @@ export default function ProfilePage() {
 
                                 {/* Email */}
                                 <div className="grid gap-2 text-right">
-                                    <Label htmlFor="email" className="text-sm font-bold text-muted-foreground mr-1">البريد الإلكتروني</Label>
+                                    <Label htmlFor="email" className="text-sm font-bold text-muted-foreground mr-1">البريد الإلكتروني (لا يمكن تعديله)</Label>
                                     <div className="relative">
                                         <Mail className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
                                         <Input
                                             id="email"
                                             value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            readOnly={!isEditing}
-                                            className={`h-12 px-10 rounded-xl transition-all border-border bg-background text-foreground text-right focus:ring-primary/20 ${!isEditing ? "opacity-70 bg-muted/30" : ""}`}
+                                            readOnly={true}
+                                            className={`h-12 px-10 rounded-xl transition-all border-border bg-background text-foreground text-right focus:ring-primary/20 opacity-70 bg-muted/30 cursor-not-allowed`}
                                             dir="ltr"
+                                            title="لا يمكن تعديل البريد الإلكتروني"
                                         />
                                     </div>
                                 </div>

@@ -21,10 +21,12 @@ class ProviderService {
             category
         });
 
-        // [ENTERPRISE PERFORMANCE] Note: We NO LONGER aggregate services/reviews for list views.
-        // This makes the response size 90% smaller and matches industry standards (Uber/Talabat).
         const providers = providersRaw.map(p => {
             const provider = { ...p };
+            if (p.services_raw) {
+                provider.services = this._formatServices(p.services_raw);
+                delete provider.services_raw;
+            }
             this._sanitizeProvider(provider);
             return provider;
         });

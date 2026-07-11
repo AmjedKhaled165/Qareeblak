@@ -517,6 +517,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
             const result = await authApi.updateProfile(data);
             if (result.success) {
+                const userType = String(currentUserRef.current?.type || currentUserRef.current?.user_type || '').toLowerCase();
+                const isProvider = userType.includes('provider') || userType.includes('partner') || userType.includes('restaurant') || userType.includes('pharmacy') || userType.includes('maintenance') || userType.includes('doctor') || userType.includes('playground');
+                if (isProvider) {
+                    try {
+                        await providersApi.updateProfile({
+                            name: data.name,
+                            phone: data.phone,
+                            category: data.category,
+                            location: data.location,
+                            coverImage: data.coverImage,
+                            avatar: data.avatar
+                        });
+                    } catch (e) {
+                        console.warn("Could not update provider data, continuing anyway", e);
+                    }
+                }
+
                 setCurrentUser(result.user);
                 currentUserRef.current = result.user;
                 return true;
