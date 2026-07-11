@@ -36,9 +36,10 @@ interface PlaygroundInlineBookingProps {
         services?: any[];
         location?: string;
     };
+    onBookingComplete?: () => void;
 }
 
-export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingProps) {
+export function PlaygroundInlineBooking({ provider, onBookingComplete }: PlaygroundInlineBookingProps) {
     const { toast } = useToast();
     const { currentUser } = useAppStore();
     const [step, setStep] = useState(1);
@@ -78,14 +79,23 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
         return { allSavedSlots: slots, pricing: pr };
     }, [availabilityService]);
 
+    // Local overrides: slots booked in this session (immediately reflected before server refresh)
+    const [localBookedSlots, setLocalBookedSlots] = useState<Record<string, string[]>>({});
+
+    // Merge server slots + local booked slots
     const timesForSelectedDate = useMemo(() => {
         if (!appointmentDate) return {};
         const statuses: Record<string, string> = {};
         allSavedSlots.filter((s: any) => s.date === appointmentDate).forEach((slot: any) => {
             statuses[slot.time] = slot.status;
         });
+        // Apply local overrides (immediately booked by this user)
+        const localBooked = localBookedSlots[appointmentDate] || [];
+        localBooked.forEach(time => {
+            statuses[time] = 'booked';
+        });
         return statuses;
-    }, [appointmentDate, allSavedSlots]);
+    }, [appointmentDate, allSavedSlots, localBookedSlots]);
 
     const isNightTime = (timeStr: string) => {
         const parseHourStr = (str: string) => {
@@ -105,12 +115,10 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
         if (startNight <= endNight) {
             return slotHour >= startNight && slotHour < endNight;
         } else {
-            // crosses midnight (e.g., 20 to 5)
             return slotHour >= startNight || slotHour < endNight;
         }
     };
 
-    // Calculate total price based on selected times
     const totalPrice = useMemo(() => {
         let total = 0;
         const fallbackPrice = pricing.morning || pricing.night || 0;
@@ -165,6 +173,17 @@ export function PlaygroundInlineBooking({ provider }: PlaygroundInlineBookingPro
                     appointmentType: 'playground'
                 })
             });
+
+            // ✅ IMMEDIATELY mark booked slots locally so they show as red/محجوز
+            setLocalBookedSlots(prev => ({
+                ...prev,
+                [appointmentDate]: [...(prev[appointmentDate] || []), ...appointmentTimes]
+            }));
+
+            // ✅ Trigger provider data refresh so other visitors also see updated slots
+            if (onBookingComplete) {
+                onBookingComplete();
+            }
 
             setStep(2); // Success step
         } catch (error) {

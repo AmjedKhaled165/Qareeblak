@@ -77,6 +77,8 @@ export default function ProfilePage() {
         }
     };
 
+    const isProvider = ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground', 'market', 'library'].includes(String(currentUser?.type || (currentUser as any)?.user_type || '').toLowerCase());
+
     const handleSave = async () => {
         if (!currentUser) return;
 
@@ -95,7 +97,7 @@ export default function ProfilePage() {
                 avatar,
                 oldPassword: oldPassword || undefined,
                 newPassword: newPassword || undefined,
-                ...(currentUser.type === 'provider' && {
+                ...(isProvider && {
                     category,
                     location,
                     coverImage
@@ -114,8 +116,6 @@ export default function ProfilePage() {
     };
 
     if (!currentUser) return null;
-
-    const isProvider = ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground', 'market', 'library'].includes(String(currentUser?.type || (currentUser as any)?.user_type || '').toLowerCase());
 
     return (
         <div className={`min-h-screen transition-all duration-500 p-4 md:p-8 bg-background`}>
@@ -161,7 +161,7 @@ export default function ProfilePage() {
                             )}
                             <div className="absolute -bottom-12 right-8 z-20">
                                 <div className="relative group/avatar">
-                                    <div className="w-28 h-28 rounded-full p-1 shadow-2xl overflow-hidden bg-card border-4 border-background relative">
+                                    <div className="w-28 h-28 rounded-full p-1 shadow-2xl overflow-hidden bg-card border-4 border-background relative group">
                                         {avatar ? (
                                             <img src={avatar} alt="Avatar" className="w-full h-full rounded-full object-cover bg-white" />
                                         ) : (
@@ -171,8 +171,9 @@ export default function ProfilePage() {
                                         )}
                                         {isEditing && (
                                             <div 
-                                                className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer transition-opacity opacity-0 hover:opacity-100 rounded-full"
+                                                className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer transition-opacity opacity-100 rounded-full"
                                                 onClick={() => fileInputRef.current?.click()}
+                                                title="تغيير الصورة الشخصية"
                                             >
                                                 <Camera className="w-8 h-8 text-white" />
                                             </div>

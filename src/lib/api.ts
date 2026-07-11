@@ -178,6 +178,14 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
     }
     const timeout = getRequestTimeout(endpoint, options);
     const maxAttempts = method === 'GET' ? 2 : 1;
+    
+    // Build the options including cache: 'no-store' to prevent Next.js from aggressively caching data
+    const fetchOptions: RequestInit = {
+        credentials: 'include', // Ensure HttpOnly cookies are sent
+        ...options,
+        headers,
+        cache: options.cache || 'no-store'
+    };
 
     let response: Response | null = null;
     try {
@@ -185,12 +193,7 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                response = await fetchWithTimeout(url, {
-                    cache: 'no-store', // Ensure we always get fresh data
-                    credentials: 'include', // Ensure HttpOnly cookies are sent
-                    ...options,
-                    headers
-                }, timeout);
+                response = await fetchWithTimeout(url, fetchOptions, timeout);
 
                 // Success: stop retry loop.
                 lastTimeoutError = null;

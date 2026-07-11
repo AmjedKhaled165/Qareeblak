@@ -110,7 +110,7 @@ export const ProviderCard = memo(function ProviderCard({
                         {provider.name}
                     </h3>
                     
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                    <p className="text-sm font-bold text-primary">
                         {provider.category}
                     </p>
 

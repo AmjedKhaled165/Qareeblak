@@ -11,10 +11,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { CartModal } from "@/components/features/cart-modal";
 import { NotificationBell } from "@/components/features/notification-bell";
+import { apiCall } from "@/lib/api";
 
 export function Navbar() {
-    // Destructure logout directly from the hook - FIXING THE CRASH
-    const { currentUser, logout } = useAppStore();
+    const { currentUser, logout, refreshProviders } = useAppStore();
     const { globalCart } = useCartStore();
     const router = useRouter();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -66,6 +66,8 @@ export function Navbar() {
             });
             if (res && res.success) {
                 setIsOnline(newStatus);
+                // Refresh global providers list so Explore page updates
+                refreshProviders();
                 // Dispatch a custom event to notify other components (like provider-dashboard)
                 window.dispatchEvent(new CustomEvent('provider-status-changed', { detail: { isOnline: newStatus } }));
             }

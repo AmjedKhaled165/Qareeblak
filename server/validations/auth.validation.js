@@ -56,6 +56,9 @@ const updateProfileSchema = z.object({
     phone: z.string().min(10).optional(),
     avatar: z.string().optional().nullable(),
     cover_photo: z.string().optional().nullable(),
+    coverImage: z.string().optional().nullable(),
+    category: z.string().optional().nullable(),
+    location: z.string().optional().nullable(),
     oldPassword: z.string().optional(),
     newPassword: z.string()
         .min(8, 'كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل')

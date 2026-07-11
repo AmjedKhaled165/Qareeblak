@@ -379,7 +379,7 @@ export default function ProviderProfile() {
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div>
                                             <h1 className="text-3xl sm:text-4xl font-black text-black dark:text-white font-cairo drop-shadow-lg">{provider.name}</h1>
-                                            <p className="text-xl sm:text-2xl text-slate-800 dark:text-slate-200 font-black font-cairo flex items-center gap-2 mt-1 drop-shadow-md">
+                                            <p className="text-xl sm:text-2xl text-primary font-black font-cairo flex items-center gap-2 mt-1 drop-shadow-md">
                                                 {provider.category}
                                             </p>
                                         </div>
@@ -466,7 +466,7 @@ export default function ProviderProfile() {
                             exit={{ opacity: 0, y: -10 }}
                         >
                             {isPlayground ? (
-                                <PlaygroundInlineBooking provider={provider} />
+                                <PlaygroundInlineBooking provider={provider} onBookingComplete={() => fetchProviderDetails(String(params.id))} />
                             ) : services.length === 0 ? (
                                 <Card className="text-center py-16 border-dashed">
                                     <div className="text-slate-400">

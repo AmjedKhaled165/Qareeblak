@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, Calendar, Clock, Trophy, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,10 @@ interface PlaygroundsBookingModalProps {
     serviceName?: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onBookingComplete?: () => void;
 }
 
-export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenChange }: PlaygroundsBookingModalProps) {
+export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenChange, onBookingComplete }: PlaygroundsBookingModalProps) {
     const { toast } = useToast();
     const { currentUser } = useAppStore();
     const [step, setStep] = useState(1);
@@ -34,9 +35,9 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
     const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
     const [appointmentTimes, setAppointmentTimes] = useState<string[]>([]);
     
-    // Extract availability
+    // Extract availability from props (initial state)
     const availabilityService = provider.services?.find(s => s.name === '__AVAILABILITY__');
-    const allSlots = useMemo(() => {
+    const initialSlots = useMemo(() => {
         if (!availabilityService?.description) return [];
         try {
             const parsed = JSON.parse(availabilityService.description);
@@ -48,9 +49,36 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
         }
     }, [availabilityService]);
 
+    const [freshSlots, setFreshSlots] = useState<any[] | null>(null);
+    const allSlots = freshSlots || initialSlots;
+
+    useEffect(() => {
+        if (open) {
+            apiCall(`/providers/${provider.id}`)
+                .then((freshProvider: any) => {
+                    if (freshProvider && freshProvider.services) {
+                        const avail = freshProvider.services.find((s: any) => s.name === '__AVAILABILITY__');
+                        if (avail?.description) {
+                            try {
+                                const parsed = JSON.parse(avail.description);
+                                if (Array.isArray(parsed)) setFreshSlots(parsed);
+                                else if (parsed?.slots) setFreshSlots(parsed.slots);
+                            } catch (e) {}
+                        }
+                    }
+                })
+                .catch(err => console.error("Failed to fetch fresh slots", err));
+        } else {
+            setFreshSlots(null); // Reset when closed
+        }
+    }, [open, provider.id]);
+
+    const [localBookedSlots, setLocalBookedSlots] = useState<Record<string, string[]>>({});
+
     const timesForSelectedDate = useMemo(() => {
         if (!appointmentDate) return [];
         const savedSlots = allSlots.filter((s: any) => s.date === appointmentDate);
+        const localBooked = localBookedSlots[appointmentDate] || [];
         
         // Generate all 24 hours slots
         const slots = [];
@@ -66,14 +94,21 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
             
             // Check if this slot was modified (booked/unavailable)
             const savedSlot = savedSlots.find((s: any) => s.time === timeStr);
+            let status = savedSlot ? savedSlot.status : 'available';
+            
+            // Apply local overrides
+            if (localBooked.includes(timeStr)) {
+                status = 'booked';
+            }
+            
             slots.push({
                 time: timeStr,
-                status: savedSlot ? savedSlot.status : 'available',
+                status: status,
                 bookedBy: savedSlot ? savedSlot.bookedBy : null
             });
         }
         return slots;
-    }, [appointmentDate, allSlots]);
+    }, [appointmentDate, allSlots, localBookedSlots]);
 
     const handleClose = () => {
         onOpenChange(false);
@@ -121,6 +156,16 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
                 })
             });
 
+            // IMMEDIATELY mark booked slots locally
+            setLocalBookedSlots(prev => ({
+                ...prev,
+                [appointmentDate]: [...(prev[appointmentDate] || []), ...appointmentTimes]
+            }));
+
+            // Trigger provider data refresh
+            if (onBookingComplete) {
+                onBookingComplete();
+            }
 
             setStep(2); // Success step
         } catch (error) {

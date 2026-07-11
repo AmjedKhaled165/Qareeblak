@@ -25,10 +25,8 @@ function encodeEntityId(entity, id) {
 function decodeEntityId(entity, hash) {
     if (!hash || typeof hash !== 'string') return null;
 
-    // Fallback: If it's already a numeric string (backward compatibility)
-    if (/^\d+$/.test(hash)) {
-        return parseInt(hash, 10);
-    }
+    // Do NOT fallback to parseInt here for plain integers, otherwise it ruins tracking fallback logic
+    // where trackOrderPublic needs to determine if it's a booking, parent_order, or halan_order.
 
     try {
         const key = deriveKey(entity);

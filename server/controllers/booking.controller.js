@@ -146,21 +146,19 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
         const sr = new serviceRepo();
         const services = await sr.getByProvider(decodedProviderId);
         const availService = services.find(s => s.name === '__AVAILABILITY__');
-        if (availService) {
-            let parsedData = null;
-            let slots = [];
-            try { 
-                parsedData = JSON.parse(availService.description); 
-                if (Array.isArray(parsedData)) {
-                    slots = parsedData;
-                } else if (parsedData && Array.isArray(parsedData.slots)) {
-                    slots = parsedData.slots;
-                }
-            } catch (e) { }
 
-            // Extract requested date and times from details
-            let requestedDate = null;
-            let requestedTimes = [];
+        // Extract requested date and times from details
+        let requestedDate = null;
+        let requestedTimes = [];
+        
+        try {
+            const parsedDetails = JSON.parse(details);
+            if (parsedDetails.date && parsedDetails.times) {
+                requestedDate = parsedDetails.date;
+                requestedTimes = Array.isArray(parsedDetails.times) ? parsedDetails.times : [parsedDetails.times];
+            }
+        } catch (e) {
+            // Fallback to legacy string parsing
             const dateMatch = details.match(/الموعد:\s*([0-9-]{10})/);
             if (dateMatch) requestedDate = dateMatch[1];
             
@@ -171,23 +169,49 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
                 const legacyTimeMatch = details.match(/\(([^)]+)\)/);
                 if (legacyTimeMatch) requestedTimes = legacyTimeMatch[1].split(' - ').map(t => t.trim());
             }
+        }
 
-            if (requestedDate && requestedTimes.length > 0) {
+        if (requestedDate && requestedTimes.length > 0) {
+            if (availService) {
+                // Update existing __AVAILABILITY__ service
+                let parsedData = null;
+                let slots = [];
+                try { 
+                    parsedData = JSON.parse(availService.description); 
+                    if (Array.isArray(parsedData)) {
+                        slots = parsedData;
+                    } else if (parsedData && Array.isArray(parsedData.slots)) {
+                        slots = parsedData.slots;
+                    }
+                } catch (e) { }
+
+                // Check if any requested slot is already booked
+                const alreadyBooked = slots.some(slot => 
+                    slot.date === requestedDate && 
+                    requestedTimes.includes(slot.time) && 
+                    slot.status === 'booked'
+                );
+
+                if (alreadyBooked) {
+                    throw new AppError('عذراً، هذا الموعد محجوز مسبقاً. يرجى اختيار موعد آخر.', 400);
+                }
+
                 let modified = false;
+                const timesToAdd = [...requestedTimes];
                 
-                // Update existing slots if they were somehow already in the array
+                // Update existing slots
                 slots = slots.map(slot => {
-                    if (slot.date === requestedDate && requestedTimes.includes(slot.time)) {
+                    if (slot.date === requestedDate && timesToAdd.includes(slot.time)) {
                         modified = true;
-                        // remove from requestedTimes so we know we matched it
-                        requestedTimes = requestedTimes.filter(t => t !== slot.time);
+                        const idx = timesToAdd.indexOf(slot.time);
+                        if (idx > -1) timesToAdd.splice(idx, 1);
                         return { ...slot, status: 'booked', bookedBy: authenticatedUser };
                     }
                     return slot;
                 });
                 
                 // Add completely new slots that weren't in the array
-                for (const time of requestedTimes) {
+                for (const time of timesToAdd) {
                     slots.push({
                         date: requestedDate,
                         time: time,
@@ -203,18 +227,32 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
                         parsedData.slots = slots;
                         updatedDescription = JSON.stringify(parsedData);
                     } else {
-                        updatedDescription = JSON.stringify(slots);
+                        updatedDescription = JSON.stringify({ slots, pricing: { morning: 0, night: 0, nightStartHour: "06:00 م", nightEndHour: "06:00 ص" } });
                     }
-                    await sr.updateSecure(availService.id, decodedProviderId, { description: updatedDescription }, true); // isAdmin=true to bypass constraints
-                    
-                    // Invalidate provider cache to reflect new slots immediately
-                    const { invalidatePattern } = require('../utils/redis-cache');
-                    if (invalidatePattern) {
-                        await invalidatePattern('route:*services*provider*');
-                        await invalidatePattern(`route:*providers*`);
-                        await invalidatePattern(`providers:list:*`);
-                    }
+                    await sr.updateSecure(availService.id, decodedProviderId, { description: updatedDescription }, true);
                 }
+            } else {
+                // NO __AVAILABILITY__ service exists yet — create one with the booked slots
+                const newSlots = requestedTimes.map(time => ({
+                    date: requestedDate,
+                    time: time,
+                    status: 'booked',
+                    bookedBy: authenticatedUser
+                }));
+                const newDescription = JSON.stringify({ slots: newSlots, pricing: { morning: 0, night: 0, nightStartHour: "06:00 م", nightEndHour: "06:00 ص" } });
+                await sr.create(decodedProviderId, {
+                    name: '__AVAILABILITY__',
+                    description: newDescription,
+                    price: 0
+                });
+            }
+
+            // Invalidate ALL provider-related caches to reflect new slots immediately
+            const { invalidatePattern } = require('../utils/redis-cache');
+            if (invalidatePattern) {
+                await invalidatePattern('route:*services*');
+                await invalidatePattern('route:*providers*');
+                await invalidatePattern('providers:list:*');
             }
         }
     }

@@ -139,7 +139,7 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
                     <div className="flex justify-between items-start mb-1">
                         <div>
                             <h3 className="font-bold text-xl text-slate-900 dark:text-white line-clamp-1 font-cairo pr-1">{providerName}</h3>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 pr-1">{providerCategory}</p>
+                            <p className="text-sm font-bold text-primary pr-1">{providerCategory}</p>
                         </div>
                         <div className="flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 px-2.5 py-1.5 rounded-xl shadow-sm">
                             <span className="text-sm font-black text-slate-800 dark:text-slate-200">{Number(provider.rating) > 0 ? Number(provider.rating).toFixed(1) : "جديد"}</span>
