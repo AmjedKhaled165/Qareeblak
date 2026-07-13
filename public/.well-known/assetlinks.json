@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.qareeblak.app",
+        "sha256_cert_fingerprints": ["2D:8A:6E:AD:8E:6D:E0:3B:C7:6B:63:A2:A1:56:52:AA:39:E1:51:8F:02:47:C4:C5:47:EF:0F:4A:F1:5B:47:B7"]
+      }
+    }]
