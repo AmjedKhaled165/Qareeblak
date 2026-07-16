@@ -34,6 +34,10 @@ tmp_not_saved.js
 .env.production.local
 *.env
 .env*
+env*
+env (*)
+**/env*
+!**/env.example
 
 # Uploaded files (local dev disk storage — never commit)
 server/uploads/
@@ -46,4 +50,6 @@ tmpclaude-*
 
 # Firebase service account keys
 qareeblak-810d3-firebase-adminsdk-fbsvc-fa85e60b79.json
+*firebase-adminsdk*.json
+*service-account*.json
 *.json.bak
