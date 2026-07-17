@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Bell, Check, CheckCheck, X, Calendar, MessageSquare, AlertCircle, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/components/providers/AppProvider";
@@ -35,7 +36,12 @@ export function NotificationBell() {
     const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [mounted, setMounted] = useState(false);
     const socketRef = useRef<any>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const hasQareeblakToken = typeof window !== 'undefined' && !!localStorage.getItem('qareeblak_token');
 
@@ -282,58 +288,61 @@ export function NotificationBell() {
             </AnimatePresence>
 
             {/* Notification Details Modal */}
-            <AnimatePresence>
-                {selectedNotification && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-                            onClick={() => setSelectedNotification(null)}
-                        />
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border p-6 overflow-hidden text-right"
-                        >
-                            <div className="flex items-start justify-between mb-4">
-                                <button
-                                    onClick={() => setSelectedNotification(null)}
-                                    className="p-2 hover:bg-accent rounded-full transition-colors"
-                                >
-                                    <X className="w-5 h-5 text-muted-foreground" />
-                                </button>
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-xl font-bold">{selectedNotification.title || 'تفاصيل الإشعار'}</h3>
-                                    <div className="p-2.5 rounded-full bg-primary/10">
-                                        {typeIcons[selectedNotification.type] || <Bell className="w-5 h-5 text-primary" />}
+            {mounted && typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {selectedNotification && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+                                onClick={() => setSelectedNotification(null)}
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border p-6 overflow-hidden text-right"
+                            >
+                                <div className="flex items-start justify-between mb-4">
+                                    <button
+                                        onClick={() => setSelectedNotification(null)}
+                                        className="p-2 hover:bg-accent rounded-full transition-colors"
+                                    >
+                                        <X className="w-5 h-5 text-muted-foreground" />
+                                    </button>
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-xl font-bold">{selectedNotification.title || 'تفاصيل الإشعار'}</h3>
+                                        <div className="p-2.5 rounded-full bg-primary/10">
+                                            {typeIcons[selectedNotification.type] || <Bell className="w-5 h-5 text-primary" />}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            <div className="bg-accent/50 p-4 rounded-xl mb-6">
-                                <p className="text-foreground leading-relaxed">
-                                    {selectedNotification.message}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-3">
-                                    {formatTime(selectedNotification.created_at)}
-                                </p>
-                            </div>
-                            
-                            {selectedNotification.reference_id && selectedNotification.type === 'chat_alert' && (
-                                <button
-                                    onClick={() => handleActionClick(selectedNotification)}
-                                    className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-                                >
-                                    عرض المحادثة
-                                </button>
-                            )}
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                                
+                                <div className="bg-accent/50 p-4 rounded-xl mb-6">
+                                    <p className="text-foreground leading-relaxed">
+                                        {selectedNotification.message}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-3">
+                                        {formatTime(selectedNotification.created_at)}
+                                    </p>
+                                </div>
+                                
+                                {selectedNotification.reference_id && selectedNotification.type === 'chat_alert' && (
+                                    <button
+                                        onClick={() => handleActionClick(selectedNotification)}
+                                        className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                                    >
+                                        عرض المحادثة
+                                    </button>
+                                )}
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 }

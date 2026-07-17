@@ -398,6 +398,11 @@ class AuthService {
         const query = `UPDATE users SET ${fields.join(', ')} WHERE id = $${i} RETURNING id, name, email, phone, avatar, user_type`;
 
         const result = await db.query(query, params);
+        
+        // Invalidate Redis session cache to reflect updates immediately
+        const { invalidateUserCache } = require('../middleware/auth');
+        await invalidateUserCache(userId);
+        
         return result.rows[0];
     }
 
