@@ -72,13 +72,13 @@ class ProviderRepository {
             const orderBy = cols.has('rating') ? 'p.rating DESC, p.id ASC' : 'p.id ASC';
 
             const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL AS cover_image';
-            const avatarSelect = cols.has('avatar') ? 'p.avatar' : 'NULL AS avatar';
+            const imageUrlSelect = cols.has('image_url') ? 'p.image_url' : 'NULL AS image_url';
 
             const query = `
                 SELECT
                     p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
                     ${ratingSelect}, ${reviewsSelect}, ${joinedDateSelect},
-                    ${coverImageSelect}, ${avatarSelect},
+                    ${coverImageSelect}, ${imageUrlSelect},
                     COALESCE((SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id), '[]'::json) as services_raw,
                     (SELECT COUNT(*) FROM bookings WHERE provider_id = p.id) AS orders_count,
                     (SELECT COUNT(*) FROM services WHERE provider_id = p.id AND has_offer = TRUE) AS offers_count
@@ -344,7 +344,15 @@ class ProviderRepository {
                 image_url = COALESCE($6, image_url)
             WHERE id = $7
         `;
-        const params = [data.name, data.category, data.location, data.phone, data.coverImage || data.cover_image, data.avatar || data.image_url, id];
+        const params = [
+            data.name !== undefined ? data.name : null, 
+            data.category !== undefined ? data.category : null, 
+            data.location !== undefined ? data.location : null, 
+            data.phone !== undefined ? data.phone : null, 
+            (data.coverImage || data.cover_photo || data.cover_image) !== undefined ? (data.coverImage || data.cover_photo || data.cover_image) : null, 
+            (data.avatar || data.image_url) !== undefined ? (data.avatar || data.image_url) : null, 
+            id
+        ];
         await pool.query(query, params);
     }
 }

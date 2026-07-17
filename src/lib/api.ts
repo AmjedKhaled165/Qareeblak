@@ -50,6 +50,12 @@ function getRequestTimeout(endpoint: string, options: RequestInit): number {
         return 30000;
     }
 
+    // Profile updates may include large base64 images (avatar, coverImage)
+    // which take longer to upload on slow connections.
+    if (endpoint.includes('/auth/profile') && method === 'PUT') {
+        return 60000;
+    }
+
     return 15000;
 }
 
