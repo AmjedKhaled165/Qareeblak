@@ -214,7 +214,7 @@ export default function ProfilePage() {
                             {/* Stats/Quick Actions Grid */}
                             {!isEditing && !isProvider && (
                                 <div className="grid grid-cols-2 gap-4 pb-6">
-                                    <Link href="/orders" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-all group">
+                                    <Link href="/track" className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-all group">
                                         <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                                             <ShoppingBag className="w-6 h-6" />
                                         </div>

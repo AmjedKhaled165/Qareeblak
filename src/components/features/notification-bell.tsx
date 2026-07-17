@@ -146,15 +146,11 @@ export function NotificationBell() {
         setIsOpen(false);
     };
 
-    const handleActionClick = (notification: Notification) => {
+    const handleActionClick = (notification: any) => {
         setSelectedNotification(null);
         if (notification.reference_id) {
             if (notification.type === 'chat_alert') {
                 router.push(`/chat/${notification.reference_id}`);
-            } else if (notification.type === 'booking_confirmed' || notification.message?.includes('الموعد')) {
-                router.push(`/orders`);
-            } else {
-                router.push(`/track/${notification.reference_id}`);
             }
         }
     };
@@ -326,12 +322,12 @@ export function NotificationBell() {
                                 </p>
                             </div>
                             
-                            {selectedNotification.reference_id && (
+                            {selectedNotification.reference_id && selectedNotification.type === 'chat_alert' && (
                                 <button
                                     onClick={() => handleActionClick(selectedNotification)}
                                     className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                                 >
-                                    {selectedNotification.type === 'chat_alert' ? 'عرض المحادثة' : 'عرض الطلب'}
+                                    عرض المحادثة
                                 </button>
                             )}
                         </motion.div>

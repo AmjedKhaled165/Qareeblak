@@ -152,7 +152,20 @@ class BookingService {
             // [HALAN SYNC]
             let halanOrderId = null;
             let trackingCode = null;
-            if (addressInfo) {
+            
+            // Check if items belong to non-trackable categories
+            let shouldCreateDeliveryOrder = true;
+            const providerIds = Object.keys(grouped).map(id => Number(id));
+            if (providerIds.length > 0) {
+                const pRes = await client.query('SELECT id, category FROM providers WHERE id = ANY($1)', [providerIds]);
+                const nonTrackableCategories = ['صيانة وسباكة', 'دكتور وممرض', 'ملاعب', 'خدمات سيارات'];
+                const allNonTrackable = pRes.rows.every(r => nonTrackableCategories.includes(r.category));
+                if (allNonTrackable) {
+                    shouldCreateDeliveryOrder = false;
+                }
+            }
+
+            if (addressInfo && shouldCreateDeliveryOrder) {
                 const orderNum = `HLN-${Date.now().toString(36).toUpperCase()}`;
                 trackingCode = generateTrackingCode();
                 const userRes = await client.query('SELECT name, phone FROM users WHERE id = $1 LIMIT 1', [userId]);

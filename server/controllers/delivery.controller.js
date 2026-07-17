@@ -137,7 +137,9 @@ exports.getCustomerOrdersPublic = catchAsync(async (req, res) => {
             u.phone AS customer_phone
         FROM bookings b
         LEFT JOIN users u ON u.id = b.user_id
-        WHERE ${conditions.join(' OR ')}
+        LEFT JOIN providers p ON p.id = b.provider_id
+        WHERE (${conditions.join(' OR ')})
+          AND (p.category IS NULL OR p.category NOT IN ('صيانة وسباكة', 'دكتور وممرض', 'ملاعب', 'خدمات سيارات'))
         ORDER BY COALESCE(b.booking_date, b.created_at) DESC, b.id DESC
         LIMIT 100
     `;
