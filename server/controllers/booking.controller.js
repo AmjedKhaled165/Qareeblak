@@ -142,8 +142,7 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
 
     // Auto-update availability slots for playgrounds
     if (appointmentType === 'playground' && details) {
-        const serviceRepo = require('../repositories/service_item.repository');
-        const sr = new serviceRepo();
+        const sr = require('../repositories/service_item.repository');
         const services = await sr.getByProvider(decodedProviderId);
         const availService = services.find(s => s.name === '__AVAILABILITY__');
 
@@ -250,8 +249,10 @@ exports.createLegacyBooking = catchAsync(async (req, res, next) => {
             // Invalidate ALL provider-related caches to reflect new slots immediately
             const { invalidatePattern } = require('../utils/redis-cache');
             if (invalidatePattern) {
-                await invalidatePattern('route:*services*');
-                await invalidatePattern('route:*providers*');
+                await invalidatePattern('route:/api/providers*');
+                await invalidatePattern('route:/api/services*');
+                await invalidatePattern('route:/providers*');
+                await invalidatePattern('route:/services*');
                 await invalidatePattern('providers:list:*');
             }
         }
