@@ -72,17 +72,19 @@ class ProviderRepository {
             const orderBy = cols.has('rating') ? 'p.rating DESC, p.id ASC' : 'p.id ASC';
 
             const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL AS cover_image';
-            const imageUrlSelect = cols.has('image_url') ? 'p.image_url' : 'NULL AS image_url';
+            const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
+            const avatarSelect = cols.has('user_id') ? 'u.avatar AS image_url' : 'NULL AS image_url';
 
             const query = `
                 SELECT
                     p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
                     ${ratingSelect}, ${reviewsSelect}, ${joinedDateSelect},
-                    ${coverImageSelect}, ${imageUrlSelect},
+                    ${coverImageSelect}, ${avatarSelect},
                     COALESCE((SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id), '[]'::json) as services_raw,
                     (SELECT COUNT(*) FROM bookings WHERE provider_id = p.id) AS orders_count,
                     (SELECT COUNT(*) FROM services WHERE provider_id = p.id AND has_offer = TRUE) AS offers_count
                 FROM providers p
+                ${userJoin}
                 ${whereClause}
                 ORDER BY ${orderBy}
                 LIMIT $1
@@ -108,7 +110,8 @@ class ProviderRepository {
         const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
         const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
-        const imageUrlSelect = cols.has('image_url') ? 'p.image_url' : 'NULL::text AS image_url';
+        const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
+        const avatarSelect = cols.has('user_id') ? 'u.avatar AS image_url' : 'NULL::text AS image_url';
         const reviewCols = await getReviewsColumns();
         const reviewUserNameSelect = reviewCols.has('user_name')
             ? 'user_name'
@@ -123,7 +126,7 @@ class ProviderRepository {
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
-                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${imageUrlSelect},
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${avatarSelect},
                 COALESCE(
                     (SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id),
                     '[]'::json
@@ -139,6 +142,7 @@ class ProviderRepository {
                     '[]'::json
                 ) as reviews_raw
             FROM providers p
+            ${userJoin}
             WHERE p.id = $1
         `, [id]);
         return result.rows[0];
@@ -201,13 +205,15 @@ class ProviderRepository {
         const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
         const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
-        const imageUrlSelect = cols.has('image_url') ? 'p.image_url' : 'NULL::text AS image_url';
+        const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
+        const avatarSelect = cols.has('user_id') ? 'u.avatar AS image_url' : 'NULL::text AS image_url';
 
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
-                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${imageUrlSelect}
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${avatarSelect}
             FROM providers p
+            ${userJoin}
             WHERE p.id = $1
         `, [id]);
         return result.rows[0];
@@ -221,13 +227,15 @@ class ProviderRepository {
         const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
         const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
-        const imageUrlSelect = cols.has('image_url') ? 'p.image_url' : 'NULL::text AS image_url';
+        const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
+        const avatarSelect = cols.has('user_id') ? 'u.avatar AS image_url' : 'NULL::text AS image_url';
 
         const result = await pool.query(`
             SELECT 
                 p.id, p.name, p.email, p.category, p.location, p.phone,
-                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${imageUrlSelect}
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${avatarSelect}
             FROM providers p
+            ${userJoin}
             WHERE p.email = $1
         `, [email]);
         return result.rows[0];
@@ -340,9 +348,8 @@ class ProviderRepository {
                 category = COALESCE($2, category),
                 location = COALESCE($3, location),
                 phone = COALESCE($4, phone),
-                cover_image = COALESCE($5, cover_image),
-                image_url = COALESCE($6, image_url)
-            WHERE id = $7
+                cover_image = COALESCE($5, cover_image)
+            WHERE id = $6
         `;
         const params = [
             data.name !== undefined ? data.name : null, 
@@ -350,7 +357,6 @@ class ProviderRepository {
             data.location !== undefined ? data.location : null, 
             data.phone !== undefined ? data.phone : null, 
             (data.coverImage || data.cover_photo || data.cover_image) !== undefined ? (data.coverImage || data.cover_photo || data.cover_image) : null, 
-            (data.avatar || data.image_url) !== undefined ? (data.avatar || data.image_url) : null, 
             id
         ];
         await pool.query(query, params);
