@@ -61,19 +61,66 @@ export default function ProfilePage() {
         }
     }, [currentUser, router]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover' = 'avatar') => {
+    const compressImage = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_SIZE = 800; // max width or height
+
+                    if (width > height && width > MAX_SIZE) {
+                        height = Math.round((height * MAX_SIZE) / width);
+                        width = MAX_SIZE;
+                    } else if (height > MAX_SIZE) {
+                        width = Math.round((width * MAX_SIZE) / height);
+                        height = MAX_SIZE;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        resolve(event.target?.result as string);
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8)); // Compress to JPEG with 80% quality
+                };
+                img.onerror = () => resolve(event.target?.result as string); // fallback to original on error
+                img.src = event.target?.result as string;
+            };
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover' = 'avatar') => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
+            try {
+                // Show loading state if needed here, but usually it's fast enough
+                const compressedBase64 = await compressImage(file);
                 if (type === 'avatar') {
-                    setAvatar(reader.result as string);
+                    setAvatar(compressedBase64);
                 } else {
-                    setCoverImage(reader.result as string);
+                    setCoverImage(compressedBase64);
                 }
                 setIsEditing(true);
-            };
-            reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('Image compression failed', error);
+                // Fallback to uncompressed if compression fails
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    if (type === 'avatar') setAvatar(reader.result as string);
+                    else setCoverImage(reader.result as string);
+                    setIsEditing(true);
+                };
+                reader.readAsDataURL(file);
+            }
         }
     };
 

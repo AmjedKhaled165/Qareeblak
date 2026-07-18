@@ -261,6 +261,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             
             // 1. Qareeblak Session (Supports both JWT in localStorage and HttpOnly cookies)
             const qareeblakToken = localStorage.getItem('qareeblak_token');
+            const qareeblakCookieSession = localStorage.getItem('qareeblak_cookie_session');
+            
             if (qareeblakToken === 'mock_google_token') {
                 // Google user with offline mock — restore from localStorage
                 const savedUser = localStorage.getItem('qareeblak_user');
@@ -274,25 +276,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 return null;
             }
 
-            // Always try to fetch current user (authApi will use cookie if token is missing in localStorage)
-            try {
-                const user = await authApi.getCurrentUser();
-                if (user && user.id) {
-                    console.log('[AppProvider] Loaded qareeblak user:', user.name);
-                    setCurrentUser(user);
-                    localStorage.setItem('user', JSON.stringify(user));
-                    // If we have a user but no token in localStorage, it means we're using HttpOnly cookies
-                    // We'll set a flag so ProviderDashboard knows we have a valid session
-                    if (!qareeblakToken) {
-                        localStorage.setItem('qareeblak_cookie_session', 'true');
+            // Only attempt to fetch current user if we have evidence of a session
+            if (qareeblakToken || qareeblakCookieSession) {
+                try {
+                    const user = await authApi.getCurrentUser();
+                    if (user && user.id) {
+                        console.log('[AppProvider] Loaded qareeblak user:', user.name);
+                        setCurrentUser(user);
+                        localStorage.setItem('user', JSON.stringify(user));
+                        if (!qareeblakToken) {
+                            localStorage.setItem('qareeblak_cookie_session', 'true');
+                        }
+                        return user;
                     }
-                    return user;
+                } catch (authErr: any) {
+                    const errorMsg = authErr?.message?.toLowerCase() || '';
+                    if (errorMsg.includes('unauthorized') || errorMsg.includes('تفويض') || errorMsg.includes('401')) {
+                        // The session is invalid. Clear the flags so we don't spam 401s on next reload.
+                        localStorage.removeItem('qareeblak_token');
+                        localStorage.removeItem('qareeblak_cookie_session');
+                        localStorage.removeItem('qareeblak_user');
+                        console.warn('[AppProvider] Session invalid, cleared tokens to prevent 401 loops');
+                    } else {
+                        console.warn('[AppProvider] Could not reach auth server for /auth/me, keeping token for retry');
+                    }
                 }
-            } catch (authErr: any) {
-                // [PERSISTENT LOGIN] DO NOT clear tokens here — tokens never expire
-                // and server restarts / brief network issues should never log user out.
-                // Only the manual "logout" button clears authentication.
-                console.warn('[AppProvider] Could not reach auth server for /auth/me, keeping token for retry');
             }
 
             // 2. Halan Token (partner/courier)
