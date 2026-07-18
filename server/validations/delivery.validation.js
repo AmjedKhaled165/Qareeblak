@@ -13,8 +13,8 @@ const flexibleIdSchema = z.preprocess((value) => {
 
 const deliveryItemSchema = z.object({
     name: z.string().min(1, 'اسم المنتج مطلوب'),
-    price: z.number().nonnegative('السعر يجب أن يكون رقماً موجباً'),
-    quantity: z.number().int().positive('الكمية يجب أن تكون رقماً موجباً'),
+    price: z.coerce.number().nonnegative('السعر يجب أن يكون رقماً موجباً'),
+    quantity: z.coerce.number().int().positive('الكمية يجب أن تكون رقماً موجباً'),
     providerId: flexibleIdSchema,
     providerName: z.string().optional()
 });
@@ -89,9 +89,10 @@ const validate = (schema, target = 'body') => (req, res, next) => {
         req[target] = schema.parse(req[target]);
         next();
     } catch (error) {
-        console.error("Delivery validation failed:", JSON.stringify(error.errors, null, 2));
-        const messages = error.errors.map(e => e.message).join(', ');
-        return res.status(400).json({ success: false, error: messages || 'بيانات غير صالحة', details: error.errors });
+        const issues = error.issues || error.errors || [];
+        console.error("Delivery validation failed:", JSON.stringify(issues, null, 2));
+        const messages = issues.map(e => e.message).join(', ');
+        return res.status(400).json({ success: false, error: messages || 'بيانات غير صالحة', details: issues });
     }
 };
 
