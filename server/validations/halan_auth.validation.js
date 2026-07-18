@@ -12,7 +12,7 @@ const halanRegisterSchema = z.object({
     phone: z.string().optional().nullable(),
     password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
     role: z.enum(['supervisor', 'courier']),
-    supervisorId: z.number().int().positive().optional()
+    supervisorId: z.union([z.string(), z.number()]).optional().nullable()
 });
 
 const validate = (schema, target = 'body') => (req, res, next) => {

@@ -164,7 +164,11 @@ exports.getMe = catchAsync(async (req, res) => {
 });
 
 exports.registerMember = catchAsync(async (req, res) => {
-    const { name, username, email, phone, password, role, supervisorId } = req.body;
+    let { name, username, email, phone, password, role, supervisorId } = req.body;
+    
+    if (supervisorId) {
+        supervisorId = encodeEntityId ? (require('../utils/obfuscate').decodeEntityId('user', supervisorId) || supervisorId) : supervisorId;
+    }
 
     // Auth check: Use req.user from verifyToken
     if (req.user.user_type !== 'partner_owner' && req.user.role !== 'admin') {
