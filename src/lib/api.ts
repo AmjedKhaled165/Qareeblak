@@ -131,10 +131,16 @@ async function attemptTokenRefresh(): Promise<boolean> {
     _refreshPromise = (async () => {
         try {
             const refreshUrl = `${BASE_URL}/auth/refresh`;
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            const csrfToken = getCookieValue('csrfToken');
+            if (csrfToken) {
+                headers['x-csrf-token'] = csrfToken;
+            }
+
             const res = await fetch(refreshUrl, {
                 method: 'POST',
                 credentials: 'include', // Send HttpOnly refresh cookie
-                headers: { 'Content-Type': 'application/json' }
+                headers
             });
             if (!res.ok) return false;
             const data = await res.json();

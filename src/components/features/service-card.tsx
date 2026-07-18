@@ -13,7 +13,9 @@ export interface ServiceProvider {
     rating: number
     reviews: number
     location: string
+    phone?: string
     image?: string
+    cover_image?: string
     reviewsList?: Array<{
         id: string;
         rating: number;
@@ -87,23 +89,27 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
                 
                 {/* Premium Abstract Header */}
                 <div className="relative h-24 sm:h-32 w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
-                    <div className="absolute inset-0 opacity-40 mix-blend-multiply dark:mix-blend-screen">
-                        {/* Dynamic category-based blobs */}
-                        <div className={`absolute -top-10 -left-10 w-40 h-40 rounded-full blur-[40px] ${
-                            providerCategory.includes("مطعم") ? "bg-orange-400" : 
-                            providerCategory.includes("صيانة") ? "bg-blue-400" : 
-                            providerCategory.includes("صيدل") ? "bg-emerald-400" : 
-                            providerCategory.includes("ملاعب") ? "bg-green-400" : 
-                            providerCategory.includes("دكتور") || providerCategory.includes("ممرض") ? "bg-cyan-400" : "bg-indigo-400"
-                        }`} />
-                        <div className={`absolute bottom-[-20px] -right-10 w-40 h-40 rounded-full blur-[50px] ${
-                            providerCategory.includes("مطعم") ? "bg-rose-400" : 
-                            providerCategory.includes("صيانة") ? "bg-cyan-400" : 
-                            providerCategory.includes("صيدل") ? "bg-teal-400" : 
-                            providerCategory.includes("ملاعب") ? "bg-emerald-400" : 
-                            providerCategory.includes("دكتور") || providerCategory.includes("ممرض") ? "bg-sky-400" : "bg-violet-400"
-                        }`} />
-                    </div>
+                    {provider.cover_image ? (
+                        <img src={provider.cover_image} alt={`${providerName} cover`} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    ) : (
+                        <div className="absolute inset-0 opacity-40 mix-blend-multiply dark:mix-blend-screen">
+                            {/* Dynamic category-based blobs */}
+                            <div className={`absolute -top-10 -left-10 w-40 h-40 rounded-full blur-[40px] ${
+                                providerCategory.includes("مطعم") ? "bg-orange-400" : 
+                                providerCategory.includes("صيانة") ? "bg-blue-400" : 
+                                providerCategory.includes("صيدل") ? "bg-emerald-400" : 
+                                providerCategory.includes("ملاعب") ? "bg-green-400" : 
+                                providerCategory.includes("دكتور") || providerCategory.includes("ممرض") ? "bg-cyan-400" : "bg-indigo-400"
+                            }`} />
+                            <div className={`absolute bottom-[-20px] -right-10 w-40 h-40 rounded-full blur-[50px] ${
+                                providerCategory.includes("مطعم") ? "bg-rose-400" : 
+                                providerCategory.includes("صيانة") ? "bg-cyan-400" : 
+                                providerCategory.includes("صيدل") ? "bg-teal-400" : 
+                                providerCategory.includes("ملاعب") ? "bg-emerald-400" : 
+                                providerCategory.includes("دكتور") || providerCategory.includes("ممرض") ? "bg-sky-400" : "bg-violet-400"
+                            }`} />
+                        </div>
+                    )}
                 </div>
 
                 {/* Avatar / Profile Picture */}
@@ -149,9 +155,17 @@ export function ServiceCard({ provider, addToOrderId }: { provider: ServiceProvi
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 mb-6 mt-3 bg-slate-50 dark:bg-slate-800/50 w-fit px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700/50">
-                        <MapPin className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
-                        <span className="line-clamp-1 truncate font-medium">{providerLocation}</span>
+                    <div className="flex flex-col gap-2 mb-6 mt-3">
+                        <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 w-fit px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                            <MapPin className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                            <span className="line-clamp-1 truncate font-medium">{providerLocation}</span>
+                        </div>
+                        {provider.phone && (
+                            <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 w-fit px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                <span className="line-clamp-1 truncate font-medium dir-ltr inline-block">{provider.phone}</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="mt-auto pt-2">

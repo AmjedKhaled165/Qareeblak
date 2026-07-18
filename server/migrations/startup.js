@@ -31,6 +31,7 @@ async function ensureCoreTables(query) {
             category VARCHAR(100),
             location VARCHAR(255),
             phone VARCHAR(50),
+            cover_image TEXT,
             rating DECIMAL(2, 1) DEFAULT 0.0,
             reviews_count INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -207,6 +208,14 @@ async function runStartupMigrations() {
         const ratingRes = await query("UPDATE providers SET rating = 0.0 WHERE reviews_count = 0");
         if (ratingRes.rowCount > 0) {
             logger.info(`✅ Rating Migration: Updated ${ratingRes.rowCount} providers to 0.0 rating`);
+        }
+
+        // 1.1 Migration: Add cover_image to providers if missing
+        try {
+            await query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS cover_image TEXT");
+            logger.info('✅ Providers Migration: Ensured cover_image column exists');
+        } catch (e) {
+            // column may already exist
         }
 
         // 2. Migration: Safe column and index checks for bookings

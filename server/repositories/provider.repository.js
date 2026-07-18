@@ -73,7 +73,7 @@ class ProviderRepository {
 
             const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL AS cover_image';
             const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
-            const avatarSelect = cols.has('user_id') ? 'u.avatar AS image_url' : 'NULL AS image_url';
+            const avatarSelect = cols.has('user_id') ? 'u.avatar AS image' : 'NULL AS image';
 
             const query = `
                 SELECT
@@ -351,12 +351,14 @@ class ProviderRepository {
                 cover_image = COALESCE($5, cover_image)
             WHERE id = $6
         `;
+        const coverImg = data.coverImage !== undefined ? data.coverImage : (data.cover_photo !== undefined ? data.cover_photo : (data.cover_image !== undefined ? data.cover_image : undefined));
+        
         const params = [
             data.name !== undefined ? data.name : null, 
             data.category !== undefined ? data.category : null, 
             data.location !== undefined ? data.location : null, 
             data.phone !== undefined ? data.phone : null, 
-            (data.coverImage || data.cover_photo || data.cover_image) !== undefined ? (data.coverImage || data.cover_photo || data.cover_image) : null, 
+            coverImg !== undefined ? coverImg : null, 
             id
         ];
         await pool.query(query, params);

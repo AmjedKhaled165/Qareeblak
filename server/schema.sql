@@ -35,6 +35,7 @@ CREATE TABLE providers (
     category VARCHAR(100) NOT NULL,
     location VARCHAR(255),
     phone VARCHAR(50),
+    cover_image TEXT,
     rating DECIMAL(2,1) DEFAULT 0.0,
     reviews_count INTEGER DEFAULT 0,
     is_approved BOOLEAN DEFAULT TRUE,
