@@ -589,54 +589,95 @@ class DeliveryRepository {
 
     async createParentOrder(data, client = pool) {
         const cols = await getParentOrdersColumns();
-        const priceCol = cols.has('total_price') ? 'total_price' : 'total_amount';
+        const priceCol = cols.has('total_price') ? 'total_price' : (cols.has('total_amount') ? 'total_amount' : null);
+        
+        const insertCols = ['user_id', 'status'];
+        const values = ['$1', '$2'];
+        const params = [data.userId, 'pending'];
+        
+        if (priceCol) {
+            params.push(data.totalPrice);
+            insertCols.push(priceCol);
+            values.push(`$${params.length}`);
+        }
+        
+        if (cols.has('details')) {
+            params.push(data.details);
+            insertCols.push('details');
+            values.push(`$${params.length}`);
+        }
+        
+        if (cols.has('address_info')) {
+            params.push(data.addressInfo);
+            insertCols.push('address_info');
+            values.push(`$${params.length}`);
+        }
+
         const query = `
-            INSERT INTO parent_orders (user_id, ${priceCol}, details, address_info, status)
-            VALUES ($1, $2, $3, $4, 'pending')
+            INSERT INTO parent_orders (${insertCols.join(', ')})
+            VALUES (${values.join(', ')})
             RETURNING id
         `;
-        const params = [data.userId, data.totalPrice, data.details, data.addressInfo];
         const res = await client.query(query, params);
         return res.rows[0].id;
     }
 
     async createSubBooking(data, client = pool) {
         let uName = data.userName;
-        const bCols = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name='bookings'");
-        const hasUserName = bCols.rows.some(r => r.column_name === 'user_name');
-        const hasCustomerName = bCols.rows.some(r => r.column_name === 'customer_name');
+        const bColsRes = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name='bookings'");
+        const bCols = new Set(bColsRes.rows.map(r => r.column_name));
         
-        const nameCol = hasUserName ? 'user_name' : (hasCustomerName ? 'customer_name' : null);
+        const insertCols = ['user_id', 'provider_id', 'service_name', 'provider_name', 'price', 'status'];
+        const params = [data.userId, data.providerId, data.serviceName, data.providerName, data.price, 'pending'];
+        const values = ['$1', '$2', '$3', '$4', '$5', '$6'];
         
-        if (!nameCol) {
-            const query = `
-                INSERT INTO bookings 
-                (user_id, provider_id, service_name, provider_name, price, details, items, parent_order_id, halan_order_id, status)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
-                RETURNING id
-            `;
-            const params = [
-                data.userId, data.providerId, data.serviceName, data.providerName, 
-                data.price, data.details, JSON.stringify(data.items), 
-                data.parentId, data.deliveryOrderId
-            ];
-            const res = await client.query(query, params);
-            return res.rows[0].id;
-        } else {
-            const query = `
-                INSERT INTO bookings 
-                (user_id, provider_id, ${nameCol}, service_name, provider_name, price, details, items, parent_order_id, halan_order_id, status)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
-                RETURNING id
-            `;
-            const params = [
-                data.userId, data.providerId, uName, data.serviceName, data.providerName, 
-                data.price, data.details, JSON.stringify(data.items), 
-                data.parentId, data.deliveryOrderId
-            ];
-            const res = await client.query(query, params);
-            return res.rows[0].id;
+        if (bCols.has('user_name')) {
+            params.push(uName);
+            insertCols.push('user_name');
+            values.push(`$${params.length}`);
+        } else if (bCols.has('customer_name')) {
+            params.push(uName);
+            insertCols.push('customer_name');
+            values.push(`$${params.length}`);
         }
+        
+        if (bCols.has('details')) {
+            params.push(data.details);
+            insertCols.push('details');
+            values.push(`$${params.length}`);
+        }
+        
+        if (bCols.has('items')) {
+            params.push(JSON.stringify(data.items));
+            insertCols.push('items');
+            values.push(`$${params.length}`);
+        }
+        
+        if (bCols.has('parent_order_id') && data.parentId) {
+            params.push(data.parentId);
+            insertCols.push('parent_order_id');
+            values.push(`$${params.length}`);
+        }
+        
+        if (bCols.has('halan_order_id') && data.deliveryOrderId) {
+            params.push(data.deliveryOrderId);
+            insertCols.push('halan_order_id');
+            values.push(`$${params.length}`);
+        }
+
+        const query = `
+            INSERT INTO bookings (${insertCols.join(', ')})
+            VALUES (${values.join(', ')})
+            RETURNING id
+        `;
+        const res = await client.query(query, params);
+        return res.rows[0].id;
+    }
+
+    async getUserInfo(userId, client = pool) {
+        if (!userId) return null;
+        const result = await client.query('SELECT id, name, email, role, type FROM users WHERE id = $1', [userId]);
+        return result.rows[0] || null;
     }
 
     async getLinkedBookings(halanOrderId) {
