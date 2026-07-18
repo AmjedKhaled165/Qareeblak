@@ -587,6 +587,58 @@ class DeliveryRepository {
         return result.rows[0];
     }
 
+    async createParentOrder(data, client = pool) {
+        const cols = await getParentOrdersColumns();
+        const priceCol = cols.has('total_price') ? 'total_price' : 'total_amount';
+        const query = `
+            INSERT INTO parent_orders (user_id, ${priceCol}, details, address_info, status)
+            VALUES ($1, $2, $3, $4, 'pending')
+            RETURNING id
+        `;
+        const params = [data.userId, data.totalPrice, data.details, data.addressInfo];
+        const res = await client.query(query, params);
+        return res.rows[0].id;
+    }
+
+    async createSubBooking(data, client = pool) {
+        let uName = data.userName;
+        const bCols = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name='bookings'");
+        const hasUserName = bCols.rows.some(r => r.column_name === 'user_name');
+        const hasCustomerName = bCols.rows.some(r => r.column_name === 'customer_name');
+        
+        const nameCol = hasUserName ? 'user_name' : (hasCustomerName ? 'customer_name' : null);
+        
+        if (!nameCol) {
+            const query = `
+                INSERT INTO bookings 
+                (user_id, provider_id, service_name, provider_name, price, details, items, parent_order_id, halan_order_id, status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+                RETURNING id
+            `;
+            const params = [
+                data.userId, data.providerId, data.serviceName, data.providerName, 
+                data.price, data.details, JSON.stringify(data.items), 
+                data.parentId, data.deliveryOrderId
+            ];
+            const res = await client.query(query, params);
+            return res.rows[0].id;
+        } else {
+            const query = `
+                INSERT INTO bookings 
+                (user_id, provider_id, ${nameCol}, service_name, provider_name, price, details, items, parent_order_id, halan_order_id, status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
+                RETURNING id
+            `;
+            const params = [
+                data.userId, data.providerId, uName, data.serviceName, data.providerName, 
+                data.price, data.details, JSON.stringify(data.items), 
+                data.parentId, data.deliveryOrderId
+            ];
+            const res = await client.query(query, params);
+            return res.rows[0].id;
+        }
+    }
+
     async getLinkedBookings(halanOrderId) {
         const result = await pool.query(
             'SELECT id, parent_order_id FROM bookings WHERE CAST(halan_order_id AS TEXT) = $1',
