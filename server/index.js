@@ -189,6 +189,7 @@ app.use('/api', (req, res, next) => {
         '/auth/register',
         '/auth/google-sync',
         '/auth/guest-login',
+        '/auth/refresh',
         '/halan/auth/login',
         '/health'
     ];

@@ -231,6 +231,7 @@ export default function ProductsManagementPage() {
                 title={modal.title}
                 message={modal.message}
                 type={modal.type}
+                onConfirm={modal.onConfirm}
             />
         </div>
     );

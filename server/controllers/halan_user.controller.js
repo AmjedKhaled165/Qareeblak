@@ -85,7 +85,9 @@ exports.updateProfile = catchAsync(async (req, res) => {
     const updates = {};
     if (name_ar) updates.name = name_ar;
     if (username) updates.username = username;
-    if (email) updates.email = email;
+    if (email && email !== currentUser.email) {
+        throw new AppError('لا يمكن تغيير البريد الإلكتروني بعد التسجيل', 400);
+    }
     if (phone) updates.phone = phone;
     if (avatar !== undefined) updates.avatar = avatar;
 
@@ -98,7 +100,18 @@ exports.updateProfile = catchAsync(async (req, res) => {
 
     if (Object.keys(updates).length === 0) return res.json({ success: true, message: 'لا توجد تغييرات' });
 
-    const updated = await userRepo.updateProfile(id, updates);
+    let updated;
+    try {
+        updated = await userRepo.updateProfile(id, updates);
+    } catch (error) {
+        if (error.code === '23505') {
+            if (error.constraint === 'users_email_key') throw new AppError('هذا البريد الإلكتروني مسجل مسبقاً', 400);
+            if (error.constraint === 'users_phone_key') throw new AppError('رقم الهاتف هذا مسجل مسبقاً', 400);
+            if (error.constraint === 'users_username_key') throw new AppError('اسم المستخدم هذا مستخدم بالفعل', 400);
+        }
+        throw error;
+    }
+    
     res.json({
         success: true,
         message: 'تم تحديث البيانات بنجاح',

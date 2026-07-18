@@ -13,6 +13,7 @@ interface StatusModalProps {
     message: string;
     type?: StatusModalType;
     autoClose?: boolean;
+    onConfirm?: () => void;
 }
 
 export default function StatusModal({
@@ -21,17 +22,18 @@ export default function StatusModal({
     title,
     message,
     type = 'success',
-    autoClose = true
+    autoClose = true,
+    onConfirm
 }: StatusModalProps) {
 
     useEffect(() => {
-        if (isOpen && autoClose) {
+        if (isOpen && autoClose && !onConfirm) {
             const timer = setTimeout(() => {
                 onClose();
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [isOpen, autoClose, onClose]);
+    }, [isOpen, autoClose, onClose, onConfirm]);
 
     const getConfig = () => {
         switch (type) {
@@ -110,13 +112,30 @@ export default function StatusModal({
                             {message}
                         </p>
 
-                        {/* Button */}
-                        <button
-                            onClick={onClose}
-                            className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-2xl transition-all active:scale-95"
-                        >
-                            حسناً
-                        </button>
+                        {/* Buttons */}
+                        {onConfirm ? (
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={onConfirm}
+                                    className={`flex-1 text-white font-bold py-4 rounded-2xl transition-all active:scale-95 ${config.bg} hover:opacity-90`}
+                                >
+                                    نعم، متأكد
+                                </button>
+                                <button
+                                    onClick={onClose}
+                                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-2xl transition-all active:scale-95"
+                                >
+                                    إلغاء
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={onClose}
+                                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-2xl transition-all active:scale-95"
+                            >
+                                حسناً
+                            </button>
+                        )}
                     </motion.div>
                 </div>
             )}

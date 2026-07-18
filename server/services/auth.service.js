@@ -137,12 +137,22 @@ class AuthService {
             throw new AppError('البريد الإلكتروني مسجل مسبقاً', 400);
         }
 
-        const hashedPassword = await bcrypt.hash(password, 12);
-        // Force user_type to 'customer' to prevent mass assignment (privilege escalation)
-        const result = await db.query(
-            'INSERT INTO users (name, email, password, user_type, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, user_type, phone',
-            [name, email, hashedPassword, 'customer', phone]
-        );
+        let result;
+        try {
+            const hashedPassword = await bcrypt.hash(password, 12);
+            // Force user_type to 'customer' to prevent mass assignment (privilege escalation)
+            result = await db.query(
+                'INSERT INTO users (name, email, password, user_type, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, user_type, phone',
+                [name, email, hashedPassword, 'customer', phone]
+            );
+        } catch (error) {
+            if (error.code === '23505') {
+                if (error.constraint === 'users_email_key') throw new AppError('هذا البريد الإلكتروني مسجل مسبقاً', 400);
+                if (error.constraint === 'users_phone_key') throw new AppError('رقم الهاتف هذا مسجل مسبقاً', 400);
+                if (error.constraint === 'users_username_key') throw new AppError('اسم المستخدم هذا مسجل مسبقاً', 400);
+            }
+            throw error;
+        }
 
         const user = result.rows[0];
 
@@ -373,12 +383,7 @@ class AuthService {
         }
 
         if (email && email !== currentUser.email) {
-            const emailCheck = await db.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userId]);
-            if (emailCheck.rows.length > 0) {
-                throw new AppError('البريد الإلكتروني مستخدم بالفعل مسبقاً', 400);
-            }
-            fields.push(`email = $${i++}`);
-            params.push(email);
+            throw new AppError('لا يمكن تغيير البريد الإلكتروني بعد التسجيل', 400);
         }
 
         if (newPassword) {
@@ -397,7 +402,17 @@ class AuthService {
         params.push(userId);
         const query = `UPDATE users SET ${fields.join(', ')} WHERE id = $${i} RETURNING id, name, email, phone, avatar, user_type`;
 
-        const result = await db.query(query, params);
+        let result;
+        try {
+            result = await db.query(query, params);
+        } catch (error) {
+            if (error.code === '23505') {
+                if (error.constraint === 'users_email_key') throw new AppError('هذا البريد الإلكتروني مسجل مسبقاً لمدير أو مستخدم آخر', 400);
+                if (error.constraint === 'users_phone_key') throw new AppError('رقم الهاتف هذا مسجل مسبقاً لمدير أو مستخدم آخر', 400);
+                if (error.constraint === 'users_username_key') throw new AppError('اسم المستخدم هذا مستخدم بالفعل', 400);
+            }
+            throw error;
+        }
         
         // Invalidate Redis session cache to reflect updates immediately
         const { invalidateUserCache } = require('../middleware/auth');
