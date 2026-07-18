@@ -35,7 +35,7 @@ export function ProviderSearchDropdown({
         }
         setIsSearching(true);
         try {
-            const data = await apiCall(`/providers/search?q=${encodeURIComponent(q)}`);
+            const data = await apiCall(`/providers/search?q=${encodeURIComponent(q)}&type=order`);
             setResults(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Provider search error:', error);

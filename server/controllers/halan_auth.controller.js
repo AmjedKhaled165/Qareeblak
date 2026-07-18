@@ -187,9 +187,9 @@ exports.registerMember = catchAsync(async (req, res) => {
         );
     } catch (error) {
         if (error.code === '23505') {
-            if (error.constraint === 'users_email_key') throw new AppError('هذا البريد الإلكتروني مسجل مسبقاً', 400);
+            if (error.constraint === 'users_email_key' || error.constraint === 'users_lower_email_idx') throw new AppError('هذا البريد الإلكتروني مسجل مسبقاً', 400);
             if (error.constraint === 'users_phone_key') throw new AppError('رقم الهاتف هذا مسجل مسبقاً', 400);
-            if (error.constraint === 'users_username_key') throw new AppError('اسم المستخدم هذا مستخدم بالفعل، يرجى اختيار اسم آخر', 400);
+            if (error.constraint === 'users_username_key' || error.constraint === 'users_lower_username_idx') throw new AppError('اسم المستخدم هذا مستخدم بالفعل، يرجى اختيار اسم آخر', 400);
         }
         // Legacy schema fallback where users.username does not exist.
         if (error && error.code === '42703') {

@@ -145,12 +145,12 @@ export default function AllDriversPage() {
                     type: 'error'
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Add driver error:', error);
             setModalState({
                 isOpen: true,
                 title: 'خطأ',
-                message: 'حدث خطأ غير متوقع',
+                message: error?.message || 'حدث خطأ غير متوقع',
                 type: 'error'
             });
         } finally {

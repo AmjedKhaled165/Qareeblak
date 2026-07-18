@@ -10,9 +10,9 @@ exports.getAll = catchAsync(async (req, res) => {
 });
 
 exports.search = catchAsync(async (req, res) => {
-    const { q } = req.query;
+    const { q, type } = req.query;
     if (!q || q.trim().length < 1) return res.json([]);
-    const results = await providerRepo.search(q);
+    const results = await providerRepo.search(q, type);
     res.json(results.map(p => ({
         id: p.id.toString(),
         name: p.name,

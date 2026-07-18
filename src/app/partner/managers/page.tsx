@@ -127,12 +127,12 @@ export default function ManagersPage() {
                     type: 'error'
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Add manager error:', error);
             setModalState({
                 isOpen: true,
                 title: 'خطأ',
-                message: 'حدث خطأ غير متوقع',
+                message: error?.message || 'حدث خطأ غير متوقع',
                 type: 'error'
             });
         } finally {

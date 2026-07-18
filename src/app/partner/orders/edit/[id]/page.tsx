@@ -54,7 +54,7 @@ export default function EditOrderPage({ params }: PageProps) {
         try {
             const data = await apiCall('/halan/users?role=courier');
             if (data.success) {
-                setDrivers(data.data || []);
+                setDrivers((data.data || []).filter((driver: any) => driver.isAvailable === true));
             }
         } catch (error) {
             console.error('Error fetching drivers:', error);

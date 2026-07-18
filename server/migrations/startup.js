@@ -474,6 +474,63 @@ async function runStartupMigrations() {
         `);
         logger.info(`✅ BI Migration: Wallets and Promo Engine initialized`);
 
+        // 12. Migration: Clean up duplicate emails, phones, and usernames (keep the most recently created account)
+        logger.info('🔄 Cleaning up duplicate accounts...');
+        
+        // Remove duplicate emails
+        await query(`
+            DELETE FROM users 
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id, ROW_NUMBER() OVER(PARTITION BY LOWER(email) ORDER BY id DESC) as rn 
+                    FROM users 
+                    WHERE email IS NOT NULL AND email != ''
+                ) t WHERE t.rn > 1
+            )
+        `);
+        
+        // Remove duplicate usernames
+        await query(`
+            DELETE FROM users 
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id, ROW_NUMBER() OVER(PARTITION BY LOWER(username) ORDER BY id DESC) as rn 
+                    FROM users 
+                    WHERE username IS NOT NULL AND username != ''
+                ) t WHERE t.rn > 1
+            )
+        `);
+        
+        // Remove duplicate phones
+        await query(`
+            DELETE FROM users 
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id, ROW_NUMBER() OVER(PARTITION BY phone ORDER BY id DESC) as rn 
+                    FROM users 
+                    WHERE phone IS NOT NULL AND phone != ''
+                ) t WHERE t.rn > 1
+            )
+        `);
+
+        // Now enforce strict unique indexes if they don't exist
+        logger.info('🔄 Enforcing strict unique constraints for email, username, phone...');
+        
+        // Lowercase email unique index
+        try {
+            await query('CREATE UNIQUE INDEX IF NOT EXISTS users_lower_email_idx ON users (LOWER(email))');
+        } catch(e) { logger.warn('Could not create users_lower_email_idx: ' + e.message); }
+
+        // Lowercase username unique index
+        try {
+            await query('CREATE UNIQUE INDEX IF NOT EXISTS users_lower_username_idx ON users (LOWER(username))');
+        } catch(e) { logger.warn('Could not create users_lower_username_idx: ' + e.message); }
+
+        // Phone unique constraint (if not already unique)
+        try {
+            await query('ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone)');
+        } catch(e) { /* constraint might already exist */ }
+
         logger.info('✨ All migrations completed successfully');
         return true;
     } catch (err) {

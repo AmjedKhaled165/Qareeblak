@@ -52,7 +52,7 @@ function getRequestTimeout(endpoint: string, options: RequestInit): number {
 
     // Profile updates may include large base64 images (avatar, coverImage)
     // which take longer to upload on slow connections.
-    if (endpoint.includes('/auth/profile') && method === 'PUT') {
+    if ((endpoint.includes('/auth/profile') || endpoint.includes('/halan/users')) && method === 'PUT') {
         return 60000;
     }
 
@@ -138,6 +138,10 @@ async function attemptTokenRefresh(): Promise<boolean> {
             const csrfToken = getCookieValue('csrfToken');
             if (csrfToken) {
                 headers['x-csrf-token'] = csrfToken;
+            }
+            const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
             const res = await fetch(refreshUrl, {

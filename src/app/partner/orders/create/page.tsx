@@ -99,7 +99,7 @@ export default function CreateOrderPage() {
         try {
             const data = await apiCall('/halan/users?role=courier');
             if (data.success) {
-                setDrivers(data.data || []);
+                setDrivers((data.data || []).filter((driver: any) => driver.isAvailable === true));
             }
         } catch (error) {
             console.error('Error fetching drivers:', error);
@@ -127,9 +127,18 @@ export default function CreateOrderPage() {
 
         if (field === 'name') {
             if (value.trim()) {
-                const filtered = allProducts.filter(p =>
-                    p.name.toLowerCase().includes(value.toLowerCase())
-                );
+                const lowerVal = value.toLowerCase();
+                const filtered = allProducts
+                    .filter(p => p.name.toLowerCase().includes(lowerVal))
+                    .sort((a, b) => {
+                        const aLower = a.name.toLowerCase();
+                        const bLower = b.name.toLowerCase();
+                        const aStarts = aLower.startsWith(lowerVal);
+                        const bStarts = bLower.startsWith(lowerVal);
+                        if (aStarts && !bStarts) return -1;
+                        if (!aStarts && bStarts) return 1;
+                        return aLower.localeCompare(bLower);
+                    });
                 setSuggestions(filtered);
                 setFocusedProductIndex(index);
             } else {
@@ -389,9 +398,18 @@ export default function CreateOrderPage() {
                                             onChange={(e) => handleProductChange(index, 'name', e.target.value)}
                                             onFocus={() => {
                                                 if (product.name.trim()) {
-                                                    const filtered = allProducts.filter(p =>
-                                                        p.name.toLowerCase().includes(product.name.toLowerCase())
-                                                    );
+                                                    const lowerVal = product.name.toLowerCase();
+                                                    const filtered = allProducts
+                                                        .filter(p => p.name.toLowerCase().includes(lowerVal))
+                                                        .sort((a, b) => {
+                                                            const aLower = a.name.toLowerCase();
+                                                            const bLower = b.name.toLowerCase();
+                                                            const aStarts = aLower.startsWith(lowerVal);
+                                                            const bStarts = bLower.startsWith(lowerVal);
+                                                            if (aStarts && !bStarts) return -1;
+                                                            if (!aStarts && bStarts) return 1;
+                                                            return aLower.localeCompare(bLower);
+                                                        });
                                                     setSuggestions(filtered);
                                                     setFocusedProductIndex(index);
                                                 }

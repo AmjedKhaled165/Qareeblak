@@ -24,7 +24,7 @@ const ACCESS_COOKIE_OPTIONS = {
 const CSRF_COOKIE_OPTIONS = {
     ...COOKIE_OPTIONS,
     httpOnly: false, // Client-side JS needs to read this for Double-Submit Pattern
-    sameSite: 'Strict', // Strongest protection for CSRF cookie
+    sameSite: 'Lax', // Allow cross-subdomain for api.qareeblak.com and qareeblak.com
     domain: COOKIE_DOMAIN,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
 };

@@ -180,16 +180,24 @@ class ProviderRepository {
         return result.rows;
     }
 
-    async search(query) {
+    async search(query, type) {
         const cols = await getProvidersColumns();
         const approvalCondition = cols.has('is_approved') ? 'is_approved = TRUE AND' : '';
-        const onlineCondition = cols.has('is_online') ? 'is_online = TRUE AND' : '';
+        
+        // If type is 'order', do not strictly require them to be online (so they always show in the dropdown)
+        const onlineCondition = (cols.has('is_online') && type !== 'order') ? 'is_online = TRUE AND' : '';
         const categoryField = cols.has('category') ? 'category' : 'name';
+
+        let categoryFilter = '';
+        if (type === 'order') {
+            // Exclude booking-based categories based on user's request
+            categoryFilter = `AND ${categoryField} NOT IN ('صيانة', 'صيانه', 'صيانة وسباكة', 'ممرض', 'دكتور', 'دكتور وممرض', 'ممرض ودكتور', 'ملاعب', 'ملعب', 'خدمات سيارات', 'توصيل سيارات', 'ونش')`;
+        }
 
         const result = await pool.query(`
             SELECT id, name, ${categoryField} AS category, phone
             FROM providers
-            WHERE ${approvalCondition} ${onlineCondition} (name ILIKE $1 OR ${categoryField} ILIKE $1)
+            WHERE ${approvalCondition} ${onlineCondition} (name ILIKE $1 OR ${categoryField} ILIKE $1) ${categoryFilter}
             ORDER BY name ASC
             LIMIT 20
         `, [`%${query.trim()}%`]);
