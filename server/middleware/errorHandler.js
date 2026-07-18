@@ -37,7 +37,8 @@ const sendErrorProd = (err, req, res) => {
 
     return res.status(500).json({
         status: 'error',
-        error: 'حدث خطأ داخلي في الخادم - مراقب السيرفر سجل العطل وسيتم مراجعته'
+        error: `[DEBUG 500] ${err.message}`,
+        stack: err.stack
     });
 };
 

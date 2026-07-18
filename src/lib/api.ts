@@ -310,7 +310,7 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
         } else if (response.status === 429) {
             throw new Error(data?.error || data?.message || '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.');
         } else if (response.status === 500) {
-            throw new Error(`خطأ في الخادم (${response.status}) - حاول مرة أخرى لاحقاً`);
+            throw new Error(data?.error || data?.message || `خطأ في الخادم (${response.status}) - حاول مرة أخرى لاحقاً`);
         }
 
         throw new Error(data?.error || data?.message || `حدث خطأ في الطلب (${response.status})`);

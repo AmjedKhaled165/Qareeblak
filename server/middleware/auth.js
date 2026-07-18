@@ -227,7 +227,7 @@ const isProviderOrAdmin = (req, res, next) => {
  */
 const isPartnerOrAdmin = (req, res, next) => {
     const type = req.user?.user_type;
-    const partnerTypes = ['partner_owner', 'partner_supervisor', 'partner_courier', 'courier', 'admin'];
+    const partnerTypes = ['partner_owner', 'partner_supervisor', 'partner_courier', 'courier', 'admin', 'owner'];
 
     if (!req.user || !partnerTypes.includes(type)) {
         return res.status(403).json({ error: 'غير مصرح - خاص بشركاء التوصيل' });
