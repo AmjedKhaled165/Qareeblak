@@ -89,7 +89,9 @@ const validate = (schema, target = 'body') => (req, res, next) => {
         req[target] = schema.parse(req[target]);
         next();
     } catch (error) {
-        return res.status(400).json({ success: false, error: 'بيانات غير صالحة', details: error.errors });
+        console.error("Delivery validation failed:", JSON.stringify(error.errors, null, 2));
+        const messages = error.errors.map(e => e.message).join(', ');
+        return res.status(400).json({ success: false, error: messages || 'بيانات غير صالحة', details: error.errors });
     }
 };
 
