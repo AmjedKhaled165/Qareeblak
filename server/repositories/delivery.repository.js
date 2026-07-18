@@ -676,7 +676,7 @@ class DeliveryRepository {
 
     async getUserInfo(userId, client = pool) {
         if (!userId) return null;
-        const result = await client.query('SELECT id, name, email, role, type FROM users WHERE id = $1', [userId]);
+        const result = await client.query('SELECT id, name, email, role, user_type FROM users WHERE id = $1', [userId]);
         return result.rows[0] || null;
     }
 
