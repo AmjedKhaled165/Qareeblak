@@ -72,14 +72,17 @@ export interface ApiResponse<T = any> {
 function getAuthToken(endpoint: string): string | null {
     if (typeof window === 'undefined') return null;
 
+    // Clean the endpoint to match accurately
+    const cleanEndpointForAuth = endpoint.split('?')[0].replace(/^\/+/, '').replace(/^api\//, '');
+
     // Public auth routes must never include Authorization headers.
     const isPublicAuthEndpoint = [
-        '/auth/login',
-        '/auth/register',
-        '/auth/guest-login',
-        '/auth/google-sync',
-        '/halan/auth/login'
-    ].some((publicPath) => endpoint.includes(publicPath));
+        'auth/login',
+        'auth/register',
+        'auth/guest-login',
+        'auth/google-sync',
+        'halan/auth/login'
+    ].includes(cleanEndpointForAuth);
 
     if (isPublicAuthEndpoint) {
         return null;
@@ -281,8 +284,14 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
             throw new Error(`الطلب غير موجود (${response.status}) - ${endpoint}`);
         } else if (response.status === 401) {
             // [SECURITY ROTATION] Attempt silent token refresh before giving up
-            const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') ||
-                endpoint.includes('/auth/refresh') || endpoint.includes('/auth/guest-login');
+            const baseEndpoint = endpoint.split('?')[0].replace(/^\/+/, '').replace(/^api\//, '');
+            const isAuthEndpoint = [
+                'auth/login',
+                'auth/register',
+                'auth/refresh',
+                'auth/guest-login',
+                'halan/auth/login'
+            ].includes(baseEndpoint);
 
             if (!isAuthEndpoint) {
                 const refreshed = await attemptTokenRefresh();
