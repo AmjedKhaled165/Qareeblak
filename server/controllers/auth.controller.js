@@ -5,10 +5,13 @@ const logger = require('../utils/logger');
 const crypto = require('crypto');
 
 // [SECURITY ROTATION] Cookies lifetimes align with JWT lifetimes
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || (process.env.NODE_ENV === 'production' ? '.qareeblak.com' : undefined);
+
 const COOKIE_OPTIONS = {
     httpOnly: true, // Prevents JavaScript access (Immune to XSS)
     secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS
     sameSite: 'Lax', // Protects against some CSRF
+    domain: COOKIE_DOMAIN,
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (Refresh Token)
 };
 
@@ -22,6 +25,7 @@ const CSRF_COOKIE_OPTIONS = {
     ...COOKIE_OPTIONS,
     httpOnly: false, // Client-side JS needs to read this for Double-Submit Pattern
     sameSite: 'Strict', // Strongest protection for CSRF cookie
+    domain: COOKIE_DOMAIN,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
 };
 

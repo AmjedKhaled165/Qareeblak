@@ -4,7 +4,9 @@ const AppError = require('../utils/appError');
 const bcrypt = require('bcryptjs');
 
 exports.assignCourier = catchAsync(async (req, res) => {
-    const { userId, supervisorId, action } = req.body;
+    let { userId, supervisorId, action } = req.body;
+    userId = decodeEntityId('user', userId) || userId;
+    supervisorId = decodeEntityId('user', supervisorId) || supervisorId;
     const { role } = req.user;
 
     if (role !== 'owner' && role !== 'partner_owner') throw new AppError('Unauthorized', 403);
@@ -43,7 +45,8 @@ exports.getUsers = catchAsync(async (req, res) => {
 });
 
 exports.getUser = catchAsync(async (req, res) => {
-    const user = await userRepo.getById(req.params.id);
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const user = await userRepo.getById(id);
     if (!user) throw new AppError('المستخدم غير موجود', 404);
     res.json({
         success: true,
@@ -61,7 +64,7 @@ exports.getUser = catchAsync(async (req, res) => {
 });
 
 exports.updateAvailability = catchAsync(async (req, res) => {
-    const { id } = req.params;
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
     const { isAvailable } = req.body;
     await userRepo.updateAvailability(id, isAvailable);
 
@@ -73,7 +76,7 @@ exports.updateAvailability = catchAsync(async (req, res) => {
 });
 
 exports.updateProfile = catchAsync(async (req, res) => {
-    const { id } = req.params;
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
     const { name_ar, username, email, phone, avatar, oldPassword, newPassword } = req.body;
 
     const currentUser = await userRepo.getById(id);
@@ -108,7 +111,7 @@ exports.updateProfile = catchAsync(async (req, res) => {
 });
 
 exports.deleteUser = catchAsync(async (req, res) => {
-    const { id } = req.params;
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
     const { role } = req.user;
 
     if (role !== 'owner' && role !== 'partner_owner') throw new AppError('Unauthorized', 403);
