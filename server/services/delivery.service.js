@@ -378,14 +378,14 @@ class DeliveryService {
         let order;
         if (isSplitMode) {
             order = await this._createSplitOrder(userId, role, {
-                customerName, customerPhone, pickupAddress, effectiveDeliveryAddress,
+                customerName, customerPhone, pickupAddress, deliveryAddress: effectiveDeliveryAddress,
                 pickupLat, pickupLng, deliveryLat, deliveryLng,
                 courierId, notes, deliveryFee, finalItems, itemsWithProvider,
                 effectiveSource, effectiveOrderType, trackingCode
             });
         } else {
             order = await this._createNormalOrder(userId, role, {
-                customerName, customerPhone, pickupAddress, effectiveDeliveryAddress,
+                customerName, customerPhone, pickupAddress, deliveryAddress: effectiveDeliveryAddress,
                 pickupLat, pickupLng, deliveryLat, deliveryLng,
                 courierId, notes, deliveryFee, finalItems,
                 effectiveSource, effectiveOrderType, trackingCode
@@ -420,11 +420,11 @@ class DeliveryService {
 
             const parentId = await deliveryRepo.createParentOrder({
                 userId, totalPrice,
-                details: `عميل: ${data.customerName} | هاتف: ${data.customerPhone} | عنوان: ${data.effectiveDeliveryAddress}`,
+                details: `عميل: ${data.customerName} | هاتف: ${data.customerPhone} | عنوان: ${data.deliveryAddress}`,
                 addressInfo: JSON.stringify({
                     customerName: data.customerName,
                     customerPhone: data.customerPhone,
-                    deliveryAddress: data.effectiveDeliveryAddress,
+                    deliveryAddress: data.deliveryAddress,
                     notes: data.notes
                 })
             }, client);
@@ -448,7 +448,7 @@ class DeliveryService {
                     userId, providerId, userName: data.customerName,
                     serviceName: `طلب يدوي (${group.items.length} أصناف)`,
                     providerName: group.name, price,
-                    details: `الهاتف: ${data.customerPhone} | العنوان: ${data.effectiveDeliveryAddress}`,
+                    details: `الهاتف: ${data.customerPhone} | العنوان: ${data.deliveryAddress}`,
                     items: group.items, parentId, deliveryOrderId: deliveryOrder.id
                 }, client);
             }));

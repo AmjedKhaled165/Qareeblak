@@ -578,9 +578,10 @@ class DeliveryRepository {
         `;
         const params = [
             data.orderNumber, data.customerName, data.customerPhone, data.pickupAddress, data.deliveryAddress,
-            data.pLat, data.pLng, data.dLat, data.dLng,
-            data.courierId, data.supervisorId, data.status, data.notes, data.deliveryFee,
-            JSON.stringify(data.items), data.source, data.orderType,
+            data.pickupLat || data.pLat || null, data.pickupLng || data.pLng || null,
+            data.deliveryLat || data.dLat || null, data.deliveryLng || data.dLng || null,
+            data.courierId, data.supervisorId || null, data.status, data.notes, data.deliveryFee,
+            JSON.stringify(data.items), data.effectiveSource || data.source, data.effectiveOrderType || data.orderType,
             trackingCode
         ];
         const result = await client.query(query, params);
