@@ -1,10 +1,21 @@
 const { z } = require('zod');
 
+const flexibleIdSchema = z.preprocess((value) => {
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return undefined;
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) ? parsed : trimmed;
+    }
+    if (value === null) return undefined;
+    return value;
+}, z.union([z.number().int().positive(), z.string()]).optional());
+
 const deliveryItemSchema = z.object({
     name: z.string().min(1, 'اسم المنتج مطلوب'),
     price: z.number().nonnegative('السعر يجب أن يكون رقماً موجباً'),
     quantity: z.number().int().positive('الكمية يجب أن تكون رقماً موجباً'),
-    providerId: z.number().int().positive().optional(),
+    providerId: flexibleIdSchema,
     providerName: z.string().optional()
 });
 
@@ -17,8 +28,8 @@ const createDeliveryOrderSchema = z.object({
     pickupLng: z.number().optional().nullable(),
     deliveryLat: z.number().optional().nullable(),
     deliveryLng: z.number().optional().nullable(),
-    courierId: z.number().int().positive().optional().nullable(),
-    customerId: z.number().int().positive().optional().nullable(),
+    courierId: flexibleIdSchema,
+    customerId: flexibleIdSchema,
     autoAssign: z.boolean().optional().default(false),
     notes: z.string().optional().nullable(),
     deliveryFee: z.number().nonnegative().optional().default(0),
@@ -39,16 +50,6 @@ const statusUpdateSchema = z.object({
     longitude: z.number().optional()
 });
 
-const positiveIntFromUnknown = z.preprocess((value) => {
-    if (typeof value === 'string') {
-        const trimmed = value.trim();
-        if (!trimmed) return undefined;
-        const parsed = Number(trimmed);
-        return Number.isFinite(parsed) ? parsed : value;
-    }
-    return value;
-}, z.number().int().positive());
-
 const normalizeSource = (value) => {
     if (value == null) return value;
     const text = String(value).trim().toLowerCase();
@@ -61,18 +62,18 @@ const normalizeSource = (value) => {
 };
 
 const assignCourierSchema = z.object({
-    courierId: positiveIntFromUnknown.optional(),
-    courier_id: positiveIntFromUnknown.optional(),
+    courierId: flexibleIdSchema,
+    courier_id: flexibleIdSchema,
     notes: z.string().optional()
 }).transform((val) => ({
     courierId: val.courierId ?? val.courier_id,
     notes: val.notes
-})).refine((val) => Number.isInteger(val.courierId) && val.courierId > 0, {
-    message: 'معرف المندوب مطلوب ويجب أن يكون رقماً صحيحاً'
+})).refine((val) => (typeof val.courierId === 'number' || typeof val.courierId === 'string') && val.courierId !== '', {
+    message: 'معرف المندوب مطلوب'
 });
 
 const updateOrderMetaSchema = z.object({
-    supervisor_id: z.union([positiveIntFromUnknown, z.null()]).optional(),
+    supervisor_id: flexibleIdSchema,
     source: z.preprocess(normalizeSource, z.enum(['qareeblak', 'manual', 'whatsapp', 'maintenance'])).optional()
 }).refine((val) => Object.keys(val).length > 0, {
     message: 'يجب إرسال حقل واحد على الأقل للتحديث'
