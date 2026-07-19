@@ -389,7 +389,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
         switch (status) {
             case 'pending': return 'قيد الانتظار';
             case 'assigned': return 'قيد الانتظار';
+            case 'confirmed': return 'جاري التحضير';
             case 'ready_for_pickup': return 'تم التجهيز';
+            case 'completed': return 'تم التجهيز';
             case 'picked_up': return 'تم الاستلام';
             case 'in_transit': return 'جاري التوصيل';
             case 'delivered': return 'تم التوصيل';

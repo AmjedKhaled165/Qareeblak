@@ -245,14 +245,14 @@ export default function OrdersPage() {
 
         // Custom groupings
         if (filter === 'pending') {
-            // Pending Tab: Only truly pending orders
-            return ['pending'].includes(order.status);
+            // Pending Tab: Orders waiting for providers
+            return ['pending', 'assigned'].includes(order.status);
         }
         const isEffectivelyReady = (order as any).sub_orders?.length > 0 && (order as any).providers_ready_for_pickup && ['pending', 'assigned', 'confirmed'].includes(order.status);
         const effectiveStatus = isEffectivelyReady ? 'ready_for_pickup' : order.status;
 
         if (filter === 'preparing') {
-            return ['confirmed', 'assigned'].includes(effectiveStatus);
+            return ['confirmed'].includes(effectiveStatus);
         }
         if (filter === 'ready') {
             return ['ready_for_pickup', 'completed'].includes(effectiveStatus);

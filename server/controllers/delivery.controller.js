@@ -30,11 +30,11 @@ function normalizeTrackingStatus(value) {
         'pending': 'pending',
         'new': 'pending',
 
-        'جاري التحضير': 'assigned',
-        'confirmed': 'assigned',
-        'accepted': 'assigned',
+        'جاري التحضير': 'confirmed',
+        'confirmed': 'confirmed',
+        'accepted': 'confirmed',
         'assigned': 'assigned',
-        'processing': 'assigned',
+        'processing': 'confirmed',
 
         'تم التحضير': 'ready_for_pickup',
         'جاهز للاستلام': 'ready_for_pickup',
@@ -70,9 +70,10 @@ function getAggregateTrackingStatus(statuses) {
     const weight = {
         pending: 1,
         assigned: 2,
-        ready_for_pickup: 3,
-        in_transit: 4,
-        delivered: 5,
+        confirmed: 3,
+        ready_for_pickup: 4,
+        in_transit: 5,
+        delivered: 6,
         cancelled: 0
     };
 
@@ -89,6 +90,7 @@ function getAggregateTrackingStatus(statuses) {
     if (allHaveStatusOrHigher(weight.delivered)) return 'delivered';
     if (allHaveStatusOrHigher(weight.in_transit)) return 'in_transit';
     if (allHaveStatusOrHigher(weight.ready_for_pickup)) return 'ready_for_pickup';
+    if (anyHaveStatusOrHigher(weight.confirmed)) return 'confirmed';
     if (anyHaveStatusOrHigher(weight.assigned)) return 'assigned';
     
     return 'pending';
