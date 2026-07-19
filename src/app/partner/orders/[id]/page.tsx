@@ -505,7 +505,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
     const nextStatus = getNextStatus(order.status);
     const isCourier = user?.role === 'courier';
     const canAssignCourier = user?.role === 'owner' || user?.role === 'supervisor';
-    const readySubOrderStatuses = new Set(['ready_for_pickup', 'completed', 'picked_up', 'in_transit', 'delivered', 'confirmed', 'accepted']);
+    const readySubOrderStatuses = new Set(['ready_for_pickup', 'completed', 'picked_up', 'in_transit', 'delivered']);
     const hasSubOrders = Array.isArray(order.sub_orders) && order.sub_orders.length > 0;
     const subOrdersReadyForPickup = hasSubOrders
         ? order.sub_orders!.every((s) => readySubOrderStatuses.has(String(s.status || '').toLowerCase()))

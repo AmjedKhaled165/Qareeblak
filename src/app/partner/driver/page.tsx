@@ -655,8 +655,8 @@ export default function DriverDashboard() {
                                                     const effectiveStatus = isEffectivelyReady ? 'ready_for_pickup' : order.status;
                                                     
                                                     let label = effectiveStatus;
-                                                    if (effectiveStatus === 'pending') label = 'قيد الانتظار';
-                                                    else if (effectiveStatus === 'assigned' || effectiveStatus === 'confirmed') label = 'جاري التحضير';
+                                                    if (effectiveStatus === 'pending' || effectiveStatus === 'assigned') label = 'قيد الانتظار';
+                                                    else if (effectiveStatus === 'confirmed') label = 'جاري التحضير';
                                                     else if (effectiveStatus === 'ready_for_pickup') label = 'تم التجهيز';
                                                     else if (effectiveStatus === 'in_transit' || effectiveStatus === 'picked_up') label = 'جاري التوصيل';
                                                     else if (effectiveStatus === 'delivered') label = 'تم التوصيل';

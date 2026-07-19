@@ -46,7 +46,7 @@ const OrderStates = {
     // Rejection / Cancel States
     CANCELLED: new Set(['cancelled', 'rejected']),
     // Confirmed / Acting States
-    CONFIRMED: new Set(['confirmed', 'accepted', 'processing', 'assigned', 'accepted_by_provider']),
+    CONFIRMED: new Set(['confirmed', 'accepted', 'processing', 'accepted_by_provider']),
     // Ready States
     READY: new Set(['completed', 'ready_for_pickup', 'ready', 'archived']),
     // In Transit
