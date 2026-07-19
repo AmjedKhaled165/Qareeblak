@@ -132,6 +132,7 @@ redisPublishClient.on('ready', () => {
 
 // Make io accessible to routes
 app.set('io', io);
+require('./utils/io-holder').set(io);
 
 // Configure Middleware (CORS, CSP, Compression, Body Parsing, Static, Logger)
 configureMiddleware(app, express);

@@ -197,6 +197,8 @@ const initializeWorkers = async () => {
             const bookingRepo = require('../repositories/booking.repository');
             const { syncParentOrderStatus } = require('./parent-sync');
             const { performAutoAssign } = require('./driver-assignment');
+            const ioHolder = require('./io-holder');
+            const workerIo = ioHolder.get();
             
             try {
                 // 1. Get full booking context
@@ -215,9 +217,9 @@ const initializeWorkers = async () => {
                 // 3. (REMOVED) We no longer update halan_order_id directly here.
                 // It is handled centrally by syncParentOrderStatus below.
 
-                // 4. Parent Order Sync
+                // 4. Parent Order Sync — pass io so socket events are emitted
                 if (booking.parent_order_id) {
-                    await syncParentOrderStatus(booking.parent_order_id).catch(e => logger.error(`ParentSync failed: ${e.message}`));
+                    await syncParentOrderStatus(booking.parent_order_id, workerIo).catch(e => logger.error(`ParentSync failed: ${e.message}`));
                 }
 
                 // 5. Anti-Fraud

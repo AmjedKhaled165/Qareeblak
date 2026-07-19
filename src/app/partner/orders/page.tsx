@@ -43,7 +43,7 @@ export default function OrdersPage() {
     const [user, setUser] = useState<any>(null);
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'pending' | 'in_transit' | 'delivered' | 'cancelled' | 'edited'>('all');
+    const [filter, setFilter] = useState<'all' | 'pending' | 'preparing' | 'ready' | 'in_transit' | 'delivered' | 'edited' | 'cancelled'>('all');
 
     // Status Modal State
     const [modalState, setModalState] = useState<{
@@ -190,12 +190,15 @@ export default function OrdersPage() {
     const getStatusLabel = (status: string) => {
         switch (status) {
             case 'pending': return 'قيد الانتظار';
-            case 'assigned': return 'تم التعيين';
+            case 'confirmed': return 'جاري التحضير';
+            case 'assigned': return 'جاري التحضير';
             case 'ready_for_pickup': return 'تم التجهيز';
-            case 'picked_up': return 'تم الاستلام';
+            case 'completed': return 'تم التجهيز';
+            case 'picked_up': return 'جاري التوصيل';
             case 'in_transit': return 'جاري التوصيل';
             case 'delivered': return 'تم التوصيل';
             case 'cancelled': return 'ملغي';
+            case 'edited': return 'معدل';
             default: return status;
         }
     };
@@ -203,12 +206,15 @@ export default function OrdersPage() {
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'pending': return 'bg-amber-100 text-amber-700';
+            case 'confirmed': return 'bg-blue-100 text-blue-700';
             case 'assigned': return 'bg-blue-100 text-blue-700';
-            case 'ready_for_pickup': return 'bg-yellow-100 text-yellow-700';
-            case 'picked_up': return 'bg-indigo-100 text-indigo-700';
+            case 'ready_for_pickup': return 'bg-emerald-100 text-emerald-700';
+            case 'completed': return 'bg-emerald-100 text-emerald-700';
+            case 'picked_up': return 'bg-violet-100 text-violet-700';
             case 'in_transit': return 'bg-violet-100 text-violet-700';
             case 'delivered': return 'bg-green-100 text-green-700';
             case 'cancelled': return 'bg-red-100 text-red-700';
+            case 'edited': return 'bg-yellow-100 text-yellow-700';
             default: return 'bg-slate-100 text-slate-700';
         }
     };
@@ -216,9 +222,16 @@ export default function OrdersPage() {
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'pending': return Clock;
+            case 'confirmed': return Package;
+            case 'assigned': return Package;
+            case 'ready_for_pickup': return CheckCircle;
+            case 'completed': return CheckCircle;
+            case 'picked_up': return Truck;
+            case 'in_transit': return Truck;
             case 'delivered': return CheckCircle;
             case 'cancelled': return XCircle;
-            default: return Truck;
+            case 'edited': return RefreshCw;
+            default: return Package;
         }
     };
 
@@ -227,21 +240,27 @@ export default function OrdersPage() {
 
     // Client-side filtering for status groups
     const filteredOrders = orders.filter(order => {
-        // Removed filtering of delivered orders for couriers so they can view them
-
         if (filter === 'all') return true;
         if (filter === 'cancelled' || filter === 'edited') return true; // Already filtered by backend
 
         // Custom groupings
         if (filter === 'pending') {
-            // Pending Tab: "Waiting" + "Assigned" (Driver hasn't accepted yet)
-            return ['pending', 'جاري تحضير الطلب', 'assigned', 'تم تعيين المندوب'].includes(order.status);
+            // Pending Tab: Only truly pending orders
+            return ['pending'].includes(order.status);
+        }
+        if (filter === 'preparing') {
+            // Preparing Tab: Provider accepted / preparing
+            return ['confirmed', 'assigned'].includes(order.status);
+        }
+        if (filter === 'ready') {
+            // Ready Tab: All providers finished preparation
+            return ['ready_for_pickup', 'completed'].includes(order.status);
         }
         if (filter === 'in_transit') {
             // In Delivery Tab: "Picked Up" + "In Transit"
-            return ['picked_up', 'تم الاستلام من المطعم', 'in_transit', 'جاري التوصيل'].includes(order.status);
+            return ['picked_up', 'in_transit'].includes(order.status);
         }
-        if (filter === 'delivered') return ['delivered', 'تم التوصيل'].includes(order.status);
+        if (filter === 'delivered') return ['delivered'].includes(order.status);
 
         return true;
     });
@@ -274,6 +293,8 @@ export default function OrdersPage() {
                         {[
                             { key: 'all', label: 'الكل' },
                             { key: 'pending', label: 'قيد الانتظار' },
+                            { key: 'preparing', label: 'جاري التحضير' },
+                            { key: 'ready', label: 'تم التجهيز' },
                             { key: 'in_transit', label: 'جاري التوصيل' },
                             { key: 'delivered', label: 'مكتمل' },
                             { key: 'edited', label: 'المعدلة' },

@@ -213,6 +213,20 @@ async function syncParentOrderStatus(parentId, io) {
             }
 
             if (io) {
+                // Emit comprehensive real-time events so all dashboards update
+                const normalizedOrderId = Number(activeBookingWithDelivery?.halan_order_id || 0);
+                if (normalizedOrderId) {
+                    io.emit('order-updated', {
+                        orderId: normalizedOrderId,
+                        updates: { status: newGlobalStatus },
+                        status: newGlobalStatus
+                    });
+                    io.emit('order-status-changed', { orderId: normalizedOrderId, status: newGlobalStatus });
+                    io.emit('booking-updated', {
+                        halanOrderId: normalizedOrderId,
+                        status: newGlobalStatus
+                    });
+                }
                 io.emit('order-status-changed', { orderId: `P${parentId}`, status: newGlobalStatus });
             }
 
