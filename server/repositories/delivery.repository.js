@@ -767,7 +767,7 @@ class DeliveryRepository {
 
     async areAllLinkedBookingsReady(orderId) {
         const result = await pool.query(
-            `SELECT COALESCE(bool_and(status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed')), true) AS all_ready
+            `SELECT COALESCE(bool_and(status IN ('ready_for_pickup', 'picked_up', 'in_transit', 'delivered', 'completed', 'confirmed', 'accepted')), true) AS all_ready
              FROM bookings
              WHERE CAST(halan_order_id AS TEXT) = CAST($1 AS TEXT)`,
             [String(orderId)]
