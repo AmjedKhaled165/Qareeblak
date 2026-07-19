@@ -287,6 +287,12 @@ class BookingService {
             }
             if (providerUserId) io.to(`user-${providerUserId}`).emit('booking-updated', payload);
             io.to('admin').emit('booking-updated', payload);
+
+            // [FIX] Run Parent Sync directly to guarantee status propagates (critical if Background Worker is disabled)
+            if (bookingInfo.parent_order_id) {
+                const { syncParentOrderStatus } = require('../utils/parent-sync');
+                await syncParentOrderStatus(bookingInfo.parent_order_id, io).catch(e => logger.error(`[BookingService] Sync failed: ${e.message}`));
+            }
         }
 
         let halanOrderId = bookingInfo.halan_order_id;

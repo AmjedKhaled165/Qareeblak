@@ -183,19 +183,23 @@ async function syncParentOrderStatus(parentId, io) {
 
         let autoAssignTarget = null;
 
-        // Update Global Status if different
-        if (newGlobalStatus !== currentParentStatus) {
-            logger.info(`[ParentSync] Updating Global Status: ${currentParentStatus} -> ${newGlobalStatus} (accepted ${total_accepted}/${total_required})`);
+        const activeBookingWithDelivery = activeRows.find(r => r.halan_order_id);
+        const currentDeliveryStatus = activeBookingWithDelivery ? String(activeBookingWithDelivery.delivery_status || '').toLowerCase().trim() : null;
+
+        // Update Global Status if different from Parent OR Delivery Order
+        if (newGlobalStatus !== currentParentStatus || (currentDeliveryStatus && newGlobalStatus !== currentDeliveryStatus)) {
+            logger.info(`[ParentSync] Updating Global Status: ${currentParentStatus} -> ${newGlobalStatus} (Delivery: ${currentDeliveryStatus} -> ${newGlobalStatus})`);
             
             // 1. Update Parent Order
-            const parentStatusColForUpdate = parentStatusCol || 'status';
-            const parentUpdatedAtColForUpdate = parentUpdatedAtCol ? `, ${parentUpdatedAtCol} = CURRENT_TIMESTAMP` : ``;
-            const updateSql = `UPDATE parent_orders SET ${parentStatusColForUpdate} = $1${parentUpdatedAtColForUpdate} WHERE id = $2`;
-            await client.query(updateSql, [newGlobalStatus, parentId]);
+            if (newGlobalStatus !== currentParentStatus) {
+                const parentStatusColForUpdate = parentStatusCol || 'status';
+                const parentUpdatedAtColForUpdate = parentUpdatedAtCol ? `, ${parentUpdatedAtCol} = CURRENT_TIMESTAMP` : ``;
+                const updateSql = `UPDATE parent_orders SET ${parentStatusColForUpdate} = $1${parentUpdatedAtColForUpdate} WHERE id = $2`;
+                await client.query(updateSql, [newGlobalStatus, parentId]);
+            }
 
             // 2. Update Delivery Order if exists
-            const activeBookingWithDelivery = activeRows.find(r => r.halan_order_id);
-            if (activeBookingWithDelivery) {
+            if (activeBookingWithDelivery && newGlobalStatus !== currentDeliveryStatus) {
                 const deliveryOrderId = activeBookingWithDelivery.halan_order_id;
                 await client.query(`UPDATE delivery_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`, [newGlobalStatus, deliveryOrderId]);
                 
