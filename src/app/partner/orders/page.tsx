@@ -191,7 +191,7 @@ export default function OrdersPage() {
         switch (status) {
             case 'pending': return 'قيد الانتظار';
             case 'confirmed': return 'جاري التحضير';
-            case 'assigned': return 'جاري التحضير';
+            case 'assigned': return 'قيد الانتظار';
             case 'ready_for_pickup': return 'تم التجهيز';
             case 'completed': return 'تم التجهيز';
             case 'picked_up': return 'جاري التوصيل';
@@ -207,7 +207,7 @@ export default function OrdersPage() {
         switch (status) {
             case 'pending': return 'bg-amber-100 text-amber-700';
             case 'confirmed': return 'bg-blue-100 text-blue-700';
-            case 'assigned': return 'bg-blue-100 text-blue-700';
+            case 'assigned': return 'bg-amber-100 text-amber-700';
             case 'ready_for_pickup': return 'bg-emerald-100 text-emerald-700';
             case 'completed': return 'bg-emerald-100 text-emerald-700';
             case 'picked_up': return 'bg-violet-100 text-violet-700';
@@ -223,7 +223,7 @@ export default function OrdersPage() {
         switch (status) {
             case 'pending': return Clock;
             case 'confirmed': return Package;
-            case 'assigned': return Package;
+            case 'assigned': return Clock;
             case 'ready_for_pickup': return CheckCircle;
             case 'completed': return CheckCircle;
             case 'picked_up': return Truck;

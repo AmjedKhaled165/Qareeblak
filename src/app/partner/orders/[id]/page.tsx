@@ -388,7 +388,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
     const getStatusLabel = (status: string) => {
         switch (status) {
             case 'pending': return 'قيد الانتظار';
-            case 'assigned': return 'تم التعيين';
+            case 'assigned': return 'قيد الانتظار';
             case 'ready_for_pickup': return 'تم التجهيز';
             case 'picked_up': return 'تم الاستلام';
             case 'in_transit': return 'جاري التوصيل';

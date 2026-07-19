@@ -290,11 +290,11 @@ export default function TrackOrderPage() {
             step: 2
         },
         assigned: {
-            label: 'جاري التحضير',
-            icon: ChefHat,
-            color: 'text-orange-500',
-            bgColor: 'bg-orange-500',
-            step: 2
+            label: 'تم استلام الطلب',
+            icon: Package,
+            color: 'text-amber-500',
+            bgColor: 'bg-amber-500',
+            step: 1
         },
         ready_for_pickup: {
             label: 'تم التحضير',
