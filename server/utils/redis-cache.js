@@ -95,7 +95,7 @@ function cacheMiddleware(ttl = 300) {
         const urlObj = new URL(req.originalUrl, `http://${req.headers.host}`);
 
         // Allowed query parameters for caching
-        const allowedParams = ['page', 'limit', 'sort', 'category', 'status', 'providerId', 'userId', 'search', 'date'];
+        const allowedParams = ['page', 'limit', 'sort', 'category', 'status', 'providerId', 'userId', 'search', 'date', 'q', 'type'];
 
         const filteredParams = new URLSearchParams();
         urlObj.searchParams.forEach((value, key) => {
