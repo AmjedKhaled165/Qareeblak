@@ -181,6 +181,8 @@ async function syncParentOrderStatus(parentId, io) {
             newGlobalStatus = 'confirmed';
         }
 
+        let autoAssignTarget = null;
+
         // Update Global Status if different
         if (newGlobalStatus !== currentParentStatus) {
             logger.info(`[ParentSync] Updating Global Status: ${currentParentStatus} -> ${newGlobalStatus} (accepted ${total_accepted}/${total_required})`);
@@ -202,12 +204,7 @@ async function syncParentOrderStatus(parentId, io) {
                     // Check if a courier is already assigned
                     const orderCheck = await client.query('SELECT supervisor_id FROM delivery_orders WHERE id = $1', [deliveryOrderId]);
                     if (orderCheck.rows.length > 0 && !orderCheck.rows[0].supervisor_id) {
-                        const { performAutoAssign } = require('./driver-assignment');
-                        logger.info(`[ParentSync] First store accepted! Triggering auto-assign for delivery order #${deliveryOrderId}`);
-                        // Change 'confirmed' to 'preparing' internally for auto-assign status if needed, or stick to 'confirmed'
-                        // 'pending' or 'assigned' or 'confirmed'
-                        // we pass 'confirmed' as target status so the courier sees it
-                        await performAutoAssign(deliveryOrderId, null, io, 'confirmed').catch(e => logger.warn(`AutoAssign failed: ${e.message}`));
+                        autoAssignTarget = deliveryOrderId;
                     }
                 }
             }
@@ -250,6 +247,15 @@ async function syncParentOrderStatus(parentId, io) {
         }
 
         await client.query('COMMIT');
+
+        // Post-transaction side-effects
+        if (autoAssignTarget) {
+            const { performAutoAssign } = require('./driver-assignment');
+            logger.info(`[ParentSync] First store accepted! Triggering auto-assign for delivery order #${autoAssignTarget}`);
+            // Fire and forget, don't await to avoid holding up the process
+            performAutoAssign(autoAssignTarget, null, io, 'confirmed').catch(e => logger.warn(`AutoAssign failed: ${e.message}`));
+        }
+
     } catch (e) {
         await client.query('ROLLBACK');
         logger.error(`[ParentSync] Transaction Error for order #${parentId}: ${e.message}`);
