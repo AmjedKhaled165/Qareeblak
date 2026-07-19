@@ -402,6 +402,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         switch (currentStatus) {
             case 'pending': return { status: 'assigned', label: 'تقبل الطلب' };
             case 'assigned': return { status: 'in_transit', label: 'استلام وبدء التوصيل' };
+            case 'confirmed': return { status: 'in_transit', label: 'استلام وبدء التوصيل' };
             case 'ready_for_pickup': return { status: 'in_transit', label: 'استلام وبدء التوصيل' };
             case 'picked_up': return { status: 'in_transit', label: 'بدء التوصيل' };
             case 'in_transit': return { status: 'delivered', label: 'تم التوصيل' };
@@ -974,7 +975,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
             {/* Fixed Bottom Actions */}
             <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-4 space-y-3 z-50">
                 {/* Status Action Button */}
-                {isCourier && nextStatus && (
+                {(isCourier || ['owner', 'manager', 'supervisor'].includes(user?.role)) && nextStatus && (
                     <button
                         onClick={() => {
                             if (hasChanges) {

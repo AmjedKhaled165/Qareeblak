@@ -660,8 +660,8 @@ class DeliveryRepository {
             values.push(`$${params.length}`);
         }
         
-        if (bCols.has('halan_order_id') && data.deliveryOrderId) {
-            params.push(data.deliveryOrderId);
+        if (bCols.has('halan_order_id') && (data.deliveryOrderId || data.halanOrderId)) {
+            params.push(data.deliveryOrderId || data.halanOrderId);
             insertCols.push('halan_order_id');
             values.push(`$${params.length}`);
         }
