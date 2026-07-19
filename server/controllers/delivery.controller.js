@@ -614,14 +614,37 @@ exports.publishOrder = catchAsync(async (req, res, next) => {
 exports.updateOrder = catchAsync(async (req, res, next) => {
     const safeData = {};
     if (req.body.status !== undefined) safeData.status = String(req.body.status);
-    if (req.body.courier_id !== undefined) safeData.courier_id = req.body.courier_id ? parseInt(req.body.courier_id) : null;
+    
+    const courierId = req.body.courier_id !== undefined ? req.body.courier_id : req.body.courierId;
+    if (courierId !== undefined) safeData.courier_id = courierId ? parseInt(courierId) : null;
+    
+    const supervisorId = req.body.supervisor_id !== undefined ? req.body.supervisor_id : req.body.supervisorId;
+    if (supervisorId !== undefined) safeData.supervisor_id = supervisorId ? parseInt(supervisorId) : null;
+    
     if (req.body.source !== undefined) safeData.source = req.body.source;
-    if (req.body.delivery_fee !== undefined) {
-        const parsedFee = Number(req.body.delivery_fee);
+    
+    const deliveryFee = req.body.delivery_fee !== undefined ? req.body.delivery_fee : req.body.deliveryFee;
+    if (deliveryFee !== undefined) {
+        const parsedFee = Number(deliveryFee);
         if (!Number.isFinite(parsedFee) || parsedFee < 0) {
             return next(new AppError('سعر التوصيل غير صالح', 400));
         }
         safeData.delivery_fee = parsedFee;
+    }
+
+    const customerName = req.body.customer_name !== undefined ? req.body.customer_name : req.body.customerName;
+    if (customerName !== undefined) safeData.customer_name = String(customerName);
+
+    const customerPhone = req.body.customer_phone !== undefined ? req.body.customer_phone : req.body.customerPhone;
+    if (customerPhone !== undefined) safeData.customer_phone = String(customerPhone);
+
+    const deliveryAddress = req.body.delivery_address !== undefined ? req.body.delivery_address : req.body.deliveryAddress;
+    if (deliveryAddress !== undefined) safeData.delivery_address = String(deliveryAddress);
+
+    if (req.body.notes !== undefined) safeData.notes = String(req.body.notes);
+
+    if (req.body.items !== undefined) {
+        safeData.items = typeof req.body.items === 'string' ? req.body.items : JSON.stringify(req.body.items);
     }
 
     if (Object.keys(safeData).length === 0) {

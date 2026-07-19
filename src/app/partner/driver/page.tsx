@@ -330,6 +330,30 @@ export default function DriverDashboard() {
         }
     };
 
+    const handleUpdateStatus = async (orderId: number, status: string, statusName: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const result = await apiCall(`/halan/orders/${orderId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status })
+            });
+
+            if (result.success) {
+                setModalState({
+                    isOpen: true,
+                    title: 'تم بنجاح',
+                    message: `تم تحديث حالة الطلب إلى: ${statusName}`,
+                    type: 'success'
+                });
+                setTimeout(() => fetchActiveOrders(true), 500);
+            } else {
+                setModalState({ isOpen: true, title: 'خطأ', message: result.error || 'حدث خطأ أثناء تحديث الطلب', type: 'error' });
+            }
+        } catch (error: any) {
+            setModalState({ isOpen: true, title: 'خطأ', message: error.message || 'حدث خطأ أثناء تحديث الطلب', type: 'error' });
+        }
+    };
+
     const handleDeliverOrder = async (orderId: number, e: React.MouseEvent) => {
         e.stopPropagation();
 
@@ -741,68 +765,141 @@ export default function DriverDashboard() {
 
                                         {/* Action Buttons for Courier */}
                                         <div className="flex gap-3 pt-4 border-t border-white/5">
-                                            {(['pending', 'جاري تحضير الطلب'].includes(order.status) || ['ready_for_pickup', 'جاهز للاستلام'].includes(order.status)) && !order.courier_id && (
-                                                <motion.button
-                                                    onClick={(e) => handleAcceptOrder(order.id, e)}
-                                                    whileHover={{ scale: 1.05 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-violet-500/30 text-sm"
-                                                >
-                                                    قبول واستلام الطلب
-                                                </motion.button>
-                                            )}
-                                            {(['assigned', 'تم تعيين المندوب'].includes(order.status) || (['ready_for_pickup', 'جاهز للاستلام'].includes(order.status) && order.courier_id)) && (
-                                                <motion.button
-                                                    onClick={(e) => handlePickupOrder(order.id, e)}
-                                                    whileHover={{ scale: 1.05 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    disabled={order.providers_ready_for_pickup === false}
-                                                    className={`flex-1 font-bold py-3 rounded-xl transition-all text-sm ${order.providers_ready_for_pickup === false
-                                                        ? 'bg-slate-500/40 text-slate-300 cursor-not-allowed'
-                                                        : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
-                                                        }`}
-                                                    title={order.providers_ready_for_pickup === false ? 'انتظر حتى كل مقدم خدمة يعمل تم التجهيز' : 'تم الاستلام'}
-                                                >
-                                                    {order.providers_ready_for_pickup === false ? 'بانتظار تجهيز كل المتاجر' : 'تم الاستلام'}
-                                                </motion.button>
-                                            )}
-                                            {['picked_up', 'تم الاستلام من المطعم'].includes(order.status) && (
-                                                <div className="flex-1 flex flex-col gap-2">
-                                                    <div className="flex gap-2">
-                                                        <input
-                                                            type="number"
-                                                            min="1"
-                                                            step="1"
-                                                            value={deliveryFeeInputs[order.id] ?? ''}
-                                                            onChange={(e) => setDeliveryFeeInputs((prev) => ({ ...prev, [order.id]: e.target.value }))}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="flex-1 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"
-                                                            placeholder="سعر التوصيل"
-                                                        />
+                                            {(!order.sub_orders || order.sub_orders.length === 0) ? (
+                                                <div className="flex w-full gap-2">
+                                                    {(['pending', 'قيد الانتظار'].includes(order.status)) && !order.courier_id && (
                                                         <motion.button
-                                                            onClick={(e) => handleSaveDeliveryFee(order.id, e)}
-                                                            whileHover={{ scale: 1.03 }}
-                                                            whileTap={{ scale: 0.97 }}
-                                                            disabled={Boolean(savingDeliveryFee[order.id])}
-                                                            className={`px-3 py-2 rounded-xl font-bold text-sm transition-all ${savingDeliveryFee[order.id] ? 'bg-slate-500 text-slate-200 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'}`}
+                                                            onClick={(e) => handleAcceptOrder(order.id, e)}
+                                                            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                                            className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-violet-500/30 text-xs sm:text-sm"
                                                         >
-                                                            {savingDeliveryFee[order.id] ? 'جاري الحفظ...' : 'حفظ'}
+                                                            استلام الطلب
                                                         </motion.button>
-                                                    </div>
-                                                    <motion.button
-                                                        onClick={(e) => handleDeliverOrder(order.id, e)}
-                                                        whileHover={{ scale: 1.05 }}
-                                                        whileTap={{ scale: 0.95 }}
-                                                        disabled={!(Number(order.delivery_fee || 0) > 0)}
-                                                        className={`flex-1 font-bold py-3 rounded-xl transition-all text-sm ${Number(order.delivery_fee || 0) > 0
-                                                            ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                                                            : 'bg-slate-500/40 text-slate-300 cursor-not-allowed'
-                                                            }`}
-                                                        title={Number(order.delivery_fee || 0) > 0 ? 'تم التوصيل' : 'احفظ سعر التوصيل أولاً'}
-                                                    >
-                                                        تم التوصيل
-                                                    </motion.button>
+                                                    )}
+                                                    {(['assigned', 'تم تعيين المندوب'].includes(order.status) || (['pending', 'قيد الانتظار'].includes(order.status) && order.courier_id)) && (
+                                                        <motion.button
+                                                            onClick={(e) => handleUpdateStatus(order.id, 'confirmed', 'جاري التجهيز', e)}
+                                                            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                                            className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-amber-500/30 text-xs sm:text-sm"
+                                                        >
+                                                            جاري التجهيز
+                                                        </motion.button>
+                                                    )}
+                                                    {['confirmed', 'جاري تحضير الطلب'].includes(order.status) && (
+                                                        <motion.button
+                                                            onClick={(e) => handleUpdateStatus(order.id, 'ready_for_pickup', 'تم التحضير', e)}
+                                                            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/30 text-xs sm:text-sm"
+                                                        >
+                                                            تم التحضير
+                                                        </motion.button>
+                                                    )}
+                                                    {['ready_for_pickup', 'جاهز للاستلام'].includes(order.status) && (
+                                                        <motion.button
+                                                            onClick={(e) => handlePickupOrder(order.id, e)}
+                                                            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/30 text-xs sm:text-sm"
+                                                        >
+                                                            جاري التوصيل
+                                                        </motion.button>
+                                                    )}
+                                                    {['picked_up', 'تم الاستلام من المطعم', 'in_transit', 'جاري التوصيل'].includes(order.status) && (
+                                                        <div className="flex-1 flex flex-col gap-2 w-full">
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="number" min="1" step="1"
+                                                                    value={deliveryFeeInputs[order.id] ?? ''}
+                                                                    onChange={(e) => setDeliveryFeeInputs((prev) => ({ ...prev, [order.id]: e.target.value }))}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="flex-1 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"
+                                                                    placeholder="التوصيل"
+                                                                />
+                                                                <motion.button
+                                                                    onClick={(e) => handleSaveDeliveryFee(order.id, e)}
+                                                                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                                                                    disabled={Boolean(savingDeliveryFee[order.id])}
+                                                                    className={`px-3 py-2 rounded-xl font-bold text-sm transition-all ${savingDeliveryFee[order.id] ? 'bg-slate-500 text-slate-200 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'}`}
+                                                                >
+                                                                    {savingDeliveryFee[order.id] ? '...' : 'حفظ'}
+                                                                </motion.button>
+                                                            </div>
+                                                            <motion.button
+                                                                onClick={(e) => handleDeliverOrder(order.id, e)}
+                                                                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                                                disabled={!(Number(order.delivery_fee || 0) > 0)}
+                                                                className={`w-full font-bold py-3 rounded-xl transition-all text-sm ${Number(order.delivery_fee || 0) > 0 ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-slate-500/40 text-slate-300 cursor-not-allowed'}`}
+                                                            >
+                                                                تم التوصيل
+                                                            </motion.button>
+                                                        </div>
+                                                    )}
                                                 </div>
+                                            ) : (
+                                                <>
+                                                    {(['pending', 'جاري تحضير الطلب'].includes(order.status) || ['ready_for_pickup', 'جاهز للاستلام'].includes(order.status)) && !order.courier_id && (
+                                                        <motion.button
+                                                            onClick={(e) => handleAcceptOrder(order.id, e)}
+                                                            whileHover={{ scale: 1.05 }}
+                                                            whileTap={{ scale: 0.95 }}
+                                                            className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-violet-500/30 text-sm"
+                                                        >
+                                                            قبول واستلام الطلب
+                                                        </motion.button>
+                                                    )}
+                                                    {(['assigned', 'تم تعيين المندوب'].includes(order.status) || (['ready_for_pickup', 'جاهز للاستلام'].includes(order.status) && order.courier_id)) && (
+                                                        <motion.button
+                                                            onClick={(e) => handlePickupOrder(order.id, e)}
+                                                            whileHover={{ scale: 1.05 }}
+                                                            whileTap={{ scale: 0.95 }}
+                                                            disabled={order.providers_ready_for_pickup === false}
+                                                            className={`flex-1 font-bold py-3 rounded-xl transition-all text-sm ${order.providers_ready_for_pickup === false
+                                                                ? 'bg-slate-500/40 text-slate-300 cursor-not-allowed'
+                                                                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                                                                }`}
+                                                            title={order.providers_ready_for_pickup === false ? 'انتظر حتى كل مقدم خدمة يعمل تم التجهيز' : 'تم الاستلام'}
+                                                        >
+                                                            {order.providers_ready_for_pickup === false ? 'بانتظار تجهيز كل المتاجر' : 'تم الاستلام'}
+                                                        </motion.button>
+                                                    )}
+                                                    {['picked_up', 'تم الاستلام من المطعم', 'in_transit', 'جاري التوصيل'].includes(order.status) && (
+                                                        <div className="flex-1 flex flex-col gap-2">
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    step="1"
+                                                                    value={deliveryFeeInputs[order.id] ?? ''}
+                                                                    onChange={(e) => setDeliveryFeeInputs((prev) => ({ ...prev, [order.id]: e.target.value }))}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="flex-1 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"
+                                                                    placeholder="سعر التوصيل"
+                                                                />
+                                                                <motion.button
+                                                                    onClick={(e) => handleSaveDeliveryFee(order.id, e)}
+                                                                    whileHover={{ scale: 1.03 }}
+                                                                    whileTap={{ scale: 0.97 }}
+                                                                    disabled={Boolean(savingDeliveryFee[order.id])}
+                                                                    className={`px-3 py-2 rounded-xl font-bold text-sm transition-all ${savingDeliveryFee[order.id] ? 'bg-slate-500 text-slate-200 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30'}`}
+                                                                >
+                                                                    {savingDeliveryFee[order.id] ? 'جاري الحفظ...' : 'حفظ'}
+                                                                </motion.button>
+                                                            </div>
+                                                            <motion.button
+                                                                onClick={(e) => handleDeliverOrder(order.id, e)}
+                                                                whileHover={{ scale: 1.05 }}
+                                                                whileTap={{ scale: 0.95 }}
+                                                                disabled={!(Number(order.delivery_fee || 0) > 0)}
+                                                                className={`flex-1 font-bold py-3 rounded-xl transition-all text-sm ${Number(order.delivery_fee || 0) > 0
+                                                                    ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                                                    : 'bg-slate-500/40 text-slate-300 cursor-not-allowed'
+                                                                    }`}
+                                                                title={Number(order.delivery_fee || 0) > 0 ? 'تم التوصيل' : 'احفظ سعر التوصيل أولاً'}
+                                                            >
+                                                                تم التوصيل
+                                                            </motion.button>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </motion.div>
