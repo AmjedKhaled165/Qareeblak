@@ -470,6 +470,26 @@ class DeliveryService {
         const currentOrder = await deliveryRepo.getOrderByIdSecure(id, { userId, role });
         if (!currentOrder) throw new AppError('Order not found or unauthorized', 404);
 
+        const normalizedCurrentStatus = String(currentOrder.status || '').trim().toLowerCase();
+        if (['delivered', 'تم التوصيل'].includes(normalizedCurrentStatus) && !data.status) {
+            throw new AppError('لا يمكن تعديل بيانات طلب تم توصيله', 400);
+        }
+
+        const normalizedSource = String(currentOrder.source || '').trim().toLowerCase();
+        if (normalizedSource === 'qareeblak') {
+            const restrictedFields = ['customer_name', 'customer_phone', 'delivery_address', 'items', 'notes'];
+            let hasRestricted = false;
+            for (const f of restrictedFields) {
+                if (data[f] !== undefined) {
+                    hasRestricted = true;
+                    delete data[f];
+                }
+            }
+            if (Object.keys(data).length === 0) {
+                throw new AppError('لا يمكن تعديل تفاصيل الطلبات الواردة من تطبيق قريبلك (مثل الاسم، العنوان، المنتجات). يُسمح فقط بتعديل السعر أو المندوب أو الحالة.', 400);
+            }
+        }
+
         const normalizedRole = String(role || '').toLowerCase();
         const isCourier = ['courier', 'partner_courier'].includes(normalizedRole);
         const nextStatus = String(data?.status || '').trim().toLowerCase();
@@ -495,6 +515,12 @@ class DeliveryService {
 
         if (!updated) {
             throw new AppError('لا توجد بيانات قابلة للتحديث', 400);
+        }
+
+        try {
+            await deliveryRepo.syncEditsToBookingsAndParent(id, data);
+        } catch (e) {
+            logger.error(`Error syncing edits to bookings for order ${id}:`, e);
         }
 
         if (io) {

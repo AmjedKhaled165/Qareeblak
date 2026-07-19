@@ -704,6 +704,63 @@ class DeliveryRepository {
         return result.rows[0] ? hydrateOrderDisplayFields(result.rows[0]) : null;
     }
 
+    async syncEditsToBookingsAndParent(orderId, updatedData) {
+        if (!updatedData.items && !updatedData.customer_name && !updatedData.customer_phone && !updatedData.delivery_address && !updatedData.notes) return;
+
+        const bookings = await this.getLinkedBookings(orderId);
+        if (!bookings || bookings.length === 0) return;
+
+        let parsedItems = null;
+        if (updatedData.items) {
+            try {
+                parsedItems = typeof updatedData.items === 'string' ? JSON.parse(updatedData.items) : updatedData.items;
+            } catch (e) {
+                logger.error('Failed to parse updated items for sync', e);
+            }
+        }
+
+        const bColsRes = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name='bookings'");
+        const bCols = new Set(bColsRes.rows.map(r => r.column_name));
+
+        for (const booking of bookings) {
+            const updates = {};
+            
+            if (updatedData.customer_name) {
+                if (bCols.has('user_name')) updates.user_name = updatedData.customer_name;
+                else if (bCols.has('customer_name')) updates.customer_name = updatedData.customer_name;
+            }
+
+            if (parsedItems && bCols.has('items')) {
+                const providerItems = parsedItems.filter(item => Number(item.providerId) === Number(booking.provider_id) || Number(item.provider_id) === Number(booking.provider_id));
+                updates.items = JSON.stringify(providerItems);
+                
+                const newPrice = providerItems.reduce((sum, item) => sum + (Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)), 0);
+                updates.price = newPrice;
+            }
+
+            if (Object.keys(updates).length > 0) {
+                const setClause = Object.keys(updates).map((key, i) => `${key} = $${i + 1}`).join(', ');
+                const params = Object.values(updates);
+                params.push(booking.id);
+                
+                await pool.query(`UPDATE bookings SET ${setClause} WHERE id = $${params.length}`, params);
+            }
+        }
+
+        if (parsedItems) {
+            const parentIds = [...new Set(bookings.filter(b => b.parent_order_id).map(b => b.parent_order_id))];
+            const pCols = await getParentOrdersColumns();
+            const priceCol = pCols.has('total_price') ? 'total_price' : (pCols.has('total_amount') ? 'total_amount' : null);
+            if (priceCol) {
+                for (const parentId of parentIds) {
+                    const pBookingsRes = await pool.query(`SELECT price FROM bookings WHERE parent_order_id = $1`, [parentId]);
+                    const newTotalPrice = pBookingsRes.rows.reduce((sum, r) => sum + Number(r.price || 0), 0);
+                    await pool.query(`UPDATE parent_orders SET ${priceCol} = $1 WHERE id = $2`, [newTotalPrice, parentId]);
+                }
+            }
+        }
+    }
+
     async updateCourierPricing(id, updates, meta = {}) {
         const cols = await getDeliveryOrdersColumns();
         const setClauses = [];

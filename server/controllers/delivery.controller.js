@@ -585,6 +585,22 @@ exports.updateOrderMeta = catchAsync(async (req, res, next) => {
 exports.softDelete = catchAsync(async (req, res, next) => {
     const { decodeEntityId } = require('../utils/obfuscate');
     const id = decodeEntityId('order', req.params.id) || decodeEntityId('booking', req.params.id) || req.params.id;
+    
+    const currentOrder = await deliveryRepo.getOrderById(id);
+    if (!currentOrder) {
+        return next(new AppError('الطلب غير موجود', 404));
+    }
+
+    const normalizedSource = String(currentOrder.source || '').trim().toLowerCase();
+    if (normalizedSource === 'qareeblak') {
+        return next(new AppError('لا يمكن حذف الطلبات الواردة من تطبيق قريبلك', 400));
+    }
+
+    const normalizedStatus = String(currentOrder.status || '').trim().toLowerCase();
+    if (['delivered', 'تم التوصيل'].includes(normalizedStatus)) {
+        return next(new AppError('لا يمكن حذف طلب تم توصيله', 400));
+    }
+
     await deliveryRepo.softDelete(id);
     res.status(200).json({ success: true, message: 'تم حذف الطلب بنجاح' });
 });
