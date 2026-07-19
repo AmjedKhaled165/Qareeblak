@@ -248,19 +248,19 @@ export default function OrdersPage() {
             // Pending Tab: Only truly pending orders
             return ['pending'].includes(order.status);
         }
+        const isEffectivelyReady = (order as any).sub_orders?.length > 0 && (order as any).providers_ready_for_pickup && ['pending', 'assigned', 'confirmed'].includes(order.status);
+        const effectiveStatus = isEffectivelyReady ? 'ready_for_pickup' : order.status;
+
         if (filter === 'preparing') {
-            // Preparing Tab: Provider accepted / preparing
-            return ['confirmed', 'assigned'].includes(order.status);
+            return ['confirmed', 'assigned'].includes(effectiveStatus);
         }
         if (filter === 'ready') {
-            // Ready Tab: All providers finished preparation
-            return ['ready_for_pickup', 'completed'].includes(order.status);
+            return ['ready_for_pickup', 'completed'].includes(effectiveStatus);
         }
         if (filter === 'in_transit') {
-            // In Delivery Tab: "Picked Up" + "In Transit"
-            return ['picked_up', 'in_transit'].includes(order.status);
+            return ['picked_up', 'in_transit'].includes(effectiveStatus);
         }
-        if (filter === 'delivered') return ['delivered'].includes(order.status);
+        if (filter === 'delivered') return ['delivered'].includes(effectiveStatus);
 
         return true;
     });
@@ -366,9 +366,15 @@ export default function OrdersPage() {
                                                 </span>
                                             )}
                                         </div>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(order.status)}`}>
-                                            {getStatusLabel(order.status)}
-                                        </span>
+                                        {(() => {
+                                            const isEffectivelyReady = (order as any).sub_orders?.length > 0 && (order as any).providers_ready_for_pickup && ['pending', 'assigned', 'confirmed'].includes(order.status);
+                                            const effectiveStatus = isEffectivelyReady ? 'ready_for_pickup' : order.status;
+                                            return (
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(effectiveStatus)}`}>
+                                                    {getStatusLabel(effectiveStatus)}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Customer Info */}

@@ -650,7 +650,19 @@ export default function DriverDashboard() {
                                                     #{order.display_id || order.id}
                                                 </span>
                                                 <span className="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-[10px] font-bold text-emerald-400">
-                                                    {order.status}
+                                                {(() => {
+                                                    const isEffectivelyReady = (order.sub_orders?.length ?? 0) > 0 && order.providers_ready_for_pickup && ['pending', 'assigned', 'confirmed'].includes(order.status);
+                                                    const effectiveStatus = isEffectivelyReady ? 'ready_for_pickup' : order.status;
+                                                    
+                                                    let label = effectiveStatus;
+                                                    if (effectiveStatus === 'pending') label = 'قيد الانتظار';
+                                                    else if (effectiveStatus === 'assigned' || effectiveStatus === 'confirmed') label = 'جاري التحضير';
+                                                    else if (effectiveStatus === 'ready_for_pickup') label = 'تم التجهيز';
+                                                    else if (effectiveStatus === 'in_transit' || effectiveStatus === 'picked_up') label = 'جاري التوصيل';
+                                                    else if (effectiveStatus === 'delivered') label = 'تم التوصيل';
+
+                                                    return label;
+                                                })()}
                                                 </span>
                                             </div>
                                             <p className="text-slate-500 text-[10px] font-bold">
