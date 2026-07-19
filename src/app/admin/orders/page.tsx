@@ -50,6 +50,7 @@ interface Order {
 // ============= Status Config =============
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
     pending: { label: "قيد الانتظار", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300", icon: Clock },
+    confirmed: { label: "جاري التحضير", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300", icon: Package },
     accepted: { label: "مقبول", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: CheckCircle },
     preparing: { label: "قيد التحضير", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300", icon: Package },
     ready: { label: "جاهز", color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300", icon: Package },

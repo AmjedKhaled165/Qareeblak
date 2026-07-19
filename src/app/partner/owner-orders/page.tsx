@@ -462,6 +462,7 @@ export default function OwnerAllOrdersPage() {
     const getStatusLabel = (status: string) => {
         switch (status) {
             case 'pending': return 'قيد الانتظار';
+            case 'confirmed': return 'جاري التحضير';
             case 'assigned': return 'تم التعيين';
             case 'ready_for_pickup': return 'تم التجهيز';
             case 'picked_up': return 'تم الاستلام';
@@ -475,6 +476,7 @@ export default function OwnerAllOrdersPage() {
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'pending': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+            case 'confirmed': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
             case 'assigned': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
             case 'ready_for_pickup': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
             case 'delivered': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
@@ -486,6 +488,7 @@ export default function OwnerAllOrdersPage() {
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'pending': return Clock;
+            case 'confirmed': return Package;
             case 'delivered': return CheckCircle;
             case 'cancelled': return XCircle;
             default: return Truck;
