@@ -228,11 +228,12 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     // Initialize/Refresh editable fields ONLY if not currently editing OR it's a fresh load
                     if (!isPolling || !hasChangesRef.current) {
                         const items = Array.isArray(found.items) ? found.items : [];
-                        setEditableItems(items.map((item: OrderItem) => ({
+                        setEditableItems(items.map((item: OrderItem & { provider_id?: string; providerId?: string }) => ({
                             name: item.name || item.product_name || 'منتج',
                             quantity: item.quantity || 1,
                             price: item.price || item.unit_price || 0,
-                            notes: item.notes || ''
+                            notes: item.notes || '',
+                            provider_id: item.provider_id || item.providerId
                         })));
                         setEditableDeliveryFee(Number(found.delivery_fee) || 0);
                         setEditableNotes(found.notes || '');
@@ -264,7 +265,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
             name: item.name || item.product_name || 'منتج',
             quantity: Number(item.quantity) || 1,
             price: Number(item.price || item.unit_price) || 0,
-            notes: item.notes || ''
+            notes: item.notes || '',
+            provider_id: item.provider_id || item.providerId
         }));
 
         const itemsChanged = JSON.stringify(normalizedEditableItems) !== JSON.stringify(normalizedOriginalItems);
@@ -272,7 +274,10 @@ export default function OrderDetailsPage({ params }: PageProps) {
         const feeChanged = Number(editableDeliveryFee) !== originalFee;
         const notesChanged = editableNotes !== (order.notes || '');
 
-        if (user?.role === 'courier') {
+        const isManualOrWhatsapp = order.order_type === 'manual' || ['manual', 'whatsapp', 'واتس', 'وتس', 'يدوي'].some(kw => String(order.source || '').toLowerCase().includes(kw));
+        const canEditItemsForCourier = user?.role === 'courier' && isManualOrWhatsapp;
+
+        if (user?.role === 'courier' && !canEditItemsForCourier) {
             setHasChanges(feeChanged || notesChanged);
         } else {
             setHasChanges(itemsChanged || feeChanged || notesChanged);
@@ -728,22 +733,79 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
                                             {/* Provider Items */}
                                             <div className="space-y-3">
-                                                {displayItems.map((item, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 bg-white dark:bg-slate-600 rounded flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 text-sm border dark:border-slate-500">
-                                                                {item.quantity}x
+                                                {displayItems.map((item, idx) => {
+                                                    // Find the corresponding item in editableItems
+                                                    const editableIdx = editableItems.findIndex(e => 
+                                                        e.provider_id == sub.provider_id && 
+                                                        (e.name === (item.name || item.product_name))
+                                                    );
+                                                    
+                                                    const currentItem = editableIdx >= 0 ? editableItems[editableIdx] : item;
+                                                    
+                                                    if (canEdit) {
+                                                        return (
+                                                            <div key={idx} className="flex flex-col gap-2 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-600">
+                                                                <div className="flex gap-2 relative">
+                                                                    <div className="flex-1 relative">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={currentItem.name || currentItem.product_name || ''}
+                                                                            onChange={(e) => {
+                                                                                if (editableIdx >= 0) updateItemName(editableIdx, e.target.value);
+                                                                            }}
+                                                                            placeholder="اسم المنتج"
+                                                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm"
+                                                                        />
+                                                                    </div>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={currentItem.quantity || ''}
+                                                                        onChange={(e) => {
+                                                                            if (editableIdx >= 0) {
+                                                                                const newItems = [...editableItems];
+                                                                                newItems[editableIdx].quantity = Number(e.target.value);
+                                                                                setEditableItems(newItems);
+                                                                            }
+                                                                        }}
+                                                                        min="1"
+                                                                        placeholder="الكمية"
+                                                                        className="w-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-2 text-sm text-center"
+                                                                    />
+                                                                    <input
+                                                                        type="number"
+                                                                        value={currentItem.price || currentItem.unit_price || ''}
+                                                                        onChange={(e) => {
+                                                                            if (editableIdx >= 0) {
+                                                                                const newItems = [...editableItems];
+                                                                                newItems[editableIdx].price = Number(e.target.value);
+                                                                                setEditableItems(newItems);
+                                                                            }
+                                                                        }}
+                                                                        placeholder="السعر (للقطعة)"
+                                                                        className="w-24 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-2 text-sm text-center"
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.name || item.product_name || 'منتج'}</p>
-                                                                {item.notes && <p className="text-xs text-slate-500 dark:text-slate-400">{item.notes}</p>}
+                                                        );
+                                                    }
+                                                    
+                                                    return (
+                                                        <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 bg-white dark:bg-slate-600 rounded flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 text-sm border dark:border-slate-500">
+                                                                    {currentItem.quantity}x
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{currentItem.name || currentItem.product_name || 'منتج'}</p>
+                                                                    {currentItem.notes && <p className="text-xs text-slate-500 dark:text-slate-400">{currentItem.notes}</p>}
+                                                                </div>
                                                             </div>
+                                                            <span className="font-bold text-slate-800 dark:text-slate-300 text-sm">
+                                                                {(Number(currentItem.price || 0) * Number(currentItem.quantity || 1)).toFixed(0)} ج.م
+                                                            </span>
                                                         </div>
-                                                        <span className="font-bold text-slate-800 dark:text-slate-300 text-sm">
-                                                            {(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(0)} ج.م
-                                                        </span>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                                 {displayItems.length === 0 && (
                                                     <div className="text-center text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
                                                         لا توجد عناصر متاحة لهذا المتجر حالياً

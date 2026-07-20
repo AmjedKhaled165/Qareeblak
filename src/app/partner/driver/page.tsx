@@ -736,6 +736,43 @@ export default function DriverDashboard() {
                                                         </div>
                                                     );
                                                 })}
+                                                
+                                                {/* Unassigned Items Card */}
+                                                {(() => {
+                                                    const allItems = Array.isArray(order.items) ? order.items : [];
+                                                    const assignedNames = new Set();
+                                                    order.sub_orders.forEach((sub: any) => {
+                                                        let items = sub.items;
+                                                        if (typeof items === 'string') {
+                                                            try { items = JSON.parse(items); } catch { items = []; }
+                                                        }
+                                                        if (!Array.isArray(items)) items = [];
+                                                        items.forEach((item: any) => assignedNames.add(item.name || item.product_name));
+                                                    });
+                                                    
+                                                    const unassignedItems = allItems.filter(item => !assignedNames.has(item.name || item.product_name));
+                                                    
+                                                    if (unassignedItems.length === 0) return null;
+                                                    
+                                                    return (
+                                                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                                                            <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                                                                <h4 className="font-bold text-slate-200 text-sm">منتجات أخرى</h4>
+                                                                <span className="text-[10px] px-2 py-1 rounded-full border font-bold text-slate-400 bg-slate-500/10 border-slate-500/20">
+                                                                    غير محددة المتجر
+                                                                </span>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                {unassignedItems.map((item: any, i: number) => (
+                                                                    <div key={i} className="flex justify-between items-center text-xs font-bold">
+                                                                        <span className="text-slate-300">x{item.quantity} {item.name || item.product_name}</span>
+                                                                        <span className="text-violet-400">{item.price || item.unit_price} ج.م</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         ) : order.items && order.items.length > 0 && (
                                             <div className="bg-white/5 rounded-2xl p-4 mb-6 border border-white/5">

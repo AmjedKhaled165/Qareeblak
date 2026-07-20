@@ -175,19 +175,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     }, [isInitialized, currentUser, pathname, router]);
 
-    // Provider accounts should stay inside provider dashboard only.
+    // Strict Route Guarding based on User Type
     useEffect(() => {
         if (!isInitialized || !currentUser) return;
 
         const userType = String(currentUser.user_type || currentUser.type || '').toLowerCase();
         const currentPath = pathname || '/';
 
-        const isProvider = userType.includes('provider') || userType.includes('partner') || userType.includes('restaurant') || userType.includes('pharmacy') || userType.includes('maintenance');
-        const isProviderDashboardPath = currentPath === '/provider-dashboard' || currentPath.startsWith('/provider-dashboard/') || currentPath.startsWith('/partner/') || currentPath === '/profile';
-
-        if (isProvider && !isProviderDashboardPath) {
-            router.replace('/provider-dashboard');
+        // Ignore Auth paths and common paths
+        if (currentPath.startsWith('/login') || currentPath.startsWith('/register') || currentPath === '/complete-phone') {
+            return;
         }
+
+        // 1. Halan Staff: owner, supervisor, admin, courier, partner_courier, partner_owner, etc.
+        const isHalanStaff = ['admin', 'owner', 'supervisor', 'courier'].some(role => userType.includes(role));
+        
+        // 2. Service Provider: provider, restaurant, pharmacy, maintenance
+        // Only if they are not Halan Staff (so partner_owner doesn't get treated as provider)
+        const isServiceProvider = !isHalanStaff && ['provider', 'restaurant', 'pharmacy', 'maintenance'].some(role => userType.includes(role));
+
+        // 3. Customer: everyone else
+        const isCustomer = !isHalanStaff && !isServiceProvider;
+
+        // Path categories
+        const isPartnerPath = currentPath.startsWith('/partner');
+        const isProviderDashboardPath = currentPath === '/provider-dashboard' || currentPath.startsWith('/provider-dashboard/');
+        const isProfilePath = currentPath === '/profile';
+        const isCustomerPath = !isPartnerPath && !isProviderDashboardPath && !isProfilePath;
+
+        if (isHalanStaff) {
+            // Halan staff shouldn't access provider dashboard or customer pages
+            if (isProviderDashboardPath || isCustomerPath) {
+                router.replace('/partner/orders');
+            }
+        } else if (isServiceProvider) {
+            // Providers shouldn't access Halan pages or customer pages
+            if (isPartnerPath || isCustomerPath) {
+                router.replace('/provider-dashboard');
+            }
+        } else if (isCustomer) {
+            // Customers shouldn't access Partner or Provider Dashboard pages
+            if (isPartnerPath || isProviderDashboardPath) {
+                router.replace('/');
+            }
+        }
+
     }, [isInitialized, currentUser, pathname, router]);
 
     // ================= LOAD DATA =================

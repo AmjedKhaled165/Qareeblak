@@ -162,6 +162,12 @@ function hydrateOrderDisplayFields(row) {
         row.sub_orders.forEach(sub => {
             const parsed = safeJsonParse(sub.items);
             if (Array.isArray(parsed)) {
+                parsed.forEach(item => {
+                    if (!item.provider_id && !item.providerId) {
+                        item.provider_id = sub.provider_id;
+                        item.provider_name = sub.provider_name;
+                    }
+                });
                 resolvedItems.push(...parsed);
             }
         });

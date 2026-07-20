@@ -382,6 +382,11 @@ export default function OrdersPage() {
                                                                     ملغي
                                                                 </span>
                                                             )}
+                                                            {(order as any).is_modified_by_courier && !((order as any).is_deleted || order.status === 'cancelled') && (
+                                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                                                    معدل
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>

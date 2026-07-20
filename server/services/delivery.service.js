@@ -806,6 +806,14 @@ class DeliveryService {
             after
         });
 
+        if (updates.items || updates.notes) {
+            try {
+                await deliveryRepo.syncEditsToBookingsAndParent(orderId, updates);
+            } catch (e) {
+                logger.error(`Error syncing courier pricing edits to bookings for order ${orderId}:`, e);
+            }
+        }
+
         if (io) {
             this._emitOrderSync(io, orderId, {
                 updates: {

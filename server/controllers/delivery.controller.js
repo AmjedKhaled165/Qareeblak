@@ -533,6 +533,30 @@ exports.createOrder = catchAsync(async (req, res, next) => {
     const userId = req.user.id || req.user.userId;
     const role = req.user.role || req.user.type;
     const io = req.app.get('io');
+    const { decodeEntityId } = require('../utils/obfuscate');
+
+    if (req.body.courierId) {
+        const decodedCourier = decodeEntityId('user', req.body.courierId);
+        if (decodedCourier) req.body.courierId = decodedCourier;
+    }
+
+    if (Array.isArray(req.body.products)) {
+        req.body.products.forEach(p => {
+            if (p.providerId) {
+                const decodedProvider = decodeEntityId('provider', p.providerId) || decodeEntityId('user', p.providerId);
+                if (decodedProvider) p.providerId = decodedProvider;
+            }
+        });
+    }
+    
+    if (Array.isArray(req.body.items)) {
+        req.body.items.forEach(p => {
+            if (p.providerId) {
+                const decodedProvider = decodeEntityId('provider', p.providerId) || decodeEntityId('user', p.providerId);
+                if (decodedProvider) p.providerId = decodedProvider;
+            }
+        });
+    }
 
     const order = await deliveryService.createOrder(userId, role, req.body, io);
     res.status(201).json({ success: true, data: order });
@@ -665,6 +689,14 @@ exports.updateOrder = catchAsync(async (req, res, next) => {
 
     if (Object.keys(safeData).length === 0) {
         return next(new AppError('لا توجد بيانات صالحة للتحديث', 400));
+    }
+
+    const editFields = ['items', 'delivery_fee', 'customer_name', 'customer_phone', 'delivery_address', 'notes'];
+    const hasEdits = editFields.some(field => safeData[field] !== undefined);
+    
+    if (hasEdits) {
+        safeData.is_modified_by_courier = true;
+        safeData.courier_modified_at = new Date().toISOString();
     }
 
     const { decodeEntityId } = require('../utils/obfuscate');
