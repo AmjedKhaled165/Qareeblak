@@ -13,7 +13,8 @@ import {
     Truck,
     MapPin,
     RefreshCw,
-    Plus
+    Plus,
+    Trash2
 } from "lucide-react";
 
 import { apiCall } from "@/lib/api";
@@ -339,19 +340,7 @@ export default function OrdersPage() {
                                     onClick={() => router.push(`/partner/orders/${order.id}`)}
                                     className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden"
                                 >
-                                    {/* Edited & Cancelled Tags */}
-                                    <div className="absolute top-0 left-0 flex flex-col items-start z-10">
-                                        {(order as any).is_modified_by_courier && (
-                                            <div className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-3 py-1 rounded-br-lg shadow-sm mb-[1px]">
-                                                معدل
-                                            </div>
-                                        )}
-                                        {((order as any).is_deleted || order.status === 'cancelled') && (
-                                            <div className="bg-red-100 text-red-800 text-[10px] font-bold px-3 py-1 rounded-br-lg shadow-sm">
-                                                ملغي
-                                            </div>
-                                        )}
-                                    </div>
+
 
                                     {/* Header */}
                                     <div className="flex justify-between items-center mb-3">
@@ -377,9 +366,25 @@ export default function OrdersPage() {
                                             const isEffectivelyReady = (order as any).sub_orders?.length > 0 && (order as any).providers_ready_for_pickup && ['pending', 'assigned', 'confirmed'].includes(order.status);
                                             const effectiveStatus = isEffectivelyReady ? 'ready_for_pickup' : order.status;
                                             return (
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(effectiveStatus)}`}>
-                                                    {getStatusLabel(effectiveStatus)}
-                                                </span>
+                                                <div className="flex flex-col items-end gap-1.5">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(effectiveStatus)}`}>
+                                                        {getStatusLabel(effectiveStatus)}
+                                                    </span>
+                                                    {((order as any).is_modified_by_courier || (order as any).is_deleted || order.status === 'cancelled') && (
+                                                        <div className="flex items-center gap-1">
+                                                            {(order as any).is_modified_by_courier && (
+                                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                                                    معدل
+                                                                </span>
+                                                            )}
+                                                            {((order as any).is_deleted || order.status === 'cancelled') && (
+                                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-200">
+                                                                    ملغي
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             );
                                         })()}
                                     </div>
@@ -432,18 +437,28 @@ export default function OrdersPage() {
                                         </div>
 
                                         <div className="flex items-center gap-2">
-                                            {/* Edit Only - No Delete (Orders must be completed) */}
+                                            {/* Edit and Delete Buttons */}
                                             {!isCourier && filter !== 'cancelled' && (
-                                                <button
-                                                    onClick={(e) => handleEdit(e, order.id)}
-                                                    title="تعديل"
-                                                    aria-label="تعديل الطلب"
-                                                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                </button>
+                                                <>
+                                                    <button
+                                                        onClick={(e) => handleEdit(e, order.id)}
+                                                        title="تعديل"
+                                                        aria-label="تعديل الطلب"
+                                                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDelete(e, order.id)}
+                                                        title="إلغاء / حذف"
+                                                        aria-label="إلغاء الطلب"
+                                                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                </>
                                             )}
                                         </div>
                                     </div>

@@ -88,7 +88,18 @@ async function ensureCoreTables(query) {
         } catch(e) { /* ignore if already exists */ }
     }
 
-
+    const newDeliveryColumns = [
+        'is_deleted BOOLEAN DEFAULT false',
+        'is_modified_by_courier BOOLEAN DEFAULT false',
+        'courier_modified_at TIMESTAMP',
+        'courier_modifications JSONB'
+    ];
+    for (const colDef of newDeliveryColumns) {
+        const colName = colDef.split(' ')[0];
+        try {
+            await query(`ALTER TABLE delivery_orders ADD COLUMN IF NOT EXISTS ${colName} ${colDef.substring(colName.length + 1)}`);
+        } catch(e) { /* ignore if already exists or table missing */ }
+    }
     await query(`
         CREATE TABLE IF NOT EXISTS bookings (
             id SERIAL PRIMARY KEY,

@@ -80,7 +80,7 @@ function getBookingPrice(booking: Booking): number {
     } catch (e) { }
 
     if (itemsArr && itemsArr.length > 0) {
-        const itemsTotal = itemsArr.reduce((sum: number, item: any) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0);
+        const itemsTotal = itemsArr.reduce((sum: number, item: any) => sum + (Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)), 0);
         if (itemsTotal > 0) return itemsTotal;
     }
 
@@ -143,6 +143,7 @@ export function OrderDetailModal({
     if (!isOpen) return null;
 
     const details = booking.details || "";
+    const cleanDetails = details.replace(/الهاتف:\s*.*?\|\s*العنوان:\s*.*/g, '').trim();
     // use booking.userPhone if available, else extract from details
     const phone = booking.userPhone || extractPhone(details);
     const address = extractAddress(details);
@@ -358,8 +359,8 @@ export function OrderDetailModal({
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <span className="text-xs text-muted-foreground font-bold">x{item.quantity}</span>
-                                            {Number(item.price) > 0 && (
-                                                <span className="text-xs font-black text-primary">{Number(item.price) * Number(item.quantity || 1)} ج.م</span>
+                                            {Number(item.price || item.unit_price) > 0 && (
+                                                <span className="text-xs font-black text-primary">{Number(item.price || item.unit_price) * Number(item.quantity || 1)} ج.م</span>
                                             )}
                                         </div>
                                     </div>
@@ -369,13 +370,13 @@ export function OrderDetailModal({
                     )}
 
                     {/* --- Booking Details --- */}
-                    {booking.details && (
+                    {cleanDetails && (
                         <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
                             <h3 className="text-xs font-black text-muted-foreground mb-3 font-cairo flex items-center gap-2">
                                 <Glyph symbol="📝" className="text-sm" /> تفاصيل الحجز
                             </h3>
                             <div className="text-foreground font-medium text-sm leading-relaxed whitespace-pre-wrap bg-background/60 p-4 rounded-xl border border-border/30">
-                                {booking.details}
+                                {cleanDetails}
                             </div>
                         </div>
                     )}
