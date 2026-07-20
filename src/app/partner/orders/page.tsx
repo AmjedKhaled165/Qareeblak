@@ -114,8 +114,8 @@ export default function OrdersPage() {
 
             // Only send 'deleted' or 'edited' to backend filtering.
             // For status groups (pending, in_transit, delivered), fetch 'all' (active orders) and filter locally.
-            if (filter === 'cancelled' || filter === 'edited') {
-                params.append('status', filter);
+            if (filter === 'edited' || filter === 'cancelled') {
+                params.append('status', filter === 'cancelled' ? 'deleted' : filter);
             }
 
             if (supervisorId) params.append('supervisorId', supervisorId);
@@ -339,12 +339,19 @@ export default function OrdersPage() {
                                     onClick={() => router.push(`/partner/orders/${order.id}`)}
                                     className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden"
                                 >
-                                    {/* Edited Tag */}
-                                    {(order as any).is_edited && (
-                                        <div className="absolute top-0 left-0 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded-br-lg">
-                                            معدل
-                                        </div>
-                                    )}
+                                    {/* Edited & Cancelled Tags */}
+                                    <div className="absolute top-0 left-0 flex flex-col items-start z-10">
+                                        {(order as any).is_modified_by_courier && (
+                                            <div className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-3 py-1 rounded-br-lg shadow-sm mb-[1px]">
+                                                معدل
+                                            </div>
+                                        )}
+                                        {((order as any).is_deleted || order.status === 'cancelled') && (
+                                            <div className="bg-red-100 text-red-800 text-[10px] font-bold px-3 py-1 rounded-br-lg shadow-sm">
+                                                ملغي
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {/* Header */}
                                     <div className="flex justify-between items-center mb-3">

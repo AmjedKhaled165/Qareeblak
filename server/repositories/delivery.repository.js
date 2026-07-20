@@ -270,13 +270,13 @@ class DeliveryRepository {
         }
 
         const hasIsDeleted = deliveryCols.has('is_deleted');
-        const hasIsEdited = deliveryCols.has('is_edited');
+        const hasIsEdited = deliveryCols.has('is_modified_by_courier');
 
         if (status === 'deleted') {
             if (hasIsDeleted) conditions.push(`COALESCE(o.is_deleted, false) = true`);
             else conditions.push('1=0');
         } else if (status === 'edited') {
-            const editCond = hasIsEdited ? `o.is_edited = true` : '1=0';
+            const editCond = hasIsEdited ? `o.is_modified_by_courier = true` : '1=0';
             const delCond = hasIsDeleted ? `COALESCE(o.is_deleted, false) = false` : '1=1';
             conditions.push(`${editCond} AND ${delCond}`);
         } else {
@@ -776,6 +776,10 @@ class DeliveryRepository {
         }
         if (Object.prototype.hasOwnProperty.call(updates, 'notes') && cols.has('notes')) {
             push('notes', updates.notes);
+        }
+        if (Object.prototype.hasOwnProperty.call(updates, 'items') && cols.has('items')) {
+            const itemsVal = typeof updates.items === 'string' ? updates.items : JSON.stringify(updates.items);
+            push('items', itemsVal);
         }
 
         if (cols.has('courier_modifications')) {

@@ -81,7 +81,8 @@ const updateOrderMetaSchema = z.object({
 
 const courierPricingSchema = z.object({
     deliveryFee: z.number().nonnegative('رسوم التوصيل يجب أن تكون رقماً موجباً'),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    items: z.any().optional()
 });
 
 const validate = (schema, target = 'body') => (req, res, next) => {

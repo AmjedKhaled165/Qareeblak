@@ -346,7 +346,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
                 method: 'PATCH',
                 body: JSON.stringify({
                     deliveryFee: editableDeliveryFee,
-                    notes: editableNotes // Send notes as well
+                    notes: editableNotes, // Send notes as well
+                    items: (canEditItems && isCourier) ? editableItems : undefined
                 })
             });
 
@@ -355,7 +356,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     ...order,
                     status: order.status === 'pending' || order.status === 'assigned' || order.status === 'ready_for_pickup' ? 'in_transit' : order.status,
                     delivery_fee: editableDeliveryFee,
-                    notes: editableNotes
+                    notes: editableNotes,
+                    items: (canEditItems && isCourier) ? editableItems : order.items
                 });
                 setHasChanges(false);
                 setModalState({
@@ -512,8 +514,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
     const subOrdersReadyForPickup = hasSubOrders
         ? order.sub_orders!.every((s) => readySubOrderStatuses.has(String(s.status || '').toLowerCase()))
         : true;
-    // Couriers CANNOT edit items (products, prices, quantities) - only delivery_fee and notes
-    const canEditItems = user && (user.role === 'owner' || user.role === 'supervisor') && order.status !== 'delivered' && order.status !== 'cancelled';
+    const isManualOrWhatsapp = order.order_type === 'manual' || ['manual', 'whatsapp', 'واتس', 'وتس', 'يدوي'].some(kw => String(order.source || '').toLowerCase().includes(kw));
+    // Couriers CAN edit items if manual or whatsapp. Otherwise only delivery_fee and notes
+    const canEditItems = user && ((user.role === 'owner' || user.role === 'supervisor') || (isCourier && isManualOrWhatsapp)) && order.status !== 'delivered' && order.status !== 'cancelled';
     const canEditDeliveryFee = isCourier &&
         (order.status === 'in_transit' || order.status === 'picked_up');
     // Legacy canEdit for backwards compatibility - now only for non-courier roles
@@ -555,9 +558,13 @@ export default function OrderDetailsPage({ params }: PageProps) {
                         <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-6">
                             <Package className="w-10 h-10 text-amber-600 dark:text-amber-400" />
                         </div>
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">الطلب بانتظار الاستلام</h3>
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
+                            {order.status === 'pending' ? 'طلب جديد' : 'في انتظار التجهيز'}
+                        </h3>
                         <p className="text-slate-500 dark:text-slate-400 max-w-xs">
-                            يرجى الضغط على زر "استلام وبدء التوصيل" بالأسفل لتتمكن من رؤية بيانات العميل وتفاصيل المنتجات.
+                            {order.status === 'pending'
+                                ? 'يرجى الضغط على زر "تقبل الطلب" بالأسفل للموافقة على توصيل الطلب.'
+                                : 'الطلب قيد التجهيز من قبل المتاجر. يرجى الانتظار حتى يكتمل التجهيز لتتمكن من استلام وبدء التوصيل.'}
                         </p>
                     </div>
                 ) : (
@@ -699,8 +706,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                 return [];
                                             }
                                         })();
-                                    const fallbackOrderItems = Array.isArray(order.items) ? order.items : [];
-                                    const displayItems = subItems.length > 0 ? subItems : fallbackOrderItems;
+                                    const displayItems = subItems;
 
                                     return (
                                         <div key={sub.id} className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
@@ -747,6 +753,63 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                         </div>
                                     );
                                 })}
+                                
+                                {/* Unassigned Items Card */}
+                                {(() => {
+                                    const allItems = Array.isArray(order.items) ? order.items : [];
+                                    const assignedNames = new Set();
+                                    order.sub_orders.forEach((sub: any) => {
+                                        let items = sub.items;
+                                        if (typeof items === 'string') {
+                                            try { items = JSON.parse(items); } catch { items = []; }
+                                        }
+                                        if (!Array.isArray(items)) items = [];
+                                        
+                                        const displayItems = items;
+                                        displayItems.forEach((item: any) => assignedNames.add(item.name || item.product_name));
+                                    });
+                                    
+                                    const unassignedItems = allItems.filter(item => !assignedNames.has(item.name || item.product_name));
+                                    
+                                    if (unassignedItems.length === 0) return null;
+                                    
+                                    return (
+                                        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                                                        <Package className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-slate-800 dark:text-slate-100">منتجات أخرى</h4>
+                                                        <span className="text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                                            <Clock className="w-3 h-3" />
+                                                            غير محددة المتجر
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {unassignedItems.map((item, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 bg-white dark:bg-slate-600 rounded flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 text-sm border dark:border-slate-500">
+                                                                {item.quantity}x
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.name || item.product_name || 'منتج'}</p>
+                                                                {item.notes && <p className="text-xs text-slate-500 dark:text-slate-400">{item.notes}</p>}
+                                                            </div>
+                                                        </div>
+                                                        <span className="font-bold text-slate-800 dark:text-slate-300 text-sm">
+                                                            {(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(0)} ج.م
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         ) : (
                             // Render Default Editable List (Old View)
@@ -977,7 +1040,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
             {/* Fixed Bottom Actions */}
             <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-4 space-y-3 z-50">
                 {/* Status Action Button */}
-                {(isCourier || ['owner', 'manager', 'supervisor'].includes(user?.role)) && nextStatus && (
+                {isCourier && nextStatus && (
                     <button
                         onClick={() => {
                             if (hasChanges) {

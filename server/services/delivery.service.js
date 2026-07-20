@@ -786,6 +786,20 @@ class DeliveryService {
             notes
         };
 
+        if (payload.items) {
+            const source = String(currentOrder.source || '').toLowerCase();
+            const orderType = String(currentOrder.order_type || '').toLowerCase();
+            const isManualOrWhatsapp = orderType === 'manual' || ['manual', 'whatsapp', 'واتس', 'وتس', 'يدوي'].some(kw => source.includes(kw));
+
+            if (isManualOrWhatsapp || isAdminLike) {
+                updates.items = payload.items;
+                before.items = currentOrder.items;
+                after.items = payload.items;
+            } else {
+                throw new AppError('غير مصرح لك بتعديل المنتجات لهذا الطلب', 403);
+            }
+        }
+
         const updated = await deliveryRepo.updateCourierPricing(orderId, updates, {
             changedBy: userId,
             before,

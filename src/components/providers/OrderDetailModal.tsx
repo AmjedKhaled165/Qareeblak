@@ -223,49 +223,62 @@ export function OrderDetailModal({
                 <div className="flex-1 overflow-y-auto px-8 py-6 space-y-5">
 
                     {/* --- Customer Section --- */}
-                    <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
-                        <h3 className="text-xs font-black text-muted-foreground mb-4 font-cairo flex items-center gap-2">
-                            <Glyph symbol="👤" className="text-sm" /> بيانات العميل
-                        </h3>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl border border-primary/20">
-                                    {booking.userName?.[0] || '؟'}
+                    {isMaintenanceCategoryProvider ? (
+                        <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
+                            <h3 className="text-xs font-black text-muted-foreground mb-4 font-cairo flex items-center gap-2">
+                                <Glyph symbol="👤" className="text-sm" /> بيانات العميل
+                            </h3>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl border border-primary/20">
+                                        {booking.userName?.[0] || '؟'}
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-black text-lg text-foreground font-cairo">{booking.userName}</p>
+                                        {showPhone && phone ? (
+                                            <a href={`tel:${phone}`} className="flex items-center gap-2 text-sm font-bold text-emerald-600 hover:underline mt-1 transition-colors">
+                                                <Glyph symbol="📞" className="text-sm" />
+                                                <span dir="ltr">{phone}</span>
+                                            </a>
+                                        ) : (
+                                            showPhoneMessage && (
+                                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 bg-muted px-2 py-1 rounded-lg">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                    {showPhoneMessage}
+                                                </p>
+                                            )
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="font-black text-lg text-foreground font-cairo">{booking.userName}</p>
-                                    {showPhone && phone ? (
-                                        <a href={`tel:${phone}`} className="flex items-center gap-2 text-sm font-bold text-emerald-600 hover:underline mt-1 transition-colors">
-                                            <Glyph symbol="📞" className="text-sm" />
-                                            <span dir="ltr">{phone}</span>
+                                <div className="flex gap-2">
+                                    {showPhone && phone && (
+                                        <a href={`tel:${phone}`} className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500/20 transition-all border border-emerald-500/20" title="اتصال">
+                                            <Glyph symbol="📞" className="text-base" />
                                         </a>
-                                    ) : (
-                                        showPhoneMessage && (
-                                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 bg-muted px-2 py-1 rounded-lg">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                                {showPhoneMessage}
-                                            </p>
-                                        )
+                                    )}
+                                    {isPharmacy && onOpenChat && booking.status !== 'cancelled' && booking.status !== 'rejected' && (
+                                        <button onClick={() => onOpenChat(booking)} className="p-3 bg-blue-500/10 text-blue-500 rounded-xl hover:bg-blue-500/20 transition-all border border-blue-500/20" title="محادثة">
+                                            <Glyph symbol="💬" className="text-base" />
+                                        </button>
                                     )}
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                {showPhone && phone && (
-                                    <a href={`tel:${phone}`} className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500/20 transition-all border border-emerald-500/20" title="اتصال">
-                                        <Glyph symbol="📞" className="text-base" />
-                                    </a>
-                                )}
-                                {isPharmacy && onOpenChat && booking.status !== 'cancelled' && booking.status !== 'rejected' && (
-                                    <button onClick={() => onOpenChat(booking)} className="p-3 bg-blue-500/10 text-blue-500 rounded-xl hover:bg-blue-500/20 transition-all border border-blue-500/20" title="محادثة">
-                                        <Glyph symbol="💬" className="text-base" />
-                                    </button>
-                                )}
-                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        (isPharmacy && onOpenChat && booking.status !== 'cancelled' && booking.status !== 'rejected') && (
+                            <div className="bg-muted/30 rounded-2xl p-5 border border-border/50 flex justify-between items-center">
+                                <h3 className="text-xs font-black text-muted-foreground font-cairo flex items-center gap-2">
+                                    <Glyph symbol="💬" className="text-sm" /> تواصل مع العميل
+                                </h3>
+                                <button onClick={() => onOpenChat(booking)} className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-xl hover:bg-blue-500/20 transition-all border border-blue-500/20 font-bold text-sm">
+                                    فتح المحادثة
+                                </button>
+                            </div>
+                        )
+                    )}
 
                     {/* --- Location Section --- */}
-                    {address && (
+                    {(address && isMaintenanceCategoryProvider) && (
                         <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
                             <h3 className="text-xs font-black text-muted-foreground mb-3 font-cairo flex items-center gap-2">
                                 <Glyph symbol="📍" className="text-sm" /> العنوان
