@@ -33,6 +33,8 @@ interface OrderItem {
     price: number;
     unit_price?: number;
     notes?: string;
+    provider_id?: number | string;
+    providerId?: number | string;
 }
 
 interface Order {
