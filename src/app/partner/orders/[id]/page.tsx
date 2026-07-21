@@ -560,22 +560,6 @@ export default function OrderDetailsPage({ params }: PageProps) {
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-4 space-y-4 pb-32">
-                {isCourier && (order.status === 'pending' || order.status === 'assigned') && !subOrdersReadyForPickup ? (
-                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white dark:bg-slate-800 rounded-3xl shadow-sm">
-                        <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-6">
-                            <Package className="w-10 h-10 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
-                            {order.status === 'pending' ? 'طلب جديد' : 'في انتظار التجهيز'}
-                        </h3>
-                        <p className="text-slate-500 dark:text-slate-400 max-w-xs">
-                            {order.status === 'pending'
-                                ? 'يرجى الضغط على زر "تقبل الطلب" بالأسفل للموافقة على توصيل الطلب.'
-                                : 'الطلب قيد التجهيز من قبل المتاجر. يرجى الانتظار حتى يكتمل التجهيز لتتمكن من استلام وبدء التوصيل.'}
-                        </p>
-                    </div>
-                ) : (
-                    <>
                         {/* Status Badge */}
                         <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm text-center">
                             <div className="inline-flex items-center gap-2 px-4 py-2 bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 rounded-full font-bold">
@@ -1097,8 +1081,6 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                 </div>
                             </div>
                         )}
-                    </>
-                )}
             </div>
 
             {/* Fixed Bottom Actions */}
