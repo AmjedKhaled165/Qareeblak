@@ -747,10 +747,18 @@ export default function DriverDashboard() {
                                                             try { items = JSON.parse(items); } catch { items = []; }
                                                         }
                                                         if (!Array.isArray(items)) items = [];
-                                                        items.forEach((item: any) => assignedNames.add(item.name || item.product_name));
+                                                        items.forEach((item: any) => {
+                                                            const name = item.name || item.product_name;
+                                                            if (name) assignedNames.add(name);
+                                                        });
                                                     });
                                                     
-                                                    const unassignedItems = allItems.filter(item => !assignedNames.has(item.name || item.product_name));
+                                                    const unassignedItems = allItems.filter(item => {
+                                                        const name = item.name || item.product_name;
+                                                        const hasProvider = item.providerId || item.provider_id;
+                                                        const inSubOrders = name ? assignedNames.has(name) : false;
+                                                        return !hasProvider || !inSubOrders;
+                                                    });
                                                     
                                                     if (unassignedItems.length === 0) return null;
                                                     

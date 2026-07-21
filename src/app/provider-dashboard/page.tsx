@@ -651,6 +651,17 @@ export default function ProviderDashboard() {
             return;
         }
 
+        if (currentUser) {
+            const uType = String(currentUser.type || currentUser.user_type || currentUser.role || '').toLowerCase();
+            const isProv = uType.includes('provider') || uType.includes('partner') || uType.includes('restaurant') || uType.includes('pharmacy') || uType.includes('maintenance') || uType.includes('admin') || uType.includes('owner');
+            
+            if (!isProv && uType !== 'doctor' && uType !== 'clinic') {
+                console.warn('[ProviderDashboard] User is not a provider! Redirecting to customer profile. Role:', uType);
+                router.replace('/profile');
+                return;
+            }
+        }
+
         console.log('[ProviderDashboard] Authentication verified for:', currentUser?.name);
     }, [isInitialized, currentUser, isLoading, router]);
 

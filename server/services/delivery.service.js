@@ -795,6 +795,12 @@ class DeliveryService {
                 updates.items = payload.items;
                 before.items = currentOrder.items;
                 after.items = payload.items;
+                
+                // Also update the delivery order's total price based on the new items
+                const newPrice = payload.items.reduce((sum, item) => sum + (Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)), 0);
+                updates.price = newPrice;
+                before.price = Number(currentOrder.price || 0);
+                after.price = newPrice;
             } else {
                 throw new AppError('غير مصرح لك بتعديل المنتجات لهذا الطلب', 403);
             }

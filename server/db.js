@@ -54,6 +54,7 @@ const DB_IDLE_IN_TX_TIMEOUT_MS = Number(process.env.DB_IDLE_IN_TX_TIMEOUT_MS || 
 
 const pool = new Pool({
     connectionString: cleanDatabaseUrl,
+    min: 2, // Keep at least 2 connections alive to avoid cold start on initial queries
     max: Math.max(poolMaxPerInstance, 5), // Ensure at least 5 connections per instance even on huge machines
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
@@ -123,5 +124,12 @@ verifyDatabaseConnection();
 pool.on('error', (err, client) => {
     logger.error('Unexpected error on idle client', err);
 });
+
+// Keep-alive ping to prevent connection sleep (useful for serverless DBs and preventing firewall timeouts)
+setInterval(() => {
+    pool.query('SELECT 1').catch(err => {
+        logger.error('Keep-alive ping failed:', err.message);
+    });
+}, 60000); // Ping every 60 seconds
 
 module.exports = pool;

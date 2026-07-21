@@ -787,6 +787,9 @@ class DeliveryRepository {
             const itemsVal = typeof updates.items === 'string' ? updates.items : JSON.stringify(updates.items);
             push('items', itemsVal);
         }
+        if (Object.prototype.hasOwnProperty.call(updates, 'price') && cols.has('price')) {
+            push('price', updates.price);
+        }
 
         if (cols.has('courier_modifications')) {
             push('courier_modifications', JSON.stringify({
