@@ -361,6 +361,9 @@ class DeliveryService {
             items, products, source = 'manual', orderType
         } = orderData;
 
+        // If a supervisor creates the order, assign it to them so they can always see it
+        const effectiveSupervisorId = role?.includes('supervisor') ? userId : null;
+
         const finalItems = items || products || [];
         const effectiveOrderType = orderType || (source === 'qareeblak' ? 'app' : 'manual');
         const effectiveDeliveryAddress = deliveryAddress || 'عنوان يدوي';
@@ -380,14 +383,14 @@ class DeliveryService {
             order = await this._createSplitOrder(userId, role, {
                 customerName, customerPhone, pickupAddress, deliveryAddress: effectiveDeliveryAddress,
                 pickupLat, pickupLng, deliveryLat, deliveryLng,
-                courierId, notes, deliveryFee, finalItems, itemsWithProvider,
+                courierId, supervisorId: effectiveSupervisorId, notes, deliveryFee, finalItems, itemsWithProvider,
                 effectiveSource, effectiveOrderType, trackingCode
             });
         } else {
             order = await this._createNormalOrder(userId, role, {
                 customerName, customerPhone, pickupAddress, deliveryAddress: effectiveDeliveryAddress,
                 pickupLat, pickupLng, deliveryLat, deliveryLng,
-                courierId, notes, deliveryFee, finalItems,
+                courierId, supervisorId: effectiveSupervisorId, notes, deliveryFee, finalItems,
                 effectiveSource, effectiveOrderType, trackingCode
             });
         }
