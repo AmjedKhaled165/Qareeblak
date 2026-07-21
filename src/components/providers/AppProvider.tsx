@@ -349,7 +349,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                         id: halanUser.id,
                         name: halanUser.name,
                         email: halanUser.email,
-                        type: 'provider',
+                        type: halanUser.role || 'provider',
                         phone: halanUser.phone,
                     };
                     setCurrentUser(adaptedUser);
