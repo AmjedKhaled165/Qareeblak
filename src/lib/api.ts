@@ -306,7 +306,7 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
             }
 
             console.warn(`[API] 401 Unauthorized for ${endpoint}.`);
-            throw new Error(data?.error || data?.message || `عدم التفويض - يرجى تسجيل الدخول`);
+            throw new Error(`[401] ${data?.error || data?.message || 'عدم التفويض - يرجى تسجيل الدخول'}`);
         } else if (response.status === 429) {
             throw new Error(data?.error || data?.message || '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.');
         } else if (response.status === 500) {
