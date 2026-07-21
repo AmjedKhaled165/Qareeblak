@@ -1152,18 +1152,23 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     <button
                         onClick={() => {
                             if (hasChanges) {
-                                // Save first then update status
-                                handleSavePricing().then(() => updateStatus(nextStatus.status));
+                                // Only save changes, don't update status yet
+                                handleSavePricing();
                             } else {
-                                updateStatus(nextStatus.status);
+                                // If providers are ready and status is pending/assigned, jump to in_transit
+                                if (subOrdersReadyForPickup && ['pending', 'assigned', 'confirmed'].includes(order.status)) {
+                                    updateStatus('in_transit');
+                                } else {
+                                    updateStatus(nextStatus.status);
+                                }
                             }
                         }}
-                        // Disable if updating OR (if status is 'ready_for_pickup' (user sees 'Start Delivery') AND any provider is NOT ready)
+                        // Disable if updating OR (no changes AND waiting for providers)
                         disabled={
                             updating ||
-                            (nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
+                            (!hasChanges && !subOrdersReadyForPickup && order.status !== 'pending')
                         }
-                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${(nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
+                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${(!hasChanges && !subOrdersReadyForPickup && order.status !== 'pending')
                             ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                             : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700'
                             }`}
@@ -1173,9 +1178,13 @@ export default function OrderDetailsPage({ params }: PageProps) {
                         ) : (
                             <>
                                 <CheckCircle className="w-6 h-6" />
-                                {(nextStatus.status === 'in_transit' && !subOrdersReadyForPickup)
-                                    ? 'جاري التجهيز...'
-                                    : nextStatus.label
+                                {hasChanges 
+                                    ? 'حفظ التعديلات' 
+                                    : (subOrdersReadyForPickup && ['pending', 'assigned', 'confirmed'].includes(order.status))
+                                        ? 'بدء التوصيل'
+                                        : (!subOrdersReadyForPickup && order.status !== 'pending')
+                                            ? 'جاري التجهيز...'
+                                            : nextStatus.label
                                 }
                             </>
                         )}

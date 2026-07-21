@@ -737,7 +737,12 @@ class DeliveryRepository {
             }
 
             if (parsedItems && bCols.has('items')) {
-                const providerItems = parsedItems.filter(item => Number(item.providerId) === Number(booking.provider_id) || Number(item.provider_id) === Number(booking.provider_id));
+                let providerItems = [];
+                if (bookings.length === 1) {
+                    providerItems = parsedItems;
+                } else {
+                    providerItems = parsedItems.filter(item => Number(item.providerId) === Number(booking.provider_id) || Number(item.provider_id) === Number(booking.provider_id));
+                }
                 updates.items = JSON.stringify(providerItems);
                 
                 const newPrice = providerItems.reduce((sum, item) => sum + (Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)), 0);

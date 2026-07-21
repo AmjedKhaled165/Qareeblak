@@ -384,9 +384,9 @@ export function OrderDetailModal({
                     {/* --- Pricing Section --- */}
                     <div className="bg-muted/30 rounded-2xl p-5 border border-border/50">
                         <h3 className="text-xs font-black text-muted-foreground mb-3 font-cairo">💰 التكلفة</h3>
-                        {price > 0 ? (
+                        {price > 0 || isManualOrder ? (
                             <div className="flex items-center gap-2">
-                                <span className="text-4xl font-black text-foreground">{price}</span>
+                                <span className="text-4xl font-black text-foreground">{price || 0}</span>
                                 <span className="text-lg font-bold text-muted-foreground">ج.م</span>
                             </div>
                         ) : servicePrice ? (
