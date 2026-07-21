@@ -776,6 +776,21 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                                         className="w-24 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-2 text-sm text-center"
                                                                     />
                                                                 </div>
+                                                                <div className="mt-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={currentItem.notes || ''}
+                                                                        onChange={(e) => {
+                                                                            if (editableIdx >= 0) {
+                                                                                const newItems = [...editableItems];
+                                                                                newItems[editableIdx].notes = e.target.value;
+                                                                                setEditableItems(newItems);
+                                                                            }
+                                                                        }}
+                                                                        placeholder="ملاحظات المنتج (اختياري)"
+                                                                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 outline-none focus:ring-1 focus:ring-violet-500"
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         );
                                                     }
@@ -893,6 +908,21 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                                         }}
                                                                         placeholder="السعر (للقطعة)"
                                                                         className="w-24 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-2 text-sm text-center"
+                                                                    />
+                                                                </div>
+                                                                <div className="mt-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={currentItem.notes || ''}
+                                                                        onChange={(e) => {
+                                                                            if (editableIdx >= 0) {
+                                                                                const newItems = [...editableItems];
+                                                                                newItems[editableIdx].notes = e.target.value;
+                                                                                setEditableItems(newItems);
+                                                                            }
+                                                                        }}
+                                                                        placeholder="ملاحظات المنتج (اختياري)"
+                                                                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 outline-none focus:ring-1 focus:ring-violet-500"
                                                                     />
                                                                 </div>
                                                             </div>

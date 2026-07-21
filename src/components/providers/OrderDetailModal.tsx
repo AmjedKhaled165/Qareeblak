@@ -354,8 +354,11 @@ export function OrderDetailModal({
                                 {itemsArr.map((item: any, idx: number) => (
                                     <div key={idx} className="flex items-center justify-between py-2 px-3 bg-background/60 rounded-xl border border-border/30">
                                         <div className="flex items-center gap-3">
-                                            <span className="w-2 h-2 rounded-full bg-primary/40"></span>
-                                            <span className="font-bold text-foreground text-sm">{item.name || item.product_name}</span>
+                                            <span className="w-2 h-2 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+                                            <div>
+                                                <span className="font-bold text-foreground text-sm">{item.name || item.product_name}</span>
+                                                {item.notes && <p className="text-xs text-muted-foreground mt-0.5">{item.notes}</p>}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <span className="text-xs text-muted-foreground font-bold">x{item.quantity}</span>
