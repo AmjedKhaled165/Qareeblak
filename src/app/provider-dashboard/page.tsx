@@ -652,7 +652,7 @@ export default function ProviderDashboard() {
         }
 
         if (currentUser) {
-            const uType = String(currentUser.type || currentUser.user_type || currentUser.role || '').toLowerCase();
+            const uType = String((currentUser as any).type || (currentUser as any).user_type || (currentUser as any).role || '').toLowerCase();
             const isProv = uType.includes('provider') || uType.includes('partner') || uType.includes('restaurant') || uType.includes('pharmacy') || uType.includes('maintenance') || uType.includes('admin') || uType.includes('owner');
             
             if (!isProv && uType !== 'doctor' && uType !== 'clinic') {
