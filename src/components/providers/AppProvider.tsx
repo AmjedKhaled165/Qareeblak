@@ -90,9 +90,9 @@ interface AppContextType {
     // Auth actions
     loginUser: (email: string, password: string) => Promise<User | false>;
     logout: () => void;
-    sendRegisterOtp: (email: string) => Promise<boolean>;
-    registerUser: (name: string, email: string, password: string, phone: string, otp: string) => Promise<boolean>;
-    submitProviderRequest: (data: any) => Promise<boolean>;
+    sendRegisterOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
+    registerUser: (name: string, email: string, password: string, phone: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+    submitProviderRequest: (data: any) => Promise<{ success: boolean; error?: string }>;
     googleLogin: () => Promise<{ success: boolean; phoneRequired: boolean }>;
 
     // Provider actions
@@ -511,32 +511,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
         router.replace('/');
     };
 
-    const sendRegisterOtp = async (email: string): Promise<boolean> => {
+    const sendRegisterOtp = async (email: string): Promise<{ success: boolean; error?: string }> => {
         try {
             setIsLoading(true);
             await authApi.sendRegisterOtp(email);
-            return true;
+            return { success: true };
         } catch (error: any) {
             console.error("Send OTP failed:", error);
-            toast(error.message || "فشل إرسال رمز التحقق", "error");
-            return false;
+            const errorMessage = error.message || "فشل إرسال رمز التحقق";
+            toast(errorMessage, "error");
+            return { success: false, error: errorMessage };
         } finally {
             setIsLoading(false);
         }
     };
 
-    const registerUser = async (name: string, email: string, password: string, phone: string, otp: string): Promise<boolean> => {
+    const registerUser = async (name: string, email: string, password: string, phone: string, otp: string): Promise<{ success: boolean; error?: string }> => {
         try {
             setIsLoading(true);
             const result = await authApi.register({ name, email, password, phone, otp });
             const user = result.user;
             setCurrentUser(user);
             currentUserRef.current = user;
-            return true;
-        } catch (error) {
+            return { success: true };
+        } catch (error: any) {
             console.error("Registration failed:", error);
-            toast("فشل إنشاء الحساب. قد يكون البريد مستخدماً بالفعل", "error");
-            return false;
+            const errorMessage = error.message || "فشل إنشاء الحساب. قد يكون البريد مستخدماً بالفعل";
+            toast(errorMessage, "error");
+            return { success: false, error: errorMessage };
         } finally {
             setIsLoading(false);
         }
@@ -570,7 +572,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const submitProviderRequest = async (data: any): Promise<boolean> => {
+    const submitProviderRequest = async (data: any): Promise<{ success: boolean; error?: string }> => {
         try {
             setIsLoading(true);
             await authApi.submitProviderRequest(data);
@@ -579,10 +581,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setCurrentUser(user);
             currentUserRef.current = user;
             await loadProviders();
-            return true;
-        } catch (error) {
+            return { success: true };
+        } catch (error: any) {
             console.error("Provider request failed:", error);
-            return false;
+            return { success: false, error: error.message || "حدث خطأ أثناء إرسال الطلب." };
         } finally {
             setIsLoading(false);
         }

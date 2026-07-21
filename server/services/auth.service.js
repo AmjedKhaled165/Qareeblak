@@ -513,7 +513,8 @@ class AuthService {
             throw new AppError('تم معالجة هذا الطلب مسبقاً', 400);
         }
 
-        await db.query("UPDATE requests SET status = 'rejected' WHERE id = $1", [id]);
+        // Delete the request completely as requested by the user
+        await db.query("DELETE FROM requests WHERE id = $1", [id]);
     }
 
     /**

@@ -159,14 +159,14 @@ export default function UserLoginPage() {
     setIsLoading(true);
     setError(null);
 
-    const success = await sendRegisterOtp(email);
+    const result = await sendRegisterOtp(email);
     setIsLoading(false);
 
-    if (success) {
+    if (result.success) {
       setActiveTab("otp");
       toast("تم إرسال رمز التحقق إلى بريدك الإلكتروني", "success");
     } else {
-      setError("البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول");
+      setError(result.error || "البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول");
       setErrorType("OTHER");
     }
   };
@@ -181,23 +181,23 @@ export default function UserLoginPage() {
     setIsLoading(true);
     setError(null);
 
-    const success = await registerUser(name, email, password, phone, otp);
+    const result = await registerUser(name, email, password, phone, otp);
     setIsLoading(false);
 
-    if (success) {
+    if (result.success) {
       toast("أهلاً بك في عائلة قريبلك! 🚀\nتم إنشاء حسابك بنجاح.", "success");
       router.push("/");
     } else {
-      setError("رمز التحقق غير صحيح أو منتهي الصلاحية.");
+      setError(result.error || "رمز التحقق غير صحيح أو منتهي الصلاحية.");
       setErrorType("OTHER");
     }
   };
 
   const handleResendOtp = async () => {
     setIsLoading(true);
-    const success = await sendRegisterOtp(email);
+    const result = await sendRegisterOtp(email);
     setIsLoading(false);
-    if (success) {
+    if (result.success) {
       toast("تم إعادة إرسال الرمز بنجاح!", "success");
     }
   };

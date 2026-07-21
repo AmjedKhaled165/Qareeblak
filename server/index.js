@@ -188,6 +188,10 @@ app.use('/api', (req, res, next) => {
     const excludedPaths = [
         '/auth/login',
         '/auth/register',
+        '/auth/send-register-otp',
+        '/auth/provider-request',
+        '/auth/forgot-password',
+        '/auth/reset-password',
         '/auth/google-sync',
         '/auth/guest-login',
         '/auth/refresh',
