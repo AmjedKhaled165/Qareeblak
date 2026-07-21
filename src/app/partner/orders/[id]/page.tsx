@@ -123,7 +123,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         const parsed = JSON.parse(storedUser);
         setUser(parsed);
 
-        if (parsed.role !== 'courier') {
+        if (parsed.role !== 'courier' && parsed.type !== 'partner_courier' && parsed.user_type !== 'partner_courier') {
             apiCall('/halan/users?role=courier')
                 .then((res) => {
                     if (res?.success) setDrivers((res.data || []).filter((d: any) => d.isAvailable !== false));
@@ -277,14 +277,16 @@ export default function OrderDetailsPage({ params }: PageProps) {
         const notesChanged = editableNotes !== (order.notes || '');
 
         const isManualOrWhatsapp = order.order_type === 'manual' || ['manual', 'whatsapp', 'واتس', 'وتس', 'يدوي'].some(kw => String(order.source || '').toLowerCase().includes(kw));
-        const canEditItemsForCourier = user?.role === 'courier' && isManualOrWhatsapp;
+        const userRole = user?.role || user?.type || user?.user_type || '';
+        const isCourierUser = userRole === 'courier' || userRole === 'partner_courier';
+        const canEditItemsForCourier = isCourierUser && isManualOrWhatsapp;
 
-        if (user?.role === 'courier' && !canEditItemsForCourier) {
+        if (isCourierUser && !canEditItemsForCourier) {
             setHasChanges(feeChanged || notesChanged);
         } else {
             setHasChanges(itemsChanged || feeChanged || notesChanged);
         }
-    }, [editableItems, editableDeliveryFee, editableNotes, order, user?.role]);
+    }, [editableItems, editableDeliveryFee, editableNotes, order, user]);
 
     const updateStatus = async (newStatus: string) => {
         if (!order) return;
@@ -514,8 +516,11 @@ export default function OrderDetailsPage({ params }: PageProps) {
     }
 
     const nextStatus = getNextStatus(order.status);
-    const isCourier = user?.role === 'courier';
-    const canAssignCourier = user?.role === 'owner' || user?.role === 'supervisor';
+    const userRole = user?.role || user?.type || user?.user_type || '';
+    const isCourier = userRole === 'courier' || userRole === 'partner_courier';
+    const isSupervisor = userRole === 'supervisor' || userRole === 'partner_supervisor';
+    const isOwner = userRole === 'owner' || userRole === 'partner_owner' || userRole === 'admin';
+    const canAssignCourier = isOwner || isSupervisor;
     const readySubOrderStatuses = new Set(['ready_for_pickup', 'completed', 'picked_up', 'in_transit', 'delivered']);
     const hasSubOrders = Array.isArray(order.sub_orders) && order.sub_orders.length > 0;
     const subOrdersReadyForPickup = hasSubOrders
@@ -523,9 +528,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
         : true;
     const isManualOrWhatsapp = order.order_type === 'manual' || ['manual', 'whatsapp', 'واتس', 'وتس', 'يدوي'].some(kw => String(order.source || '').toLowerCase().includes(kw));
     // Couriers CAN edit items if manual or whatsapp. Otherwise only delivery_fee and notes
-    const canEditItems = user && ((user.role === 'owner' || user.role === 'supervisor') || (isCourier && isManualOrWhatsapp)) && order.status !== 'delivered' && order.status !== 'cancelled';
+    const canEditItems = user && (isOwner || isSupervisor || (isCourier && isManualOrWhatsapp)) && order.status !== 'delivered' && order.status !== 'cancelled';
     const canEditDeliveryFee = isCourier &&
-        (order.status === 'in_transit' || order.status === 'picked_up');
+        order.status !== 'delivered' && order.status !== 'cancelled';
     // Legacy canEdit for backwards compatibility - now only for non-courier roles
     const canEdit = canEditItems;
 

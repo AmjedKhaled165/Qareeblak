@@ -237,7 +237,8 @@ export default function OrdersPage() {
     };
 
     // Check if user is a courier
-    const isCourier = user?.role === 'courier';
+    const userRole = user?.role || user?.type || user?.user_type || '';
+    const isCourier = userRole === 'courier' || userRole === 'partner_courier';
 
     // Client-side filtering for status groups
     const filteredOrders = orders.filter(order => {
@@ -348,7 +349,7 @@ export default function OrdersPage() {
                                             <div className="flex items-center gap-2">
                                                 <StatusIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                                                 <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                    {user?.role === 'courier' ? `${order.customer_name} ` : ''}#{order.display_id || order.id}
+                                                    {isCourier ? `${order.customer_name} ` : ''}#{order.display_id || order.id}
                                                 </span>
                                             </div>
                                             {(order as any).source === 'qareeblak' && (
@@ -395,7 +396,7 @@ export default function OrdersPage() {
                                     </div>
 
                                     {/* Customer Info */}
-                                    {user?.role === 'courier' && (
+                                    {isCourier && (
                                         <div className="mb-3">
                                             <p className="font-bold text-slate-800 dark:text-slate-100">{order.customer_name}</p>
                                             <p className="text-sm text-slate-500 dark:text-slate-400">{order.customer_phone}</p>
@@ -403,7 +404,7 @@ export default function OrdersPage() {
                                     )}
 
                                     {/* Address */}
-                                    {user?.role === 'courier' && (
+                                    {isCourier && (
                                         <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-sm">
                                             <div className="flex items-start gap-2">
                                                 <div className="w-5 h-5 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
