@@ -276,6 +276,9 @@ export default function AllDriversPage() {
                                     <div>
                                         <p className="font-bold text-slate-800 dark:text-white">{driver.name}</p>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">@{driver.username}</p>
+                                        <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                                            {driver.courierStatus || 'متاح'}
+                                        </span>
                                     </div>
                                 </div>
 

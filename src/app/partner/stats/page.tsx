@@ -19,7 +19,9 @@ export default function DriverStatsPage() {
     const [user, setUser] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
     const [ordersList, setOrdersList] = useState<any[]>([]);
-    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
+    const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('today');
+    const [customDateInput, setCustomDateInput] = useState<string>('');
+    const [activeCustomDate, setActiveCustomDate] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
 
     const periods = [
@@ -36,14 +38,18 @@ export default function DriverStatsPage() {
         }
         setUser(JSON.parse(storedUser));
         fetchStats();
-    }, [period]);
+    }, [period, activeCustomDate]);
 
     const fetchStats = async () => {
         setIsLoading(true);
         try {
             // Fetch courier history for stats
             console.log('📊 Fetching stats for period:', period);
-            const data = await apiCall(`/halan/orders/courier/history?period=${period}`);
+            let endpoint = `/halan/orders/courier/history?period=${period}`;
+            if (period === 'custom' && activeCustomDate) {
+                endpoint += `&customDate=${activeCustomDate}`;
+            }
+            const data = await apiCall(endpoint);
             console.log('📊 Stats API Response:', data);
 
             if (data.success) {
@@ -90,19 +96,47 @@ export default function DriverStatsPage() {
                 </div>
 
                 {/* Period Toggles */}
-                <div className="flex gap-2 justify-center">
-                    {periods.map((p) => (
+                <div className="flex flex-col items-center gap-3">
+                    <div className="flex gap-2 justify-center overflow-x-auto w-full">
+                        {periods.map((p) => (
+                            <button
+                                key={p.key}
+                                onClick={() => setPeriod(p.key as any)}
+                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${period === p.key
+                                    ? 'bg-white text-green-700'
+                                    : 'bg-white/20 text-white hover:bg-white/30'
+                                    }`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
                         <button
-                            key={p.key}
-                            onClick={() => setPeriod(p.key as any)}
-                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${period === p.key
+                            onClick={() => setPeriod('custom')}
+                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${period === 'custom'
                                 ? 'bg-white text-green-700'
                                 : 'bg-white/20 text-white hover:bg-white/30'
                                 }`}
                         >
-                            {p.label}
+                            تحديد يوم
                         </button>
-                    ))}
+                    </div>
+
+                    {period === 'custom' && (
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="date"
+                                value={customDateInput}
+                                onChange={(e) => setCustomDateInput(e.target.value)}
+                                className="px-4 py-2 rounded-full text-sm bg-white/20 text-white border border-white/30 outline-none focus:ring-2 focus:ring-white/50"
+                            />
+                            <button
+                                onClick={() => setActiveCustomDate(customDateInput)}
+                                className="px-4 py-2 rounded-full text-sm font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-lg"
+                            >
+                                تم
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -277,11 +277,11 @@ export default function OrderDetailsPage({ params }: PageProps) {
         const notesChanged = editableNotes !== (order.notes || '');
 
         const isManualOrWhatsapp = order.order_type === 'manual' || ['manual', 'whatsapp', 'واتس', 'وتس', 'يدوي'].some(kw => String(order.source || '').toLowerCase().includes(kw));
-        const userRole = user?.role || user?.type || user?.user_type || '';
-        const isCourierUser = userRole === 'courier' || userRole === 'partner_courier';
-        const canEditItemsForCourier = isCourierUser && isManualOrWhatsapp;
+        const isQareeblakSource = String(order.source || '').toLowerCase().includes('qareeblak') || String(order.source || '').includes('قريبلك') || order.order_type === 'app';
+        
+        const canEditItemsForUser = !isQareeblakSource;
 
-        if (isCourierUser && !canEditItemsForCourier) {
+        if (!canEditItemsForUser) {
             setHasChanges(feeChanged || notesChanged);
         } else {
             setHasChanges(itemsChanged || feeChanged || notesChanged);
@@ -350,13 +350,13 @@ export default function OrderDetailsPage({ params }: PageProps) {
         setSaving(true);
 
         try {
-            // Couriers can only modify deliveryFee and notes - NOT items/product prices
+            // Couriers and managers can only modify deliveryFee and notes. Items can be modified only if canEditItems is true.
             const data = await apiCall(`/halan/orders/${order.id}/courier-pricing`, {
                 method: 'PATCH',
                 body: JSON.stringify({
                     deliveryFee: editableDeliveryFee,
                     notes: editableNotes, // Send notes as well
-                    items: (canEditItems && isCourier) ? editableItems : undefined
+                    items: canEditItems ? editableItems : undefined
                 })
             });
 
@@ -366,7 +366,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     status: order.status === 'pending' || order.status === 'assigned' || order.status === 'ready_for_pickup' ? 'in_transit' : order.status,
                     delivery_fee: editableDeliveryFee,
                     notes: editableNotes,
-                    items: (canEditItems && isCourier) ? editableItems : order.items
+                    items: canEditItems ? editableItems : order.items
                 });
                 setHasChanges(false);
                 setModalState({
@@ -527,11 +527,13 @@ export default function OrderDetailsPage({ params }: PageProps) {
         ? order.sub_orders!.every((s) => readySubOrderStatuses.has(String(s.status || '').toLowerCase()))
         : true;
     const isManualOrWhatsapp = order.order_type === 'manual' || ['manual', 'whatsapp', 'واتس', 'وتس', 'يدوي'].some(kw => String(order.source || '').toLowerCase().includes(kw));
-    // Couriers CAN edit items if manual or whatsapp. Otherwise only delivery_fee and notes
-    const canEditItems = user && (isOwner || isSupervisor || (isCourier && isManualOrWhatsapp)) && order.status !== 'delivered' && order.status !== 'cancelled';
-    const canEditDeliveryFee = isCourier &&
-        order.status !== 'delivered' && order.status !== 'cancelled';
-    // Legacy canEdit for backwards compatibility - now only for non-courier roles
+    const isQareeblakSource = String(order.source || '').toLowerCase().includes('qareeblak') || String(order.source || '').includes('قريبلك') || order.order_type === 'app';
+    
+    // If source is Qareeblak, no one can edit items. If manual or whatsapp, they can.
+    const canEditItems = user && (isOwner || isSupervisor || isCourier) && !isQareeblakSource && order.status !== 'delivered' && order.status !== 'cancelled';
+    const canEditDeliveryFee = isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
+    
+    // Legacy canEdit for backwards compatibility
     const canEdit = canEditItems;
 
     console.log("DEBUG VARIABLES:", {
@@ -617,7 +619,9 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                     >
                                         <option value="">اختر مندوب</option>
                                         {drivers.map((driver) => (
-                                            <option key={driver.id} value={driver.id}>{driver.name}</option>
+                                            <option key={driver.id} value={driver.id}>
+                                                {driver.name} - ({driver.courierStatus || 'متاح'})
+                                            </option>
                                         ))}
                                     </select>
                                     <button

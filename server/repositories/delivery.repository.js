@@ -872,7 +872,7 @@ class DeliveryRepository {
         await pool.query('DELETE FROM delivery_orders WHERE id = $1', [id]);
     }
 
-    async getCourierHistory(courierId, period = 'today') {
+    async getCourierHistory(courierId, period = 'today', customDate) {
         const cols = await getDeliveryOrdersColumns();
 
         const timeExpr = cols.has('delivered_at')
@@ -892,6 +892,9 @@ class DeliveryRepository {
             conditions.push(`${timeExpr} >= date_trunc('week', NOW())`);
         } else if (period === 'month') {
             conditions.push(`${timeExpr} >= date_trunc('month', NOW())`);
+        } else if (period === 'custom' && customDate) {
+            conditions.push(`${timeExpr} >= $2::date AND ${timeExpr} < ($2::date + interval '1 day')`);
+            params.push(customDate);
         }
 
         const deliveredAtExpr = cols.has('delivered_at') ? 'o.delivered_at' : 'NULL AS delivered_at';

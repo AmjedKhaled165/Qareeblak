@@ -87,6 +87,8 @@ export default function DriverDashboard() {
     const [savingDeliveryFee, setSavingDeliveryFee] = useState<Record<number, boolean>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [view, setView] = useState<'list' | 'map'>('list');
+    const [courierStatus, setCourierStatus] = useState<string>('متاح');
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     // Global Tracking
     const { isTracking, currentLocation, isExpired, startTracking } = useCourierTracking();
@@ -98,12 +100,15 @@ export default function DriverDashboard() {
             router.push('/login/partner');
             return;
         }
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        userRef.current = userData;
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        userRef.current = parsedUser;
+        if (parsedUser.courierStatus) {
+            setCourierStatus(parsedUser.courierStatus);
+        }
 
         // Redirect if not courier or partner_courier
-        if (userData.role !== 'courier' && userData.role !== 'partner_courier') {
+        if (parsedUser.role !== 'courier' && parsedUser.role !== 'partner_courier') {
             router.push('/partner/dashboard');
             return;
         }
@@ -241,6 +246,35 @@ export default function DriverDashboard() {
         } finally {
             isFetchingOrdersRef.current = false;
             setIsLoading(false);
+        }
+    };
+
+    const handleStatusChange = async (newStatus: string) => {
+        if (!user?.id) return;
+        setIsUpdatingStatus(true);
+        try {
+            const res = await apiCall(`/halan/users/${user.id}/courier-status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ courierStatus: newStatus })
+            });
+            if (res.success) {
+                setCourierStatus(newStatus);
+                const updatedUser = { ...user, courierStatus: newStatus };
+                setUser(updatedUser);
+                userRef.current = updatedUser;
+                localStorage.setItem('halan_user', JSON.stringify(updatedUser));
+            } else {
+                setModalState({
+                    isOpen: true,
+                    title: 'خطأ',
+                    message: res.error || 'حدث خطأ أثناء تحديث الحالة',
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error('Error updating status:', error);
+        } finally {
+            setIsUpdatingStatus(false);
         }
     };
 
@@ -551,11 +585,29 @@ export default function DriverDashboard() {
                     </motion.div>
 
                     {/* Tracking Status Indicator - Themed */}
-                    <div className="flex items-center justify-center gap-3 bg-black/30 backdrop-blur-xl px-5 py-2.5 rounded-2xl mb-6 border border-white/5 shadow-inner">
-                        <div className={`w-3 h-3 rounded-full ${isTracking ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'} ${!isTracking && 'animate-pulse'}`} />
-                        <span className="text-white/80 text-sm font-bold tracking-tight">
-                            {isTracking ? 'التتبع نشط (صالح لمدة 24 ساعة)' : 'التتبع متوقف حالياً'}
-                        </span>
+                    <div className="flex items-center justify-between gap-3 bg-black/30 backdrop-blur-xl px-5 py-2.5 rounded-2xl mb-6 border border-white/5 shadow-inner">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-3 h-3 rounded-full ${isTracking ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'} ${!isTracking && 'animate-pulse'}`} />
+                            <span className="text-white/80 text-sm font-bold tracking-tight">
+                                {isTracking ? 'التتبع نشط (صالح لمدة 24 ساعة)' : 'التتبع متوقف حالياً'}
+                            </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                            <span className="text-white/60 text-xs">الحالة:</span>
+                            <select
+                                value={courierStatus}
+                                onChange={(e) => handleStatusChange(e.target.value)}
+                                disabled={isUpdatingStatus}
+                                className="bg-white/10 text-white text-sm font-bold border border-white/20 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-emerald-500 outline-none appearance-none cursor-pointer disabled:opacity-50"
+                            >
+                                <option value="متاح" className="text-slate-900">متاح</option>
+                                <option value="مشغول" className="text-slate-900">مشغول</option>
+                                <option value="شبه متاح" className="text-slate-900">شبه متاح</option>
+                                <option value="شبه مشغول" className="text-slate-900">شبه مشغول</option>
+                            </select>
+                            {isUpdatingStatus && <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />}
+                        </div>
                     </div>
 
                     {/* View Toggles - Midnight Theme */}

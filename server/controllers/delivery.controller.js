@@ -508,7 +508,8 @@ exports.getCourierHistory = catchAsync(async (req, res, next) => {
     }
 
     const period = String(req.query.period || 'today').toLowerCase();
-    const data = await deliveryService.getCourierHistory(userId, role, period, req.query.courierId);
+    const customDate = req.query.customDate;
+    const data = await deliveryService.getCourierHistory(userId, role, period, req.query.courierId, customDate);
 
     res.status(200).json({ success: true, data });
 });

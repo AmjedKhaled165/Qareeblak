@@ -74,9 +74,9 @@ class DeliveryService {
         return result;
     }
 
-    async getCourierHistory(userId, role, period = 'today', explicitCourierId) {
+    async getCourierHistory(userId, role, period = 'today', explicitCourierId, customDate) {
         const normalizedRole = String(role || '').toLowerCase();
-        const normalizedPeriod = ['today', 'week', 'month'].includes(period) ? period : 'today';
+        const normalizedPeriod = ['today', 'week', 'month', 'custom'].includes(period) ? period : 'today';
 
         let courierId = Number(userId);
         if (['admin', 'owner', 'partner_owner'].includes(normalizedRole) && explicitCourierId) {
@@ -86,7 +86,7 @@ class DeliveryService {
             }
         }
 
-        return await deliveryRepo.getCourierHistory(courierId, normalizedPeriod);
+        return await deliveryRepo.getCourierHistory(courierId, normalizedPeriod, customDate);
     }
 
     _parseItems(rawItems) {
@@ -792,9 +792,9 @@ class DeliveryService {
         if (payload.items) {
             const source = String(currentOrder.source || '').toLowerCase();
             const orderType = String(currentOrder.order_type || '').toLowerCase();
-            const isManualOrWhatsapp = orderType === 'manual' || ['manual', 'whatsapp', 'واتس', 'وتس', 'يدوي'].some(kw => source.includes(kw));
+            const isQareeblakSource = source.includes('qareeblak') || source.includes('قريبلك') || orderType === 'app';
 
-            if (isManualOrWhatsapp || isAdminLike) {
+            if (!isQareeblakSource) {
                 updates.items = payload.items;
                 before.items = currentOrder.items;
                 after.items = payload.items;
@@ -805,7 +805,7 @@ class DeliveryService {
                 before.price = Number(currentOrder.price || 0);
                 after.price = newPrice;
             } else {
-                throw new AppError('غير مصرح لك بتعديل المنتجات لهذا الطلب', 403);
+                throw new AppError('لا يمكن تعديل منتجات طلبات قريبلك', 403);
             }
         }
 

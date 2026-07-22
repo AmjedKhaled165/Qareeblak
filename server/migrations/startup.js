@@ -17,6 +17,7 @@ async function ensureCoreTables(query) {
             last_location_update TIMESTAMP,
             is_available BOOLEAN DEFAULT false,
             is_online BOOLEAN DEFAULT false,
+            courier_status VARCHAR(50) DEFAULT 'متاح',
             max_active_orders INTEGER DEFAULT 10,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -344,8 +345,9 @@ async function runStartupMigrations() {
         logger.info('✅ Services Migration: Ensured service item columns exist');
 
 
-        // 5. Migration: Add is_online and max_active_orders columns for courier capacity
+        // 5. Migration: Add is_online, max_active_orders, and courier_status columns
         await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS courier_status VARCHAR(50) DEFAULT 'متاح'");
         await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS max_active_orders INTEGER DEFAULT 10");
 
         // 6. Migration: Wheel of Luck Tables

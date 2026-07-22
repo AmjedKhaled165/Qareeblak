@@ -56,7 +56,9 @@ export default function ManagerDashboard() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
-    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
+    const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('month');
+    const [customDateInput, setCustomDateInput] = useState<string>('');
+    const [activeCustomDate, setActiveCustomDate] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -99,7 +101,7 @@ export default function ManagerDashboard() {
             const interval = setInterval(fetchStats, 10000);
             return () => clearInterval(interval);
         }
-    }, [period, user]);
+    }, [period, activeCustomDate, user]);
 
     const fetchStats = async () => {
         try {
@@ -149,6 +151,13 @@ export default function ManagerDashboard() {
                 if (p === 'month') {
                     start.setDate(1);
                     return date >= start;
+                }
+                if (p === 'custom' && activeCustomDate) {
+                    const customStart = new Date(activeCustomDate);
+                    customStart.setHours(0, 0, 0, 0);
+                    const customEnd = new Date(activeCustomDate);
+                    customEnd.setHours(23, 59, 59, 999);
+                    return date >= customStart && date <= customEnd;
                 }
                 return true;
             };
@@ -248,19 +257,49 @@ export default function ManagerDashboard() {
                     </div>
 
                     {/* Period Toggles - Themed */}
-                    <div className="flex gap-2 p-1.5 bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl w-fit mx-auto border border-white/10 dark:border-white/5">
-                        {periods.map((p) => (
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="flex gap-2 p-1.5 bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl w-fit border border-white/10 dark:border-white/5 overflow-x-auto">
+                            {periods.map((p) => (
+                                <button
+                                    key={p.key}
+                                    onClick={() => setPeriod(p.key as any)}
+                                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${period === p.key
+                                        ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25'
+                                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                                        }`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
                             <button
-                                key={p.key}
-                                onClick={() => setPeriod(p.key as any)}
-                                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${period === p.key
+                                onClick={() => setPeriod('custom')}
+                                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${period === 'custom'
                                     ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25'
                                     : 'text-white/70 hover:text-white hover:bg-white/10'
                                     }`}
                             >
-                                {p.label}
+                                تحديد يوم
                             </button>
-                        ))}
+                        </div>
+
+                        {period === 'custom' && (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={customDateInput}
+                                    onChange={(e) => setCustomDateInput(e.target.value)}
+                                    className="px-4 py-2.5 rounded-xl text-sm bg-white/10 border border-white/20 text-white font-bold focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                                <button
+                                    onClick={() => {
+                                        setActiveCustomDate(customDateInput);
+                                    }}
+                                    className="px-6 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/30"
+                                >
+                                    تم
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

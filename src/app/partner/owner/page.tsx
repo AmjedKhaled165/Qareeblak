@@ -106,7 +106,9 @@ export default function OwnerDashboard() {
     const [stats, setStats] = useState<any>(null);
     const [rawUsers, setRawUsers] = useState<any[]>([]);
     const [rawOrders, setRawOrders] = useState<any[]>([]);
-    const [period, setPeriod] = useState<'today' | 'week' | 'month'>('month');
+    const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('month');
+    const [customDateInput, setCustomDateInput] = useState<string>('');
+    const [activeCustomDate, setActiveCustomDate] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const isFetchingRef = useRef(false);
@@ -117,7 +119,7 @@ export default function OwnerDashboard() {
         { key: 'month', label: 'هذا الشهر' },
     ];
 
-    const buildStatsFromData = useCallback((users: any[], orders: any[], selectedPeriod: 'today' | 'week' | 'month') => {
+    const buildStatsFromData = useCallback((users: any[], orders: any[], selectedPeriod: 'today' | 'week' | 'month' | 'custom', customDateVal?: string) => {
         const managers = users.filter((u: any) => u.role === 'supervisor');
         const drivers = users.filter((u: any) => u.role === 'courier');
 
@@ -150,6 +152,13 @@ export default function OwnerDashboard() {
             if (p === 'month') {
                 start.setDate(1);
                 return date >= start;
+            }
+            if (p === 'custom' && customDateVal) {
+                const customStart = new Date(customDateVal);
+                customStart.setHours(0, 0, 0, 0);
+                const customEnd = new Date(customDateVal);
+                customEnd.setHours(23, 59, 59, 999);
+                return date >= customStart && date <= customEnd;
             }
             return true;
         };
@@ -238,7 +247,7 @@ export default function OwnerDashboard() {
             const orders = ordersData.success ? ordersData.data : [];
             setRawUsers(users);
             setRawOrders(orders);
-            setStats(buildStatsFromData(users, orders, period));
+            setStats(buildStatsFromData(users, orders, period, activeCustomDate));
 
         } catch (error: any) {
             console.error('Error fetching stats:', error);
@@ -270,9 +279,9 @@ export default function OwnerDashboard() {
     useEffect(() => {
         // Recompute instantly on period switch with cached data (no extra network).
         if (rawUsers.length > 0 && rawOrders.length > 0) {
-            setStats(buildStatsFromData(rawUsers, rawOrders, period));
+            setStats(buildStatsFromData(rawUsers, rawOrders, period, activeCustomDate));
         }
-    }, [period, rawUsers, rawOrders, buildStatsFromData]);
+    }, [period, activeCustomDate, rawUsers, rawOrders, buildStatsFromData]);
 
     const handleLogout = () => {
         localStorage.removeItem('halan_token');
@@ -332,19 +341,49 @@ export default function OwnerDashboard() {
                     </div>
 
                     {/* Period Toggles - Themed */}
-                    <div className="flex gap-2 p-1.5 bg-black/20 backdrop-blur-md rounded-2xl w-fit mx-auto border border-white/5">
-                        {periods.map((p) => (
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="flex gap-2 p-1.5 bg-black/20 backdrop-blur-md rounded-2xl w-fit border border-white/5 overflow-x-auto">
+                            {periods.map((p) => (
+                                <button
+                                    key={p.key}
+                                    onClick={() => setPeriod(p.key as any)}
+                                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${period === p.key
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                        }`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
                             <button
-                                key={p.key}
-                                onClick={() => setPeriod(p.key as any)}
-                                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${period === p.key
+                                onClick={() => setPeriod('custom')}
+                                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${period === 'custom'
                                     ? 'bg-primary text-white shadow-lg shadow-primary/25'
                                     : 'text-slate-400 hover:text-white hover:bg-white/5'
                                     }`}
                             >
-                                {p.label}
+                                تحديد يوم
                             </button>
-                        ))}
+                        </div>
+                        
+                        {period === 'custom' && (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={customDateInput}
+                                    onChange={(e) => setCustomDateInput(e.target.value)}
+                                    className="px-4 py-2.5 rounded-xl text-sm bg-white/10 border border-white/20 text-white font-bold focus:ring-2 focus:ring-primary outline-none"
+                                />
+                                <button
+                                    onClick={() => {
+                                        setActiveCustomDate(customDateInput);
+                                    }}
+                                    className="px-6 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/30"
+                                >
+                                    تم
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

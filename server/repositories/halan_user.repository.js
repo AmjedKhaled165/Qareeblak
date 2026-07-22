@@ -15,7 +15,7 @@ class HalanUserRepository {
     async getUsers({ role, supervisorId, currentUserId, currentUserRole }) {
         let query = `
             SELECT 
-                u.id, u.name, u.username, u.email, u.phone, u.avatar, u.user_type, u.is_available, u.created_at,
+                u.id, u.name, u.username, u.email, u.phone, u.avatar, u.user_type, u.is_available, u.courier_status, u.created_at,
                 array_agg(cs.supervisor_id) FILTER (WHERE cs.supervisor_id IS NOT NULL) as supervisor_ids
             FROM users u
             LEFT JOIN courier_supervisors cs ON u.id = cs.courier_id
@@ -51,6 +51,10 @@ class HalanUserRepository {
 
     async updateAvailability(id, isAvailable) {
         await pool.query('UPDATE users SET is_available = $1 WHERE id = $2', [isAvailable, id]);
+    }
+
+    async updateCourierStatus(id, courierStatus) {
+        await pool.query('UPDATE users SET courier_status = $1 WHERE id = $2', [courierStatus, id]);
     }
 
     async updateProfile(id, data) {

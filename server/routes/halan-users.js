@@ -30,6 +30,7 @@ router.get('/', userController.getUsers);
 router.get('/:id', userController.getUser);
 router.post('/assign', validate(assignCourierSchema), userController.assignCourier);
 router.patch('/:id/availability', validate(updateAvailabilitySchema), userController.updateAvailability);
+router.patch('/:id/courier-status', userController.updateCourierStatus);
 router.put('/:id', validate(updateProfileSchema), userController.updateProfile);
 router.delete('/:id', userController.deleteUser);
 

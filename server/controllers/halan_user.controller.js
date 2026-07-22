@@ -37,6 +37,7 @@ exports.getUsers = catchAsync(async (req, res) => {
         avatar: user.avatar,
         role: user.user_type.replace('partner_', ''),
         isAvailable: user.is_available,
+        courierStatus: user.courier_status || 'متاح',
         supervisorIds: user.supervisor_ids || [],
         createdAt: user.created_at
     }));
@@ -58,7 +59,8 @@ exports.getUser = catchAsync(async (req, res) => {
             phone: user.phone,
             avatar: user.avatar,
             role: user.user_type.replace('partner_', ''),
-            isAvailable: user.is_available
+            isAvailable: user.is_available,
+            courierStatus: user.courier_status || 'متاح'
         }
     });
 });
@@ -74,6 +76,19 @@ exports.updateAvailability = catchAsync(async (req, res) => {
     }
     res.json({ success: true, message: 'تم تحديث الحالة' });
 });
+
+exports.updateCourierStatus = catchAsync(async (req, res) => {
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const { courierStatus } = req.body;
+    await userRepo.updateCourierStatus(id, courierStatus);
+
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('driver-courier-status-changed', { driverId: id, courierStatus });
+    }
+    res.json({ success: true, message: 'تم تحديث حالة المندوب', courierStatus });
+});
+
 
 exports.updateProfile = catchAsync(async (req, res) => {
     const id = decodeEntityId('user', req.params.id) || req.params.id;
