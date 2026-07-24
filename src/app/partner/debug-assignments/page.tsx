@@ -30,7 +30,7 @@ export default function DebugAssignmentsPage() {
         <div className="p-10 bg-white min-h-screen text-black" dir="rtl">
             <h1 className="text-2xl font-bold mb-6">صفحة فحص تعيينات المناديب (Debug)</h1>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div>
                     <h2 className="text-xl font-bold mb-4">1. المناديب (Couriers)</h2>
                     <table className="w-full border collapse">

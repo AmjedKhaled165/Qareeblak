@@ -1040,7 +1040,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                                 )}
                                             </div>
 
-                                            <div className="grid grid-cols-3 gap-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                 {/* Quantity */}
                                                 <div>
                                                     <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">الكمية</label>

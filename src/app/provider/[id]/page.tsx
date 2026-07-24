@@ -688,7 +688,7 @@ export default function ProviderProfile() {
                                 initial={{ y: 100, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 exit={{ y: 100, opacity: 0 }}
-                                className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-50 shadow-2xl"
+                                className="fixed bottom-[5.5rem] md:bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-50 shadow-2xl"
                             >
                                 <div className="container mx-auto max-w-5xl flex items-center justify-between">
                                     <div className="flex items-center gap-4">
@@ -744,7 +744,7 @@ export default function ProviderProfile() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setIsCartOpen(true)}
-                        className="fixed bottom-24 md:bottom-6 left-6 z-[60] bg-violet-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center lg:hidden"
+                        className="fixed bottom-36 md:bottom-6 left-6 z-[60] bg-violet-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center lg:hidden"
                     >
                         <div className="relative">
                             <ShoppingCart className="w-6 h-6" />

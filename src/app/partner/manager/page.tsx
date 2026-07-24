@@ -397,7 +397,7 @@ export default function ManagerDashboard() {
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="bg-slate-50 dark:bg-black/20 rounded-[1.5rem] p-4 border border-slate-100 dark:border-white/5 text-center">
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1.5 font-bold">تم التسليم</p>
                                                 <p className="text-xl font-bold text-slate-800 dark:text-white leading-none">{driver.delivered || 0}</p>

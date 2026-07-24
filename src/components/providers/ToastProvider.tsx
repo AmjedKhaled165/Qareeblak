@@ -87,7 +87,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {children}
 
             {/* Toast Container - Top Center for maximum visibility */}
-            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 w-full max-w-md px-4 pointer-events-none">
+            <div className="fixed top-6 left-4 right-4 mx-auto z-[9999] flex flex-col gap-3 w-auto max-w-md pointer-events-none">
                 <AnimatePresence>
                     {activeToast && (
                         <motion.div

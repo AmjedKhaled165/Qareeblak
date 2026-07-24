@@ -189,7 +189,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-[11px] font-bold text-muted-foreground">يبدأ المساء من:</label>
                                 <select 
@@ -274,7 +274,7 @@ export function PlaygroundAppointmentsTab({ providerId, services, onServicesUpda
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {ALL_DAY_SLOTS.map((time) => {
                         const status = currentDayStatuses[time];
                         

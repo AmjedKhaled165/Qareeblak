@@ -302,7 +302,7 @@ export default function HomeClient() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 md:gap-8">
             {categories.map((cat, index) => (
               <BlurIn key={index} delay={index * 0.05} className="h-full">
                 <motion.div

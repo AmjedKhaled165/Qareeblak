@@ -232,7 +232,7 @@ export default function AdminWheelPrizesPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-sm font-bold text-slate-700 mb-1 block">نوع الجائزة</label>
                                     <select 
@@ -257,7 +257,7 @@ export default function AdminWheelPrizesPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-sm font-bold text-slate-700 mb-1 block">الاحتمالية (الوزن من 100)</label>
                                     <Input 

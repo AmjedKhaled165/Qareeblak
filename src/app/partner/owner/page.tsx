@@ -506,7 +506,7 @@ export default function OwnerDashboard() {
                                             </button>
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-3 bg-slate-50 dark:bg-black/20 rounded-xl p-4 border border-slate-100 dark:border-white/5">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 bg-slate-50 dark:bg-black/20 rounded-xl p-4 border border-slate-100 dark:border-white/5">
                                             <div
                                                 onClick={() => router.push(`/partner/orders?supervisorId=${manager.id}`)}
                                                 className="cursor-pointer hover:bg-white dark:hover:bg-white/5 p-3 rounded-xl transition-all text-center"

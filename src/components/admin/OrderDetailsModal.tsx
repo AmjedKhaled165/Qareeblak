@@ -395,8 +395,8 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                             <div>
                                 <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-2">المنتجات / الخدمات</h3>
                                 {order.items && order.items.length > 0 ? (
-                                    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-                                        <table className="w-full text-sm">
+                                    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-x-auto">
+                                        <table className="w-full text-sm min-w-[500px]">
                                             <thead>
                                                 <tr className="bg-slate-50 dark:bg-slate-800/50">
                                                     <th className="text-right px-3 py-2 text-xs font-semibold text-slate-500">المنتج</th>
@@ -528,7 +528,7 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                             </div>
 
                             {/* Price & Delivery Fee */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 block">السعر الإجمالي</label>
                                     <div className="relative">
@@ -717,7 +717,7 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                             {/* New Status Selector */}
                             <div>
                                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 block">اختر الحالة الجديدة</label>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {ALL_STATUSES.map((s) => {
                                         const cfg = STATUS_MAP[s];
                                         return (

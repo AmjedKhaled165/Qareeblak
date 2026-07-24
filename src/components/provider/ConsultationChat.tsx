@@ -593,7 +593,7 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId, pr
                                                     className="w-full text-sm p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-emerald-500"
                                                 />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                 <div>
                                                     <label className="text-xs text-slate-500 mb-1 block">تاريخ الرحلة</label>
                                                     <input

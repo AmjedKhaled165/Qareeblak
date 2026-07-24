@@ -1698,7 +1698,7 @@ export default function ProviderDashboard() {
                                                 )}
 
                                                 {!serviceForm.image && (
-                                                    <div className="grid grid-cols-2 gap-4">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                         <label className="cursor-pointer group">
                                                             <input type="file" accept="image/*" className="hidden" onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                                                 const file = e.target.files?.[0];
@@ -1744,7 +1744,7 @@ export default function ProviderDashboard() {
                                                     <div className="bg-background/50 p-6 rounded-2xl space-y-5 border border-border shadow-inner">
                                                         <div className="space-y-3">
                                                             <Label className="font-bold font-cairo block text-right text-muted-foreground">نوع العرض</Label>
-                                                            <div className="grid grid-cols-2 gap-3">
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                                 <Button type="button" className={`h-11 rounded-xl font-bold font-cairo transition-all ${serviceForm.offerType === 'discount' ? 'bg-primary text-white' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`} onClick={() => setServiceForm({ ...serviceForm, offerType: 'discount' })}>نسبة خصم %</Button>
                                                                 <Button type="button" className={`h-11 rounded-xl font-bold font-cairo transition-all ${serviceForm.offerType === 'bundle' ? 'bg-primary text-white' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`} onClick={() => setServiceForm({ ...serviceForm, offerType: 'bundle' })}>عرض بونص (X+Y)</Button>
                                                             </div>

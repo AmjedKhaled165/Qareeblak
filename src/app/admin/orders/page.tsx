@@ -226,7 +226,7 @@ export default function OrdersPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {[
                     { key: "pending", label: "قيد الانتظار", bg: "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800" },
                     { key: "accepted", label: "مقبول", bg: "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" },

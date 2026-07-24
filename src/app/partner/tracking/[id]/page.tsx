@@ -494,7 +494,7 @@ export default function DriverTrackingPage() {
                         </div>
 
                         {/* Stats Grid */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm">
                                 <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-2">
                                     <CheckCircle className="w-5 h-5 text-green-600" />

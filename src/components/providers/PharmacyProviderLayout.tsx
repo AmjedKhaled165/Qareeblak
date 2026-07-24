@@ -215,7 +215,7 @@ export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps
                         </div>
 
                         {/* Products Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-3 gap-4">
                             {filteredServices.length > 0 ? (
                                 filteredServices.map((service) => {
                                     const itemQty = getItemQuantity(service.id);

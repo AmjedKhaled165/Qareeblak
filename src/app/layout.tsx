@@ -87,7 +87,7 @@ export default function RootLayout({
                 <ConfirmProvider>
                   <SmoothScroll>
                     <Navbar />
-                    <main className="flex-1 pb-24 md:pb-0">
+                    <main className="flex-1 pb-32 md:pb-10">
                       <ErrorBoundary>
                         {children}
                       </ErrorBoundary>

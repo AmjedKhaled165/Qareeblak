@@ -175,7 +175,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                         </div>
 
                         {/* Driver & Manager Info */}
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-4">
                                 <h3 className="font-bold text-xs text-violet-600 dark:text-violet-400 mb-2 flex items-center gap-1">
                                     <Truck className="w-3 h-3" />
@@ -600,7 +600,7 @@ export default function OwnerAllOrdersPage() {
                     <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">تصفية النتائج</span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-2">
                     {/* Status Filter */}
                     <div className="relative">
                         <select

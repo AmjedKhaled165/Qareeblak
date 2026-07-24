@@ -335,7 +335,7 @@ export default function DriverDetailsPage() {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3 -mb-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 -mb-12">
                     <StatsCard
                         title="إجمالي الطلبات"
                         value={stats.totalOrders}

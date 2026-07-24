@@ -242,7 +242,7 @@ export function PlaygroundsBookingModal({ provider, serviceName, open, onOpenCha
                                                 <p className="font-bold">لا توجد مواعيد متاحة أو مسجلة في هذا اليوم</p>
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                 {timesForSelectedDate.map((slot: any, idx: number) => {
                                                     const isBooked = slot.status === 'booked' || slot.status === 'unavailable';
                                                     const isBookedByMe = isBooked && slot.bookedBy && slot.bookedBy === currentUser?.id;

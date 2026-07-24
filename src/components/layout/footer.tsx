@@ -60,7 +60,7 @@ export function Footer() {
                 {/* Categories */}
                 <div className="lg:col-span-3 space-y-6">
                     <h3 className="text-lg font-bold text-white uppercase tracking-wider">أهم الأقسام</h3>
-                    <ul className="space-y-3 font-medium text-slate-400 grid grid-cols-2 lg:grid-cols-1">
+                    <ul className="space-y-3 font-medium text-slate-400 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1">
                         <li><Link href="/explore?q=مطعم" className="hover:text-primary transition-colors">مطاعم وكافيهات</Link></li>
                         <li><Link href="/explore?q=صيانة" className="hover:text-primary transition-colors">صيانة وسباكة</Link></li>
                         <li><Link href="/explore?q=سوبر" className="hover:text-primary transition-colors">سوبر ماركت</Link></li>
