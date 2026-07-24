@@ -61,6 +61,7 @@ interface UserOption {
     username: string;
     supervisorIds?: number[];
     isAvailable?: boolean;
+    courierStatus?: string;
 }
 
 const normalizeSourceKey = (source?: string) => {

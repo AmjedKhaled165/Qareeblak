@@ -17,6 +17,7 @@ export interface CartItem {
         discountPercent?: number;
         bundleCount?: number;
         bundleFreeCount?: number;
+        endDate?: string;
     };
 }
 

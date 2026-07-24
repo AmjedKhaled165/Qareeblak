@@ -20,6 +20,7 @@ interface OrderItem {
     price: number;
     quantity: number;
     notes?: string;
+    freeQuantity?: number;
 }
 
 interface Order {
