@@ -51,7 +51,14 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
         }
     };
 
-    const totalAmount = globalCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const totalAmount = globalCart.reduce((sum, item) => {
+        let finalPrice = Number(item.price);
+        const isOfferValid = !item.offer?.endDate || new Date(item.offer.endDate) >= new Date();
+        if (isOfferValid && item.offer?.type === 'discount' && item.offer.discountPercent) {
+            finalPrice = Math.round(finalPrice * (1 - item.offer.discountPercent / 100));
+        }
+        return sum + (finalPrice * item.quantity);
+    }, 0);
     const cartProviderIds = new Set(globalCart.map(item => String(item.providerId)));
 
     const applicablePrizes = prizes.filter(prize => {
@@ -254,7 +261,24 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="font-bold text-slate-900 dark:text-white leading-tight">{item.name}</h4>
-                                                        <p className="text-primary font-bold">{item.price} ج.م</p>
+                                                        {(!item.offer?.endDate || new Date(item.offer.endDate) >= new Date()) && item.offer?.type === 'discount' && item.offer.discountPercent ? (
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <p className="text-primary font-bold">
+                                                                    {Math.round(Number(item.price) * (1 - item.offer.discountPercent / 100))} ج.م
+                                                                </p>
+                                                                <p className="text-slate-400 text-xs line-through decoration-red-500">
+                                                                    {item.price} ج.م
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-primary font-bold mt-1">{item.price} ج.م</p>
+                                                        )}
+                                                        {(!item.offer?.endDate || new Date(item.offer.endDate) >= new Date()) && item.offer?.type === 'bundle' && item.offer.bundleCount && item.offer.bundleFreeCount && Math.floor(item.quantity / item.offer.bundleCount) > 0 && (
+                                                            <div className="inline-flex items-center gap-1 mt-1.5 bg-green-500/10 text-green-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                                <Gift className="w-3 h-3" />
+                                                                + {Math.floor(item.quantity / item.offer.bundleCount) * item.offer.bundleFreeCount} مجاناً
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     <div className="flex flex-col items-end gap-2">
@@ -518,3 +542,4 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
         document.body
     );
 }
+

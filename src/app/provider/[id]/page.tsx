@@ -265,7 +265,8 @@ export default function ProviderProfile() {
             quantity: 1,
             providerId: provider.id,
             providerName: provider.name,
-            image: service.image
+            image: service.image,
+            offer: service.offer
         });
     };
 

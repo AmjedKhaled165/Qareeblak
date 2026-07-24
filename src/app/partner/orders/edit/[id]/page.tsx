@@ -263,7 +263,7 @@ export default function EditOrderPage({ params }: PageProps) {
                         <option value="">-- اختر المندوب (اختياري) --</option>
                         {drivers.map(driver => (
                             <option key={driver.id} value={driver.id}>
-                                {driver.name || driver.username} ({driver.phone})
+                                {driver.name || driver.username} ({driver.phone}) - {driver.courierStatus || (driver.isAvailable ? 'متاح' : 'غير متاح')}
                             </option>
                         ))}
                     </select>

@@ -12,6 +12,12 @@ export interface CartItem {
     providerId: string;
     providerName: string;
     image?: string;
+    offer?: {
+        type: 'discount' | 'bundle';
+        discountPercent?: number;
+        bundleCount?: number;
+        bundleFreeCount?: number;
+    };
 }
 
 export interface CartContextType {
@@ -99,6 +105,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const clearGlobalCart = () => setGlobalCart([]);
 
+    const isOfferValid = (offer?: any) => {
+        if (!offer) return false;
+        if (offer.endDate) {
+            const end = new Date(offer.endDate);
+            if (end < new Date()) return false;
+        }
+        return true;
+    };
+
     const checkoutGlobalCart = async (userId: string | number, addressInfo?: any, userPrizeId?: number) => {
         if (!userId || globalCart.length === 0) return false;
 
@@ -110,14 +125,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         setIsLoadingCart(true);
         try {
-            const checkoutItems = globalCart.map((item) => ({
-                id: item.id,
-                providerId: item.providerId,
-                providerName: item.providerName,
-                price: Number(item.price),
-                quantity: Math.max(1, Number(item.quantity) || 1),
-                name: item.name
-            }));
+            const checkoutItems = globalCart.map((item) => {
+                let calculatedFreeCount = 0;
+                let finalPrice = Number(item.price);
+                const validOffer = isOfferValid(item.offer);
+                
+                if (validOffer && item.offer?.type === 'bundle' && item.offer.bundleCount && item.offer.bundleFreeCount) {
+                    calculatedFreeCount = Math.floor(item.quantity / item.offer.bundleCount) * item.offer.bundleFreeCount;
+                } else if (validOffer && item.offer?.type === 'discount' && item.offer.discountPercent) {
+                    finalPrice = Math.round(finalPrice * (1 - item.offer.discountPercent / 100));
+                }
+
+                return {
+                    id: item.id,
+                    providerId: item.providerId,
+                    providerName: item.providerName,
+                    price: finalPrice,
+                    originalPrice: validOffer && item.offer ? Number(item.price) : undefined,
+                    quantity: Math.max(1, Number(item.quantity) || 1),
+                    name: item.name,
+                    offer: validOffer ? item.offer : undefined,
+                    freeQuantity: calculatedFreeCount > 0 ? calculatedFreeCount : undefined
+                };
+            });
 
             const hasInvalidItem = checkoutItems.some((item) =>
                 typeof item.providerId !== 'string' ||
@@ -214,3 +244,4 @@ export function useCartStore() {
     if (!context) throw new Error("useCartStore must be used within a CartProvider");
     return context;
 }
+

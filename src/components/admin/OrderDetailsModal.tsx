@@ -407,7 +407,14 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                                 {order.items.map((item, i) => (
                                                     <tr key={i}>
-                                                        <td className="px-3 py-2 text-slate-800 dark:text-white">{item.name}</td>
+                                                        <td className="px-3 py-2 text-slate-800 dark:text-white">
+                                                            {item.name}
+                                                            {item.freeQuantity && item.freeQuantity > 0 && (
+                                                                <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded text-[10px] font-bold mt-1 block w-max">
+                                                                    + {item.freeQuantity} هدية
+                                                                </span>
+                                                            )}
+                                                        </td>
                                                         <td className="px-3 py-2 text-center text-slate-600 dark:text-slate-300">{item.quantity}</td>
                                                         <td className="px-3 py-2 text-center text-slate-600 dark:text-slate-300">{item.price} ج.م</td>
                                                         <td className="px-3 py-2 text-center font-semibold text-slate-800 dark:text-white">

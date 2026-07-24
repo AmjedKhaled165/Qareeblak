@@ -191,7 +191,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                                     {order.courier_id && !drivers.some(d => Number(d.id) === Number(order.courier_id)) && (
                                         <option value={order.courier_id}>{order.courier_name || `مندوب #${order.courier_id}`}</option>
                                     )}
-                                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>)}
                                 </select>
                             </div>
 
@@ -629,7 +629,7 @@ export default function OwnerAllOrdersPage() {
                         >
                             <option value="all">كل المناديب</option>
                             {drivers.map((d) => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
+                                <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>
                             ))}
                         </select>
                         <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />

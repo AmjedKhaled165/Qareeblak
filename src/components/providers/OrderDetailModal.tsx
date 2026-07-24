@@ -358,6 +358,11 @@ export function OrderDetailModal({
                                             <div>
                                                 <span className="font-bold text-foreground text-sm">{item.name || item.product_name}</span>
                                                 {item.notes && <p className="text-xs text-muted-foreground mt-0.5">{item.notes}</p>}
+                                                {item.freeQuantity && item.freeQuantity > 0 && (
+                                                    <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded text-[10px] font-bold mt-1">
+                                                        + {item.freeQuantity} هدية
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">

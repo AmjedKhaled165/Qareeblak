@@ -82,11 +82,13 @@ function normalizeTrackingStatus(status: string) {
         'new': 'pending',
         'pending': 'pending',
 
-        'جاري التحضير': 'assigned',
-        'processing': 'assigned',
-        'confirmed': 'assigned',
-        'accepted': 'assigned',
-        'assigned': 'assigned',
+        'جاري التحضير': 'confirmed',
+        'processing': 'confirmed',
+        'confirmed': 'confirmed',
+        'accepted': 'confirmed',
+        'assigned': 'confirmed',
+
+        'تم التجهيز': 'ready_for_pickup',
 
         'تم التحضير': 'ready_for_pickup',
         'جاهز للاستلام': 'ready_for_pickup',
@@ -1058,11 +1060,18 @@ export default function TrackOrderPage() {
                                 {order.items?.map((item, idx) => (
                                     <div key={idx} className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700 last:border-0">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-violet-100 dark:bg-violet-500/20 rounded-xl flex items-center justify-center text-violet-600 dark:text-violet-400 font-bold">
+                                            <div className="w-10 h-10 bg-violet-100 dark:bg-violet-500/20 rounded-xl flex items-center justify-center text-violet-600 dark:text-violet-400 font-bold shrink-0">
                                                 {item.quantity}x
                                             </div>
                                             <div>
-                                                <p className="font-medium text-slate-800 dark:text-slate-200">{item.name}</p>
+                                                <div className="flex items-center flex-wrap gap-1">
+                                                    <p className="font-medium text-slate-800 dark:text-slate-200">{item.name}</p>
+                                                    {item.freeQuantity && item.freeQuantity > 0 && (
+                                                        <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                                            + {item.freeQuantity} هدية
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {item.notes && <p className="text-xs text-slate-400">{item.notes}</p>}
                                             </div>
                                         </div>
@@ -1288,7 +1297,7 @@ export default function TrackOrderPage() {
                                             )}
                                             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center text-violet-600 dark:text-violet-400 font-bold text-sm">
+                                                    <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center text-violet-600 dark:text-violet-400 font-bold text-sm shrink-0">
                                                         {item.quantity}x
                                                     </div>
                                                     <div>

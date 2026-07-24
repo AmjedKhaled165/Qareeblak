@@ -152,9 +152,16 @@ const HalanItemsList = ({ halanOrderId, bookingId, fallback }: { halanOrderId?: 
     return (
         <div className="space-y-1 mt-2">
             {items.map((item, idx) => (
-                <div key={idx} className="text-xs font-black text-primary flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/30"></span>
-                    <span>{item.name || item.product_name} x{item.quantity}</span>
+                <div key={idx} className="text-xs font-black text-primary flex items-center flex-wrap gap-1">
+                    <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary/30 shrink-0"></span>
+                        <span>{item.name || item.product_name} x{item.quantity}</span>
+                    </div>
+                    {item.freeQuantity && item.freeQuantity > 0 && (
+                        <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">
+                            + {item.freeQuantity} هدية
+                        </span>
+                    )}
                 </div>
             ))}
         </div>
@@ -1473,7 +1480,7 @@ export default function ProviderDashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-4 md:p-10 md:mr-64 transition-all w-full min-h-screen pb-28 md:pb-10">
+            <main className="flex-1 p-4 md:p-10 md:mr-64 transition-all w-full min-h-screen pb-36 md:pb-10">
                 {/* Glowing background orbs */}
                 <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -z-10" />
                 <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px] -z-10" />
@@ -1822,12 +1829,15 @@ export default function ProviderDashboard() {
 
                                         {service.offer && (
                                             <div className="px-6 pb-2">
-                                                <div className="bg-primary/10 text-primary border border-primary/20 px-4 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-2 font-cairo">
+                                                <div className={`border px-4 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-2 font-cairo ${service.offer.endDate && new Date(service.offer.endDate) < new Date() ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                                                     <span>🎁</span>
                                                     {service.offer.type === 'discount'
                                                         ? `خصم ${service.offer.discountPercent}% لفترة محدودة`
                                                         : `اشتري ${service.offer.bundleCount} وخد ${service.offer.bundleFreeCount} هدية!`
                                                     }
+                                                    {service.offer.endDate && new Date(service.offer.endDate) < new Date() && (
+                                                        <span className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] ml-1">منتهي</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}

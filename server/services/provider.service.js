@@ -73,20 +73,30 @@ class ProviderService {
     }
 
     _formatServices(services) {
-        return services.map(s => ({
-            id: s.id.toString(),
-            name: s.name,
-            description: s.description,
-            price: parseFloat(s.price),
-            image: s.image,
-            offer: s.has_offer ? {
-                type: s.offer_type,
-                discountPercent: s.discount_percent,
-                bundleCount: s.bundle_count,
-                bundleFreeCount: s.bundle_free_count,
-                endDate: s.offer_end_date
-            } : undefined
-        }));
+        const now = new Date();
+        return services.map(s => {
+            let isValidOffer = s.has_offer;
+            if (isValidOffer && s.offer_end_date) {
+                const endDate = new Date(s.offer_end_date);
+                if (endDate < now) {
+                    isValidOffer = false;
+                }
+            }
+            return {
+                id: s.id.toString(),
+                name: s.name,
+                description: s.description,
+                price: parseFloat(s.price),
+                image: s.image,
+                offer: isValidOffer ? {
+                    type: s.offer_type,
+                    discountPercent: s.discount_percent,
+                    bundleCount: s.bundle_count,
+                    bundleFreeCount: s.bundle_free_count,
+                    endDate: s.offer_end_date
+                } : undefined
+            };
+        });
     }
 
     _formatReviews(reviews) {

@@ -289,7 +289,7 @@ export default function CreateOrderPage() {
                                 <option value="">-- اختر المندوب --</option>
                                 {drivers.map(driver => (
                                     <option key={driver.id} value={driver.id}>
-                                        {driver.name} (@{driver.username})
+                                        {driver.name} (@{driver.username}) - {driver.courierStatus || (driver.isAvailable ? 'متاح' : 'غير متاح')}
                                     </option>
                                 ))}
                             </select>
