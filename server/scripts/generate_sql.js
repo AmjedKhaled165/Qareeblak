@@ -17,17 +17,17 @@ const usersData = [
   { name: 'بلال', username: 'belal', email: 'belal@courier.com', password: 'Belal#2026', type: 'partner_courier', phone: '01555443322', address: null, bio: null, category: null },
   { name: 'أنس', username: 'anas', email: 'anas@courier.com', password: 'Anas#2026', type: 'partner_courier', phone: '01199880077', address: null, bio: null, category: null },
   { name: 'مروان', username: 'marwan', email: 'marwan@courier.com', password: 'Marwan#2026', type: 'partner_courier', phone: '01200998877', address: null, bio: null, category: null },
-  { name: 'طارق حسن', username: 'tarek.food', email: 'tarek.food@example.com', password: 'TarekFood@2026!', type: 'provider', phone: '01011223344', address: 'الحي الأول، المجاورة الثانية، عمارة 15', bio: 'تقديم أشهى المأكولات والمشروبات', category: 'مطاعم' },
-  { name: 'مصطفى كمال', username: 'mostafa.maint', email: 'mostafa.maint@example.com', password: 'MostafaFix#99', type: 'provider', phone: '01155667788', address: 'الحي الثاني، المجاورة الرابعة، محل 3', bio: 'صيانة فورية لأعطال الكهرباء والسباكة', category: 'صيانة' },
-  { name: 'د. خالد عبدالرحمن', username: 'khaled.pharma', email: 'khaled.pharma@example.com', password: 'KhaledMed$2026', type: 'provider', phone: '01233445577', address: 'الحي الثالث، المجاورة الأولى، ميدان الزهور', bio: 'صيدلية متكاملة وخدمات طبية', category: 'طبي' },
-  { name: 'محمود جمال', username: 'mahmoud.cars', email: 'mahmoud.cars@example.com', password: 'CarsMahmoud*77', type: 'provider', phone: '01555668899', address: 'المنطقة الصناعية، بلوك 4، ورشة 12', bio: 'غسيل سيارات، تغيير زيوت، فحص دوري', category: 'سيارات' },
+  { name: 'طارق حسن', username: 'tarek.food', email: 'tarek.food@example.com', password: 'TarekFood@2026!', type: 'provider', phone: '01011223344', address: 'الحي الأول، المجاورة الثانية، عمارة 15', bio: 'تقديم أشهى المأكولات والمشروبات', category: 'مطاعم وكافيهات' },
+  { name: 'مصطفى كمال', username: 'mostafa.maint', email: 'mostafa.maint@example.com', password: 'MostafaFix#99', type: 'provider', phone: '01155667788', address: 'الحي الثاني، المجاورة الرابعة، محل 3', bio: 'صيانة فورية لأعطال الكهرباء والسباكة', category: 'صيانة وسباكة' },
+  { name: 'د. خالد عبدالرحمن', username: 'khaled.pharma', email: 'khaled.pharma@example.com', password: 'KhaledMed$2026', type: 'provider', phone: '01233445577', address: 'الحي الثالث، المجاورة الأولى، ميدان الزهور', bio: 'صيدلية متكاملة وخدمات طبية', category: 'صيدليات' },
+  { name: 'محمود جمال', username: 'mahmoud.cars', email: 'mahmoud.cars@example.com', password: 'CarsMahmoud*77', type: 'provider', phone: '01555668899', address: 'المنطقة الصناعية، بلوك 4، ورشة 12', bio: 'غسيل سيارات، تغيير زيوت، فحص دوري', category: 'خدمات سيارات' },
   { name: 'إبراهيم سعيد', username: 'ibrahim.market', email: 'ibrahim.market@example.com', password: 'MarketIbra@26', type: 'provider', phone: '01099887755', address: 'الحي الرابع، المجاورة الثالثة، السوق التجاري', bio: 'توفير جميع السلع الغذائية والاستهلاكية', category: 'سوبر ماركت' },
   { name: 'علي منصور', username: 'ali.laundry', email: 'ali.laundry@example.com', password: 'AliClean!2026', type: 'provider', phone: '01122334477', address: 'الحي الخامس، سنتر المدينة، محل 5', bio: 'غسيل، كي، وتنظيف سجاد', category: 'مغسلة' },
   { name: 'يوسف طارق', username: 'youssef.client', email: 'youssef.client@example.com', password: 'Youssef!2026', type: 'customer', phone: '01088774433', address: null, bio: null, category: null },
   { name: 'ندى إبراهيم', username: 'nada.customer', email: 'nada.customer@example.com', password: 'Nada#Buy26', type: 'customer', phone: '01155992211', address: null, bio: null, category: null },
   { name: 'مصطفى السيد', username: 'mostafa.user', email: 'mostafa.user@example.com', password: 'Mostafa$99', type: 'customer', phone: '01222334488', address: null, bio: null, category: null },
   { name: 'كابتن أحمد', username: 'ahmed.pitch', email: 'ahmed.pitch@example.com', password: 'AhmedPitch!2026', type: 'provider', phone: '01011223388', address: 'نادي النجوم، الحي السابع', bio: 'حجز ملاعب خماسية مجهزة على أعلى مستوى', category: 'ملاعب' },
-  { name: 'د. مصطفى', username: 'mostafa.doc', email: 'mostafa.doc@example.com', password: 'MostafaDoc!2026', type: 'provider', phone: '01122334499', address: 'عيادات الشفاء، المجاورة الثانية', bio: 'كشوفات طبية وتمريض منزلي على مدار الساعة', category: 'طبي' },
+  { name: 'د. مصطفى', username: 'mostafa.doc', email: 'mostafa.doc@example.com', password: 'MostafaDoc!2026', type: 'provider', phone: '01122334499', address: 'عيادات الشفاء، المجاورة الثانية', bio: 'كشوفات طبية وتمريض منزلي على مدار الساعة', category: 'دكتور وممرض' },
   { name: 'علي للتوصيل', username: 'ali.delivery', email: 'ali.delivery@example.com', password: 'AliDelivery!2026', type: 'provider', phone: '01233445500', address: 'موقف السيارات الرئيسي', bio: 'توصيل أفراد ومشاوير خاصة بسيارات حديثة', category: 'سيارات توصيل' }
 ];
 
@@ -74,6 +74,16 @@ ON CONFLICT DO NOTHING; -- Assuming user_id unique is not guaranteed, otherwise 
 `;
     }
   }
+
+  // Update existing providers to match new category names
+  sql += `
+-- Update existing categories to perfectly match frontend tabs
+UPDATE providers SET category = 'صيانة وسباكة' WHERE category = 'صيانة';
+UPDATE providers SET category = 'مطاعم وكافيهات' WHERE category = 'مطاعم';
+UPDATE providers SET category = 'صيدليات' WHERE category = 'طبي' AND email = 'khaled.pharma@example.com';
+UPDATE providers SET category = 'دكتور وممرض' WHERE category = 'طبي' AND email = 'mostafa.doc@example.com';
+UPDATE providers SET category = 'خدمات سيارات' WHERE category = 'سيارات';
+`;
 
   fs.writeFileSync('update_db.sql', sql);
   console.log('update_db.sql has been generated successfully.');
