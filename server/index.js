@@ -73,7 +73,7 @@ const productionCorsOrigins = process.env.CORS_ORIGINS
 const localhostCorsOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'];
 const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_CORS !== 'false';
 const socketAllowedOrigins = [
-    ...(process.env.NODE_ENV === 'production' ? productionCorsOrigins : localhostCorsOrigins),
+    ...productionCorsOrigins,
     ...(allowLocalhostInProd ? localhostCorsOrigins : [])
 ];
 

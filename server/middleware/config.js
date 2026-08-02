@@ -24,8 +24,8 @@ module.exports = function configureMiddleware(app, express) {
     const localOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001'];
     const allowLocalhostInProd = process.env.ALLOW_LOCALHOST_CORS !== 'false';
     const allowedOrigins = new Set([
-        ...(process.env.NODE_ENV === 'production' ? productionOrigins : []),
-        ...(allowLocalhostInProd ? localOrigins : (process.env.NODE_ENV === 'production' ? [] : localOrigins))
+        ...productionOrigins,
+        ...(allowLocalhostInProd ? localOrigins : [])
     ]);
 
     const corsOptions = {
