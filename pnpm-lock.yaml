@@ -108,6 +108,9 @@ importers:
       '@types/node':
         specifier: ^22
         version: 22.19.11
+      '@types/pg':
+        specifier: ^8.20.3
+        version: 8.20.3
       '@types/react':
         specifier: ^19
         version: 19.2.7
@@ -1653,6 +1656,9 @@ packages:
 
   '@types/pg@8.15.6':
     resolution: {integrity: sha512-NoaMtzhxOrubeL/7UZuNTrejB4MPAJ0RpxZqXQf2qXuVlTPuG6Y8p4u9dKRaue4yjmC7ZhzVO2/Yyyn25znrPQ==}
+
+  '@types/pg@8.20.3':
+    resolution: {integrity: sha512-4Tvg+HO6+oQaAkpT8GTYoSExzpGGZz532GXgbbCElWJQeQdMozBWxEKNBhJJpHFjWXsMxqPbyypvj/89FWNoSQ==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -5503,12 +5509,18 @@ snapshots:
 
   '@types/pg-pool@2.0.7':
     dependencies:
-      '@types/pg': 8.15.6
+      '@types/pg': 8.20.3
 
   '@types/pg@8.15.6':
     dependencies:
       '@types/node': 22.19.11
       pg-protocol: 1.13.0
+      pg-types: 2.2.0
+
+  '@types/pg@8.20.3':
+    dependencies:
+      '@types/node': 22.19.11
+      pg-protocol: 1.15.0
       pg-types: 2.2.0
 
   '@types/react-dom@19.2.3(@types/react@19.2.7)':
