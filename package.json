@@ -8,9 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx next start -p $PORT",
-    "start:server": "cd server && npm start",
-    "dev:server": "cd server && npm run dev",
+    "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {

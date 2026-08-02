@@ -87,7 +87,7 @@ const nextConfig: NextConfig = {
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
       // WebSocket + API + Firebase endpoints
-      `connect-src 'self' ws: wss: https://qareeblak.com https://www.qareeblak.com https://api.qareeblak.com https://wa.qareeblak.com https://firebaseapp.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://qareeblak-czasfjejcvcyhyak.francecentral-01.azurewebsites.net https://*.azurewebsites.net${isDev ? ' http://127.0.0.1:5000 http://localhost:5000' : ''}`,
+      `connect-src 'self' ws: wss: https://qareeblak.com https://www.qareeblak.com https://api.qareeblak.com https://wa.qareeblak.com https://firebaseapp.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com${isDev ? ' http://127.0.0.1:5000 http://localhost:5000' : ''}`,
       // Google OAuth popup
       "frame-src 'self' https://accounts.google.com https://qareeblak.firebaseapp.com https://qareeblak-810d3.firebaseapp.com",
       "frame-ancestors 'none'",
