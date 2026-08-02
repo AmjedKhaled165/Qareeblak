@@ -15,7 +15,7 @@ const BASE_URL = useSameOriginProxy
 const USE_MOCK_API = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_USE_MOCK_API === 'true';
 
 // ⏱️ Timeout wrapper for fetch requests
-function fetchWithTimeout(url: string, options: RequestInit = {}, timeout: number = 15000): Promise<Response> {
+function fetchWithTimeout(url: string, options: RequestInit = {}, timeout: number = 60000): Promise<Response> {
     return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
             reject(new Error('TIMEOUT'));
@@ -42,12 +42,12 @@ function getRequestTimeout(endpoint: string, options: RequestInit): number {
 
     // Provider list can be heavy on production DBs, so allow more time.
     if (endpoint.includes('/providers') && method === 'GET') {
-        return 30000;
+        return 60000;
     }
 
     // Order creation may include multiple writes/validations.
     if (endpoint.includes('/orders') && method === 'POST') {
-        return 30000;
+        return 60000;
     }
 
     // Profile updates may include large base64 images (avatar, coverImage)
@@ -56,7 +56,7 @@ function getRequestTimeout(endpoint: string, options: RequestInit): number {
         return 60000;
     }
 
-    return 15000;
+    return 60000;
 }
 
 // Types for API Responses
@@ -88,8 +88,13 @@ function getAuthToken(endpoint: string): string | null {
         return null;
     }
 
-    // Prioritize halan_token for partner/admin endpoints
-    const isHalanEndpoint = endpoint.includes('/halan') ||
+    const isProviderContext = typeof window !== 'undefined' && 
+        (window.location.pathname.startsWith('/provider-dashboard') || 
+         window.location.pathname.startsWith('/partner'));
+
+    // Prioritize halan_token for partner/admin endpoints or if we are in a provider page
+    const isHalanEndpoint = isProviderContext || 
+        endpoint.includes('/halan') ||
         endpoint.includes('/providers') ||
         endpoint.includes('/auth/provider');
 
