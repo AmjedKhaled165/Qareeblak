@@ -37,7 +37,9 @@ const eslintConfig = [
       "archive/**",
       "halan/**",
       "tmpclaude-*/**",
-      "server/scripts/diagnostics/**"
+      "server/scripts/diagnostics/**",
+      "prod_driver.js",
+      "server/coverage/**"
     ]
   }
 ];
