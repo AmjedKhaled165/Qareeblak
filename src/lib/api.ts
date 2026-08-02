@@ -1,6 +1,8 @@
-const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const forceLocalProxy = process.env.NEXT_PUBLIC_FORCE_LOCAL_API_PROXY === 'true';
-const useSameOriginProxy = isLocalBrowser || forceLocalProxy;
+// Always use same-origin proxy in the browser.
+// Vercel rewrites (next.config.ts) forward /api/* to the Azure backend,
+// so the browser never needs to make cross-origin requests — no CORS needed.
+const isBrowser = typeof window !== 'undefined';
+const useSameOriginProxy = isBrowser;
 
 const API_BASE_URL = useSameOriginProxy
     ? ''

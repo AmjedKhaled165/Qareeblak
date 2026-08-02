@@ -59,9 +59,12 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', 'date-fns', 'framer-motion'],
   },
 
-  // API rewrites — uses INTERNAL_API_URL in Docker (container-to-container), falls back to localhost for dev
+  // API rewrites — Vercel proxies /api/* to the backend, avoiding CORS entirely.
+  // Priority: INTERNAL_API_URL (Docker) > NEXT_PUBLIC_API_URL (env) > Azure fallback
   async rewrites() {
-    const apiBase = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const apiBase = process.env.INTERNAL_API_URL
+      || process.env.NEXT_PUBLIC_API_URL
+      || 'https://qareeblak-czasfjejcvcyhyak.francecentral-01.azurewebsites.net';
     return [
       {
         source: '/api/:path*',
