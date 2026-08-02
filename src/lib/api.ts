@@ -712,7 +712,7 @@ export const wheelApi = {
     }
 };
 
-export default {
+const api = {
     auth: authApi,
     providers: providersApi,
     services: servicesApi,
@@ -720,3 +720,5 @@ export default {
     users: usersApi,
     wheel: wheelApi
 };
+
+export default api;

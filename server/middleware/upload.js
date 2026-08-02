@@ -160,7 +160,7 @@ const uploadToCloudinary = async (req, res, next) => {
                     }
                 },
                 (error, result) => {
-                    format: IMAGE_CONFIG.format,
+                    if (error) return reject(error);
                     resolve(result);
                 }
             );
