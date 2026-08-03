@@ -407,7 +407,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
 
             socket = io(socketUrl, {
-                transports: ['polling', 'websocket'],
+                transports: ['polling'],
                 auth: { token: token || undefined },
                 reconnectionAttempts: 3,
                 reconnectionDelay: 5000,

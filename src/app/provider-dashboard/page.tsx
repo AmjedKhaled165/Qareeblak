@@ -748,7 +748,7 @@ export default function ProviderDashboard() {
             const SOCKET_URL = API_BASE;
             const authConfig = qareeblakToken ? { token: qareeblakToken } : {};
             socket = io(SOCKET_URL, {
-                transports: ['polling', 'websocket'],
+                transports: ['polling'],
                 reconnection: true,
                 auth: authConfig,
             });
@@ -834,7 +834,7 @@ export default function ProviderDashboard() {
             }
 
             socket = io(SOCKET_URL, {
-                transports: ['polling', 'websocket'],
+                transports: ['polling'],
                 reconnection: true,
                 auth: { token },
             });

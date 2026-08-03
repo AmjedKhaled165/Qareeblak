@@ -103,7 +103,7 @@ export default function DriversMap({ user }: DriversMapProps) {
         }
 
         socketRef.current = io(SOCKET_URL, {
-            transports: ['polling', 'websocket'],
+            transports: ['polling'],
             auth: { token }
         });
 

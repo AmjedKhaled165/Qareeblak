@@ -85,7 +85,7 @@ export function NotificationBell() {
                 }
 
                 const socket = io(API_BASE, {
-                    transports: ['polling', 'websocket'],
+                    transports: ['polling'],
                     auth: { token }
                 });
                 socketRef.current = socket;

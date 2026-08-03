@@ -179,7 +179,7 @@ export default function DriverTrackingPage() {
         }
 
         socketRef.current = io(SOCKET_URL, {
-            transports: ['polling', 'websocket'],
+            transports: ['polling'],
             auth: { token },
             reconnectionAttempts: 5,
             reconnectionDelay: 1000

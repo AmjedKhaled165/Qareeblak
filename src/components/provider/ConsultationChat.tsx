@@ -108,7 +108,7 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId, pr
         if (!token) return;
 
         socketRef.current = io(SOCKET_URL, {
-            transports: ['polling', 'websocket'],
+            transports: ['polling'],
             auth: { token }
         });
 

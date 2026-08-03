@@ -112,7 +112,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
 
             const auth = token ? { token } : undefined;
             socketRef.current = io(SOCKET_URL, {
-                transports: ['polling', 'websocket'],
+                transports: ['polling'],
                 auth,
                 reconnection: true,
                 reconnectionDelay: 2000,

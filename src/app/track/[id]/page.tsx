@@ -183,7 +183,7 @@ export default function TrackOrderPage() {
         const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
         const socket = token
             ? io(socketUrl, {
-                transports: ['polling', 'websocket'],
+                transports: ['polling'],
                 auth: { token }
             })
             : null;
