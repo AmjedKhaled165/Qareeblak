@@ -52,6 +52,7 @@ const publicLimiter = rateLimit({
     message: { error: '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.' },
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { ip: false, xForwardedForHeader: false },
 });
 
 // B. Strict Auth Limiter (Prevents Brute Force)
@@ -60,7 +61,7 @@ const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 20, // 20 attempts per IP
     keyGenerator: (req) => `rl_auth_${getIpKey(req)}`,
-    validate: { keyGeneratorIpFallback: false },
+    validate: { keyGeneratorIpFallback: false, ip: false, xForwardedForHeader: false },
     message: { error: '❌ تم حظر هاتفك لكثرة محاولات الدخول الفاشلة. انتظر 15 دقيقة.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -73,7 +74,7 @@ const checkoutLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 5, // Allow 5 retries per minute to accommodate payment failures
     keyGenerator: (req) => `rl_checkout_${req.user?.id || getIpKey(req)}`,
-    validate: { keyGeneratorIpFallback: false },
+    validate: { keyGeneratorIpFallback: false, ip: false, xForwardedForHeader: false },
     message: { error: '🔔 أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -85,7 +86,7 @@ const chatLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 15,
     keyGenerator: (req) => `rl_chat_${req.user?.id || getIpKey(req)}`,
-    validate: { keyGeneratorIpFallback: false },
+    validate: { keyGeneratorIpFallback: false, ip: false, xForwardedForHeader: false },
     message: { error: '💬 أنت ترسل رسائل بسرعة كبيرة جداً.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -98,7 +99,7 @@ const orderLimiter = rateLimit({
     windowMs: 1 * 60 * 1000,
     max: 5, // Allow slightly more for order creation
     keyGenerator: (req) => `rl_order_${req.user?.id || getIpKey(req)}`,
-    validate: { keyGeneratorIpFallback: false },
+    validate: { keyGeneratorIpFallback: false, ip: false, xForwardedForHeader: false },
     message: { error: '⚠️ أنت تقوم بإنشاء طلبات بسرعة كبيرة. يرجى الانتظار دقيقة.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -110,7 +111,7 @@ const guestLoginLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour window
     max: 3, // Max 3 guest accounts per IP per hour
     keyGenerator: (req) => `rl_guest_${getIpKey(req)}`,
-    validate: { keyGeneratorIpFallback: false },
+    validate: { keyGeneratorIpFallback: false, ip: false, xForwardedForHeader: false },
     message: { error: 'تم الوصول إلى الحد الأقصى لتسجيل الدخول كزائر. يرجى المحاولة لاحقاً أو إنشاء حساب حقيقي.' },
     standardHeaders: true,
     legacyHeaders: false,
