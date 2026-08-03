@@ -10,7 +10,11 @@ const shouldEnableNewRelic =
     (process.env.NODE_ENV === 'production' && Boolean(process.env.NEW_RELIC_LICENSE_KEY));
 
 if (shouldEnableNewRelic) {
-    require('newrelic');
+    try {
+        require('newrelic');
+    } catch (err) {
+        console.warn('⚠️ Could not load newrelic module, skipping...', err.message);
+    }
 }
 
 // 🛰️ [Big Tech Step] Initialize Tracing FIRST (Before any other imports)
