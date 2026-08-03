@@ -5,17 +5,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config();
 
-const shouldEnableNewRelic =
-    String(process.env.NEW_RELIC_ENABLED || '').toLowerCase() === 'true' ||
-    (process.env.NODE_ENV === 'production' && Boolean(process.env.NEW_RELIC_LICENSE_KEY));
-
-if (shouldEnableNewRelic) {
-    try {
-        require('newrelic');
-    } catch (err) {
-        console.warn('⚠️ Could not load newrelic module, skipping...', err.message);
-    }
-}
+// NewRelic has been disabled to prevent Azure App Service crashes
 
 // 🛰️ [Big Tech Step] Initialize Tracing FIRST (Before any other imports)
 require('./tracing');
