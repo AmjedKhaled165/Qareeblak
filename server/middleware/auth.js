@@ -216,7 +216,9 @@ const isAdmin = (req, res, next) => {
  * Middleware to check if user is a provider or admin
  */
 const isProviderOrAdmin = (req, res, next) => {
-    if (!req.user || (req.user.user_type !== 'provider' && req.user.user_type !== 'admin')) {
+    const type = req.user?.user_type;
+    const allowedTypes = ['provider', 'admin', 'partner_owner', 'partner_supervisor'];
+    if (!req.user || !allowedTypes.includes(type)) {
         return res.status(403).json({ error: 'غير مصرح - للمقدمين فقط' });
     }
     next();

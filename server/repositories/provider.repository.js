@@ -3,6 +3,12 @@ const pool = require('../db');
 let providersColumnsCache = null;
 let reviewsColumnsCache = null;
 
+// Allow migrations to force a re-check of table columns
+function clearColumnsCache() {
+    providersColumnsCache = null;
+    reviewsColumnsCache = null;
+}
+
 async function getProvidersColumns() {
     if (providersColumnsCache) return providersColumnsCache;
 
@@ -310,12 +316,25 @@ class ProviderRepository {
 
     async updateStatus(id, is_online) {
         const cols = await getProvidersColumns();
-        if (!cols.has('is_online')) return null;
+        if (!cols.has('is_online')) {
+            // Fallback: column may not exist yet. Clear cache and re-check once.
+            clearColumnsCache();
+            const freshCols = await getProvidersColumns();
+            if (!freshCols.has('is_online')) return null;
+        }
 
         const result = await pool.query(
             'UPDATE providers SET is_online = $1 WHERE id = $2 RETURNING *',
             [is_online, id]
         );
+
+        // Keep users.is_online in sync for consistency
+        if (result.rows[0]?.user_id) {
+            try {
+                await pool.query('UPDATE users SET is_online = $1 WHERE id = $2', [is_online, result.rows[0].user_id]);
+            } catch(e) { /* non-fatal */ }
+        }
+
         return result.rows[0];
     }
 
@@ -373,4 +392,6 @@ class ProviderRepository {
     }
 }
 
-module.exports = new ProviderRepository();
+const repo = new ProviderRepository();
+repo.clearColumnsCache = clearColumnsCache;
+module.exports = repo;

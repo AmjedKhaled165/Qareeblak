@@ -89,6 +89,30 @@ async function ensureCoreTables(query) {
         } catch(e) { /* ignore if already exists */ }
     }
 
+    // Ensure providers table has status/visibility columns (critical for online toggle)
+    const newProviderColumns = [
+        'is_online BOOLEAN DEFAULT TRUE',
+        'is_approved BOOLEAN DEFAULT TRUE',
+        'is_banned BOOLEAN DEFAULT FALSE',
+        'joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+    ];
+    for (const colDef of newProviderColumns) {
+        const colName = colDef.split(' ')[0];
+        try {
+            await query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS ${colName} ${colDef.substring(colName.length + 1)}`);
+        } catch(e) { /* ignore if already exists */ }
+    }
+
+    // Sync is_online from users table to providers for existing data
+    try {
+        await query(`
+            UPDATE providers p
+            SET is_online = COALESCE(u.is_online, TRUE)
+            FROM users u
+            WHERE p.user_id = u.id AND p.is_online IS NULL
+        `);
+    } catch(e) { /* non-fatal */ }
+
     const newDeliveryColumns = [
         'is_deleted BOOLEAN DEFAULT false',
         'is_modified_by_courier BOOLEAN DEFAULT false',
