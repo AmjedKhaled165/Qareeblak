@@ -166,12 +166,13 @@ export default function ManagerDashboard() {
             const filteredOrders = orders.filter((o: any) => isDateInPeriod(o.created_at, period));
             const deliveredOrders = filteredOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
             const totalFees = deliveredOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
-            // Changed to calculate total sales for all orders in period
-            const totalSales = filteredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
+            // Calculate total sales for DELIVERED orders only
+            const totalSales = deliveredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
 
             // Qareeblak breakdown
             const qareeblakOrders = filteredOrders.filter((o: any) => o.source === 'qareeblak');
-            const qareeblakDeliveryRevenue = qareeblakOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
+            const deliveredQareeblak = qareeblakOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
+            const qareeblakDeliveryRevenue = deliveredQareeblak.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
 
             setStats({
                 summary: {
