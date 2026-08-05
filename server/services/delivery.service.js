@@ -869,12 +869,13 @@ class DeliveryService {
             throw new AppError('غير مصرح لك بتعديل بيانات الطلب', 403);
         }
 
-        if (Object.prototype.hasOwnProperty.call(payload, 'supervisor_id')) {
-            throw new AppError('تحديد المسؤول يتم تلقائيا ولا يمكن تعديله يدويا', 400);
-        }
-
         const fields = [];
         const values = [];
+
+        if (Object.prototype.hasOwnProperty.call(payload, 'supervisor_id')) {
+            values.push(payload.supervisor_id || null);
+            fields.push(`supervisor_id = $${values.length}`);
+        }
 
         if (Object.prototype.hasOwnProperty.call(payload, 'source')) {
             values.push(payload.source);
