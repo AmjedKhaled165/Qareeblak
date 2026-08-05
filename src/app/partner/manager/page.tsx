@@ -327,7 +327,7 @@ export default function ManagerDashboard() {
                                 />
                                 <StatsCard
                                     title="قريبلك - توصيل"
-                                    value={`${parseFloat(stats.summary.qareeblak_delivery_revenue || 0).toFixed(0)} ج.م`}
+                                    value={`${parseFloat(stats.summary.qareeblak_delivery_revenue || 0).toFixed(0)} ج.م (${stats.summary.qareeblak_count || 0} طلب)`}
                                     icon={MapPin}
                                     color="#8B5CF6"
                                 />
