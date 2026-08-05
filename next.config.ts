@@ -80,10 +80,8 @@ const nextConfig: NextConfig = {
     // Build the CSP string — permissive in dev, strict in production
     const cspDirectives = [
       "default-src 'self'",
-      // unsafe-inline needed for Next.js inline styles, unsafe-eval for framer-motion in dev
-      isDev
-        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://apis.google.com"
-        : "script-src 'self' 'unsafe-inline' blob: https://apis.google.com",
+      // unsafe-inline needed for Next.js inline styles, unsafe-eval for some frontend libraries like framer-motion/three.js
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://apis.google.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "worker-src 'self' blob:",

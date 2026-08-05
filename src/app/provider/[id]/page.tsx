@@ -657,8 +657,10 @@ export default function ProviderProfile() {
                                         </div>
 
                                         <div>
-                                            <label className="text-sm font-medium mb-2 block">رأيك يهمنا</label>
+                                            <label htmlFor="review-comment" className="text-sm font-medium mb-2 block">رأيك يهمنا</label>
                                             <textarea
+                                                id="review-comment"
+                                                name="comment"
                                                 className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm text-right"
                                                 placeholder="احكِ لنا عن تجربتك مع مقدم الخدمة..."
                                                 value={reviewForm.comment}
