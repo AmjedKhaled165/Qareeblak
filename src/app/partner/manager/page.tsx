@@ -166,10 +166,11 @@ export default function ManagerDashboard() {
             const filteredOrders = orders.filter((o: any) => isDateInPeriod(o.created_at, period));
             const deliveredOrders = filteredOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
             const totalFees = deliveredOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
-            const totalSales = deliveredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
+            // Changed to calculate total sales for all orders in period
+            const totalSales = filteredOrders.reduce((sum: number, o: any) => sum + getGrandTotal(o), 0);
 
             // Qareeblak breakdown
-            const qareeblakOrders = deliveredOrders.filter((o: any) => o.source === 'qareeblak');
+            const qareeblakOrders = filteredOrders.filter((o: any) => o.source === 'qareeblak');
             const qareeblakDeliveryRevenue = qareeblakOrders.reduce((sum: number, o: any) => sum + parseFloat(o.delivery_fee || '0'), 0);
 
             setStats({
@@ -177,6 +178,7 @@ export default function ManagerDashboard() {
                     total_delivery_fees: totalFees,
                     total_sales: totalSales,
                     delivered: deliveredOrders.length,
+                    total_orders: filteredOrders.length, // Added total orders count
                     total_drivers: drivers.length,
                     qareeblak_delivery_revenue: qareeblakDeliveryRevenue,
                     qareeblak_count: qareeblakOrders.length
@@ -331,7 +333,7 @@ export default function ManagerDashboard() {
                                 />
                                 <StatsCard
                                     title="المبيعات"
-                                    value={`${parseFloat(stats.summary.total_sales || 0).toFixed(0)} ج.م (${stats.summary.delivered} طلب)`}
+                                    value={`${parseFloat(stats.summary.total_sales || 0).toFixed(0)} ج.م (${stats.summary.total_orders || 0} طلب)`}
                                     icon={ShoppingCart}
                                     color="#3B82F6"
                                 />
