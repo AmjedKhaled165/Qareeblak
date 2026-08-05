@@ -262,7 +262,7 @@ export default function ManagersPage() {
                             className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow"
                         >
                             <div className="flex items-center justify-between mb-4">
-                                <div onClick={() => router.push(`/partner/managers/${manager.id}`)} className="flex items-center gap-3 cursor-pointer flex-1">
+                                <div className="flex items-center gap-3 flex-1">
                                     <img
                                         src={manager.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(manager.name)}&background=random`}
                                         alt={manager.name}

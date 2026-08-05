@@ -499,8 +499,7 @@ export default function OwnerDashboard() {
                                                 </div>
                                             </div>
                                             <button
-                                                onClick={() => router.push(`/partner/managers/${manager.id}`)}
-                                                className="px-5 py-2 bg-indigo-100 dark:bg-primary/10 text-indigo-600 dark:text-primary border border-indigo-200 dark:border-primary/20 rounded-full text-xs font-bold hover:bg-indigo-500 hover:text-white dark:hover:bg-primary dark:hover:text-white transition-all shadow-sm"
+                                                className="px-5 py-2 bg-indigo-100 dark:bg-primary/10 text-indigo-600 dark:text-primary border border-indigo-200 dark:border-primary/20 rounded-full text-xs font-bold transition-all shadow-sm"
                                             >
                                                 {manager.driver_count || 0} مناديب
                                             </button>
