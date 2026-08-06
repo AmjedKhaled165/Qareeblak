@@ -348,7 +348,7 @@ class ProviderRepository {
         }
 
         // Fallback for legacy DBs where provider isn't linked by user_id yet.
-        const userResult = await pool.query('SELECT email, phone FROM users WHERE id = $1 LIMIT 1', [userId]);
+        const userResult = await pool.query('SELECT email, phone, name FROM users WHERE id = $1 LIMIT 1', [userId]);
         const user = userResult.rows[0];
         if (!user) return null;
 
@@ -360,8 +360,12 @@ class ProviderRepository {
             if (byEmail.rows[0]?.id) return byEmail.rows[0].id;
         }
 
+        // Add phone fallback
         if (cols.has('phone') && user.phone) {
-            const byPhone = await pool.query('SELECT id FROM providers WHERE phone = $1 LIMIT 1', [user.phone]);
+            const byPhone = await pool.query(
+                'SELECT id FROM providers WHERE phone = $1 OR phone LIKE $2 LIMIT 1',
+                [user.phone, `%${user.phone.slice(-9)}`]
+            );
             if (byPhone.rows[0]?.id) return byPhone.rows[0].id;
         }
 

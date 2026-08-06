@@ -123,10 +123,16 @@ class ProviderService {
     }
 
     async updateStatus(userId, isOnline) {
+        let result = { is_online: isOnline };
         const providerId = await providerRepo.getProviderIdByUserId(userId);
-        if (!providerId) throw new Error('Provider not found for user');
-
-        const result = await providerRepo.updateStatus(providerId, isOnline);
+        
+        if (providerId) {
+            result = await providerRepo.updateStatus(providerId, isOnline);
+        } else {
+            // Update users table directly if provider record doesn't exist
+            const pool = require('../db');
+            await pool.query('UPDATE users SET is_online = $1 WHERE id = $2', [isOnline, userId]);
+        }
         
         // Invalidate cache
         const { invalidatePattern } = require('../utils/redis-cache');

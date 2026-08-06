@@ -105,7 +105,7 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
 });
 
 exports.updateStatus = catchAsync(async (req, res, next) => {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user.userId;
     const { isOnline } = req.body;
 
     if (isOnline === undefined) {
