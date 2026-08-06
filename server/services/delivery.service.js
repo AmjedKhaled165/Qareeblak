@@ -584,8 +584,13 @@ class DeliveryService {
             }
         }
 
+        const updateData = { status };
+        if (isCourier && !currentOrder.courier_id) {
+            updateData.courier_id = userId;
+        }
+
         await Promise.all([
-            deliveryRepo.updateOrder(id, { status }),
+            deliveryRepo.updateOrder(id, updateData),
             deliveryRepo.addHistory(id, status, userId, notes || `تم تحديث الحالة إلى: ${status}`, latitude, longitude)
         ]);
 
