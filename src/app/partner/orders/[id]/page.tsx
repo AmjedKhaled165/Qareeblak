@@ -531,7 +531,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
     
     // If source is Qareeblak, no one can edit items. If manual or whatsapp, they can.
     const canEditItems = user && (isOwner || isSupervisor || isCourier) && !isQareeblakSource && order.status !== 'delivered' && order.status !== 'cancelled';
-    const canEditDeliveryFee = isCourier && order.status !== 'delivered' && order.status !== 'cancelled';
+    const canEditDeliveryFee = (isOwner || isSupervisor || isCourier) && order.status !== 'delivered' && order.status !== 'cancelled';
     
     // Legacy canEdit for backwards compatibility
     const canEdit = canEditItems;
@@ -1182,13 +1182,13 @@ export default function OrderDetailsPage({ params }: PageProps) {
             {/* Fixed Bottom Actions */}
             <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-4 space-y-3 z-50">
                 {/* Status Action Button */}
-                {isCourier && nextStatus && (
+                {(isCourier && nextStatus) || (hasChanges && (isOwner || isSupervisor)) ? (
                     <button
                         onClick={() => {
                             if (hasChanges) {
                                 // Only save changes, don't update status yet
                                 handleSavePricing();
-                            } else {
+                            } else if (isCourier && nextStatus) {
                                 // If providers are ready and status is pending/assigned, jump to in_transit
                                 if (subOrdersReadyForPickup && ['pending', 'assigned', 'confirmed'].includes(order.status)) {
                                     updateStatus('in_transit');
@@ -1197,12 +1197,12 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                 }
                             }
                         }}
-                        // Disable if updating OR (no changes AND waiting for providers)
+                        // Disable if updating OR (no changes AND courier AND waiting for providers)
                         disabled={
                             updating ||
-                            (!hasChanges && !subOrdersReadyForPickup && order.status !== 'pending')
+                            (!hasChanges && isCourier && !subOrdersReadyForPickup && order.status !== 'pending')
                         }
-                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${(!hasChanges && !subOrdersReadyForPickup && order.status !== 'pending')
+                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${(!hasChanges && isCourier && !subOrdersReadyForPickup && order.status !== 'pending')
                             ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                             : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700'
                             }`}
@@ -1214,16 +1214,18 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                 <CheckCircle className="w-6 h-6" />
                                 {hasChanges 
                                     ? 'حفظ التعديلات' 
-                                    : (subOrdersReadyForPickup && ['pending', 'assigned', 'confirmed'].includes(order.status))
-                                        ? 'بدء التوصيل'
-                                        : (!subOrdersReadyForPickup && order.status !== 'pending')
-                                            ? 'جاري التجهيز...'
-                                            : nextStatus.label
+                                    : isCourier
+                                        ? (subOrdersReadyForPickup && ['pending', 'assigned', 'confirmed'].includes(order.status))
+                                            ? 'بدء التوصيل'
+                                            : (!subOrdersReadyForPickup && order.status !== 'pending')
+                                                ? 'جاري التجهيز...'
+                                                : nextStatus?.label
+                                        : 'حفظ'
                                 }
                             </>
                         )}
                     </button>
-                )}
+                ) : null}
 
                 {/* Delivered Success */}
                 {['delivered', 'تم التوصيل'].includes(order.status) && (
