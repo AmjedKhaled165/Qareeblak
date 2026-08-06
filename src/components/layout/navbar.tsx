@@ -40,7 +40,7 @@ export function Navbar() {
             const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
             const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
             if (token && currentUser?.email) {
-                fetch(`${apiBase}/api/providers/by-email/${currentUser.email}`)
+                fetch(`${apiBase}/api/providers/by-email/${currentUser.email}?t=${Date.now()}`)
                 .then(res => res.json())
                 .then(profile => {
                     if (profile) {

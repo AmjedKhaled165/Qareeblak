@@ -207,7 +207,7 @@ export default function ProviderDashboard() {
     useEffect(() => {
         if (currentUser?.email) {
             import('@/lib/api').then(({ apiCall }) => {
-                apiCall(`/providers/by-email/${currentUser.email}`)
+                apiCall(`/providers/by-email/${currentUser.email}?t=${Date.now()}`)
                     .then((profile: any) => {
                         if (profile) {
                             setRealProviderProfile(profile);
