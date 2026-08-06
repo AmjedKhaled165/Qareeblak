@@ -1,10 +1,32 @@
 "use client";
 
-import { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTheme } from 'next-themes';
+
+class WebGLErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: any) {
+        console.warn("WebGL canvas initialization bypassed due to device/browser capability:", error?.message || error);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return null;
+        }
+        return this.props.children;
+    }
+}
 
 // Generate random points on a sphere
 function randomInSphere(numPoints: number, radius: number) {
@@ -61,6 +83,7 @@ export function Hero3DCanvas() {
     const { resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [hasWebGL, setHasWebGL] = useState(true);
 
     useEffect(() => {
         setMounted(true);
@@ -69,24 +92,44 @@ export function Hero3DCanvas() {
             setIsMobile(window.innerWidth < 768);
         };
         checkMobile();
+
+        // Detect if WebGL is supported by browser/GPU
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                setHasWebGL(false);
+            }
+        } catch {
+            setHasWebGL(false);
+        }
+
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
     const isDark = resolvedTheme === 'dark';
 
-    if (!mounted || isMobile) return null;
+    if (!mounted || isMobile || !hasWebGL) return null;
 
     return (
         <div className="absolute inset-0 z-0 opacity-40 sm:opacity-60 transition-opacity duration-1000 pointer-events-none mix-blend-multiply dark:mix-blend-screen">
-            {/* Limit DPR to 1.5 and disable antialias on points to maximize performance to 0 lag */}
-            <Canvas 
-                camera={{ position: [0, 0, 1] }}
-                dpr={[1, 1.5]}
-                gl={{ antialias: false, powerPreference: "high-performance", alpha: true }}
-            >
-                <StarField isDark={isDark} />
-            </Canvas>
+            <WebGLErrorBoundary>
+                <Canvas 
+                    camera={{ position: [0, 0, 1] }}
+                    dpr={[1, 1.5]}
+                    gl={{ 
+                        antialias: false, 
+                        powerPreference: "high-performance", 
+                        alpha: true,
+                        stencil: false,
+                        depth: false
+                    }}
+                >
+                    <StarField isDark={isDark} />
+                </Canvas>
+            </WebGLErrorBoundary>
         </div>
     );
 }
+
