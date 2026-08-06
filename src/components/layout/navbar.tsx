@@ -27,7 +27,19 @@ export function Navbar() {
 
     const [isVisible, setIsVisible] = useState(true);
     const lastScrollY = useRef(0);
-    const [isOnline, setIsOnline] = useState<boolean>(true);
+    const [isOnline, setIsOnline] = useState<boolean>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const savedStr = localStorage.getItem('qareeblak_user');
+                if (savedStr) {
+                    const saved = JSON.parse(savedStr);
+                    if (saved.is_online !== undefined) return saved.is_online;
+                    if (saved.isOnline !== undefined) return saved.isOnline;
+                }
+            } catch (e) {}
+        }
+        return true;
+    });
     const [isTogglingStatus, setIsTogglingStatus] = useState<boolean>(false);
 
     // Helper to determine the actual user type (fallback for different backends)
@@ -35,23 +47,38 @@ export function Navbar() {
     const isProviderOrPartner = ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(normalizedUserType);
     const isProviderUser = normalizedUserType === 'provider';
 
+    const updateLocalStorageStatus = (status: boolean) => {
+        try {
+            const savedStr = localStorage.getItem('qareeblak_user');
+            if (savedStr) {
+                const saved = JSON.parse(savedStr);
+                saved.is_online = status;
+                saved.isOnline = status;
+                localStorage.setItem('qareeblak_user', JSON.stringify(saved));
+            }
+        } catch (e) {}
+    };
+
     useEffect(() => {
         if (isProviderUser) {
             const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
             const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || '';
             if (token && currentUser?.email) {
-                fetch(`${apiBase}/api/providers/by-email/${currentUser.email}?t=${Date.now()}`)
-                .then(res => res.json())
-                .then(profile => {
-                    if (profile) {
-                        if (profile.isOnline !== undefined) {
-                            setIsOnline(profile.isOnline);
-                        } else if (profile.is_online !== undefined) {
-                            setIsOnline(profile.is_online);
+                import('@/lib/api').then(({ apiCall }) => {
+                    apiCall(`/providers/by-email/${currentUser.email}?t=${Date.now()}`)
+                    .then((profile: any) => {
+                        if (profile) {
+                            if (profile.isOnline !== undefined) {
+                                setIsOnline(profile.isOnline);
+                                updateLocalStorageStatus(profile.isOnline);
+                            } else if (profile.is_online !== undefined) {
+                                setIsOnline(profile.is_online);
+                                updateLocalStorageStatus(profile.is_online);
+                            }
                         }
-                    }
-                })
-                .catch(err => console.error("Error fetching provider status", err));
+                    })
+                    .catch(err => console.error("Error fetching provider status", err));
+                });
             }
         }
     }, [currentUser, isProviderUser]);
@@ -66,6 +93,7 @@ export function Navbar() {
             });
             if (res && res.success) {
                 setIsOnline(newStatus);
+                updateLocalStorageStatus(newStatus);
                 // Refresh global providers list so Explore page updates
                 refreshProviders();
                 // Dispatch a custom event to notify other components (like provider-dashboard)
