@@ -371,6 +371,7 @@ async function runStartupMigrations() {
         await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false");
         await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS courier_status VARCHAR(50) DEFAULT 'متاح'");
         await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS max_active_orders INTEGER DEFAULT 10");
+        await query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false");
 
         // 6. Migration: Wheel of Luck Tables
         await query(`

@@ -113,7 +113,7 @@ class ProviderRepository {
         const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
         const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
-        const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : (cols.has('user_id') ? 'u.is_online' : 'TRUE AS is_online');
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
         const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
         const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
@@ -216,7 +216,7 @@ class ProviderRepository {
         const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
         const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
-        const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : (cols.has('user_id') ? 'u.is_online' : 'TRUE AS is_online');
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
         const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
         const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
@@ -238,7 +238,7 @@ class ProviderRepository {
         const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
         const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
         const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
-        const onlineSelect = cols.has('is_online') ? 'p.is_online' : 'TRUE AS is_online';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : (cols.has('user_id') ? 'u.is_online' : 'TRUE AS is_online');
         const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
         const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
         const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
@@ -320,7 +320,14 @@ class ProviderRepository {
             // Fallback: column may not exist yet. Clear cache and re-check once.
             clearColumnsCache();
             const freshCols = await getProvidersColumns();
-            if (!freshCols.has('is_online')) return null;
+            if (!freshCols.has('is_online')) {
+                // If the column STILL doesn't exist, at least update the users table to keep it in sync!
+                const userRow = await pool.query('SELECT user_id FROM providers WHERE id = $1 LIMIT 1', [id]);
+                if (userRow.rows[0]?.user_id) {
+                    await pool.query('UPDATE users SET is_online = $1 WHERE id = $2', [is_online, userRow.rows[0].user_id]);
+                }
+                return { is_online };
+            }
         }
 
         const result = await pool.query(
