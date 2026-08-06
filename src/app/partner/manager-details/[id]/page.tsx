@@ -32,7 +32,7 @@ interface Order {
     notes?: string;
 }
 
-interface Driver {
+interface Manager {
     id: number;
     name: string;
     username: string;
@@ -254,12 +254,12 @@ function OrderDetailsModal({ order, onClose }: { order: Order; onClose: () => vo
     );
 }
 
-export default function DriverDetailsPage() {
+export default function ManagerDetailsPage() {
     const router = useRouter();
     const params = useParams();
-    const driverId = params.id as string;
+    const managerId = params.id as string;
 
-    const [driver, setDriver] = useState<Driver | null>(null);
+    const [manager, setManager] = useState<Manager | null>(null);
     const [rawOrders, setRawOrders] = useState<Order[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -277,29 +277,29 @@ export default function DriverDetailsPage() {
     ];
 
     useEffect(() => {
-        if (driverId) {
-            fetchDriverData();
+        if (managerId) {
+            fetchManagerData();
         }
-    }, [driverId]);
+    }, [managerId]);
 
-    const fetchDriverData = async () => {
+    const fetchManagerData = async () => {
         try {
-            // Fetch driver info
-            const usersData = await apiCall('/halan/users?role=courier');
+            // Fetch manager info
+            const usersData = await apiCall('/halan/users?role=supervisor');
             if (usersData.success) {
-                const foundDriver = usersData.data.find((u: any) => String(u.id) === String(driverId));
-                if (foundDriver) {
-                    setDriver(foundDriver);
+                const foundManager = usersData.data.find((u: any) => String(u.id) === String(managerId));
+                if (foundManager) {
+                    setManager(foundManager);
                 }
             }
 
-            // Fetch driver's orders
-            const ordersData = await apiCall(`/halan/orders?courierId=${driverId}`);
+            // Fetch manager's orders
+            const ordersData = await apiCall(`/halan/orders?supervisorId=${managerId}`);
             if (ordersData.success) {
                 setRawOrders(ordersData.data);
             }
         } catch (error) {
-            console.error('Error fetching driver data:', error);
+            console.error('Error fetching manager data:', error);
         } finally {
             setIsLoading(false);
         }
@@ -377,8 +377,8 @@ export default function DriverDetailsPage() {
                         <ArrowRight className="w-5 h-5 text-white" />
                     </button>
                     <div>
-                        <h1 className="text-xl font-bold text-white">{driver?.name || 'المندوب'}</h1>
-                        <p className="text-white/80 text-sm">@{driver?.username}</p>
+                        <h1 className="text-xl font-bold text-white">{manager?.name || 'المسؤول'}</h1>
+                        <p className="text-white/80 text-sm">@{manager?.username}</p>
                     </div>
                 </div>
 
@@ -465,7 +465,7 @@ export default function DriverDetailsPage() {
                 {orders.length === 0 ? (
                     <div className="text-center py-12 text-slate-500">
                         <Package className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                        <p>لا توجد طلبات لهذا المندوب</p>
+                        <p>لا توجد طلبات لهذا المسؤول</p>
                     </div>
                 ) : (
                     <div className="space-y-3 pb-8">

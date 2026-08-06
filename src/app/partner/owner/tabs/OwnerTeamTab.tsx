@@ -260,7 +260,11 @@ export default function OwnerTeamTab() {
                     ) : (
                         <div className="space-y-3">
                             {filteredManagers.map((manager) => (
-                                <div key={manager.id} className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow border border-slate-100 dark:border-slate-700">
+                                <div
+                                    key={manager.id}
+                                    onClick={() => router.push(`/partner/manager-details/${manager.id}`)}
+                                    className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow border border-slate-100 dark:border-slate-700 cursor-pointer"
+                                >
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-3 flex-1">
                                             <img src={manager.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(manager.name)}&background=random`} alt={manager.name}
@@ -277,7 +281,7 @@ export default function OwnerTeamTab() {
                                             <span className="text-[10px] text-slate-400 max-w-[120px] text-left truncate">{manager.assignedNames?.join(', ')}</span>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4 text-sm text-slate-500 border-t pt-3 dark:border-slate-700">
+                                    <div className="flex items-center gap-4 text-sm text-slate-500 border-t pt-3 dark:border-slate-700" onClick={(e) => e.stopPropagation()}>
                                         {manager.phone && <a href={`tel:${manager.phone}`} className="flex items-center gap-1 hover:text-violet-600"><Phone className="w-4 h-4" />{manager.phone}</a>}
                                         <div className="flex-1" />
                                         {isOwner && (

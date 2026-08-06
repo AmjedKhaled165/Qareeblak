@@ -216,7 +216,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
 }
 
 // ─── Main Orders Tab ───
-export default function OwnerOrdersTab() {
+export default function OwnerOrdersTab({ period = 'today', customDate }: { period?: string, customDate?: string }) {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [drivers, setDrivers] = useState<UserOption[]>([]);
@@ -298,18 +298,48 @@ export default function OwnerOrdersTab() {
         const socket = (window as any).__qareeblak_socket;
         if (socket) {
             const handleUpdate = () => fetchOrdersRef.current();
-            socket.on('booking-updated', handleUpdate);
-            socket.on('order-status-changed', handleUpdate);
-            socket.on('order-updated', handleUpdate);
+            socket.on('order_updated', handleUpdate);
+            socket.on('new_order', handleUpdate);
             return () => {
-                socket.off('booking-updated', handleUpdate);
-                socket.off('order-status-changed', handleUpdate);
-                socket.off('order-updated', handleUpdate);
+                socket.off('order_updated', handleUpdate);
+                socket.off('new_order', handleUpdate);
             };
         }
     }, [fetchFilters]);
 
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+    const isDateInPeriod = (dateString: string, p: string, cDate?: string) => {
+        if (!dateString) return false;
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return false;
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+
+        if (p === 'today') {
+            return date >= start;
+        }
+        if (p === 'week') {
+            const day = start.getDay();
+            const diff = (day + 1) % 7;
+            start.setDate(start.getDate() - diff);
+            return date >= start;
+        }
+        if (p === 'month') {
+            start.setDate(1);
+            return date >= start;
+        }
+        if (p === 'custom' && cDate) {
+            const customStart = new Date(cDate);
+            customStart.setHours(0, 0, 0, 0);
+            const customEnd = new Date(cDate);
+            customEnd.setHours(23, 59, 59, 999);
+            return date >= customStart && date <= customEnd;
+        }
+        return true;
+    };
+
+    const filteredOrdersList = orders.filter(o => isDateInPeriod(o.created_at, period, customDate));
 
     const getStatusLabel = (status: string) => {
         switch (status) {
@@ -458,14 +488,14 @@ export default function OwnerOrdersTab() {
                 <div className="flex items-center justify-center py-20">
                     <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
                 </div>
-            ) : orders.length === 0 ? (
+            ) : filteredOrdersList.length === 0 ? (
                 <div className="text-center py-16">
                     <Package className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
                     <p className="text-slate-500 dark:text-slate-400 text-lg">لا توجد طلبات</p>
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {orders.map((order, index) => {
+                    {filteredOrdersList.map((order, index) => {
                         const StatusIcon = getStatusIcon(order.status);
                         return (
                             <motion.div key={order.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.03 }}

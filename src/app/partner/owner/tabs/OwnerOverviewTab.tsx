@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { DollarSign, CheckCircle, ListOrdered, Bike, MapPin, Users, ShoppingBag } from "lucide-react";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 // Stats Card Component with Light/Dark Mode Support
 function StatsCard({ title, value, icon: Icon, color, onClick }: { title: string; value: string | number; icon: any; color: string; onClick?: () => void }) {
@@ -102,6 +103,8 @@ interface OverviewTabProps {
 }
 
 export default function OwnerOverviewTab({ stats, onNavigateTab }: OverviewTabProps) {
+    const router = useRouter();
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -184,7 +187,8 @@ export default function OwnerOverviewTab({ stats, onNavigateTab }: OverviewTabPr
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.1 }}
-                                className="bg-white dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200/80 dark:border-white/5 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-none hover:border-indigo-300 dark:hover:border-primary/30 transition-all group"
+                                onClick={() => router.push(`/partner/manager-details/${manager.id}`)}
+                                className="bg-white dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200/80 dark:border-white/5 rounded-2xl p-6 shadow-lg shadow-slate-200/50 dark:shadow-none hover:border-indigo-300 dark:hover:border-primary/30 transition-all group cursor-pointer"
                             >
                                 {/* Manager Header */}
                                 <div className="flex items-center justify-between mb-6">

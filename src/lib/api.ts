@@ -42,7 +42,6 @@ function sleep(ms: number): Promise<void> {
 function getRequestTimeout(endpoint: string, options: RequestInit): number {
     const method = (options.method || 'GET').toUpperCase();
 
-    // Provider list can be heavy on production DBs, so allow more time.
     if (endpoint.includes('/providers') && method === 'GET') {
         return 60000;
     }
@@ -108,11 +107,11 @@ function getAuthToken(endpoint: string): string | null {
         // otherwise stale partner sessions can break normal customer auth.
         token = localStorage.getItem('qareeblak_token');
     }
-    
+
     if (!token && endpoint.includes('/halan')) {
         console.warn('[API] ⚠️ No token found for Halan endpoint:', endpoint);
     }
-    
+
     return token;
 }
 
@@ -199,7 +198,7 @@ export async function apiCall<T = any>(endpoint: string, options: RequestInit = 
     }
     const timeout = getRequestTimeout(endpoint, options);
     const maxAttempts = method === 'GET' ? 2 : 1;
-    
+
     // Build the options including cache: 'no-store' to prevent Next.js from aggressively caching data
     const fetchOptions: RequestInit = {
         credentials: 'include', // Ensure HttpOnly cookies are sent
@@ -350,11 +349,11 @@ export const authApi = {
             localStorage.setItem('qareeblak_cookie_session', 'true');
             localStorage.removeItem('halan_token');
         }
-        
+
         if (!result.user && result.data?.user) {
             result.user = result.data.user;
         }
-        
+
         return result;
     },
 
@@ -363,7 +362,7 @@ export const authApi = {
             method: 'POST',
             body: JSON.stringify({ email, password })
         });
-        
+
         const tokenToSave = result.token || result.data?.token;
         if (tokenToSave) {
             localStorage.setItem('qareeblak_token', tokenToSave);
@@ -373,12 +372,12 @@ export const authApi = {
             localStorage.setItem('qareeblak_cookie_session', 'true');
             localStorage.removeItem('halan_token');
         }
-        
+
         // Ensure user is correctly attached so loginUser works smoothly
         if (!result.user && result.data?.user) {
             result.user = result.data.user;
         }
-        
+
         return result;
     },
 
@@ -394,7 +393,7 @@ export const authApi = {
             localStorage.setItem('qareeblak_cookie_session', 'true');
             localStorage.removeItem('halan_token');
         }
-        
+
         if (!result.user && result.data?.user) {
             result.user = result.data.user;
         }
