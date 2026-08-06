@@ -1,9 +1,5 @@
 const { Pool } = require('pg');
 const os = require('os');
-const dns = require('dns');
-if (dns.setDefaultResultOrder) {
-    dns.setDefaultResultOrder('ipv4first');
-}
 const logger = require('./utils/logger');
 const { dbQueryDurationSeconds } = require('./utils/metrics');
 const chaos = require('./utils/resilience');

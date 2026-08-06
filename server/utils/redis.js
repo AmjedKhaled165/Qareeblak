@@ -40,6 +40,8 @@ const getRedisConnectionOptions = (url = redisUrl, overrides = {}) => {
             }
         } : {}),
         connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 5000),
+        commandTimeout: 5000,
+        keepAlive: 10000,
         maxRetriesPerRequest: null,
         ...overrides,
     };
