@@ -114,7 +114,7 @@ function normalizeTrackingStatus(status: string) {
     return aliases[raw] || raw || 'pending';
 }
 
-// API base URL
+// API base URL is handled by Next.js rewrites for fetch, but socket needs absolute URL if not proxying WS
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api$/, '').replace(/\/$/, '');
 
 export default function TrackOrderPage() {
@@ -139,7 +139,7 @@ export default function TrackOrderPage() {
         if (!trackingId) return;
 
         try {
-            const response = await fetch(`${API_BASE}/api/halan/orders/track/${trackingId}`);
+            const response = await fetch(`/api/halan/orders/track/${trackingId}`);
             const data = await response.json();
 
             if (data.success && data.order) {
@@ -182,7 +182,7 @@ export default function TrackOrderPage() {
         const socketUrl = apiUrl.replace(/\/api$/, '');
         const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
         const socket = io(socketUrl, {
-            transports: ['polling', 'websocket'],
+            transports: ['websocket'], // Use websocket only to avoid CSP blocking HTTP polling
             ...(token ? { auth: { token } } : {})
         });
 
