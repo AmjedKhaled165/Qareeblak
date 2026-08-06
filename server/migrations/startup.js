@@ -149,6 +149,28 @@ async function ensureCoreTables(query) {
     `);
 
     await query(`
+        CREATE TABLE IF NOT EXISTS courier_supervisors (
+            courier_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            supervisor_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            PRIMARY KEY (courier_id, supervisor_id)
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS order_history (
+            id SERIAL PRIMARY KEY,
+            order_id INTEGER REFERENCES delivery_orders(id) ON DELETE CASCADE,
+            status VARCHAR(50) NOT NULL,
+            changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            notes TEXT,
+            latitude DECIMAL(10, 8),
+            longitude DECIMAL(11, 8),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+
+    await query(`
         CREATE TABLE IF NOT EXISTS chat_messages (
             id SERIAL PRIMARY KEY,
             consultation_id INTEGER REFERENCES consultations(id) ON DELETE CASCADE,
