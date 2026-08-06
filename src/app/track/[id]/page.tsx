@@ -177,16 +177,14 @@ export default function TrackOrderPage() {
     useEffect(() => {
         fetchOrder();
 
-        // 🟢 Real-time Socket Listener
+        // 🟢 Real-time Socket Listener (Connects with token if logged in, or anonymous fallback for instant updates)
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const socketUrl = apiUrl.replace(/\/api$/, '');
         const token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
-        const socket = token
-            ? io(socketUrl, {
-                transports: ['polling'],
-                auth: { token }
-            })
-            : null;
+        const socket = io(socketUrl, {
+            transports: ['polling', 'websocket'],
+            ...(token ? { auth: { token } } : {})
+        });
 
         socket?.on('connect', () => {
             console.log('Connected to tracking updates');

@@ -126,7 +126,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         if (parsed.role !== 'courier' && parsed.type !== 'partner_courier' && parsed.user_type !== 'partner_courier') {
             apiCall('/halan/users?role=courier')
                 .then((res) => {
-                    if (res?.success) setDrivers((res.data || [])); // Fetch all couriers, even offline ones
+                    if (res?.success) setDrivers((res.data || []).filter((d: any) => d.isAvailable !== false));
                 })
                 .catch((e) => console.error('Error fetching couriers:', e));
         }
@@ -620,7 +620,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                                         <option value="">اختر مندوب</option>
                                         {drivers.map((driver) => (
                                             <option key={driver.id} value={driver.id}>
-                                                {driver.name} - ({driver.isAvailable === false ? 'مغلق/غير متاح' : (driver.courierStatus || 'متاح')})
+                                                {driver.name} - ({driver.courierStatus || 'متاح'})
                                             </option>
                                         ))}
                                     </select>

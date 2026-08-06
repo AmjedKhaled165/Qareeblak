@@ -59,12 +59,10 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', 'date-fns', 'framer-motion'],
   },
 
-  // API rewrites — Vercel proxies /api/* to the backend, avoiding CORS entirely.
-  // Priority: INTERNAL_API_URL (Docker) > NEXT_PUBLIC_API_URL (env) > Azure fallback
+  // API rewrites — uses INTERNAL_API_URL in Docker (container-to-container), falls back to localhost for dev
   async rewrites() {
-    const apiBase = process.env.INTERNAL_API_URL
-      || process.env.NEXT_PUBLIC_API_URL
-      || 'https://qareeblak-czasfjejcvcyhyak.francecentral-01.azurewebsites.net';
+    const rawApiBase = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const apiBase = rawApiBase.replace(/\/api\/?$/, '');
     return [
       {
         source: '/api/:path*',
@@ -80,15 +78,17 @@ const nextConfig: NextConfig = {
     // Build the CSP string — permissive in dev, strict in production
     const cspDirectives = [
       "default-src 'self'",
-      // unsafe-inline needed for Next.js inline styles, unsafe-eval for some frontend libraries like framer-motion/three.js
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://apis.google.com",
+      // unsafe-inline needed for Next.js inline styles, unsafe-eval for framer-motion in dev
+      isDev
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://apis.google.com"
+        : "script-src 'self' 'unsafe-inline' blob: https://apis.google.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "worker-src 'self' blob:",
-      "img-src 'self' data: blob: https: https://ui-avatars.com",
+      "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
-      // WebSocket + API + Firebase endpoints + UI Avatars
-      `connect-src 'self' ws: wss: https://qareeblak.com https://www.qareeblak.com https://api.qareeblak.com https://wa.qareeblak.com https://firebaseapp.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.azurewebsites.net https://ui-avatars.com${process.env.NEXT_PUBLIC_API_URL ? ` ${process.env.NEXT_PUBLIC_API_URL}` : ''}${isDev ? ' http://127.0.0.1:5000 http://localhost:5000' : ''}`,
+      // WebSocket + API + Firebase endpoints
+      `connect-src 'self' ws: wss: https://qareeblak.com https://www.qareeblak.com https://api.qareeblak.com https://wa.qareeblak.com https://firebaseapp.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com${isDev ? ' http://127.0.0.1:5000 http://localhost:5000' : ''}`,
       // Google OAuth popup
       "frame-src 'self' https://accounts.google.com https://qareeblak.firebaseapp.com https://qareeblak-810d3.firebaseapp.com",
       "frame-ancestors 'none'",

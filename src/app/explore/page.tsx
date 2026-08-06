@@ -2,8 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, SlidersHorizontal, Utensils, Wrench, Pill, Car, ShoppingBag, ShoppingCart, Star, Stethoscope } from "lucide-react";
-import { useState, useEffect, Suspense } from "react";
+import { 
+    Search, SlidersHorizontal, Utensils, Pill, Car, 
+    ShoppingBag, ShoppingCart, Star, Stethoscope, 
+    Sparkles, Zap, Flame, ShieldCheck, RotateCcw, X, Grid, List, Clock
+} from "lucide-react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -11,12 +15,12 @@ import dynamic from "next/dynamic";
 
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useCartStore } from "@/components/providers/CartProvider";
-
 import { SkeletonCard } from "@/components/features/skeleton-card";
-import { useMemo } from "react";
-
 import { useDebounce } from "@/hooks/use-debounce";
-import { isPharmacyProvider, isDoctorProvider, isMaintenanceProvider, isCarServiceProvider, isPlaygroundProvider, isRestaurantProvider } from "@/lib/category-utils";
+import { 
+    isPharmacyProvider, isDoctorProvider, isMaintenanceProvider, 
+    isCarServiceProvider, isPlaygroundProvider, isRestaurantProvider, isCraftsmanProvider 
+} from "@/lib/category-utils";
 
 const ServiceCard = dynamic(
     () => import("@/components/features/service-card").then((m) => m.ServiceCard),
@@ -29,19 +33,27 @@ const CartModal = dynamic(
 );
 
 const CATEGORIES = [
-    { id: "all", label: "الكل", icon: null },
-    { id: "مطاعم", label: "مطاعم وكافيهات", icon: Utensils },
-    { id: "صيانة", label: "صيانة وسباكة", icon: Wrench },
-    { id: "صيدليات", label: "صيدليات", icon: Pill },
-    { id: "دكتور وممرض", label: "دكتور وممرض", icon: Stethoscope },
-    { id: "ملاعب", label: "ملاعب", icon: Star },
-    { id: "سيارات", label: "خدمات سيارات", icon: Car },
-    { id: "بقالة", label: "سوبر ماركت", icon: ShoppingBag },
+    { id: "all", label: "جميع الخدمات", icon: Sparkles, color: "from-indigo-500 to-purple-600", bgLight: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" },
+    { id: "مطاعم", label: "مطاعم وكافيهات", icon: Utensils, color: "from-orange-500 to-amber-600", bgLight: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
+    { id: "صيدليات", label: "صيدليات وطوارئ", icon: Pill, color: "from-emerald-500 to-teal-600", bgLight: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+    { id: "دكتور وممرض", label: "دكتور وممرض", icon: Stethoscope, color: "from-rose-500 to-pink-600", bgLight: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
+    { id: "ملاعب", label: "حجز ملاعب", icon: Star, color: "from-violet-500 to-purple-600", bgLight: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
+    { id: "سيارات", label: "خدمات سيارات", icon: Car, color: "from-sky-500 to-blue-600", bgLight: "bg-sky-500/10 text-sky-600 dark:text-sky-400" },
+    { id: "بقالة", label: "سوبر ماركت", icon: ShoppingBag, color: "from-green-500 to-emerald-600", bgLight: "bg-green-500/10 text-green-600 dark:text-green-400" },
+];
+
+const QUICK_TAGS = [
+    { label: "سباكة 🔧", query: "سباك" },
+    { label: "مشويات 🍖", query: "مشويات" },
+    { label: "بيتزا 🍕", query: "بيتزا" },
+    { label: "صيدلية 💊", query: "صيدلية" },
+    { label: "تكييف ❄️", query: "تكييف" },
+    { label: "طوارئ 🚨", query: "طوارئ" },
+    { label: "ملعب خماسي ⚽", query: "ملعب" },
 ];
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
     "مطاعم": ["مطعم", "كافيه", "اكل", "بيتزا", "برجر", "قهوة", "مقهى", "مشويات", "طعام", "كريب", "شاورما"],
-    "صيانة": ["صيانة", "سباك", "سباكة", "كهرباء", "كهربائي", "نجار", "نقاش", "تكييف", "تصليح", "دهانات", "دش"],
     "صيدليات": ["صيدلية", "علاج", "دواء", "روشتة"],
     "دكتور وممرض": ["طبيب", "دكتور", "ممرض", "ممرضة", "مستشفى", "عيادة", "تحاليل", "اشعة", "اسنان", "علاج طبيعي"],
     "ملاعب": ["ملعب", "ملاعب", "كورة", "كرة", "قدم", "رياضة", "حجز", "خماسي", "مباراة"],
@@ -83,11 +95,12 @@ function ExploreContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    
     const addToOrderId = searchParams.get('addToOrderId');
     const categoryFromUrl = searchParams.get('category');
     const queryFromHome = searchParams.get('q') || "";
 
-    // Determine initial active category based on URL or inference
     const initialCategory = useMemo(() => {
         if (categoryFromUrl) {
             const matched = CATEGORIES.find(c => c.label === categoryFromUrl || c.id === categoryFromUrl);
@@ -105,28 +118,13 @@ function ExploreContent() {
     const [visibleCount, setVisibleCount] = useState(12);
     const [sortBy, setSortBy] = useState<"default" | "top-rated" | "most-ordered" | "most-offers">("default");
 
-    // Debounce the search term to prevent lag
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-    // Ensure we start on the right category if arriving from another link
     useEffect(() => {
         if (initialCategory !== "all") {
             setActiveCategory(initialCategory);
         }
     }, [initialCategory]);
-
-    // User specifically requested NOT to auto-switch categories when typing in search
-    // to allow searching for a name or service globally.
-    /*
-    useEffect(() => {
-        if (debouncedSearchQuery) {
-            const inferred = inferCategoryFromQuery(debouncedSearchQuery);
-            if (inferred && inferred !== activeCategory) {
-                setActiveCategory(inferred);
-            }
-        }
-    }, [debouncedSearchQuery]); // purposely excluding activeCategory to avoid looping
-    */
 
     const normalizedProviders = useMemo(() => {
         return (providers || []).map((provider) => {
@@ -139,20 +137,19 @@ function ExploreContent() {
 
             const _providerCategory = typeof provider?.category === 'string' ? provider.category : '';
             
-            // Map the raw category from the backend to the frontend CATEGORIES ID using robust utilities
             let catId = "all";
-            if (isPharmacyProvider(_providerCategory)) catId = "صيدليات";
+            if (isCraftsmanProvider(_providerCategory)) catId = "صنايعية";
+            else if (isPharmacyProvider(_providerCategory)) catId = "صيدليات";
             else if (isDoctorProvider(_providerCategory)) catId = "دكتور وممرض";
             else if (isMaintenanceProvider(_providerCategory)) catId = "صيانة";
             else if (isCarServiceProvider(_providerCategory)) catId = "سيارات";
             else if (isPlaygroundProvider(_providerCategory)) catId = "ملاعب";
-            else if (_providerCategory.includes('بقالة') || _providerCategory.includes('سوبر') || _providerCategory.includes('ماركت') || _providerCategory.includes('خضار') || _providerCategory.includes('لحوم') || _providerCategory.includes('مقاضي')) {
+            else if (_providerCategory.includes('بقالة') || _providerCategory.includes('سوبر') || _providerCategory.includes('ماركت') || _providerCategory.includes('خضار') || _providerCategory.includes('لحوم')) {
                 catId = "بقالة";
             }
             else if (isRestaurantProvider(_providerCategory)) {
                 catId = "مطاعم";
             } else {
-                // Fallback: match by label or exact id
                 const categoryObj = CATEGORIES.find(c => c.id === _providerCategory || c.label === _providerCategory);
                 catId = categoryObj?.id || _providerCategory;
             }
@@ -169,6 +166,17 @@ function ExploreContent() {
             };
         });
     }, [providers]);
+
+    // Count providers per category for high-tech counters
+    const categoryCounts = useMemo(() => {
+        const counts: Record<string, number> = { all: normalizedProviders.length };
+        normalizedProviders.forEach(p => {
+            if (p._mappedCategoryId) {
+                counts[p._mappedCategoryId] = (counts[p._mappedCategoryId] || 0) + 1;
+            }
+        });
+        return counts;
+    }, [normalizedProviders]);
 
     const filteredProviders = useMemo(() => {
         const normalizedQuery = normalizeText(debouncedSearchQuery.trim());
@@ -209,7 +217,6 @@ function ExploreContent() {
         }
     }, [queryFromHome]);
 
-    // Reset visible count when filters change
     useEffect(() => {
         setVisibleCount(12);
     }, [activeCategory, debouncedSearchQuery, sortBy]);
@@ -225,139 +232,288 @@ function ExploreContent() {
         setVisibleCount(prev => prev + 12);
     };
 
+    const isFiltered = activeCategory !== "all" || searchQuery.length > 0 || sortBy !== "default";
+
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 pb-24 md:pb-8 font-cairo">
-            <div className="absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-indigo-50/50 to-transparent dark:from-indigo-950/20 dark:to-transparent pointer-events-none -z-10" />
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-6 pb-24 md:pb-12 font-cairo selection:bg-indigo-500 selection:text-white">
             
-            {/* Add Item Banner */}
+            {/* Background Ambient Glowing Orbs */}
+            <div className="fixed top-0 inset-x-0 h-[450px] bg-gradient-to-b from-indigo-900/10 via-purple-900/5 to-transparent pointer-events-none -z-10 blur-3xl overflow-hidden" />
+            <div className="fixed top-20 right-1/4 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none -z-10 animate-pulse" />
+            <div className="fixed top-40 left-1/4 w-96 h-96 bg-purple-500/10 dark:bg-purple-500/20 rounded-full blur-[120px] pointer-events-none -z-10" />
+
+            {/* Add Item Banner if arriving from existing order */}
             {addToOrderId && (
-                <div className="bg-emerald-600 text-white p-4 sticky top-0 z-[60] shadow-lg flex items-center justify-between mb-8 mx-4 rounded-2xl border border-emerald-500">
+                <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-4 sticky top-0 z-[60] shadow-xl flex items-center justify-between mb-6 mx-4 rounded-2xl border border-emerald-400/30 backdrop-blur-md">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                            <ShoppingBag className="w-6 h-6" />
+                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                            <ShoppingBag className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <p className="font-bold text-lg">إضافة للطلب #{addToOrderId}</p>
-                            <p className="text-sm opacity-90 mt-0.5">تصفح الخدمات واختر ما تحتاجه</p>
+                            <p className="font-black text-lg">إضافة خيارات للطلب #{addToOrderId}</p>
+                            <p className="text-xs opacity-90 font-medium">تصفح الخدمات واختر ما تحتاجه لإضافته فوراً</p>
                         </div>
                     </div>
                     <button
                         onClick={() => router.push(`/track/${addToOrderId}`)}
-                        className="px-5 py-2.5 bg-white text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-colors shadow-sm"
+                        className="px-5 py-2.5 bg-white text-emerald-800 rounded-xl font-black text-sm hover:bg-emerald-50 transition-all shadow-md active:scale-95"
                     >
                         العودة للطلب
                     </button>
                 </div>
             )}
+
             <div className="container max-w-7xl mx-auto px-4 lg:px-8">
-                {/* Header & Filter */}
-                <div className="flex flex-col lg:flex-row gap-6 justify-between items-center lg:items-end mb-10 text-center lg:text-right">
-                    <div className="space-y-2">
-                        <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">تصفح الخدمات</h1>
-                        <p className="text-lg text-slate-500 dark:text-slate-400 font-medium">أكثر من 50 خدمة ومطعم متاحين في أسيوط الجديدة</p>
+                
+                {/* Creative Hero Banner */}
+                <motion.div 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-10 mb-8 border border-slate-800 shadow-2xl"
+                >
+                    {/* Glowing decorative elements */}
+                    <div className="absolute -top-24 -left-24 w-72 h-72 bg-indigo-500/30 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-purple-500/30 rounded-full blur-3xl pointer-events-none" />
+
+                    <div className="relative z-10 max-w-3xl space-y-4">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 backdrop-blur-md text-xs sm:text-sm font-bold text-indigo-300">
+                            <Zap className="w-4 h-4 text-indigo-400 animate-bounce" />
+                            <span>دليل خدمات أسيوط الجديدة المباشر</span>
+                        </div>
+
+                        <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight text-white font-cairo">
+                            استكشف <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400">أفضل الخدمات والأنشطة</span> في أسيوط الجديدة 🌟
+                        </h1>
+                        <p className="text-slate-300 text-sm sm:text-base font-medium max-w-2xl leading-relaxed">
+                            اعثر فوراً على السباكين، المطاعم، الصيدليات، الدكاترة والمحلات الموثوقة مع تواصل مباشر وبدون عمولات.
+                        </p>
+
+                        {/* Search Input Box */}
+                        <div className="pt-4">
+                            <div className="relative flex items-center group">
+                                <Search className="absolute right-4 w-5 h-5 text-slate-400 group-focus-within:text-indigo-400 transition-colors" />
+                                <Input
+                                    placeholder="ابحث عن سباك، مطعم، صيدلية، تكييف..."
+                                    className="pr-12 pl-12 h-14 bg-white/10 dark:bg-slate-950/60 backdrop-blur-md border-slate-700/80 text-white placeholder:text-slate-400 rounded-2xl text-base font-medium focus-visible:ring-2 focus-visible:ring-indigo-400 shadow-inner"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute left-4 p-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Quick Search Tag Pills */}
+                            <div className="flex flex-wrap items-center gap-2 mt-4 pt-1">
+                                <span className="text-xs text-slate-400 font-bold ml-1">الأكثر بحثاً:</span>
+                                {QUICK_TAGS.map((tag, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setSearchQuery(tag.query)}
+                                        className="text-xs font-bold px-3 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-200 transition-all active:scale-95 cursor-pointer"
+                                    >
+                                        {tag.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Interactive Categories Bar */}
+                <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-indigo-500" />
+                            <span>الأقسام المتاحة</span>
+                        </h2>
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                            {normalizedProviders.length} مزود خدمة مسجّل
+                        </span>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                        <div className="relative flex-1 sm:w-80 md:w-96 group">
-                            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                            <Input
-                                placeholder="ابحث عن سباك، بيتزا، طوارئ..."
-                                className="pr-12 h-14 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-base font-medium focus-visible:ring-indigo-500"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                            <div className="relative h-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center px-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm cursor-pointer min-w-[140px]">
-                                <select 
-                                    value={sortBy} 
-                                    onChange={(e) => setSortBy(e.target.value as any)}
-                                    className="w-full h-full bg-transparent outline-none appearance-none pl-6 pr-2 font-bold text-slate-700 dark:text-slate-300 text-sm cursor-pointer"
+                    <div className="flex overflow-x-auto pb-3 gap-3 no-scrollbar scroll-smooth">
+                        {CATEGORIES.map((cat) => {
+                            const count = categoryCounts[cat.id] || 0;
+                            const isActive = activeCategory === cat.id;
+
+                            return (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setActiveCategory(cat.id)}
+                                    className={cn(
+                                        "flex items-center gap-2.5 px-5 py-3 rounded-2xl whitespace-nowrap transition-all duration-300 text-sm font-bold border cursor-pointer shrink-0 relative overflow-hidden group shadow-sm",
+                                        isActive
+                                            ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-lg shadow-indigo-500/10 scale-[1.02]"
+                                            : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-slate-50 dark:hover:bg-slate-800/80"
+                                    )}
                                 >
-                                    <option value="default" className="text-slate-900">الترتيب الافتراضي</option>
-                                    <option value="top-rated" className="text-slate-900">الأعلى تقييم</option>
-                                    <option value="most-ordered" className="text-slate-900">الأكثر طلباً</option>
-                                    <option value="most-offers" className="text-slate-900">الأكثر عروضاً</option>
-                                </select>
-                                <div className="absolute left-3 pointer-events-none text-slate-400">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                </div>
-                            </div>
-                            <Button
-                                className="h-14 w-14 shrink-0 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 hover:text-indigo-600 pop-hover"
-                                variant="outline"
+                                    {cat.icon && (
+                                        <div className={cn(
+                                            "w-7 h-7 rounded-xl flex items-center justify-center transition-colors",
+                                            isActive
+                                                ? "bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900"
+                                                : cat.bgLight
+                                        )}>
+                                            <cat.icon className="h-4 w-4" />
+                                        </div>
+                                    )}
+                                    <span>{cat.label}</span>
+                                    {count > 0 && (
+                                        <span className={cn(
+                                            "text-xs px-2 py-0.5 rounded-full font-bold transition-colors",
+                                            isActive
+                                                ? "bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900"
+                                                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                                        )}>
+                                            {count}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Controls & Quick Filter Toolbar */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    {/* Active summary status */}
+                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 text-sm font-bold w-full sm:w-auto justify-between sm:justify-start">
+                        <span>
+                            نتائج البحث: <span className="text-indigo-600 dark:text-indigo-400 font-black">{filteredProviders.length}</span> مزود
+                        </span>
+                        {isFiltered && (
+                            <button
                                 onClick={() => {
                                     setActiveCategory('all');
                                     setSearchQuery('');
                                     setSortBy('default');
                                 }}
-                                title="إعادة ضبط البحث"
+                                className="inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-600 font-bold mr-2 hover:underline cursor-pointer"
                             >
-                                <SlidersHorizontal className="w-5 h-5" />
-                            </Button>
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                <span>إعادة ضبط</span>
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Sorting & Layout View Toggle */}
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                        {/* Sort Dropdown */}
+                        <div className="relative h-11 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center px-3 font-bold text-xs cursor-pointer border border-transparent hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+                            <select 
+                                value={sortBy} 
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                className="w-full h-full bg-transparent outline-none appearance-none pl-6 pr-1 text-slate-800 dark:text-slate-200 font-bold text-xs cursor-pointer"
+                            >
+                                <option value="default" className="text-slate-900">⚡ الترتيب الافتراضي</option>
+                                <option value="top-rated" className="text-slate-900">⭐ الأعلى تقييماً</option>
+                                <option value="most-ordered" className="text-slate-900">🔥 الأكثر طلباً</option>
+                                <option value="most-offers" className="text-slate-900">🎁 الأكثر عروضاً</option>
+                            </select>
+                            <div className="absolute left-2.5 pointer-events-none text-slate-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            </div>
+                        </div>
+
+                        {/* View Switcher */}
+                        <div className="hidden sm:flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                            <button
+                                onClick={() => setViewMode("grid")}
+                                className={cn(
+                                    "p-2 rounded-lg transition-all",
+                                    viewMode === "grid" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                )}
+                                title="عرض شبكي"
+                            >
+                                <Grid className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setViewMode("list")}
+                                className={cn(
+                                    "p-2 rounded-lg transition-all",
+                                    viewMode === "list" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                )}
+                                title="عرض كقائمة"
+                            >
+                                <List className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Categories Tabs */}
-                <div className="flex overflow-x-auto pb-4 gap-2 mb-8 no-scrollbar scroll-smooth">
-                    {CATEGORIES.map((cat) => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setActiveCategory(cat.id)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all text-sm font-bold border pop-hover",
-                                activeCategory === cat.id
-                                    ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 hover:bg-primary/90"
-                                    : "bg-card text-muted-foreground border-border hover:bg-accent hover:text-foreground"
-                            )}
-                        >
-                            {cat.icon && <cat.icon className="h-4 w-4" />}
-                            {cat.label}
-                        </button>
-                    ))}
-                </div>
+                {/* Service Cards Grid Container */}
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={`${activeCategory}-${debouncedSearchQuery}-${sortBy}-${viewMode}`}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.3 }}
+                        className={cn(
+                            "grid gap-6",
+                            viewMode === "grid"
+                                ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                                : "grid-cols-1"
+                        )}
+                    >
+                        {isLoading ? (
+                            Array.from({ length: 6 }).map((_, i) => (
+                                <SkeletonCard key={`skeleton-${i}`} />
+                            ))
+                        ) : displayedProviders.length > 0 ? (
+                            displayedProviders.map((provider) => (
+                                <ServiceCard 
+                                    key={provider.id} 
+                                    provider={provider} 
+                                    addToOrderId={addToOrderId} 
+                                />
+                            ))
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="col-span-full flex flex-col items-center justify-center py-16 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 text-center"
+                            >
+                                <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-950/40 rounded-full flex items-center justify-center mb-4 text-indigo-500">
+                                    <Search className="h-10 w-10 animate-pulse" />
+                                </div>
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2 font-cairo">لا توجد نتائج تطابق بحثك</h3>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mb-6 font-medium">
+                                    جرب تغيير الكلمات المفتاحية أو اختر قسماً آخر من الأقسام المتاحة أعلاه.
+                                </p>
+                                <Button 
+                                    variant="outline" 
+                                    className="px-6 py-3 rounded-xl border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 font-bold text-indigo-600 dark:text-indigo-400"
+                                    onClick={() => { setActiveCategory("all"); setSearchQuery(""); setSortBy("default"); }}
+                                >
+                                    عرض جميع الخدمات
+                                </Button>
+                            </motion.div>
+                        )}
+                    </motion.div>
+                </AnimatePresence>
 
-                {/* Grid */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ staggerChildren: 0.1 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                >
-                    {isLoading ? (
-                        Array.from({ length: 6 }).map((_, i) => (
-                            <SkeletonCard key={`skeleton-${i}`} />
-                        ))
-                    ) : displayedProviders.length > 0 ? (
-                        displayedProviders.map((provider) => (
-                            <ServiceCard key={provider.id} provider={provider} addToOrderId={addToOrderId} />
-                        ))
-                    ) : (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="col-span-full flex flex-col items-center justify-center py-20 text-center"
-                        >
-                            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4 text-muted-foreground">
-                                <Search className="h-8 w-8" />
-                            </div>
-                            <h3 className="text-lg font-semibold text-foreground">لا توجد نتائج</h3>
-                            <p className="text-muted-foreground mb-4">لم نجد أي خدمات تطابق بحثك في هذا القسم.</p>
-                            <Button variant="outline" className="border-border hover:bg-accent" onClick={() => { setActiveCategory("all"); setSearchQuery(""); }}>عرض كل الخدمات</Button>
-                        </motion.div>
-                    )}
-                </motion.div>
-
-                {/* Load More */}
+                {/* Load More Button */}
                 {!isLoading && visibleCount < filteredProviders.length && (
                     <div className="mt-12 text-center">
-                        <Button onClick={handleLoadMore} variant="outline" className="px-8 py-6 rounded-full font-bold shadow-sm hover:shadow-md transition-shadow btn-3d">عرض المزيد</Button>
+                        <Button 
+                            onClick={handleLoadMore} 
+                            className="px-10 py-6 rounded-2xl font-black text-base bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg hover:shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer font-cairo"
+                        >
+                            عرض المزيد من الخدمات ({filteredProviders.length - visibleCount} متبقي)
+                        </Button>
                     </div>
                 )}
             </div>
 
-            {/* Floating Cart Button for Mobile */}
+            {/* Mobile Floating Cart Action */}
             <AnimatePresence>
                 {globalCart.length > 0 && (
                     <motion.button
@@ -365,11 +521,11 @@ function ExploreContent() {
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0, opacity: 0, y: 20 }}
                         onClick={() => setIsCartOpen(true)}
-                        className="fixed bottom-24 md:bottom-6 left-6 z-50 bg-primary text-white p-4 rounded-full shadow-2xl flex items-center gap-2 group hover:scale-110 transition-transform md:hidden"
+                        className="fixed bottom-24 md:bottom-6 left-6 z-50 bg-indigo-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 group hover:scale-105 active:scale-95 transition-all md:hidden font-cairo border border-indigo-400/40"
                     >
                         <div className="relative">
                             <ShoppingCart className="w-6 h-6" />
-                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-primary">
+                            <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-indigo-600">
                                 {globalCart.length}
                             </span>
                         </div>
@@ -388,7 +544,16 @@ function ExploreContent() {
 
 export default function ExplorePage() {
     return (
-        <Suspense fallback={<div className="container mx-auto p-8"><div className="h-10 w-48 bg-slate-200 animate-pulse rounded mb-8" /></div>}>
+        <Suspense fallback={
+            <div className="container mx-auto p-8 font-cairo">
+                <div className="h-40 w-full bg-slate-200 dark:bg-slate-800 animate-pulse rounded-3xl mb-8" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="h-64 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-3xl" />
+                    ))}
+                </div>
+            </div>
+        }>
             <ExploreContent />
         </Suspense>
     );

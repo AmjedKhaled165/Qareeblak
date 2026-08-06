@@ -117,25 +117,16 @@ module.exports = function registerSocketHandlers(io) {
                     return;
                 }
 
-                // 🛡️ [Security] Disintermediation Protection (Direct Deal Prevention)
-                // Filter Egyptian phone numbers (01x xxxx xxxx) and Arabic numerals
-                const phoneRegex = /(01[0125][0-9]{8})|(\+201[0125][0-9]{8})|(٠١[٠١٢٥][٠-٩]{٨})/g;
-                const cleanMsg = message ? message.replace(/[\s-]/g, '') : '';
-
-                if (message && phoneRegex.test(cleanMsg)) {
-                    logger.warn(`🚫 [Chat] Blocked potential disintermediation attempt from User ${senderId}`);
-                    socket.emit('message_error', {
-                        error: 'ممنوع إرسال أرقام الهواتف حفاظاً على حقوق المنصة وسلامة تعاملك. يمكنك الاتفاق على السعر فقط.'
-                    });
-                    return;
-                }
+                // 🛡️ [Security] Disintermediation Protection (Direct Deal Prevention & Auto-Masking)
+                const { sanitizeChatMessage } = require('../utils/chat-security');
+                const { sanitizedMessage: filteredMessage, isMasked: hasDisintermediationAttempt } = sanitizeChatMessage(message);
 
                 // Store message in database
                 const result = await db.query(`
                     INSERT INTO chat_messages (consultation_id, sender_id, sender_type, message, image_url)
                     VALUES ($1, $2, $3, $4, $5)
                     RETURNING *
-                `, [consultationId, senderId, senderType || 'customer', message || null, imageUrl || null]);
+                `, [consultationId, senderId, senderType || 'customer', filteredMessage || null, imageUrl || null]);
 
                 // Update consultation updated_at
                 await db.query(
@@ -145,7 +136,8 @@ module.exports = function registerSocketHandlers(io) {
 
                 const savedMessage = {
                     ...result.rows[0],
-                    sender_name: senderName || 'مستخدم'
+                    sender_name: senderName || 'مستخدم',
+                    disintermediation_warning: hasDisintermediationAttempt
                 };
 
                 logger.info('[Chat] Message saved:', savedMessage.id);
@@ -155,10 +147,90 @@ module.exports = function registerSocketHandlers(io) {
                 logger.info('[Chat] Message broadcast to room: ' + consultationId);
 
                 // Send confirmation to sender
-                socket.emit('message_sent', { success: true, messageId: savedMessage.id });
+                socket.emit('message_sent', { 
+                    success: true, 
+                    messageId: savedMessage.id,
+                    warning: hasDisintermediationAttempt ? 'تم حجب أرقام التليفونات لضمان سريان ضمان المنصة وحقوقك المالية' : null 
+                });
             } catch (error) {
                 logger.error('[Chat] Error in send_message:', error.message);
                 socket.emit('message_error', { error: 'حدث خطأ في إرسال الرسالة' });
+            }
+        });
+
+        // -------------------------------------------------------------
+        // 📜 [Service Offer System] In-Chat Offer Creation & Acceptance
+        // -------------------------------------------------------------
+        socket.on('send_service_offer', async (data) => {
+            try {
+                const { consultationId, senderId, senderName, serviceName, estimatedPrice, appointmentDate, notes } = data;
+                logger.info('[Chat] Received send_service_offer:', { consultationId, senderId, serviceName, estimatedPrice });
+
+                if (!consultationId || !serviceName || !estimatedPrice) {
+                    socket.emit('message_error', { error: 'تفاصيل العرض غير مكتملة (اسم الخدمة والسعر مطلوبين)' });
+                    return;
+                }
+
+                const offerPayload = JSON.stringify({
+                    type: 'SERVICE_OFFER',
+                    status: 'PENDING',
+                    serviceName,
+                    estimatedPrice: parseFloat(estimatedPrice),
+                    appointmentDate: appointmentDate || null,
+                    notes: notes || '',
+                    createdAt: new Date().toISOString()
+                });
+
+                const result = await db.query(`
+                    INSERT INTO chat_messages (consultation_id, sender_id, sender_type, message, image_url)
+                    VALUES ($1, $2, 'provider', $3, NULL)
+                    RETURNING *
+                `, [consultationId, senderId, `OFFER_PAYLOAD:${offerPayload}`]);
+
+                const savedOffer = {
+                    ...result.rows[0],
+                    sender_name: senderName || 'مقدم الخدمة',
+                    offer: JSON.parse(offerPayload)
+                };
+
+                io.to(consultationId).emit('new-service-offer', savedOffer);
+                socket.emit('message_sent', { success: true, offerId: savedOffer.id });
+            } catch (error) {
+                logger.error('[Chat] Error in send_service_offer:', error.message);
+                socket.emit('message_error', { error: 'حدث خطأ أثناء إرسال عرض السعر' });
+            }
+        });
+
+        socket.on('accept_service_offer', async (data) => {
+            try {
+                const { consultationId, messageId, customerId, providerId, serviceName, price } = data;
+                logger.info('[Chat] Received accept_service_offer:', { consultationId, messageId, customerId });
+
+                // Insert into orders
+                const orderResult = await db.query(`
+                    INSERT INTO orders (customer_id, provider_id, service_name, total_amount, status, created_at)
+                    VALUES ($1, $2, $3, $4, 'CONFIRMED', NOW())
+                    RETURNING *
+                `, [customerId, providerId, serviceName, parseFloat(price) || 0]);
+
+                const createdOrder = orderResult.rows[0];
+
+                // Update chat message status
+                await db.query(`
+                    UPDATE chat_messages 
+                    SET message = REPLACE(message, '"status":"PENDING"', '"status":"ACCEPTED"')
+                    WHERE id = $1
+                `, [messageId]);
+
+                io.to(consultationId).emit('service-offer-accepted', {
+                    messageId,
+                    orderId: createdOrder?.id,
+                    status: 'CONFIRMED',
+                    message: '🛡️ تم تأكيد الطلب رسمياً وسريان ضمان المنصة لمدة 14 يوماً!'
+                });
+            } catch (error) {
+                logger.error('[Chat] Error in accept_service_offer:', error.message);
+                socket.emit('message_error', { error: 'حدث خطأ أثناء تأكيد العرض' });
             }
         });
 

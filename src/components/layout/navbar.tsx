@@ -173,6 +173,8 @@ export function Navbar() {
                         {[
                             { label: 'الرئيسية', href: '/' },
                             { label: 'تصفح الخدمات', href: '/explore' },
+                            { label: 'الصنايعية 🛠️', href: '/craftsmen' },
+                            { label: 'سكن الطلاب 🏠', href: '/housing' },
                             { label: 'تتبع طلبك', href: '/track' }
                         ].map((item) => (
                             <Link 

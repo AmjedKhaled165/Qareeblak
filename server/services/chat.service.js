@@ -51,11 +51,14 @@ class ChatService {
     async sendMessage(consultationId, userId, { senderType, message, imageUrl, io }) {
         const consult = await this._verifyOwnership(consultationId, userId);
 
+        const { sanitizeChatMessage } = require('../utils/chat-security');
+        const { sanitizedMessage, isMasked } = sanitizeChatMessage(message);
+
         const savedMessage = await chatRepo.saveMessage({
             consultationId,
             senderId: userId,
             senderType,
-            message,
+            message: sanitizedMessage,
             imageUrl
         });
 

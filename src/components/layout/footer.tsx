@@ -17,25 +17,25 @@ export function Footer() {
     }
 
     return (
-        <footer className="bg-slate-900 dark:bg-slate-950 text-slate-300 py-16 mt-auto border-t border-slate-800 relative overflow-hidden font-cairo">
+        <footer className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 py-12 mt-auto border-t border-slate-200 dark:border-slate-800 relative overflow-hidden font-cairo">
             {/* Background elements */}
             <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
             
-            <div className="container max-w-7xl mx-auto px-4 lg:px-8 relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8">
+            <div className="container max-w-7xl mx-auto px-4 lg:px-8 relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-8">
 
                 {/* Brand & Bio (Spans 4 columns on large screens) */}
-                <div className="lg:col-span-4 space-y-6">
+                <div className="lg:col-span-4 space-y-4">
                     <div className="flex items-center gap-3">
-                        <div className="bg-white p-2 rounded-xl shadow-lg">
+                        <div className="bg-white dark:bg-slate-900 p-2 rounded-xl shadow-md border border-slate-200 dark:border-slate-800">
                             <img 
                                 src="/Qareeblak_Logo_rbg.png?v=20260327" 
                                 alt="قريبلك" 
                                 className="w-10 h-10 object-contain"
                             />
                         </div>
-                        <h3 className="text-2xl font-black text-white tracking-tight">قريبلك</h3>
+                        <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">قريبلك</h3>
                     </div>
-                    <p className="text-base text-slate-400 leading-relaxed font-medium">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
                         المنصة الأولى لربط سكان أسيوط الجديدة بأفضل مقدمي الخدمات والمتاجر والمطاعم الموثوقة. دليلك الشامل الذكي بين إيديك.
                     </p>
                     {/* 3D Social Icons */}
@@ -45,9 +45,9 @@ export function Footer() {
                 </div>
 
                 {/* Quick Links */}
-                <div className="lg:col-span-2 space-y-6">
-                    <h3 className="text-lg font-bold text-white uppercase tracking-wider">روابط سريعة</h3>
-                    <ul className="space-y-3 font-medium text-slate-400">
+                <div className="lg:col-span-2 space-y-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wider">روابط سريعة</h3>
+                    <ul className="space-y-2.5 font-medium text-sm text-slate-600 dark:text-slate-400">
                         <li><Link href="/" className="hover:text-primary transition-colors inline-block hover:translate-x-[-4px] duration-200 link-hover">الرئيسية</Link></li>
                         <li><Link href="/explore" className="hover:text-primary transition-colors inline-block hover:translate-x-[-4px] duration-200 link-hover">كل الخدمات</Link></li>
                         {currentUser?.type !== 'provider' && (
@@ -58,9 +58,9 @@ export function Footer() {
                 </div>
 
                 {/* Categories */}
-                <div className="lg:col-span-3 space-y-6">
-                    <h3 className="text-lg font-bold text-white uppercase tracking-wider">أهم الأقسام</h3>
-                    <ul className="space-y-3 font-medium text-slate-400 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="lg:col-span-3 space-y-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wider">أهم الأقسام</h3>
+                    <ul className="space-y-2.5 font-medium text-sm text-slate-600 dark:text-slate-400 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1">
                         <li><Link href="/explore?q=مطعم" className="hover:text-primary transition-colors">مطاعم وكافيهات</Link></li>
                         <li><Link href="/explore?q=صيانة" className="hover:text-primary transition-colors">صيانة وسباكة</Link></li>
                         <li><Link href="/explore?q=سوبر" className="hover:text-primary transition-colors">سوبر ماركت</Link></li>
@@ -69,9 +69,9 @@ export function Footer() {
                 </div>
 
                 {/* Contact */}
-                <div className="lg:col-span-3 space-y-6">
-                    <h3 className="text-lg font-bold text-white uppercase tracking-wider">تواصل معنا</h3>
-                    <ul className="space-y-4 font-medium text-slate-400">
+                <div className="lg:col-span-3 space-y-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wider">تواصل معنا</h3>
+                    <ul className="space-y-3 font-medium text-sm text-slate-600 dark:text-slate-400">
                         <li className="flex items-start gap-3">
                             <Mail className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                             <a
@@ -87,10 +87,10 @@ export function Footer() {
                                 href="https://wa.me/201515928278"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="hover:text-green-400 transition-colors flex items-center gap-2"
+                                className="hover:text-green-500 transition-colors flex items-center gap-2"
                             >
                                 <svg
-                                    className="w-4 h-4 text-green-400 shrink-0"
+                                    className="w-4 h-4 text-green-500 shrink-0"
                                     viewBox="0 0 24 24"
                                     fill="currentColor"
                                     aria-label="WhatsApp"
@@ -108,10 +108,10 @@ export function Footer() {
                 </div>
             </div>
 
-            <div className="container max-w-7xl mx-auto px-4 lg:px-8 mt-16 pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 text-sm font-medium text-slate-500">
+            <div className="container max-w-7xl mx-auto px-4 lg:px-8 mt-10 pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 text-sm font-medium text-slate-500 dark:text-slate-400">
                 <div className="flex gap-6">
-                    <Link href="/privacy" className="hover:text-slate-300 transition-colors">سياسة الخصوصية</Link>
-                    <Link href="/terms" className="hover:text-slate-300 transition-colors">شروط الاستخدام</Link>
+                    <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-slate-300 transition-colors">سياسة الخصوصية</Link>
+                    <Link href="/terms" className="hover:text-slate-900 dark:hover:text-slate-300 transition-colors">شروط الاستخدام</Link>
                 </div>
                 <div className="text-center md:text-left">
                     © {new Date().getFullYear()} منصة قريبلك لخدمات أسيوط الجديدة. جميع الحقوق محفوظة.

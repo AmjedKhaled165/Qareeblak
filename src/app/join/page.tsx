@@ -158,14 +158,24 @@ export default function JoinPage() {
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                     >
                                         <option value="">اختر التخصص...</option>
-                                        <option value="مطاعم">مطاعم وكافيهات</option>
-                                        <option value="صيانة">صيانة وخدمات منزلية (سباكة/كهرباء)</option>
-                                        <option value="صيدليات">صيدليات</option>
-                                        <option value="دكتور وممرض">دكتور وممرض</option>
-                                        <option value="ملاعب">ملاعب</option>
-                                        <option value="سيارات">خدمات سيارات</option>
-                                        <option value="بقالة">سوبر ماركت</option>
-                                        <option value="أخرى">أخرى</option>
+                                        <optgroup label="🔧 صنايعية وخدمات حرفية">
+                                            <option value="صنايعي - سباك">سباك (سباكة وصيانة حنفيات ومواسير)</option>
+                                            <option value="صنايعي - نجار">نجار (نجارة وأثاث وتصليح)</option>
+                                            <option value="صنايعي - ميكانيكي">ميكانيكي (أعطال سيارات ومحركات)</option>
+                                            <option value="صنايعي - كهربائي">كهربائي (كهرباء منازل وإضاءة)</option>
+                                            <option value="صنايعي - نقاش">نقاش (دهانات وتجديد)</option>
+                                            <option value="صنايعي - فني تكييف">فني تكييف وأجهزة منزلية</option>
+                                            <option value="صيانة">صيانة وخدمات منزلية عامة</option>
+                                        </optgroup>
+                                        <optgroup label="🏬 أنشطة ومتاجر">
+                                            <option value="مطاعم">مطاعم وكافيهات</option>
+                                            <option value="صيدليات">صيدليات</option>
+                                            <option value="دكتور وممرض">دكتور وممرض</option>
+                                            <option value="ملاعب">ملاعب</option>
+                                            <option value="سيارات">خدمات سيارات ومغاسل</option>
+                                            <option value="بقالة">سوبر ماركت وبقالة</option>
+                                            <option value="أخرى">أخرى</option>
+                                        </optgroup>
                                     </select>
                                 </div>
 

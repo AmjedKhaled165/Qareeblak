@@ -401,20 +401,43 @@ export default function ProviderProfile() {
                                         </div>
                                     </div>
 
-                                    {/* Meta tags */}
-                                    <div className="flex flex-wrap gap-2 pt-2">
+                                    {/* Meta tags & Direct Actions */}
+                                    <div className="flex flex-wrap items-center gap-2 pt-2">
                                         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 font-cairo">
                                             <MapPin className="w-4 h-4 text-slate-400" />
                                             {provider.location}
                                         </div>
-                                        {provider.phone && (
-                                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300 font-cairo">
-                                                <Phone className="w-4 h-4 text-slate-400" />
-                                                {provider.phone}
-                                            </div>
-                                        )}
                                         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30 text-sm font-bold text-emerald-700 dark:text-emerald-400 font-cairo">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                             متاح الآن للصفقات
+                                        </div>
+
+                                        {/* Action Buttons: Chat & Call */}
+                                        <div className="flex items-center gap-2 mr-auto pt-1 sm:pt-0">
+                                            <button
+                                                onClick={() => {
+                                                    const chatElement = document.getElementById('consultation-chat-section');
+                                                    if (chatElement) {
+                                                        chatElement.scrollIntoView({ behavior: 'smooth' });
+                                                    } else {
+                                                        setActiveTab('reviews');
+                                                    }
+                                                }}
+                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.03] active:scale-95 font-cairo cursor-pointer"
+                                            >
+                                                <MessageSquare className="w-4 h-4" />
+                                                <span>شات مباشر</span>
+                                            </button>
+
+                                            {provider.phone && (
+                                                <a
+                                                    href={`tel:${provider.phone}`}
+                                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm transition-all font-cairo"
+                                                >
+                                                    <Phone className="w-4 h-4 text-emerald-500" />
+                                                    <span>اتصال</span>
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

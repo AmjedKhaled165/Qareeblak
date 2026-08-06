@@ -134,3 +134,63 @@ export function isPlaygroundProvider(category: string | undefined | null): boole
     const normalized = category.toLowerCase().trim();
     return normalized.includes("ملاعب") || normalized.includes("ملعب");
 }
+
+// Keywords for craftsmen/handymen (صنايعية: سباك، نجار، ميكانيكي، كهربائي، نقاش، تكييف)
+const CRAFTSMAN_KEYWORDS = [
+    'صنايعي',
+    'سباك',
+    'سباكة',
+    'نجار',
+    'نجارة',
+    'ميكانيكي',
+    'ميكانيكا',
+    'كهربائي',
+    'كهرباء',
+    'نقاش',
+    'نقاشة',
+    'تكييف',
+    'دش',
+    'تصليح',
+    'دهانات',
+    'صيانة منزلية',
+    'craftsman',
+    'handyman'
+];
+
+/**
+ * Check if a provider is a craftsman / handyman provider
+ */
+export function isCraftsmanProvider(category: string | undefined | null): boolean {
+    if (!category) return false;
+    const normalized = category.toLowerCase().trim();
+    return CRAFTSMAN_KEYWORDS.some(keyword => normalized.includes(keyword.toLowerCase()));
+}
+
+// Keywords for student housing & real estate brokers (سكن طلاب، سماسرة، عقارات)
+const HOUSING_KEYWORDS = [
+    'سكن',
+    'طلاب',
+    'طالبات',
+    'سماسرة',
+    'سمسار',
+    'عقارات',
+    'عقار',
+    'شقق',
+    'إيجار',
+    'مفروش',
+    'housing',
+    'broker',
+    'real estate',
+    'student housing'
+];
+
+/**
+ * Check if a provider is a student housing / real estate broker provider
+ */
+export function isHousingProvider(category: string | undefined | null): boolean {
+    if (!category) return false;
+    const normalized = category.toLowerCase().trim();
+    return HOUSING_KEYWORDS.some(keyword => normalized.includes(keyword.toLowerCase()));
+}
+
+

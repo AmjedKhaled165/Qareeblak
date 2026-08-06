@@ -89,30 +89,6 @@ async function ensureCoreTables(query) {
         } catch(e) { /* ignore if already exists */ }
     }
 
-    // Ensure providers table has status/visibility columns (critical for online toggle)
-    const newProviderColumns = [
-        'is_online BOOLEAN DEFAULT TRUE',
-        'is_approved BOOLEAN DEFAULT TRUE',
-        'is_banned BOOLEAN DEFAULT FALSE',
-        'joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-    ];
-    for (const colDef of newProviderColumns) {
-        const colName = colDef.split(' ')[0];
-        try {
-            await query(`ALTER TABLE providers ADD COLUMN IF NOT EXISTS ${colName} ${colDef.substring(colName.length + 1)}`);
-        } catch(e) { /* ignore if already exists */ }
-    }
-
-    // Sync is_online from users table to providers for existing data
-    try {
-        await query(`
-            UPDATE providers p
-            SET is_online = COALESCE(u.is_online, TRUE)
-            FROM users u
-            WHERE p.user_id = u.id AND p.is_online IS NULL
-        `);
-    } catch(e) { /* non-fatal */ }
-
     const newDeliveryColumns = [
         'is_deleted BOOLEAN DEFAULT false',
         'is_modified_by_courier BOOLEAN DEFAULT false',
@@ -514,41 +490,53 @@ async function runStartupMigrations() {
         // 12. Migration: Clean up duplicate emails, phones, and usernames (keep the most recently created account)
         logger.info('🔄 Cleaning up duplicate accounts...');
         
-        // Remove duplicate emails
-        await query(`
-            DELETE FROM users 
-            WHERE id IN (
-                SELECT id FROM (
-                    SELECT id, ROW_NUMBER() OVER(PARTITION BY LOWER(email) ORDER BY id DESC) as rn 
-                    FROM users 
-                    WHERE email IS NOT NULL AND email != ''
-                ) t WHERE t.rn > 1
-            )
-        `);
+        try {
+            // Remove duplicate emails
+            await query(`
+                DELETE FROM users 
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER(PARTITION BY LOWER(email) ORDER BY id DESC) as rn 
+                        FROM users 
+                        WHERE email IS NOT NULL AND email != ''
+                    ) t WHERE t.rn > 1
+                )
+            `);
+        } catch (e) {
+            logger.warn('⚠️ Duplicate email cleanup skipped: ' + e.message);
+        }
         
-        // Remove duplicate usernames
-        await query(`
-            DELETE FROM users 
-            WHERE id IN (
-                SELECT id FROM (
-                    SELECT id, ROW_NUMBER() OVER(PARTITION BY LOWER(username) ORDER BY id DESC) as rn 
-                    FROM users 
-                    WHERE username IS NOT NULL AND username != ''
-                ) t WHERE t.rn > 1
-            )
-        `);
+        try {
+            // Remove duplicate usernames
+            await query(`
+                DELETE FROM users 
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER(PARTITION BY LOWER(username) ORDER BY id DESC) as rn 
+                        FROM users 
+                        WHERE username IS NOT NULL AND username != ''
+                    ) t WHERE t.rn > 1
+                )
+            `);
+        } catch (e) {
+            logger.warn('⚠️ Duplicate username cleanup skipped: ' + e.message);
+        }
         
-        // Remove duplicate phones
-        await query(`
-            DELETE FROM users 
-            WHERE id IN (
-                SELECT id FROM (
-                    SELECT id, ROW_NUMBER() OVER(PARTITION BY phone ORDER BY id DESC) as rn 
-                    FROM users 
-                    WHERE phone IS NOT NULL AND phone != ''
-                ) t WHERE t.rn > 1
-            )
-        `);
+        try {
+            // Remove duplicate phones
+            await query(`
+                DELETE FROM users 
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER(PARTITION BY phone ORDER BY id DESC) as rn 
+                        FROM users 
+                        WHERE phone IS NOT NULL AND phone != ''
+                    ) t WHERE t.rn > 1
+                )
+            `);
+        } catch (e) {
+            logger.warn('⚠️ Duplicate phone cleanup skipped: ' + e.message);
+        }
 
         // Now enforce strict unique indexes if they don't exist
         logger.info('🔄 Enforcing strict unique constraints for email, username, phone...');

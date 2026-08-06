@@ -112,7 +112,7 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
 
             const auth = token ? { token } : undefined;
             socketRef.current = io(SOCKET_URL, {
-                transports: ['polling'],
+                transports: ['polling', 'websocket'],
                 auth,
                 reconnection: true,
                 reconnectionDelay: 2000,
@@ -548,6 +548,15 @@ export function PharmacyChat({ isOpen, onClose, providerId, providerName, provid
                         </div>
                     </div>
                     <div className="w-9" /> {/* Spacer for centering */}
+                </div>
+
+                {/* 🛡️ Platform Guarantee Banner */}
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border-b border-emerald-100 dark:border-emerald-900/50 p-2.5 px-4 flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300 shadow-inner">
+                    <div className="flex items-center gap-2">
+                        <span className="text-base">🛡️</span>
+                        <span>ضمان المنصة 14 يوماً يسري فور تأكيد الطلب داخل الشات</span>
+                    </div>
+                    <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full shrink-0">محمية 100%</span>
                 </div>
 
                 {/* Messages Area */}
