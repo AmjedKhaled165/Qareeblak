@@ -398,7 +398,7 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId, pr
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
                 onClick={onClose}
             />
 
@@ -408,7 +408,7 @@ export function ConsultationChat({ isOpen, onClose, consultation, providerId, pr
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25 }}
-                className="fixed top-0 right-0 h-full w-full max-w-lg bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-50 flex flex-col text-slate-900 dark:text-slate-100 dir-rtl"
+                className="fixed top-0 right-0 h-full w-full max-w-lg bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-[60] flex flex-col text-slate-900 dark:text-slate-100 dir-rtl"
             >
                 {/* Header */}
                 <div className="p-4 bg-gradient-to-l from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-800 text-white shadow-sm">

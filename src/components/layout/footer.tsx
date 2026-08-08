@@ -17,7 +17,7 @@ export function Footer() {
     }
 
     return (
-        <footer className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 py-12 mt-auto border-t border-slate-200 dark:border-slate-800 relative overflow-hidden font-cairo">
+        <footer className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 pt-12 pb-32 md:pb-12 mt-auto border-t border-slate-200 dark:border-slate-800 relative overflow-hidden font-cairo">
             {/* Background elements */}
             <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
             

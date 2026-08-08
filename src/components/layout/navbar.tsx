@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/components/providers/AppProvider"
 import { useCartStore } from "@/components/providers/CartProvider"
-import { UserCircle, LogOut, Menu, X, Home, Search, Briefcase, ShoppingCart, Gift } from "lucide-react"
+import { UserCircle, LogOut, Menu, X, Home, Search, Briefcase, ShoppingCart, Gift, Wrench, Building } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
@@ -382,6 +382,8 @@ export function Navbar() {
                             {(!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || isProviderOrPartner) ? [
                                 { label: 'الرئيسية', href: '/', icon: Home },
                                 { label: 'تصفح الخدمات', href: '/explore', icon: Search },
+                                { label: 'الصنايعية 🛠️', href: '/craftsmen', icon: Wrench },
+                                { label: 'سكن الطلاب 🏠', href: '/housing', icon: Building },
                                 ...(!currentUser ? [{ label: 'تسجيل الدخول', href: '/login', icon: UserCircle }] : []),
                                 { label: 'عجلة الحظ', href: '/wheel', icon: Gift, highlight: true },
                                 { label: 'تتبع طلبك', href: '/track', icon: Briefcase }

@@ -1213,7 +1213,7 @@ export default function TrackOrderPage() {
                 </div>
 
                 {/* Premium Floating Actions */}
-                <div className="fixed bottom-6 left-6 right-6 z-40 max-w-lg mx-auto">
+                <div className="fixed bottom-28 md:bottom-6 left-6 right-6 z-40 max-w-lg mx-auto">
                     <motion.div 
                         initial={{ y: 100 }}
                         animate={{ y: 0 }}

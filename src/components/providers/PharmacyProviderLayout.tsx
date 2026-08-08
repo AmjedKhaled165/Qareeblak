@@ -406,7 +406,7 @@ export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps
                 <motion.button
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="fixed bottom-6 left-6 lg:hidden bg-gradient-to-l from-emerald-600 to-teal-600 text-white p-4 rounded-full shadow-2xl z-40"
+                    className="fixed bottom-28 md:bottom-6 left-6 lg:hidden bg-gradient-to-l from-emerald-600 to-teal-600 text-white p-4 rounded-full shadow-2xl z-40"
                     onClick={() => setIsCartOpen(true)}
                 >
                     <ShoppingCart className="w-6 h-6" />
