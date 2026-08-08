@@ -174,7 +174,7 @@ async function syncParentOrderStatus(parentId, io) {
         if (total_required > 0 && countDelivered === total_required) {
             newGlobalStatus = 'delivered';
         } else if (total_required > 0 && countPickedUp === total_required) {
-            newGlobalStatus = 'picked_up';
+            newGlobalStatus = (currentDeliveryStatus === 'in_transit') ? 'in_transit' : 'picked_up';
         } else if (total_required > 0 && countReady === total_required) {
             newGlobalStatus = 'ready_for_pickup';
         } else if (total_accepted > 0) {
