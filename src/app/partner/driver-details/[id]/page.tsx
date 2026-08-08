@@ -386,7 +386,7 @@ export default function DriverDetailsPage() {
         if (!driver) return;
         setIsExporting(true);
         try {
-            const XLSX = (await import('xlsx')).default;
+            const XLSX = await import('xlsx');
 
             const normalizeSourceKey = (source?: string) => {
                 const value = String(source || '').toLowerCase();

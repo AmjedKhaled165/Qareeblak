@@ -276,7 +276,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
     const handleExportExcel = useCallback(async () => {
         setIsExporting(true);
         try {
-            const XLSX = (await import('xlsx')).default;
+            const XLSX = await import('xlsx');
 
             const filteredOrders = rawOrders.filter((o: any) => isDateInPeriod(o.created_at, period, customDate));
             const allManagers = rawUsers.filter((u: any) => u.role === 'supervisor');

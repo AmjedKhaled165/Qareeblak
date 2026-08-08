@@ -373,7 +373,7 @@ export default function ManagerDetailsPage() {
         if (!manager) return;
         setIsExporting(true);
         try {
-            const XLSX = (await import('xlsx')).default;
+            const XLSX = await import('xlsx');
 
             const normalizeSourceKey = (source?: string) => {
                 const value = String(source || '').toLowerCase();
