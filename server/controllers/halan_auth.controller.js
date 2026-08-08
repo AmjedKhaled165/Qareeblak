@@ -133,6 +133,8 @@ exports.login = catchAsync(async (req, res) => {
                 email: user.email,
                 phone: user.phone,
                 avatar: user.avatar,
+                cash_number: user.cash_number,
+                instapay_account: user.instapay_account,
                 role: roleNormalized,
                 rawRole: role
             },
@@ -157,6 +159,8 @@ exports.getMe = catchAsync(async (req, res) => {
             email: user.email,
             phone: user.phone,
             avatar: user.avatar,
+            cash_number: user.cash_number,
+            instapay_account: user.instapay_account,
             role: roleNormalized,
             rawRole: role
         }
