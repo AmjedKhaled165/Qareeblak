@@ -58,6 +58,8 @@ exports.getUser = catchAsync(async (req, res) => {
             email: user.email,
             phone: user.phone,
             avatar: user.avatar,
+            cash_number: user.cash_number,
+            instapay_account: user.instapay_account,
             role: user.user_type.replace('partner_', ''),
             isAvailable: user.is_available,
             courierStatus: user.courier_status || 'متاح'
