@@ -1,1 +1,1 @@
-const { pool } = require('./server/db'); pool.query(SELECT column_name FROM information_schema.columns WHERE table_name='users').then(res => console.log(res.rows.map(r=>r.column_name))).catch(console.error).finally(() => pool.end());
+const { z } = require('zod'); const updateProfileSchema = z.object({ cash_number: z.string().optional().nullable(), instapay_account: z.string().optional().nullable() }); const parsed = updateProfileSchema.parse({ cash_number: '123', instapay_account: 'test' }); console.log(parsed);
