@@ -239,12 +239,12 @@ export default function OwnerDashboard() {
                         )}
                         {activeTab === 'team' && (
                             <motion.div key="team" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
-                                <OwnerTeamTab period={period} customDate={activeCustomDate} />
+                                <OwnerTeamTab />
                             </motion.div>
                         )}
                         {activeTab === 'products' && (
                             <motion.div key="products" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
-                                <OwnerProductsTab period={period} customDate={activeCustomDate} />
+                                <OwnerProductsTab />
                             </motion.div>
                         )}
                     </AnimatePresence>
