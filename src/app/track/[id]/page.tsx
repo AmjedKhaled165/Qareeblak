@@ -50,6 +50,8 @@ interface Order {
     created_at: string;
     courier_name?: string;
     courier_phone?: string;
+    courier_cash_number?: string;
+    courier_instapay_account?: string;
     provider_id?: string | number;
     provider_name?: string;
     // Parent Order extensions
@@ -74,6 +76,8 @@ interface SubOrder {
     items: OrderItem[];
     courier_name?: string;
     courier_phone?: string;
+    courier_cash_number?: string;
+    courier_instapay_account?: string;
 }
 
 function normalizeTrackingStatus(status: string) {
@@ -995,7 +999,7 @@ export default function TrackOrderPage() {
 
                                     {/* Sub-order Delivery Info */}
                                     {sub.courier_name && (
-                                        <div className="px-5 pb-5">
+                                        <div className="px-5 pb-5 space-y-2">
                                             <div className="p-3 bg-green-500/10 rounded-2xl flex items-center gap-3 border border-green-500/20">
                                                 <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
                                                     <Truck className="w-5 h-5 text-green-500" />
@@ -1010,6 +1014,27 @@ export default function TrackOrderPage() {
                                                     </a>
                                                 )}
                                             </div>
+                                            {(sub.courier_cash_number || sub.courier_instapay_account) && (
+                                                <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-xs animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                                    <p className="font-bold text-blue-700 dark:text-blue-400 mb-2 leading-relaxed">
+                                                        يمكن الدفع كاش أو انستا باي عن طريق الأرقام الآتية، أو الدفع عند الاستلام:
+                                                    </p>
+                                                    <div className="space-y-1.5">
+                                                        {sub.courier_cash_number && (
+                                                            <div className="flex items-center justify-between bg-white/50 dark:bg-slate-900/50 p-2 rounded-lg">
+                                                                <span className="text-slate-600 dark:text-slate-400 font-bold">محفظة إلكترونية (كاش):</span>
+                                                                <span className="font-black text-slate-900 dark:text-white" dir="ltr">{sub.courier_cash_number}</span>
+                                                            </div>
+                                                        )}
+                                                        {sub.courier_instapay_account && (
+                                                            <div className="flex items-center justify-between bg-white/50 dark:bg-slate-900/50 p-2 rounded-lg">
+                                                                <span className="text-slate-600 dark:text-slate-400 font-bold">حساب انستا باي:</span>
+                                                                <span className="font-black text-slate-900 dark:text-white" dir="ltr">{sub.courier_instapay_account}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </motion.div>
@@ -1113,18 +1138,41 @@ export default function TrackOrderPage() {
                                     </div>
                                 </div>
                                 {order.courier_name && (
-                                    <div className="flex items-center gap-3 p-3 bg-violet-500/10 rounded-xl">
-                                        <div className="w-10 h-10 bg-violet-500/30 rounded-full flex items-center justify-center">
-                                            <Truck className="w-5 h-5 text-violet-400" />
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-3 p-3 bg-violet-500/10 rounded-xl">
+                                            <div className="w-10 h-10 bg-violet-500/30 rounded-full flex items-center justify-center">
+                                                <Truck className="w-5 h-5 text-violet-400" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm text-slate-400">المندوب</p>
+                                                <p className="font-bold text-slate-800 dark:text-white">{order.courier_name}</p>
+                                            </div>
+                                            {order.courier_phone && (
+                                                <a href={`tel:${order.courier_phone}`} className="p-2 bg-green-500 text-white rounded-full flex items-center justify-center" title="اتصال بالطيار" aria-label={`اتصال بالطيار ${order.courier_name}`}>
+                                                    <Phone className="w-5 h-5" />
+                                                </a>
+                                            )}
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm text-slate-400">المندوب</p>
-                                            <p className="font-bold text-slate-800 dark:text-white">{order.courier_name}</p>
-                                        </div>
-                                        {order.courier_phone && (
-                                            <a href={`tel:${order.courier_phone}`} className="p-2 bg-green-500 rounded-full" title="اتصال بالطيار" aria-label={`اتصال بالطيار ${order.courier_name}`}>
-                                                <Phone className="w-5 h-5" />
-                                            </a>
+                                        {(order.courier_cash_number || order.courier_instapay_account) && (
+                                            <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                                <p className="font-bold text-blue-700 dark:text-blue-400 mb-2 leading-relaxed">
+                                                    يمكن الدفع كاش أو انستا باي عن طريق الأرقام الآتية، أو الدفع عند الاستلام:
+                                                </p>
+                                                <div className="space-y-1.5">
+                                                    {order.courier_cash_number && (
+                                                        <div className="flex items-center justify-between bg-white/50 dark:bg-slate-900/50 p-2 rounded-lg">
+                                                            <span className="text-slate-600 dark:text-slate-400 text-xs font-bold">محفظة إلكترونية (كاش):</span>
+                                                            <span className="font-black text-slate-900 dark:text-white" dir="ltr">{order.courier_cash_number}</span>
+                                                        </div>
+                                                    )}
+                                                    {order.courier_instapay_account && (
+                                                        <div className="flex items-center justify-between bg-white/50 dark:bg-slate-900/50 p-2 rounded-lg">
+                                                            <span className="text-slate-600 dark:text-slate-400 text-xs font-bold">حساب انستا باي:</span>
+                                                            <span className="font-black text-slate-900 dark:text-white" dir="ltr">{order.courier_instapay_account}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 )}

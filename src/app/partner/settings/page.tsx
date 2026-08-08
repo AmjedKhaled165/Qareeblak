@@ -19,6 +19,8 @@ export default function SettingsPage() {
     const [newUsername, setNewUsername] = useState("");
     const [newEmail, setNewEmail] = useState("");
     const [newPhone, setNewPhone] = useState("");
+    const [newCashNumber, setNewCashNumber] = useState("");
+    const [newInstapayAccount, setNewInstapayAccount] = useState("");
     const [avatar, setAvatar] = useState<string | null>(null);
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -43,6 +45,8 @@ export default function SettingsPage() {
         setNewUsername(userData.username || "");
         setNewEmail(userData.email || "");
         setNewPhone(userData.phone || "");
+        setNewCashNumber(userData.cash_number || "");
+        setNewInstapayAccount(userData.instapay_account || "");
     }, []);
 
     const handleLogout = () => {
@@ -102,6 +106,8 @@ export default function SettingsPage() {
             if (newUsername.trim() && newUsername !== user.username) updateData.username = newUsername.trim();
             if (newEmail.trim() && newEmail !== user.email) updateData.email = newEmail.trim();
             if (newPhone.trim() && newPhone !== user.phone) updateData.phone = newPhone.trim();
+            if (newCashNumber.trim() !== (user.cash_number || "")) updateData.cash_number = newCashNumber.trim();
+            if (newInstapayAccount.trim() !== (user.instapay_account || "")) updateData.instapay_account = newInstapayAccount.trim();
             if (avatar && avatar !== user.avatar) updateData.avatar = avatar;
             if (oldPassword && newPassword) {
                 updateData.oldPassword = oldPassword;
@@ -123,6 +129,8 @@ export default function SettingsPage() {
                     username: result.data?.username || updateData.username || user.username,
                     email: result.data?.email || updateData.email || user.email,
                     phone: result.data?.phone || updateData.phone || user.phone,
+                    cash_number: result.data?.cash_number !== undefined ? result.data.cash_number : (updateData.cash_number !== undefined ? updateData.cash_number : user.cash_number),
+                    instapay_account: result.data?.instapay_account !== undefined ? result.data.instapay_account : (updateData.instapay_account !== undefined ? updateData.instapay_account : user.instapay_account),
                     avatar: result.data?.avatar || avatar || user.avatar,
                 };
                 localStorage.setItem('halan_user', JSON.stringify(updatedUser));
@@ -150,6 +158,8 @@ export default function SettingsPage() {
         setNewUsername(user.username || "");
         setNewEmail(user.email || "");
         setNewPhone(user.phone || "");
+        setNewCashNumber(user.cash_number || "");
+        setNewInstapayAccount(user.instapay_account || "");
         setOldPassword("");
         setNewPassword("");
         setConfirmPassword("");
@@ -319,6 +329,46 @@ export default function SettingsPage() {
                                 />
                             </div>
                         </div>
+
+                        {/* Payment Methods - For Couriers */}
+                        {(user.role === 'courier' || user.role === 'owner') && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                                <div>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 block mr-1 flex items-center gap-2">
+                                        محفظة إلكترونية (كاش)
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        disabled={!isEditing}
+                                        value={isEditing ? newCashNumber : (user.cash_number || "")}
+                                        onChange={(e) => setNewCashNumber(e.target.value)}
+                                        placeholder={user.cash_number || "رقم فودافون/اورنج كاش"}
+                                        className={`w-full px-6 py-4 rounded-[1.25rem] font-bold transition-all outline-none border-2 text-left ${isEditing
+                                            ? 'bg-white dark:bg-slate-800 border-violet-100 dark:border-slate-700 focus:border-violet-500 focus:shadow-xl focus:shadow-violet-500/10'
+                                            : 'bg-slate-50 dark:bg-slate-800/30 border-transparent text-slate-400'
+                                            }`}
+                                        dir="ltr"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 block mr-1 flex items-center gap-2">
+                                        حساب انستا باي (InstaPay)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        disabled={!isEditing}
+                                        value={isEditing ? newInstapayAccount : (user.instapay_account || "")}
+                                        onChange={(e) => setNewInstapayAccount(e.target.value)}
+                                        placeholder={user.instapay_account || "username@instapay"}
+                                        className={`w-full px-6 py-4 rounded-[1.25rem] font-bold transition-all outline-none border-2 text-left ${isEditing
+                                            ? 'bg-white dark:bg-slate-800 border-violet-100 dark:border-slate-700 focus:border-violet-500 focus:shadow-xl focus:shadow-violet-500/10'
+                                            : 'bg-slate-50 dark:bg-slate-800/30 border-transparent text-slate-400'
+                                            }`}
+                                        dir="ltr"
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         {/* Password Section - Expanded Only When Editing */}
                         {isEditing && (

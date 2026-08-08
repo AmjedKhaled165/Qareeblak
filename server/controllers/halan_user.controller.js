@@ -92,7 +92,7 @@ exports.updateCourierStatus = catchAsync(async (req, res) => {
 
 exports.updateProfile = catchAsync(async (req, res) => {
     const id = decodeEntityId('user', req.params.id) || req.params.id;
-    const { name_ar, username, email, phone, avatar, oldPassword, newPassword } = req.body;
+    const { name_ar, username, email, phone, avatar, oldPassword, newPassword, cash_number, instapay_account } = req.body;
 
     const currentUser = await userRepo.getById(id);
     if (!currentUser) throw new AppError('المستخدم غير موجود', 404);
@@ -105,6 +105,8 @@ exports.updateProfile = catchAsync(async (req, res) => {
     }
     if (phone) updates.phone = phone;
     if (avatar !== undefined) updates.avatar = avatar;
+    if (cash_number !== undefined) updates.cash_number = cash_number;
+    if (instapay_account !== undefined) updates.instapay_account = instapay_account;
 
     if (newPassword) {
         if (!oldPassword) throw new AppError('يجب إدخال كلمة المرور الحالية', 400);

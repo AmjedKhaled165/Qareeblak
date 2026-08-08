@@ -14,7 +14,10 @@ import {
     MapPin,
     RefreshCw,
     Plus,
-    Trash2
+    Trash2,
+    CheckSquare,
+    UserCheck,
+    X
 } from "lucide-react";
 
 import { apiCall } from "@/lib/api";
@@ -45,6 +48,14 @@ export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'pending' | 'preparing' | 'ready' | 'in_transit' | 'delivered' | 'edited' | 'cancelled'>('all');
+
+    // Multi-select state
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+    const [bulkAssignCourierId, setBulkAssignCourierId] = useState<string>('');
+    const [isAssigning, setIsAssigning] = useState(false);
+    const longPressTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+    const [drivers, setDrivers] = useState<any[]>([]);
 
     // Status Modal State
     const [modalState, setModalState] = useState<{
@@ -102,6 +113,21 @@ export default function OrdersPage() {
                 socket.off('order-updated', handleUpdate);
             };
         }
+    }, []);
+
+    useEffect(() => {
+        const fetchDrivers = async () => {
+            try {
+                const usersData = await apiCall('/halan/users');
+                if (usersData.success) {
+                    const allUsers = usersData.data;
+                    setDrivers(allUsers.filter((u: any) => u.role === 'courier' && u.isAvailable === true));
+                }
+            } catch (error) {
+                console.error('Error fetching drivers', error);
+            }
+        };
+        fetchDrivers();
     }, []);
 
     useEffect(() => {
@@ -186,6 +212,57 @@ export default function OrdersPage() {
     const handleEdit = (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
         router.push(`/partner/orders/edit/${id}`);
+    };
+
+    const handleBulkAssign = async () => {
+        if (!bulkAssignCourierId || selectedOrderIds.length === 0) return;
+        setIsAssigning(true);
+        try {
+            const courierId = Number(bulkAssignCourierId);
+            await Promise.all(
+                selectedOrderIds.map(id =>
+                    apiCall(`/halan/orders/${id}/assign-courier`, { method: 'PATCH', body: JSON.stringify({ courierId }) })
+                )
+            );
+            setIsSelectionMode(false);
+            setSelectedOrderIds([]);
+            setBulkAssignCourierId('');
+            fetchOrders();
+            setModalState({
+                isOpen: true,
+                title: 'تم بنجاح',
+                message: 'تم تعيين المندوب للطلبات المحددة بنجاح',
+                type: 'success'
+            });
+        } catch (e) {
+            console.error('Failed to bulk assign', e);
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: 'حدث خطأ أثناء تعيين المندوب',
+                type: 'error'
+            });
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
+    const handlePointerDown = (e: React.PointerEvent, orderId: number) => {
+        if (isSelectionMode) return;
+        longPressTimerRef.current = setTimeout(() => {
+            setIsSelectionMode(true);
+            setSelectedOrderIds([orderId]);
+            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(50);
+            }
+        }, 600); // 600ms long press
+    };
+
+    const clearLongPressTimer = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
     };
 
     const getStatusLabel = (status: string) => {
@@ -332,25 +409,45 @@ export default function OrdersPage() {
                     <div className="space-y-4">
                         {filteredOrders?.map((order, index) => {
                             const StatusIcon = getStatusIcon(order.status);
+                            const isSelected = selectedOrderIds.includes(order.id);
                             return (
                                 <motion.div
                                     key={order.id}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.05 }}
-                                    onClick={() => router.push(`/partner/orders/${order.id}`)}
-                                    className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden"
+                                    onPointerDown={(e) => handlePointerDown(e, order.id)}
+                                    onPointerUp={clearLongPressTimer}
+                                    onPointerLeave={clearLongPressTimer}
+                                    onPointerCancel={clearLongPressTimer}
+                                    onClick={() => {
+                                        if (isSelectionMode) {
+                                            setSelectedOrderIds(prev =>
+                                                prev.includes(order.id) ? prev.filter(id => id !== order.id) : [...prev, order.id]
+                                            );
+                                            return;
+                                        }
+                                        router.push(`/partner/orders/${order.id}`);
+                                    }}
+                                    className={`bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-all border ${isSelected ? 'border-violet-500 ring-1 ring-violet-500 dark:border-violet-400 dark:ring-violet-400 bg-violet-50/50 dark:bg-violet-900/10' : 'border-slate-100 dark:border-slate-700'} relative overflow-hidden`}
                                 >
 
 
                                     {/* Header */}
-                                    <div className="flex justify-between items-center mb-3">
+                                    <div className="flex justify-between items-start mb-3">
                                         <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-2">
-                                                <StatusIcon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-                                                <span className="font-bold text-slate-800 dark:text-slate-100">
-                                                    {isCourier ? `${order.customer_name} ` : ''}#{order.display_id || order.id}
-                                                </span>
+                                            <div className="flex items-center gap-3">
+                                                {isSelectionMode && (
+                                                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-violet-600 border-violet-600' : 'border-slate-300 dark:border-slate-600'}`}>
+                                                        {isSelected && <CheckSquare className="w-4 h-4 text-white" />}
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <StatusIcon className={`w-5 h-5 ${isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-300'}`} />
+                                                    <span className="font-bold text-slate-800 dark:text-slate-100">
+                                                        {isCourier ? `${order.customer_name} ` : ''}#{order.display_id || order.id}
+                                                    </span>
+                                                </div>
                                             </div>
                                             {(order as any).source === 'qareeblak' && (
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-full w-fit">
@@ -371,9 +468,9 @@ export default function OrdersPage() {
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(effectiveStatus)}`}>
                                                         {getStatusLabel(effectiveStatus)}
                                                     </span>
-                                                    {((order as any).is_modified_by_courier || (order as any).is_deleted || order.status === 'cancelled') && (
+                                                    {((order as any).is_edited || (order as any).is_deleted || order.status === 'cancelled') && (
                                                         <div className="flex items-center gap-1">
-                                                            {(order as any).is_modified_by_courier && (
+                                                            {(order as any).is_edited && (
                                                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
                                                                     معدل
                                                                 </span>
@@ -383,17 +480,20 @@ export default function OrdersPage() {
                                                                     ملغي
                                                                 </span>
                                                             )}
-                                                            {(order as any).is_modified_by_courier && !((order as any).is_deleted || order.status === 'cancelled') && (
-                                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                                                    معدل
-                                                                </span>
-                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
                                             );
                                         })()}
                                     </div>
+
+                                    {/* Courier Info for Managers */}
+                                    {!isCourier && (
+                                        <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                            <span className="flex items-center gap-1"><Truck className="w-3 h-3" />{order.courier_name ? `معين لـ ${order.courier_name}` : 'غير معين'}</span>
+                                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /><span className="truncate max-w-[200px]">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span></span>
+                                        </div>
+                                    )}
 
                                     {/* Customer Info */}
                                     {isCourier && (
@@ -456,14 +556,16 @@ export default function OrdersPage() {
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
                                                     </button>
-                                                    <button
-                                                        onClick={(e) => handleDelete(e, order.id)}
-                                                        title="إلغاء / حذف"
-                                                        aria-label="إلغاء الطلب"
-                                                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
+                                                    {order.source !== 'qareeblak' && (
+                                                        <button
+                                                            onClick={(e) => handleDelete(e, order.id)}
+                                                            title="إلغاء / حذف"
+                                                            aria-label="إلغاء الطلب"
+                                                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    )}
                                                 </>
                                             )}
                                         </div>
@@ -489,7 +591,10 @@ export default function OrdersPage() {
 
             <StatusModal
                 isOpen={modalState.isOpen}
-                onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+                onClose={() => {
+                    setModalState(prev => ({ ...prev, isOpen: false }));
+                    if (modalState.onCloseAction) modalState.onCloseAction();
+                }}
                 title={modalState.title}
                 message={modalState.message}
                 type={modalState.type}
@@ -505,6 +610,65 @@ export default function OrdersPage() {
                 cancelText="إلغاء"
                 isDestructive={true}
             />
+
+            {/* Selection Mode Bottom Action Bar */}
+            <AnimatePresence>
+                {isSelectionMode && !isCourier && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 100 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 100 }}
+                        className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col sm:flex-row items-center justify-between gap-4"
+                    >
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                            <button
+                                onClick={() => {
+                                    setIsSelectionMode(false);
+                                    setSelectedOrderIds([]);
+                                    setBulkAssignCourierId('');
+                                }}
+                                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                            <span className="font-bold text-lg text-violet-600 dark:text-violet-400">
+                                {selectedOrderIds.length} طلبات محددة
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <select
+                                value={bulkAssignCourierId}
+                                onChange={(e) => setBulkAssignCourierId(e.target.value)}
+                                className="flex-1 sm:w-64 appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500 border border-slate-200 dark:border-slate-700"
+                            >
+                                <option value="">اختر المندوب...</option>
+                                {drivers.map((d) => (
+                                    <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>
+                                ))}
+                            </select>
+
+                            <button
+                                onClick={handleBulkAssign}
+                                disabled={isAssigning || !bulkAssignCourierId || selectedOrderIds.length === 0}
+                                className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-violet-600/20"
+                            >
+                                {isAssigning ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        جاري التعيين...
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserCheck className="w-4 h-4" />
+                                        تعيين
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

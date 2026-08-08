@@ -293,8 +293,8 @@ export default function OrderDetailsPage({ params }: PageProps) {
         setUpdating(true);
 
         try {
-            const data = await apiCall(`/halan/orders/${order.id}/status`, {
-                method: 'PATCH',
+            const data = await apiCall(`/halan/orders/${order.id}`, {
+                method: 'PUT',
                 body: JSON.stringify({ status: newStatus })
             });
 
@@ -557,7 +557,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                 <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex-1">
                     تفاصيل طلب {isCourier ? `${order.customer_name} ` : ''}(#{order.display_id || order.id})
                 </h1>
-                {order.is_modified_by_courier && (
+                {order.is_edited && (
                     <span className="px-2 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full text-xs font-bold flex items-center gap-1">
                         <Edit3 className="w-3 h-3" />
                         معدل

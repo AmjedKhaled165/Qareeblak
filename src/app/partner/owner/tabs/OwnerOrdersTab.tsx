@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Package, Clock, CheckCircle, XCircle, Truck, MapPin, Phone,
     RefreshCw, Filter, X, User, UserCheck, Calendar, Edit3,
-    ShoppingBag, ChevronDown, Search, Globe, ChevronLeft, ChevronRight
+    ShoppingBag, ChevronDown, Search, Globe, ChevronLeft, ChevronRight, CheckSquare
 } from "lucide-react";
 import { apiCall } from "@/lib/api";
 import { useDebounce } from "@/lib/use-debounce";
@@ -104,10 +104,11 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                             <div className="flex items-center gap-2 mt-2">
                                 <span className="text-xs font-bold text-slate-500">المصدر:</span>
                                 <select
-                                    className={`text-xs font-bold rounded-lg px-2 py-1 outline-none border border-slate-200 dark:border-slate-700 ${getSourceColor(order.source)} bg-white dark:bg-slate-800`}
+                                    className={`text-xs font-bold rounded-lg px-2 py-1 outline-none border border-slate-200 dark:border-slate-700 ${getSourceColor(order.source)} bg-white dark:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed`}
                                     value={order.source || ''}
                                     onChange={(e) => onUpdateOrder(order.id, { source: e.target.value })}
                                     title="تحديث مصدر الطلب" aria-label="تحديث مصدر الطلب"
+                                    disabled={order.source === 'qareeblak'}
                                 >
                                     <option value="qareeblak">قريبلك</option>
                                     <option value="manual">يدوي</option>
@@ -144,9 +145,10 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                             </div>
                             <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4">
                                 <h3 className="font-bold text-xs text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-1"><UserCheck className="w-3 h-3" />المسؤول</h3>
-                                <select className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-indigo-200 dark:border-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                                <select className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-indigo-200 dark:border-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                     value={order.supervisor_id || ''} onChange={(e) => onUpdateOrder(order.id, { supervisor_id: e.target.value || null })}
-                                    title="تغيير المسؤول" aria-label="تغيير المسؤول">
+                                    title="تغيير المسؤول" aria-label="تغيير المسؤول"
+                                    disabled={order.source === 'qareeblak'}>
                                     <option value="">غير معين</option>
                                     {order.supervisor_id && !managers.some(m => Number(m.id) === Number(order.supervisor_id)) && <option value={order.supervisor_id}>{resolvedSupervisorName || `مسؤول #${order.supervisor_id}`}</option>}
                                     {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -236,6 +238,13 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
     const debouncedSearch = useDebounce(searchQuery, 350);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+    // Multi-select state
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+    const [bulkAssignCourierId, setBulkAssignCourierId] = useState<string>('');
+    const [isAssigning, setIsAssigning] = useState(false);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     const fetchOrdersRef = useRef<() => Promise<void>>(async () => { });
 
     const fetchFilters = useCallback(async () => {
@@ -257,7 +266,9 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
         setIsLoading(true);
         try {
             const params = new URLSearchParams();
-            if (statusFilter !== 'all') params.append('status', statusFilter);
+            if (statusFilter !== 'all') {
+                params.append('status', statusFilter === 'cancelled' ? 'deleted' : statusFilter);
+            }
             if (driverFilter !== 'all') params.append('courierId', driverFilter);
             if (managerFilter !== 'all') params.append('supervisorId', managerFilter);
             if (sourceFilter !== 'all') params.append('source', sourceFilter);
@@ -339,7 +350,10 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
         return true;
     };
 
-    const filteredOrdersList = orders.filter(o => isDateInPeriod(o.created_at, period, customDate));
+    const filteredOrdersList = orders.filter(o => {
+        if (statusFilter === 'edited' || statusFilter === 'cancelled') return true;
+        return isDateInPeriod(o.created_at, period, customDate);
+    });
 
     const getStatusLabel = (status: string) => {
         switch (status) {
@@ -409,8 +423,47 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
         }
     };
 
+    const handleBulkAssign = async () => {
+        if (!bulkAssignCourierId || selectedOrderIds.length === 0) return;
+        setIsAssigning(true);
+        try {
+            const courierId = Number(bulkAssignCourierId);
+            await Promise.all(
+                selectedOrderIds.map(id =>
+                    apiCall(`/halan/orders/${id}/assign-courier`, { method: 'PATCH', body: JSON.stringify({ courierId }) })
+                )
+            );
+            setIsSelectionMode(false);
+            setSelectedOrderIds([]);
+            setBulkAssignCourierId('');
+            fetchOrders();
+        } catch (e) {
+            console.error('Failed to bulk assign', e);
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
+    const handlePointerDown = (e: React.PointerEvent, orderId: number) => {
+        if (isSelectionMode) return;
+        longPressTimerRef.current = setTimeout(() => {
+            setIsSelectionMode(true);
+            setSelectedOrderIds([orderId]);
+            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(50);
+            }
+        }, 600); // 600ms long press
+    };
+
+    const clearLongPressTimer = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pb-24">
             {/* Search and Filters */}
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
                 <div className="flex items-center justify-between">
@@ -497,9 +550,20 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                 <div className="space-y-3">
                     {filteredOrdersList.map((order, index) => {
                         const StatusIcon = getStatusIcon(order.status);
+                        const isSelected = selectedOrderIds.includes(order.id);
                         return (
                             <motion.div key={order.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.03 }}
+                                onPointerDown={(e) => handlePointerDown(e, order.id)}
+                                onPointerUp={clearLongPressTimer}
+                                onPointerLeave={clearLongPressTimer}
+                                onPointerCancel={clearLongPressTimer}
                                 onClick={async () => {
+                                    if (isSelectionMode) {
+                                        setSelectedOrderIds(prev =>
+                                            prev.includes(order.id) ? prev.filter(id => id !== order.id) : [...prev, order.id]
+                                        );
+                                        return;
+                                    }
                                     setSelectedOrder(order);
                                     try {
                                         const full = await apiCall(`/halan/orders/${order.id}`);
@@ -510,15 +574,22 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                                         }
                                     } catch { /* keep optimistic data */ }
                                 }}
-                                className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border border-slate-100 dark:border-slate-700 relative overflow-hidden"
+                                className={`bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border ${isSelected ? 'border-violet-500 ring-1 ring-violet-500 dark:border-violet-400 dark:ring-violet-400 bg-violet-50/50 dark:bg-violet-900/10' : 'border-slate-100 dark:border-slate-700'} relative overflow-hidden`}
                             >
                                 <div className={`absolute top-0 right-0 bottom-0 w-1 ${normalizeSourceKey(order.source) === 'qareeblak' ? 'bg-emerald-500' : normalizeSourceKey(order.source) === 'manual' ? 'bg-blue-500' : normalizeSourceKey(order.source) === 'whatsapp' ? 'bg-green-500' : 'bg-slate-300'}`} />
                                 {order.is_edited && <div className="absolute top-3 left-3 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full z-10">معدل</div>}
 
                                 <div className="flex justify-between items-start mb-3 pr-3">
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <StatusIcon className="w-5 h-5 text-slate-500" />
-                                        <span className="font-bold text-lg text-slate-800 dark:text-slate-100">{order.customer_name} #{order.display_id || order.id}</span>
+                                    <div className="flex items-center gap-3 mt-1">
+                                        {isSelectionMode && (
+                                            <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-violet-600 border-violet-600' : 'border-slate-300 dark:border-slate-600'}`}>
+                                                {isSelected && <CheckSquare className="w-4 h-4 text-white" />}
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                            <StatusIcon className={`w-5 h-5 ${isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-slate-500'}`} />
+                                            <span className="font-bold text-lg text-slate-800 dark:text-slate-100">{order.customer_name} #{order.display_id || order.id}</span>
+                                        </div>
                                     </div>
                                     <div className="flex items-center gap-2 pl-2">
                                         <span className={`px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm ${getStatusStyle(order.status)}`}>{getStatusLabel(order.status)}</span>
@@ -529,7 +600,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                                 <p className="text-slate-600 dark:text-slate-400 text-sm mb-1 flex items-center gap-1 pr-3"><Phone className="w-3 h-3" />{order.customer_phone}</p>
 
                                 <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2 pr-3">
-                                    <span className="flex items-center gap-1"><Truck className="w-3 h-3" />{order.courier_name || 'غير معين'}</span>
+                                    <span className="flex items-center gap-1"><Truck className="w-3 h-3" />{order.courier_name ? `معين لـ ${order.courier_name}` : 'غير معين'}</span>
                                     <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /><span className="truncate max-w-[150px]">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span></span>
                                 </div>
 
@@ -567,6 +638,65 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
             {selectedOrder && (
                 <OrderDetailsModal order={selectedOrder} drivers={drivers} managers={managers} onClose={() => setSelectedOrder(null)} onUpdateOrder={handleUpdateOrder} />
             )}
+
+            {/* Selection Mode Bottom Action Bar */}
+            <AnimatePresence>
+                {isSelectionMode && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 100 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 100 }}
+                        className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col sm:flex-row items-center justify-between gap-4"
+                    >
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                            <button
+                                onClick={() => {
+                                    setIsSelectionMode(false);
+                                    setSelectedOrderIds([]);
+                                    setBulkAssignCourierId('');
+                                }}
+                                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                            <span className="font-bold text-lg text-violet-600 dark:text-violet-400">
+                                {selectedOrderIds.length} طلبات محددة
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <select
+                                value={bulkAssignCourierId}
+                                onChange={(e) => setBulkAssignCourierId(e.target.value)}
+                                className="flex-1 sm:w-64 appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500 border border-slate-200 dark:border-slate-700"
+                            >
+                                <option value="">اختر المندوب...</option>
+                                {drivers.map((d) => (
+                                    <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>
+                                ))}
+                            </select>
+
+                            <button
+                                onClick={handleBulkAssign}
+                                disabled={isAssigning || !bulkAssignCourierId || selectedOrderIds.length === 0}
+                                className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-violet-600/20"
+                            >
+                                {isAssigning ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        جاري التعيين...
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserCheck className="w-4 h-4" />
+                                        تعيين
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 }

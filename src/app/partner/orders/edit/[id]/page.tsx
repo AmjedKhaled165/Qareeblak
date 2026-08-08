@@ -35,6 +35,7 @@ export default function EditOrderPage({ params }: PageProps) {
         courierId: '',
         notes: '',
         deliveryFee: '',
+        source: '',
         products: [{ name: '', quantity: 1, price: 0, note: '', providerId: '', providerName: '' }]
     });
 
@@ -84,6 +85,7 @@ export default function EditOrderPage({ params }: PageProps) {
                     courierId: order.courier_id ? order.courier_id.toString() : '',
                     notes: order.notes || '',
                     deliveryFee: order.delivery_fee ? order.delivery_fee.toString() : '',
+                    source: order.source || '',
                     products: items
                 });
             } else {
@@ -153,25 +155,42 @@ export default function EditOrderPage({ params }: PageProps) {
 
         setIsSaving(true);
         try {
-            const data = await apiCall(`/halan/orders/${orderId}`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                    customerName: formData.customerName,
-                    customerPhone: formData.customerPhone,
-                    deliveryAddress: formData.deliveryAddress,
-                    notes: formData.notes,
-                    courierId: formData.courierId || null,
-                    deliveryFee: parseFloat(formData.deliveryFee) || 0,
-                    items: validProducts.map(p => ({
-                        name: p.name,
-                        quantity: Number(p.quantity),
-                        price: Number(p.price) || 0,
-                        note: p.note,
-                        providerId: p.providerId,
-                        providerName: p.providerName
-                    }))
-                })
-            });
+            let data: any;
+            if (formData.source === 'qareeblak') {
+                // For Qareeblak orders, ONLY update courier and delivery fee via PATCH to avoid triggering 'edited' status
+                if (formData.courierId) {
+                    await apiCall(`/halan/orders/${orderId}/assign-courier`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ courierId: Number(formData.courierId) })
+                    });
+                }
+                data = await apiCall(`/halan/orders/${orderId}/courier-pricing`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        deliveryFee: parseFloat(formData.deliveryFee) || 0
+                    })
+                });
+            } else {
+                data = await apiCall(`/halan/orders/${orderId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        customerName: formData.customerName,
+                        customerPhone: formData.customerPhone,
+                        deliveryAddress: formData.deliveryAddress,
+                        notes: (formData as any).notes,
+                        courierId: formData.courierId || null,
+                        deliveryFee: parseFloat(formData.deliveryFee) || 0,
+                        items: validProducts.map(p => ({
+                            name: p.name,
+                            quantity: Number(p.quantity),
+                            price: Number(p.price) || 0,
+                            note: p.note,
+                            providerId: p.providerId,
+                            providerName: p.providerName
+                        }))
+                    })
+                });
+            }
 
             if (data.success) {
                 showMessage('success', 'نجاح', 'تم تعديل الطلب بنجاح');
@@ -281,8 +300,9 @@ export default function EditOrderPage({ params }: PageProps) {
                             type="text"
                             value={formData.customerName}
                             onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="أدخل اسم العميل"
+                            disabled={formData.source === 'qareeblak'}
                         />
                     </div>
 
@@ -292,9 +312,10 @@ export default function EditOrderPage({ params }: PageProps) {
                             type="tel"
                             value={formData.customerPhone}
                             onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="01xxxxxxxxx"
                             dir="ltr"
+                            disabled={formData.source === 'qareeblak'}
                         />
                     </div>
 
@@ -303,8 +324,9 @@ export default function EditOrderPage({ params }: PageProps) {
                         <textarea
                             value={formData.deliveryAddress}
                             onChange={(e) => setFormData({ ...formData, deliveryAddress: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400 min-h-[80px]"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400 min-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="أدخل العنوان بالتفصيل"
+                            disabled={formData.source === 'qareeblak'}
                         />
                     </div>
                 </div>
@@ -315,7 +337,7 @@ export default function EditOrderPage({ params }: PageProps) {
                         <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                             🛒 قائمة المشتريات
                         </h3>
-                        <button type="button" onClick={handleAddProduct} className="text-amber-600 hover:bg-amber-50 p-2 rounded-full transition-colors">
+                        <button type="button" onClick={handleAddProduct} disabled={formData.source === 'qareeblak'} className="text-amber-600 hover:bg-amber-50 p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <Plus className="w-6 h-6" />
                         </button>
                     </div>
@@ -337,7 +359,7 @@ export default function EditOrderPage({ params }: PageProps) {
                             <div key={index} className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 relative">
                                 <div className="flex justify-between items-center mb-3">
                                     <span className="font-bold text-slate-500 text-sm">منتج {index + 1}</span>
-                                    {formData.products.length > 1 && (
+                                    {formData.products.length > 1 && formData.source !== 'qareeblak' && (
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveProduct(index)}
@@ -353,8 +375,9 @@ export default function EditOrderPage({ params }: PageProps) {
                                         type="text"
                                         value={product.name}
                                         onChange={(e) => handleProductChange(index, 'name', e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400"
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                                         placeholder="اسم المنتج (مثال: لبن، طماطم، عيش)"
+                                        disabled={formData.source === 'qareeblak'}
                                     />
 
                                     {/* Provider Dropdown */}
@@ -364,6 +387,7 @@ export default function EditOrderPage({ params }: PageProps) {
                                             value={product.providerId || ''}
                                             providerName={product.providerName || ''}
                                             onChange={(providerId, providerName) => handleProviderChange(index, providerId, providerName)}
+                                            disabled={formData.source === 'qareeblak'}
                                         />
                                     </div>
 
@@ -374,9 +398,10 @@ export default function EditOrderPage({ params }: PageProps) {
                                                 type="number"
                                                 value={product.quantity}
                                                 onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                                                className="w-full px-2 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold text-lg text-slate-900 dark:text-white"
+                                                className="w-full px-2 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-bold text-lg text-slate-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                                 placeholder="1"
                                                 min="1"
+                                                disabled={formData.source === 'qareeblak'}
                                             />
                                         </div>
                                         <div className="w-28">
@@ -385,9 +410,10 @@ export default function EditOrderPage({ params }: PageProps) {
                                                 type="number"
                                                 value={product.price}
                                                 onChange={(e) => handleProductChange(index, 'price', e.target.value)}
-                                                className="w-full px-2 py-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-center font-bold text-lg text-slate-900 dark:text-white"
+                                                className="w-full px-2 py-3 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-center font-bold text-lg text-slate-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                                 placeholder="0"
                                                 min="0"
+                                                disabled={formData.source === 'qareeblak'}
                                             />
                                         </div>
                                         <div className="flex-1">
@@ -396,8 +422,9 @@ export default function EditOrderPage({ params }: PageProps) {
                                                 type="text"
                                                 value={product.note}
                                                 onChange={(e) => handleProductChange(index, 'note', e.target.value)}
-                                                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400"
+                                                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 placeholder="مثال: كبير..."
+                                                disabled={formData.source === 'qareeblak'}
                                             />
                                         </div>
                                     </div>
