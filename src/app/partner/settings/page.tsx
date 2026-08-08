@@ -359,7 +359,7 @@ export default function SettingsPage() {
                                         disabled={!isEditing}
                                         value={isEditing ? newInstapayAccount : (user.instapay_account || "")}
                                         onChange={(e) => setNewInstapayAccount(e.target.value)}
-                                        placeholder={user.instapay_account || "username@instapay"}
+                                        placeholder={user.instapay_account || "username@instapay أو رقم الهاتف"}
                                         className={`w-full px-6 py-4 rounded-[1.25rem] font-bold transition-all outline-none border-2 text-left ${isEditing
                                             ? 'bg-white dark:bg-slate-800 border-violet-100 dark:border-slate-700 focus:border-violet-500 focus:shadow-xl focus:shadow-violet-500/10'
                                             : 'bg-slate-50 dark:bg-slate-800/30 border-transparent text-slate-400'

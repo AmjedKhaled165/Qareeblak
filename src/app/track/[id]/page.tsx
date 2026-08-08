@@ -1017,7 +1017,14 @@ export default function TrackOrderPage() {
                                             {(sub.courier_cash_number || sub.courier_instapay_account) && (
                                                 <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-xs animate-in fade-in slide-in-from-bottom-2 duration-500">
                                                     <p className="font-bold text-blue-700 dark:text-blue-400 mb-2 leading-relaxed">
-                                                        يمكن الدفع كاش أو انستا باي عن طريق الأرقام الآتية، أو الدفع عند الاستلام:
+                                                        {(() => {
+                                                            const hasCash = !!sub.courier_cash_number;
+                                                            const hasInsta = !!sub.courier_instapay_account;
+                                                            if (hasCash && hasInsta) return "يمكن الدفع كاش أو انستا باي عن طريق الأرقام الآتية، أو الدفع عند الاستلام:";
+                                                            if (hasCash) return "يمكن الدفع عن طريق محفظة كاش على الرقم الآتي، أو الدفع عند الاستلام:";
+                                                            if (hasInsta) return "يمكن الدفع عن طريق انستا باي على الحساب الآتي، أو الدفع عند الاستلام:";
+                                                            return "";
+                                                        })()}
                                                     </p>
                                                     <div className="space-y-1.5">
                                                         {sub.courier_cash_number && (
@@ -1156,7 +1163,14 @@ export default function TrackOrderPage() {
                                         {(order.courier_cash_number || order.courier_instapay_account) && (
                                             <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
                                                 <p className="font-bold text-blue-700 dark:text-blue-400 mb-2 leading-relaxed">
-                                                    يمكن الدفع كاش أو انستا باي عن طريق الأرقام الآتية، أو الدفع عند الاستلام:
+                                                    {(() => {
+                                                        const hasCash = !!order.courier_cash_number;
+                                                        const hasInsta = !!order.courier_instapay_account;
+                                                        if (hasCash && hasInsta) return "يمكن الدفع كاش أو انستا باي عن طريق الأرقام الآتية، أو الدفع عند الاستلام:";
+                                                        if (hasCash) return "يمكن الدفع عن طريق محفظة كاش على الرقم الآتي، أو الدفع عند الاستلام:";
+                                                        if (hasInsta) return "يمكن الدفع عن طريق انستا باي على الحساب الآتي، أو الدفع عند الاستلام:";
+                                                        return "";
+                                                    })()}
                                                 </p>
                                                 <div className="space-y-1.5">
                                                     {order.courier_cash_number && (
