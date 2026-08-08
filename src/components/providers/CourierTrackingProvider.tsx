@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { apiCall } from '@/lib/api';
 
 interface Location {
     lat: number;
@@ -164,9 +165,16 @@ export function CourierTrackingProvider({ children }: { children: React.ReactNod
 
         return new Promise((resolve) => {
             let settled = false;
-            const settle = (value: boolean) => {
+            const settle = async (value: boolean) => {
                 if (settled) return;
                 settled = true;
+                if (value) {
+                    try {
+                        await apiCall('/halan/users/start-session', { method: 'POST' });
+                    } catch (e) {
+                        console.error('Failed to register session start:', e);
+                    }
+                }
                 resolve(value);
             };
 

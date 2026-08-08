@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,7 +14,9 @@ import {
     ShoppingBag,
     X,
     User,
-    Calendar
+    Calendar,
+    FileSpreadsheet,
+    Loader2
 } from "lucide-react";
 import { apiCall } from "@/lib/api";
 
@@ -354,6 +356,127 @@ export default function ManagerDetailsPage() {
         totalDeliveryFees: orders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status)).reduce((sum, o) => sum + Number(o.delivery_fee || 0), 0),
     };
 
+    // ──── Individual Excel Export ────
+    const [isExporting, setIsExporting] = useState(false);
+
+    const getPeriodLabel = useCallback(() => {
+        switch (period) {
+            case 'today': return 'اليوم';
+            case 'week': return 'هذا الأسبوع';
+            case 'month': return 'هذا الشهر';
+            case 'custom': return activeCustomDate || 'يوم محدد';
+            default: return '';
+        }
+    }, [period, activeCustomDate]);
+
+    const handleExportExcel = useCallback(async () => {
+        if (!manager) return;
+        setIsExporting(true);
+        try {
+            const XLSX = (await import('xlsx')).default;
+
+            const normalizeSourceKey = (source?: string) => {
+                const value = String(source || '').toLowerCase();
+                if (value.includes('qareeblak')) return 'qareeblak';
+                if (value.includes('whatsapp') || value.includes('واتس') || value.includes('وتس')) return 'whatsapp';
+                if (value.includes('manual') || value.includes('يدوي')) return 'manual';
+                return value || 'غير محدد';
+            };
+            const mapSourceLabel = (source?: string) => {
+                switch (normalizeSourceKey(source)) {
+                    case 'qareeblak': return 'قريبلك';
+                    case 'manual': return 'يدوي';
+                    case 'whatsapp': return 'واتساب';
+                    default: return source || 'غير محدد';
+                }
+            };
+
+            const delivered = orders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
+            const qareeblakOrders = orders.filter((o: any) => normalizeSourceKey(o.source) === 'qareeblak');
+            const manualOrders = orders.filter((o: any) => normalizeSourceKey(o.source) === 'manual');
+            const whatsappOrders = orders.filter((o: any) => normalizeSourceKey(o.source) === 'whatsapp');
+
+            const getItemsTotal = (o: any) => {
+                let items: any[] = [];
+                try { items = typeof o.items === 'string' ? JSON.parse(o.items || '[]') : (o.items || []); } catch { items = []; }
+                return items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0);
+            };
+
+            const wsData: any[][] = [];
+
+            // Title
+            wsData.push([`تقرير المسؤول: ${manager.name}`]);
+            wsData.push([`الفترة: ${getPeriodLabel()}`]);
+            wsData.push([`تاريخ التصدير: ${new Date().toLocaleString('ar-EG')}`]);
+            wsData.push([]);
+
+            // Summary
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
+            wsData.push(['ملخص الأداء']);
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
+            wsData.push([]);
+            wsData.push(['البند', 'القيمة']);
+            wsData.push(['إجمالي الطلبات', orders.length]);
+            wsData.push(['طلبات مكتملة', delivered.length]);
+            wsData.push(['طلبات معلقة', orders.filter((o: any) => o.status === 'pending').length]);
+            wsData.push(['طلبات ملغاة', orders.filter((o: any) => ['cancelled', 'deleted'].includes(o.status)).length]);
+            wsData.push(['رسوم التوصيل (ج.م)', stats.totalDeliveryFees]);
+            wsData.push(['مبيعات المنتجات (ج.م)', delivered.reduce((s: number, o: any) => s + getItemsTotal(o), 0)]);
+            wsData.push(['الإجمالي الكلي (ج.م)', stats.totalSales]);
+            wsData.push([]);
+
+            // By source
+            wsData.push(['تفصيل حسب المصدر', 'عدد الطلبات', 'مكتملة', 'رسوم توصيل', 'مبيعات']);
+            const qareeblakDel = qareeblakOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
+            const manualDel = manualOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
+            const whatsappDel = whatsappOrders.filter((o: any) => ['delivered', 'تم التوصيل'].includes(o.status));
+            wsData.push(['قريبلك', qareeblakOrders.length, qareeblakDel.length, qareeblakDel.reduce((s: number, o: any) => s + parseFloat(o.delivery_fee || '0'), 0), qareeblakDel.reduce((s: number, o: any) => s + getItemsTotal(o), 0)]);
+            wsData.push(['يدوي', manualOrders.length, manualDel.length, manualDel.reduce((s: number, o: any) => s + parseFloat(o.delivery_fee || '0'), 0), manualDel.reduce((s: number, o: any) => s + getItemsTotal(o), 0)]);
+            wsData.push(['واتساب', whatsappOrders.length, whatsappDel.length, whatsappDel.reduce((s: number, o: any) => s + parseFloat(o.delivery_fee || '0'), 0), whatsappDel.reduce((s: number, o: any) => s + getItemsTotal(o), 0)]);
+            wsData.push([]);
+            wsData.push([]);
+
+            // Detailed orders
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
+            wsData.push(['تفاصيل الطلبات']);
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
+            wsData.push([]);
+
+            const statusLabels: Record<string, string> = {
+                pending: 'قيد الانتظار', assigned: 'تم التعيين', in_progress: 'قيد التوصيل',
+                out_for_delivery: 'في الطريق', delivered: 'مكتمل', cancelled: 'ملغي', deleted: 'ملغي', picked_up: 'تم الاستلام'
+            };
+
+            wsData.push(['رقم الطلب', 'اسم العميل', 'رقم العميل', 'عنوان التوصيل', 'الحالة', 'المصدر', 'المنتجات', 'سعر المنتجات (ج.م)', 'رسوم التوصيل (ج.م)', 'الإجمالي (ج.م)', 'تاريخ الإنشاء']);
+
+            for (const order of orders) {
+                let items: any[] = [];
+                try { items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []); } catch { items = []; }
+                const itemsNames = items.map((i: any) => `${i.name || i.product_name || 'منتج'} (${i.quantity || 1})`).join(' | ');
+                const itemsTotal = getItemsTotal(order);
+                const deliveryFee = parseFloat(String(order.delivery_fee || '0'));
+
+                wsData.push([
+                    order.display_id || order.id, order.customer_name || '-', order.customer_phone || '-',
+                    order.delivery_address || '-', statusLabels[order.status] || order.status || '-',
+                    mapSourceLabel((order as any).source), itemsNames || '-', itemsTotal, deliveryFee, itemsTotal + deliveryFee,
+                    order.created_at ? new Date(order.created_at).toLocaleString('ar-EG') : '-'
+                ]);
+            }
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 25 }, { wch: 14 }, { wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 20 }];
+            const periodForFileName = period === 'custom' ? (activeCustomDate || 'custom') : period;
+            XLSX.utils.book_append_sheet(wb, ws, 'تقرير المسؤول');
+            XLSX.writeFile(wb, `تقرير_${manager.name}_${periodForFileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        } catch (error) {
+            console.error('Export error:', error);
+        } finally {
+            setIsExporting(false);
+        }
+    }, [manager, orders, stats, period, activeCustomDate, getPeriodLabel]);
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
@@ -376,10 +499,18 @@ export default function ManagerDetailsPage() {
                     >
                         <ArrowRight className="w-5 h-5 text-white" />
                     </button>
-                    <div>
+                    <div className="flex-1">
                         <h1 className="text-xl font-bold text-white">{manager?.name || 'المسؤول'}</h1>
                         <p className="text-white/80 text-sm">@{manager?.username}</p>
                     </div>
+                    <button
+                        onClick={handleExportExcel}
+                        disabled={isExporting}
+                        title={`تصدير شيت إكسل (${getPeriodLabel()})`}
+                        className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-emerald-500/80 transition-all disabled:opacity-50"
+                    >
+                        {isExporting ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <FileSpreadsheet className="w-5 h-5 text-white" />}
+                    </button>
                 </div>
 
                 {/* Period Toggles */}

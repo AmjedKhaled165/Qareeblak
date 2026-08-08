@@ -27,11 +27,13 @@ const authenticatePartner = async (req, res, next) => {
 router.use(authenticatePartner);
 
 router.get('/', userController.getUsers);
+router.get('/sessions', userController.getDailySessions);
 router.get('/:id', userController.getUser);
 router.post('/assign', validate(assignCourierSchema), userController.assignCourier);
 router.patch('/:id/availability', validate(updateAvailabilitySchema), userController.updateAvailability);
 router.patch('/:id/courier-status', userController.updateCourierStatus);
 router.put('/:id', validate(updateProfileSchema), userController.updateProfile);
+router.post('/start-session', userController.startDailySession);
 router.delete('/:id', userController.deleteUser);
 
 module.exports = router;
