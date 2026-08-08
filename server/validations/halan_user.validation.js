@@ -17,7 +17,9 @@ const updateProfileSchema = z.object({
     phone: z.string().optional(),
     avatar: z.string().optional().nullable(),
     oldPassword: z.string().optional(),
-    newPassword: z.string().min(6).optional()
+    newPassword: z.string().min(6).optional(),
+    cash_number: z.string().optional().nullable(),
+    instapay_account: z.string().optional().nullable()
 });
 
 const validate = (schema, target = 'body') => (req, res, next) => {
