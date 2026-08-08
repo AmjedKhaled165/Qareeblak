@@ -1,0 +1,1 @@
+const { pool } = require('./server/db'); pool.query(SELECT column_name FROM information_schema.columns WHERE table_name='users').then(res => console.log(res.rows.map(r=>r.column_name))).catch(console.error).finally(() => pool.end());

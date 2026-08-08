@@ -1,0 +1,1 @@
+require('dotenv').config(); const { pool } = require('./server/db'); async function run() { try { await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS cash_number VARCHAR(100), ADD COLUMN IF NOT EXISTS instapay_account VARCHAR(100)'); console.log('Columns added successfully'); } catch(e) { console.error(e); } finally { pool.end(); } } run();
