@@ -182,17 +182,6 @@ export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps
                                 )}
                             </div>
                         </div>
-                        {/* Call Button */}
-                        {provider.phone && (
-                            <a
-                                href={`tel:${provider.phone}`}
-                                className="p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition"
-                                title="اتصال بالصيدلية"
-                                aria-label={`اتصال بالصيدلية على الرقم ${provider.phone}`}
-                            >
-                                <Phone className="w-5 h-5" />
-                            </a>
-                        )}
                     </div>
                 </div>
             </div>

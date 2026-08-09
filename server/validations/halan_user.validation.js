@@ -1,8 +1,8 @@
 const { z } = require('zod');
 
 const assignCourierSchema = z.object({
-    userId: z.number().int().positive(),
-    supervisorId: z.number().int().positive(),
+    userId: z.union([z.number().int().positive(), z.string().min(1)]),
+    supervisorId: z.union([z.number().int().positive(), z.string().min(1)]),
     action: z.enum(['add', 'remove'])
 });
 

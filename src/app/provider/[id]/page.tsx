@@ -17,6 +17,7 @@ import { MaintenanceBookingModal } from "@/components/features/maintenance-booki
 import { DoctorBookingModal } from "@/components/features/doctor-booking-modal";
 import { PlaygroundsBookingModal } from "@/components/features/playgrounds-booking-modal";
 import { PlaygroundInlineBooking } from "@/components/features/playground-inline-booking";
+import { PharmacyChat } from "@/components/features/PharmacyChat";
 import { apiCall } from "@/lib/api";
 
 // Type definitions
@@ -70,6 +71,7 @@ export default function ProviderProfile() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeTab, setActiveTab] = useState<'services' | 'reviews'>('services');
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
     const [targetOrder, setTargetOrder] = useState<any>(null);
     const [providerDetails, setProviderDetails] = useState<Provider | null>(null);
     // Maintenance booking modal state - MOVED UP TO FIX HOOK ORDER
@@ -412,32 +414,15 @@ export default function ProviderProfile() {
                                             متاح الآن للصفقات
                                         </div>
 
-                                        {/* Action Buttons: Chat & Call */}
+                                        {/* Action Buttons: Direct Chat */}
                                         <div className="flex items-center gap-2 mr-auto pt-1 sm:pt-0">
                                             <button
-                                                onClick={() => {
-                                                    const chatElement = document.getElementById('consultation-chat-section');
-                                                    if (chatElement) {
-                                                        chatElement.scrollIntoView({ behavior: 'smooth' });
-                                                    } else {
-                                                        setActiveTab('reviews');
-                                                    }
-                                                }}
+                                                onClick={() => setIsChatOpen(true)}
                                                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.03] active:scale-95 font-cairo cursor-pointer"
                                             >
                                                 <MessageSquare className="w-4 h-4" />
                                                 <span>شات مباشر</span>
                                             </button>
-
-                                            {provider.phone && (
-                                                <a
-                                                    href={`tel:${provider.phone}`}
-                                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm transition-all font-cairo"
-                                                >
-                                                    <Phone className="w-4 h-4 text-emerald-500" />
-                                                    <span>اتصال</span>
-                                                </a>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -781,6 +766,19 @@ export default function ProviderProfile() {
                 )}
 
                 <CartModal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+
+                {/* Direct Chat Modal */}
+                <AnimatePresence>
+                    {isChatOpen && (
+                        <PharmacyChat
+                            isOpen={isChatOpen}
+                            onClose={() => setIsChatOpen(false)}
+                            providerId={String(provider.id)}
+                            providerName={provider.name}
+                            providerCategory={provider.category}
+                        />
+                    )}
+                </AnimatePresence>
 
                 {/* Maintenance Booking Modal */}
                 {isMaintenance && (

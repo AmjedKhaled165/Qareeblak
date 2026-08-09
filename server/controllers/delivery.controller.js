@@ -267,8 +267,6 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
                     d.delivery_fee,
                     c.name AS courier_name,
                     c.phone AS courier_phone,
-                    c.cash_number AS courier_cash_number,
-                    c.instapay_account AS courier_instapay_account,
                     COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
                     u.phone AS customer_phone
              FROM bookings b
@@ -292,9 +290,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             price: Number(r.price || 0),
             items: parseItems(r.items),
             courier_name: r.courier_name || undefined,
-            courier_phone: r.courier_phone || undefined,
-            courier_cash_number: r.courier_cash_number || undefined,
-            courier_instapay_account: r.courier_instapay_account || undefined
+            courier_phone: r.courier_phone || undefined
         }));
 
         const aggregateStatus = getAggregateTrackingStatus(subOrders.map((s) => s.status));
@@ -317,8 +313,6 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             is_parent: true,
             courier_name: first.courier_name || undefined,
             courier_phone: first.courier_phone || undefined,
-            courier_cash_number: first.courier_cash_number || undefined,
-            courier_instapay_account: first.courier_instapay_account || undefined,
             sub_orders: subOrders
         };
 
@@ -353,8 +347,6 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
             d.delivery_fee,
             c.name AS courier_name,
             c.phone AS courier_phone,
-            c.cash_number AS courier_cash_number,
-            c.instapay_account AS courier_instapay_account,
             COALESCE(u.name, b.user_name, 'عميل') AS customer_name,
             u.phone AS customer_phone
          FROM bookings b
@@ -385,9 +377,7 @@ exports.trackOrderPublic = catchAsync(async (req, res) => {
         is_parent: false,
         provider_name: booking.provider_name,
         courier_name: booking.courier_name || undefined,
-        courier_phone: booking.courier_phone || undefined,
-        courier_cash_number: booking.courier_cash_number || undefined,
-        courier_instapay_account: booking.courier_instapay_account || undefined
+        courier_phone: booking.courier_phone || undefined
     };
 
     const obfuscatedBooking = obfuscateOrder(order);

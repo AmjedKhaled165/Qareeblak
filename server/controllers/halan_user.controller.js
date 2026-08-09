@@ -69,6 +69,15 @@ exports.getUser = catchAsync(async (req, res) => {
 
 exports.updateAvailability = catchAsync(async (req, res) => {
     const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const currentUserId = req.user.id || req.user.userId;
+    const currentUserRole = req.user.role;
+    const isSelf = String(currentUserId) === String(id);
+    const isAdmin = ['owner', 'partner_owner', 'admin', 'supervisor', 'partner_supervisor'].includes(currentUserRole);
+
+    if (!isSelf && !isAdmin) {
+        throw new AppError('Unauthorized', 403);
+    }
+
     const { isAvailable } = req.body;
     await userRepo.updateAvailability(id, isAvailable);
 
@@ -81,6 +90,15 @@ exports.updateAvailability = catchAsync(async (req, res) => {
 
 exports.updateCourierStatus = catchAsync(async (req, res) => {
     const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const currentUserId = req.user.id || req.user.userId;
+    const currentUserRole = req.user.role;
+    const isSelf = String(currentUserId) === String(id);
+    const isAdmin = ['owner', 'partner_owner', 'admin', 'supervisor', 'partner_supervisor'].includes(currentUserRole);
+
+    if (!isSelf && !isAdmin) {
+        throw new AppError('Unauthorized', 403);
+    }
+
     const { courierStatus } = req.body;
     await userRepo.updateCourierStatus(id, courierStatus);
 
@@ -94,6 +112,15 @@ exports.updateCourierStatus = catchAsync(async (req, res) => {
 
 exports.updateProfile = catchAsync(async (req, res) => {
     const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const currentUserId = req.user.id || req.user.userId;
+    const currentUserRole = req.user.role;
+    const isSelf = String(currentUserId) === String(id);
+    const isAdmin = ['owner', 'partner_owner', 'admin'].includes(currentUserRole);
+
+    if (!isSelf && !isAdmin) {
+        throw new AppError('غير مصرح لك بتعديل بيانات هذا المستخدم', 403);
+    }
+
     const { name_ar, username, email, phone, avatar, oldPassword, newPassword, cash_number, instapay_account } = req.body;
 
     const currentUser = await userRepo.getById(id);
@@ -162,10 +189,8 @@ exports.deleteUser = catchAsync(async (req, res) => {
 const db = require('../db');
 
 exports.startDailySession = catchAsync(async (req, res) => {
-    const courierId = req.user.id;
-    const dateObj = new Date();
-    const egyptTime = new Date(dateObj.getTime() + (2 * 60 * 60 * 1000));
-    const localDateStr = egyptTime.toISOString().split('T')[0];
+    const courierId = req.user.id || req.user.userId;
+    const localDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
 
     const result = await db.query(
         'INSERT INTO courier_daily_sessions (courier_id, session_date, started_at) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (courier_id, session_date) DO NOTHING RETURNING *',
