@@ -38,6 +38,7 @@ interface Order {
     delivery_fee?: number;
     items?: any;
     source?: string;
+    notes?: string;
 }
 
 export default function OrdersPage() {
@@ -48,7 +49,7 @@ export default function OrdersPage() {
     const [user, setUser] = useState<any>(null);
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'pending' | 'preparing' | 'ready' | 'in_transit' | 'delivered' | 'edited' | 'cancelled'>('all');
+    const [filter, setFilter] = useState<'all' | 'extra_services' | 'pending' | 'preparing' | 'ready' | 'in_transit' | 'delivered' | 'edited' | 'cancelled'>('all');
 
     // Multi-select state
     const [isSelectionMode, setIsSelectionMode] = useState(false);
