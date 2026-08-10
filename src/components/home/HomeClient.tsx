@@ -14,6 +14,7 @@ import { ScrollReveal } from "@/components/animations/ScrollReveal";
 import { GradientText } from "@/components/animations/GradientText";
 import { BlurIn } from "@/components/animations/BlurIn";
 import { FloatingParticles } from "@/components/animations/FloatingParticles";
+import { ExtraServicesSection } from "@/components/home/ExtraServicesSection";
 
 export default function HomeClient() {
   const { currentUser } = useAppStore();
@@ -204,6 +205,9 @@ export default function HomeClient() {
           </motion.div>
         </div>
       </section>
+
+      {/* Extra Quick Services Section */}
+      <ExtraServicesSection />
 
       {/* Trust Signals Section - Enhanced with Animations */}
       <section className="py-24 border-y border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-lg relative overflow-hidden">

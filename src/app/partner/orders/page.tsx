@@ -321,6 +321,9 @@ export default function OrdersPage() {
     // Client-side filtering for status groups
     const filteredOrders = orders.filter(order => {
         if (filter === 'all') return true;
+        if (filter === 'extra_services') {
+            return (order as any).order_type === 'extra_service' || (order as any).source === 'extra_service' || String(order.notes || '').includes('خدمات إضافية');
+        }
         if (filter === 'cancelled' || filter === 'edited') return true; // Already filtered by backend
 
         // Custom groupings
@@ -372,6 +375,7 @@ export default function OrdersPage() {
                     <div className="flex gap-2 min-w-max">
                         {[
                             { key: 'all', label: 'الكل' },
+                            { key: 'extra_services', label: 'الخدمات الإضافية ⚡' },
                             { key: 'pending', label: 'قيد الانتظار' },
                             { key: 'preparing', label: 'جاري التحضير' },
                             { key: 'ready', label: 'تم التجهيز' },
@@ -450,7 +454,12 @@ export default function OrdersPage() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            {(order as any).source === 'qareeblak' && (
+                                            {((order as any).order_type === 'extra_service' || String(order.notes || '').includes('خدمات إضافية')) && (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-bold rounded-full w-fit">
+                                                    ⚡ خدمات إضافية
+                                                </span>
+                                            )}
+                                            {(order as any).source === 'qareeblak' && (order as any).order_type !== 'extra_service' && (
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-full w-fit">
                                                     🌐 طلب من قريبلك
                                                 </span>

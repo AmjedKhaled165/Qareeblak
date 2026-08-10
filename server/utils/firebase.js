@@ -98,7 +98,7 @@ const initializeFirebase = () => {
             admin.initializeApp({
                 projectId: projectId
             });
-            logger.info(`ℹ️ Firebase initialized in limited mode (Project ID: ${projectId})`);
+            logger.warn(`ℹ️ Firebase initialized in LIMITED mode (Project ID: ${projectId}). Missing FIREBASE_CLIENT_EMAIL or FIREBASE_PRIVATE_KEY — Token verification will fail in production.`);
         }
 
         return admin.app();

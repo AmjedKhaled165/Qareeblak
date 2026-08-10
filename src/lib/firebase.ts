@@ -11,13 +11,19 @@ const firebaseConfig = {
 };
 
 export function isFirebaseConfigured(): boolean {
-    // We consider it "not configured" if any placeholder is still present.
-    return !Object.values(firebaseConfig).some((v) => typeof v === 'string' && v.startsWith('YOUR_'));
+    const values = Object.values(firebaseConfig);
+    // Not configured if any field is empty, missing, or has default 'YOUR_' placeholder
+    return !values.some((v) => !v || (typeof v === 'string' && (v.trim() === '' || v.startsWith('YOUR_'))));
 }
 
-// Initialize Firebase
+if (typeof window !== 'undefined' && !isFirebaseConfigured()) {
+    console.warn("⚠️ [Firebase] Web Client is not fully configured. Google Sign-In requires NEXT_PUBLIC_FIREBASE_* variables in .env.local");
+}
+
+// Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 export { auth, googleProvider, signInWithPopup };
+
