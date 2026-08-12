@@ -169,6 +169,7 @@ const notificationsRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const wheelRoutes = require('./routes/wheel');
 const debugAuthRoutes = require('./routes/debug-auth');
+const deliveryRoutes = require('./routes/delivery');
 
 // ================== API ROUTES ==================
 const { csrfProtection } = require('./middleware/security');
@@ -190,7 +191,8 @@ app.use('/api', (req, res, next) => {
         '/auth/guest-login',
         '/auth/refresh',
         '/halan/auth/login',
-        '/health'
+        '/health',
+        '/delivery/orders', // Public customer-facing extra service order submission
     ];
     if (excludedPaths.some(path => req.path.startsWith(path))) {
         return next();
@@ -211,6 +213,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wheel', wheelRoutes);
+app.use('/api/delivery', deliveryRoutes);
 // Only load debug routes in development mode to prevent data exposure
 if (process.env.NODE_ENV !== 'production') {
     app.use('/api/debug', debugAuthRoutes);

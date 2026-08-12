@@ -82,7 +82,8 @@ export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility"
         pickup_address: "موقع قريبلك - أسيوط الجديدة",
         order_type: "extra_service",
         source: "qareeblak_web",
-        delivery_fee: 20, // Default estimated fee inside New Assiut
+        delivery_fee: 20,
+        notes: notes.trim() || undefined,
         items: [
           {
             name_ar: serviceTitle,
@@ -96,7 +97,6 @@ export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility"
             charge_amount: finalChargeAmount,
           }
         ],
-        notes: `[خدمات إضافية - ${serviceTitle}] ${notes.trim()}`
       };
 
       const result = await apiCall('/delivery/orders', {
@@ -109,6 +109,7 @@ export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility"
         onClose();
         // Reset form
         setNotes("");
+        setAddress("");
         if (!currentUser?.phone) setPhone("");
       } else {
         throw new Error(result?.error || "فشل إرسال الطلب");
