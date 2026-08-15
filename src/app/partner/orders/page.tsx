@@ -353,7 +353,7 @@ export default function OrdersPage() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100" dir="rtl">
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 p-4 border-b dark:border-slate-800 sticky top-0 z-10 flex items-center gap-3">
-                <button onClick={() => router.back()} className="p-2" title="العودة" aria-label="العودة">
+                <button onClick={() => router.push('/partner')} className="p-2" title="العودة" aria-label="العودة">
                     <ArrowRight className="w-6 h-6 text-slate-800 dark:text-slate-100" />
                 </button>
                 <h1 className="text-xl font-bold">{isCourier ? 'طلباتي' : 'كل الطلبات'}</h1>

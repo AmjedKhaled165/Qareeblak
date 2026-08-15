@@ -506,7 +506,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
                     <Package className="w-16 h-16 mx-auto text-slate-300 mb-4" />
                     <p className="text-slate-500">لم يتم العثور على الطلب</p>
                     <button
-                        onClick={() => router.back()}
+                        onClick={() => router.push('/partner/orders')}
                         className="mt-4 text-violet-600 font-medium"
                     >
                         العودة
@@ -552,7 +552,7 @@ export default function OrderDetailsPage({ params }: PageProps) {
         <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col" dir="rtl">
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 border-b dark:border-slate-800 px-4 py-4 flex items-center gap-3">
-                <button onClick={() => router.back()} className="p-2" title="العودة" aria-label="العودة">
+                <button onClick={() => router.push('/partner/orders')} className="p-2" title="العودة" aria-label="العودة">
                     <ArrowRight className="w-6 h-6 text-slate-700 dark:text-slate-300" />
                 </button>
                 <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex-1">

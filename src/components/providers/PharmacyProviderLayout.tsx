@@ -138,7 +138,7 @@ export function PharmacyProviderLayout({ provider }: PharmacyProviderLayoutProps
             <div className="relative h-48 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600">
                 {/* Back Button */}
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => router.push('/')}
                     className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition z-10"
                     title="رجوع"
                     aria-label="الرجوع للصفحة السابقة"
