@@ -50,6 +50,7 @@ interface Order {
     delivery_fee?: number;
     items?: OrderItem[];
     is_modified_by_courier?: boolean;
+    is_edited?: boolean;
     courier_modifications?: any;
     order_type?: string; // 'app' | 'manual'
     source?: string;
