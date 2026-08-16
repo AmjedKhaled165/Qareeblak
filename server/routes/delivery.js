@@ -83,6 +83,13 @@ router.post(['/orders', '/'], checkoutLimiter, globalLimiter, validate(extraServ
     const totalPrice = items.reduce((sum, i) => sum + (Number(i.total_price) || 0), 0) + Number(delivery_fee || 0);
     const serviceTitle = items[0]?.name_ar || 'خدمة إضافية';
 
+    // Ensure columns exist on bookings table
+    try {
+        await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS order_type VARCHAR(50) DEFAULT 'extra_service'`);
+        await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'qareeblak_web'`);
+        await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS items JSONB`);
+    } catch (_) { /* ignore if column exists */ }
+
     // Insert into bookings table as an extra_service order
     const result = await db.query(
         `INSERT INTO bookings
