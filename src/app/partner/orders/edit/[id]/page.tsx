@@ -258,7 +258,7 @@ export default function EditOrderPage({ params }: PageProps) {
                 }}
             >
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="p-2">
+                    <button onClick={() => router.push('/partner/orders')} className="p-2">
                         <ArrowRight className="w-6 h-6 text-white" />
                     </button>
                     <h1 className="text-2xl font-bold text-white">تعديل الطلب</h1>

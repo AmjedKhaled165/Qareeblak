@@ -614,7 +614,7 @@ export default function TrackOrderPage() {
                 {/* Header */}
                 <div className="bg-white/80 dark:bg-black/30 backdrop-blur-lg border-b border-slate-200 dark:border-white/10 sticky top-0 z-40 transition-colors">
                     <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-                        <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-900 dark:text-white" title="رجوع" aria-label="الرجوع للصفحة السابقة">
+                        <button onClick={() => router.push('/')} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-900 dark:text-white" title="رجوع" aria-label="الرجوع للصفحة السابقة">
                             <ArrowRight className="w-6 h-6" />
                         </button>
                         <div className="flex-1">

@@ -89,7 +89,7 @@ export default function DriverStatsPage() {
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 p-4 flex items-center justify-between shadow-sm sticky top-0 z-10">
                 <div className="flex items-center gap-3 mb-5">
-                    <button onClick={() => router.back()} className="p-2" title="رجوع" aria-label="الرجوع للصفحة السابقة">
+                    <button onClick={() => router.push('/partner')} className="p-2" title="رجوع" aria-label="الرجوع للصفحة السابقة">
                         <ArrowRight className="w-6 h-6 text-foreground" />
                     </button>
                     <h1 className="text-2xl font-bold text-foreground flex-1">تقرير الأداء</h1>

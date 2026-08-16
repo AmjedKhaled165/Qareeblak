@@ -353,7 +353,7 @@ export default function DriverTrackingPage() {
                 className="p-6 pt-10 rounded-b-[30px] shadow-lg flex-shrink-0 z-10 relative bg-gradient-to-br from-[#624AF2] to-[#504DFF]"
             >
                 <div className="flex items-center gap-3 mb-6">
-                    <button onClick={() => router.back()} className="p-2" aria-label="العودة" title="العودة">
+                    <button onClick={() => router.push('/partner/orders')} className="p-2" aria-label="العودة" title="العودة">
                         <ArrowRight className="w-6 h-6 text-white" />
                     </button>
                     <div className="flex-1">

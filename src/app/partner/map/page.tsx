@@ -27,7 +27,7 @@ export default function GlobalMapPage() {
             <div className="bg-white dark:bg-slate-800 p-4 shadow-sm z-10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => router.back()}
+                        onClick={() => router.push('/partner')}
                         className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
                     >
                         <ArrowRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />

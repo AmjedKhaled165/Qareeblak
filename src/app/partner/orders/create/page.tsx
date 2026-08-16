@@ -261,7 +261,7 @@ export default function CreateOrderPage() {
                 className="p-6 pt-10 rounded-b-[30px] shadow-lg bg-gradient-to-br from-[#504DFF] to-[#624AF2]"
             >
                 <div className="flex items-center gap-3">
-                    <button onClick={() => router.back()} className="p-2" title="العودة" aria-label="العودة للصفحة السابقة">
+                    <button onClick={() => router.push('/partner/orders')} className="p-2" title="العودة" aria-label="العودة للصفحة السابقة">
                         <ArrowRight className="w-6 h-6 text-white" />
                     </button>
                     <h1 className="text-2xl font-bold text-white">إنشاء طلب جديد</h1>
