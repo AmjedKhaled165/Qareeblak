@@ -77,10 +77,10 @@ class BookingRepository {
 
     async getUnusedUserPrize(prizeId, userId, client = pool) {
         const query = `
-            SELECT up.id, wp.prize_type, wp.prize_value, wp.provider_id, wp.name
+            SELECT up.id, wp.prize_type, wp.prize_value, wp.provider_id, wp.name, wp.min_order_amount, up.expires_at
             FROM user_prizes up
             JOIN wheel_prizes wp ON up.prize_id = wp.id
-            WHERE up.id = $1 AND up.user_id = $2 AND up.is_used = FALSE
+            WHERE up.id = $1 AND up.user_id = $2 AND up.is_used = FALSE AND (up.expires_at IS NULL OR up.expires_at > NOW())
             FOR UPDATE OF up
         `;
         const result = await client.query(query, [prizeId, userId]);

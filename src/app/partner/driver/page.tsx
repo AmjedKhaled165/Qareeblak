@@ -15,7 +15,8 @@ import {
     List,
     Plus,
     PlusCircle,
-    ArrowRight
+    ArrowRight,
+    Home
 } from "lucide-react";
 import { apiCall } from "@/lib/api";
 import StatusModal from "@/components/ui/status-modal";
@@ -544,6 +545,13 @@ export default function DriverDashboard() {
                             </div>
                         </div>
                         <div className="flex gap-3">
+                            <button
+                                onClick={() => router.push('/')}
+                                title="الصفحة الرئيسية للموقع"
+                                className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all border border-white/10 text-white"
+                            >
+                                <Home className="w-5 h-5" />
+                            </button>
                             <button
                                 onClick={() => router.push('/partner/settings')}
                                 title="الإعدادات"

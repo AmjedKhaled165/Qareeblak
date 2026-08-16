@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Settings, RefreshCw, MapPin, LogOut,
-    BarChart3, Package, Users, ShoppingBag
+    BarChart3, Package, Users, ShoppingBag, Home
 } from "lucide-react";
 
 import { apiCall } from "@/lib/api";
@@ -153,6 +153,10 @@ export default function OwnerDashboard() {
                             </div>
                         </div>
                         <div className="flex gap-3">
+                            <button onClick={() => router.push('/')} title="الصفحة الرئيسية للموقع"
+                                className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10">
+                                <Home className="w-5 h-5 text-white" />
+                            </button>
                             <button onClick={onRefresh} title="تحديث البيانات"
                                 className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10">
                                 <RefreshCw className={`w-5 h-5 text-white ${refreshing ? 'animate-spin' : ''}`} />

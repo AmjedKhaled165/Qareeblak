@@ -268,14 +268,26 @@ export default function WheelOfFortunePage() {
                                     >
                                         {getPrizeIcon(prize.prize_type)}
                                     </div>
-                                    <div className="flex-1">
+                                    <div className="flex-1 space-y-1">
                                         <h4 className="font-bold text-slate-900 dark:text-white">{prize.name}</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">
                                             {prize.prize_type === 'free_delivery' ? 'استخدمه للحصول على توصيل مجاني' : `خصم ${prize.prize_value} ${prize.prize_type === 'discount_percent' ? '%' : 'ج.م'}`}
                                             {prize.provider_id ? ` (لمتجر معين)` : ' (لأي متجر)'}
                                         </p>
+                                        <div className="flex flex-wrap gap-2 pt-1">
+                                            {prize.min_order_amount > 0 && (
+                                                <span className="text-[10px] bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-md font-medium border border-amber-200 dark:border-amber-500/20">
+                                                    حد أدنى {prize.min_order_amount} ج.م
+                                                </span>
+                                            )}
+                                            {prize.expires_at && (
+                                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md">
+                                                    تنتهي: {new Date(prize.expires_at).toLocaleDateString('ar-EG')}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="text-xs bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 px-3 py-1 rounded-full whitespace-nowrap">
+                                    <div className="text-xs bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 px-3 py-1.5 rounded-xl font-bold whitespace-nowrap">
                                         متاح للاستخدام
                                     </div>
                                 </motion.div>

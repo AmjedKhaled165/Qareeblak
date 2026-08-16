@@ -14,12 +14,14 @@ const {
     courierPricingSchema
 } = require('../validations/delivery.validation');
 
-const { verifyToken, isPartnerOrAdmin } = require('../middleware/auth');
+const { verifyToken, optionalAuth, isPartnerOrAdmin } = require('../middleware/auth');
 
-// Public customer tracking endpoints (phone/user/code based)
+// Public customer tracking & order creation endpoints (phone/user/code based)
 router.get('/track/by-code/:code', globalLimiter, deliveryController.trackOrderByCode);
 router.post('/customer-orders', globalLimiter, deliveryController.getCustomerOrdersPublic);
 router.get('/track/:id', globalLimiter, deliveryController.trackOrderPublic);
+router.post('/orders', optionalAuth, globalLimiter, validate(createDeliveryOrderSchema), deliveryController.createOrder);
+router.post('/public-create', optionalAuth, globalLimiter, validate(createDeliveryOrderSchema), deliveryController.createOrder);
 router.post('/:id/customer-cancel', globalLimiter, deliveryController.customerCancel);
 router.post('/:id/customer-remove-item', globalLimiter, deliveryController.customerRemoveItem);
 router.post('/:id/customer-add-items-bulk', globalLimiter, deliveryController.customerAddItemsBulk);

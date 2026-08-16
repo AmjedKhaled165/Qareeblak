@@ -17,7 +17,8 @@ import {
     Trash2,
     CheckSquare,
     UserCheck,
-    X
+    X,
+    Home
 } from "lucide-react";
 
 import { apiCall } from "@/lib/api";
@@ -353,8 +354,11 @@ export default function OrdersPage() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100" dir="rtl">
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 p-4 border-b dark:border-slate-800 sticky top-0 z-10 flex items-center gap-3">
-                <button onClick={() => router.push('/partner')} className="p-2" title="العودة" aria-label="العودة">
+                <button onClick={() => router.push('/partner')} className="p-2" title="العودة للوحة التحكم" aria-label="العودة للوحة التحكم">
                     <ArrowRight className="w-6 h-6 text-slate-800 dark:text-slate-100" />
+                </button>
+                <button onClick={() => router.push('/')} className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400" title="الصفحة الرئيسية للموقع" aria-label="الصفحة الرئيسية للموقع">
+                    <Home className="w-6 h-6" />
                 </button>
                 <h1 className="text-xl font-bold">{isCourier ? 'طلباتي' : 'كل الطلبات'}</h1>
                 <div className="mr-auto flex items-center gap-2">

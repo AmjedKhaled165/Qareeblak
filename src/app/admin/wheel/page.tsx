@@ -25,6 +25,9 @@ export default function AdminWheelPrizesPage() {
         provider_id: "",
         probability: 10,
         color: "#f44336",
+        min_order_amount: 0,
+        expiry_days: 7,
+        max_uses: "",
         is_active: true
     });
 
@@ -55,6 +58,9 @@ export default function AdminWheelPrizesPage() {
                 provider_id: prize.provider_id || "",
                 probability: prize.probability,
                 color: prize.color,
+                min_order_amount: prize.min_order_amount || 0,
+                expiry_days: prize.expiry_days || 7,
+                max_uses: prize.max_uses || "",
                 is_active: prize.is_active
             });
         } else {
@@ -66,6 +72,9 @@ export default function AdminWheelPrizesPage() {
                 provider_id: "",
                 probability: 10,
                 color: "#f44336",
+                min_order_amount: 0,
+                expiry_days: 7,
+                max_uses: "",
                 is_active: true
             });
         }
@@ -82,7 +91,10 @@ export default function AdminWheelPrizesPage() {
         try {
             const payload = {
                 ...formData,
-                provider_id: formData.provider_id ? parseInt(formData.provider_id) : null
+                provider_id: formData.provider_id ? parseInt(formData.provider_id) : null,
+                min_order_amount: parseFloat(String(formData.min_order_amount)) || 0,
+                expiry_days: parseInt(String(formData.expiry_days)) || 7,
+                max_uses: formData.max_uses ? parseInt(String(formData.max_uses)) : null,
             };
 
             if (editingId) {
@@ -283,6 +295,39 @@ export default function AdminWheelPrizesPage() {
                                             className="rounded-xl flex-1"
                                         />
                                     </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-700 mb-1 block">الحد الأدنى للطلب (ج.م)</label>
+                                    <Input 
+                                        type="number"
+                                        value={formData.min_order_amount}
+                                        onChange={e => setFormData({...formData, min_order_amount: parseFloat(e.target.value) || 0})}
+                                        className="rounded-xl"
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-700 mb-1 block">مدة الصلاحية (أيام)</label>
+                                    <Input 
+                                        type="number"
+                                        value={formData.expiry_days}
+                                        onChange={e => setFormData({...formData, expiry_days: parseInt(e.target.value) || 1})}
+                                        className="rounded-xl"
+                                        placeholder="7"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-700 mb-1 block">الحد الأقصى للكمية (اختياري)</label>
+                                    <Input 
+                                        type="number"
+                                        value={formData.max_uses}
+                                        onChange={e => setFormData({...formData, max_uses: e.target.value})}
+                                        className="rounded-xl"
+                                        placeholder="غير محدود"
+                                    />
                                 </div>
                             </div>
 

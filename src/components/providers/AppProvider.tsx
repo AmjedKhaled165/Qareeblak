@@ -204,13 +204,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const isCustomerPath = !isPartnerPath && !isProviderDashboardPath && !isProfilePath;
 
         if (isHalanStaff) {
-            // Halan staff shouldn't access provider dashboard or customer pages
-            if (isProviderDashboardPath || isCustomerPath) {
+            // Halan staff shouldn't access provider dashboard
+            if (isProviderDashboardPath) {
                 router.replace('/partner/orders');
             }
         } else if (isServiceProvider) {
-            // Providers shouldn't access Halan pages or customer pages
-            if (isPartnerPath || isCustomerPath) {
+            // Providers shouldn't access Halan pages
+            if (isPartnerPath) {
                 router.replace('/provider-dashboard');
             }
         } else if (isCustomer) {

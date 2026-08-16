@@ -195,6 +195,7 @@ app.use('/api', (req, res, next) => {
         '/delivery',
         '/delivery/orders', // Public customer-facing extra service order submission
         '/extra-services',
+        '/halan/orders',
     ];
     if (excludedPaths.some(path => req.path.startsWith(path))) {
         return next();
@@ -209,6 +210,8 @@ app.use('/api/bookings', bookingsRoutes);
 app.use('/api/halan/auth', halanAuthRoutes);
 app.use('/api/halan/users', halanUsersRoutes);
 app.use('/api/halan/orders', halanOrdersRoutes);
+app.use('/api/delivery/orders', halanOrdersRoutes);
+app.use('/api/delivery', halanOrdersRoutes);
 app.use('/api/halan/products', halanProductRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/chat', chatRoutes);

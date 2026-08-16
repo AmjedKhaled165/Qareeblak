@@ -14,7 +14,8 @@ import {
     RefreshCw,
     ListOrdered,
     Plus,
-    MapPin
+    MapPin,
+    Home
 } from "lucide-react";
 import { apiCall } from "@/lib/api";
 
@@ -235,6 +236,13 @@ export default function ManagerDashboard() {
                             </div>
                         </div>
                         <div className="flex gap-3">
+                            <button
+                                onClick={() => router.push('/')}
+                                title="الصفحة الرئيسية للموقع"
+                                className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"
+                            >
+                                <Home className="w-5 h-5 text-white" />
+                            </button>
                             <button
                                 onClick={onRefresh}
                                 title="تحديث البيانات"

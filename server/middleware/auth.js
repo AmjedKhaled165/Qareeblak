@@ -278,8 +278,39 @@ const verifySocketToken = async (socket, next) => {
     }
 };
 
+/**
+ * Optional Auth middleware: attaches req.user if token is valid, proceeds without error if unauthenticated
+ */
+const optionalAuth = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    let token = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    } else if (req.cookies && req.cookies.accessToken) {
+        token = req.cookies.accessToken;
+    }
+
+    if (!token) {
+        req.user = null;
+        return next();
+    }
+
+    try {
+        const decoded = verifyJWT(token, 'access');
+        if (decoded && decoded.type !== 'refresh') {
+            const user = await getUserWithCache(decoded.id);
+            if (user && !user.is_banned) {
+                req.user = user;
+            }
+        }
+    } catch (_) {}
+    next();
+};
+
 module.exports = {
     verifyToken,
+    optionalAuth,
     isAdmin,
     isProviderOrAdmin,
     isPartnerOrAdmin,

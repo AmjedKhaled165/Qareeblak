@@ -435,6 +435,13 @@ async function runStartupMigrations() {
             logger.error('Failed to seed default wheel prizes: ' + err.message);
         }
 
+        // Migrations: Add advanced controls to wheel_prizes and user_prizes
+        await query("ALTER TABLE wheel_prizes ADD COLUMN IF NOT EXISTS min_order_amount DECIMAL(10, 2) DEFAULT 0");
+        await query("ALTER TABLE wheel_prizes ADD COLUMN IF NOT EXISTS expiry_days INTEGER DEFAULT 7");
+        await query("ALTER TABLE wheel_prizes ADD COLUMN IF NOT EXISTS max_uses INTEGER DEFAULT NULL");
+        await query("ALTER TABLE wheel_prizes ADD COLUMN IF NOT EXISTS used_count INTEGER DEFAULT 0");
+        await query("ALTER TABLE user_prizes ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP");
+
         // 7. Migration: Add discount columns to orders
         await query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
         await query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS prize_id INTEGER REFERENCES user_prizes(id)");
