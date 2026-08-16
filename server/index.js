@@ -192,7 +192,9 @@ app.use('/api', (req, res, next) => {
         '/auth/refresh',
         '/halan/auth/login',
         '/health',
+        '/delivery',
         '/delivery/orders', // Public customer-facing extra service order submission
+        '/extra-services',
     ];
     if (excludedPaths.some(path => req.path.startsWith(path))) {
         return next();
@@ -214,6 +216,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wheel', wheelRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/extra-services', deliveryRoutes);
 // Only load debug routes in development mode to prevent data exposure
 if (process.env.NODE_ENV !== 'production') {
     app.use('/api/debug', debugAuthRoutes);

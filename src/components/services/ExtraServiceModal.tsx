@@ -99,10 +99,23 @@ export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility"
         ],
       };
 
-      const result = await apiCall('/delivery/orders', {
-        method: 'POST',
-        body: JSON.stringify(orderPayload)
-      });
+      let result: any;
+      try {
+        result = await apiCall('/delivery/orders', {
+          method: 'POST',
+          body: JSON.stringify(orderPayload)
+        });
+      } catch (err: any) {
+        if (err.message?.includes('404') || err.message?.includes('invalid response')) {
+          console.warn('Primary endpoint returned 404, trying fallback /extra-services...');
+          result = await apiCall('/extra-services', {
+            method: 'POST',
+            body: JSON.stringify(orderPayload)
+          });
+        } else {
+          throw err;
+        }
+      }
 
       if (result && (result.id || result.success)) {
         toast(`تم إرسال طلب ${serviceTitle} بنجاح! سيتم التواصل معك قريباً 🚀`, "success");

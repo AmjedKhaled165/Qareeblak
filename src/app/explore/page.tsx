@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
     Search, SlidersHorizontal, Utensils, Pill, Car, 
-    ShoppingBag, ShoppingCart, Star, Stethoscope, 
+    ShoppingBag, ShoppingCart, Star, Stethoscope, Wrench, Home,
     Sparkles, Zap, Flame, ShieldCheck, RotateCcw, X, Grid, List, Clock
 } from "lucide-react";
 import { useState, useEffect, Suspense, useMemo } from "react";
@@ -19,7 +19,7 @@ import { SkeletonCard } from "@/components/features/skeleton-card";
 import { useDebounce } from "@/hooks/use-debounce";
 import { 
     isPharmacyProvider, isDoctorProvider, isMaintenanceProvider, 
-    isCarServiceProvider, isPlaygroundProvider, isRestaurantProvider, isCraftsmanProvider 
+    isCarServiceProvider, isPlaygroundProvider, isRestaurantProvider, isCraftsmanProvider, isHousingProvider 
 } from "@/lib/category-utils";
 
 const ServiceCard = dynamic(
@@ -35,6 +35,8 @@ const CartModal = dynamic(
 const CATEGORIES = [
     { id: "all", label: "جميع الخدمات", icon: Sparkles, color: "from-indigo-500 to-purple-600", bgLight: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" },
     { id: "مطاعم", label: "مطاعم وكافيهات", icon: Utensils, color: "from-orange-500 to-amber-600", bgLight: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
+    { id: "صنايعية", label: "صنايعية ومهنيين 🛠️", icon: Wrench, color: "from-blue-500 to-indigo-600", bgLight: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+    { id: "سكن", label: "سكن الطلاب والعقارات 🏠", icon: Home, color: "from-cyan-500 to-teal-600", bgLight: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
     { id: "صيدليات", label: "صيدليات وطوارئ", icon: Pill, color: "from-emerald-500 to-teal-600", bgLight: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
     { id: "دكتور وممرض", label: "دكتور وممرض", icon: Stethoscope, color: "from-rose-500 to-pink-600", bgLight: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
     { id: "ملاعب", label: "حجز ملاعب", icon: Star, color: "from-violet-500 to-purple-600", bgLight: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
@@ -43,7 +45,9 @@ const CATEGORIES = [
 ];
 
 const QUICK_TAGS = [
+    { label: "سكن طلاب 🏠", query: "سكن" },
     { label: "سباكة 🔧", query: "سباك" },
+    { label: "كهرباء ⚡", query: "كهربائي" },
     { label: "مشويات 🍖", query: "مشويات" },
     { label: "بيتزا 🍕", query: "بيتزا" },
     { label: "صيدلية 💊", query: "صيدلية" },
@@ -54,6 +58,8 @@ const QUICK_TAGS = [
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
     "مطاعم": ["مطعم", "كافيه", "اكل", "بيتزا", "برجر", "قهوة", "مقهى", "مشويات", "طعام", "كريب", "شاورما"],
+    "صنايعية": ["صنايعي", "سباك", "سباكة", "نجار", "نجارة", "كهربائي", "كهرباء", "نقاش", "تكييف", "تصليح", "ميكانيكي", "فني", "صيانة"],
+    "سكن": ["سكن", "طلاب", "طالبات", "شقة", "شقق", "مفروش", "إيجار", "عقار", "عقارات", "سمسار", "سماسرة", "إقامة"],
     "صيدليات": ["صيدلية", "علاج", "دواء", "روشتة"],
     "دكتور وممرض": ["طبيب", "دكتور", "ممرض", "ممرضة", "مستشفى", "عيادة", "تحاليل", "اشعة", "اسنان", "علاج طبيعي"],
     "ملاعب": ["ملعب", "ملاعب", "كورة", "كرة", "قدم", "رياضة", "حجز", "خماسي", "مباراة"],

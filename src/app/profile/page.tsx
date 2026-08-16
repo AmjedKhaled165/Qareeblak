@@ -341,8 +341,12 @@ export default function ProfilePage() {
                                                 className={`h-12 px-4 rounded-xl transition-all border border-border bg-background text-foreground focus:ring-primary/20 ${!isEditing ? "opacity-70 bg-muted/30" : ""}`}
                                             >
                                                 <option value="">اختر التخصص...</option>
-                                                <option value="مطاعم">مطاعم وكافيهات</option>
+                                                <option value="سكن طلاب - بنين">سكن طلاب (بنين)</option>
+                                                <option value="سكن طالبات - بنات">سكن طالبات (بنات)</option>
+                                                <option value="سكن وعقارات">سكن وعقارات مفروشة</option>
+                                                <option value="صنايعي">صنايعي / مهني حرفي</option>
                                                 <option value="صيانة">صيانة وخدمات منزلية (سباكة/كهرباء)</option>
+                                                <option value="مطاعم">مطاعم وكافيهات</option>
                                                 <option value="صيدليات">صيدليات</option>
                                                 <option value="دكتور وممرض">دكتور وممرض</option>
                                                 <option value="ملاعب">ملاعب</option>

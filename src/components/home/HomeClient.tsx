@@ -42,6 +42,8 @@ export default function HomeClient() {
 
   const categories = [
     { name: "مطاعم وكافيهات", icon: Utensils, colorClass: "bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/20" },
+    { name: "سكن الطلاب والعقارات", icon: Home, colorClass: "bg-cyan-100 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-200 dark:border-cyan-500/20" },
+    { name: "صنايعية ومهنيين", icon: Wrench, colorClass: "bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20" },
     { name: "سوبر ماركت", icon: ShoppingBag, colorClass: "bg-green-100 dark:bg-green-500/10 text-green-600 dark:text-green-400 border-green-200 dark:border-green-500/20" },
     { name: "صيانة وسباكة", icon: Wrench, colorClass: "bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/20" },
     { name: "صيدليات", icon: Pill, colorClass: "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" },
@@ -50,7 +52,7 @@ export default function HomeClient() {
     { name: "خدمات سيارات", icon: Car, colorClass: "bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/20" },
   ];
 
-  const popularSearches = ["سباك", "كهربائي", "صيدلية", "مشويات", "ونش انقاذ"];
+  const popularSearches = ["سكن طلاب", "سباك", "كهربائي", "صيدلية", "مشويات", "ونش انقاذ"];
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 selection:bg-primary/30 overflow-x-hidden">

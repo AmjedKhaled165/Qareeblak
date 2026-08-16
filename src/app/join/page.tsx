@@ -158,6 +158,12 @@ export default function JoinPage() {
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                     >
                                         <option value="">اختر التخصص...</option>
+                                        <optgroup label="🏠 سكن وعقارات">
+                                            <option value="سكن طلاب - بنين">سكن طلاب (بنين)</option>
+                                            <option value="سكن طالبات - بنات">سكن طالبات (بنات)</option>
+                                            <option value="سكن عائلي وعقارات">سكن عائلي وعقارات مفروشة</option>
+                                            <option value="سمسار وتكاتف عقاري">تسويق عقاري وسمسار سكن</option>
+                                        </optgroup>
                                         <optgroup label="🔧 صنايعية وخدمات حرفية">
                                             <option value="صنايعي - سباك">سباك (سباكة وصيانة حنفيات ومواسير)</option>
                                             <option value="صنايعي - نجار">نجار (نجارة وأثاث وتصليح)</option>
@@ -165,6 +171,7 @@ export default function JoinPage() {
                                             <option value="صنايعي - كهربائي">كهربائي (كهرباء منازل وإضاءة)</option>
                                             <option value="صنايعي - نقاش">نقاش (دهانات وتجديد)</option>
                                             <option value="صنايعي - فني تكييف">فني تكييف وأجهزة منزلية</option>
+                                            <option value="صنايعي - عام">صنايعي / فني حرفي عام</option>
                                             <option value="صيانة">صيانة وخدمات منزلية عامة</option>
                                         </optgroup>
                                         <optgroup label="🏬 أنشطة ومتاجر">

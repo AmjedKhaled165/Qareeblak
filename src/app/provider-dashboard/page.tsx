@@ -19,7 +19,7 @@ import { MaintenanceAppointmentsTab } from "@/components/features/maintenance-ap
 import { apiCall, bookingsApi, servicesApi } from "@/lib/api";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { format } from "date-fns";
-import { isPharmacyProvider, isMaintenanceProvider, isPlaygroundProvider, isDoctorProvider, isCarServiceProvider } from "@/lib/category-utils";
+import { isPharmacyProvider, isMaintenanceProvider, isPlaygroundProvider, isDoctorProvider, isCarServiceProvider, isCraftsmanProvider, isHousingProvider } from "@/lib/category-utils";
 import dynamic from "next/dynamic";
 import { io } from "socket.io-client";
 import { NotificationBell } from "@/components/features/notification-bell";
@@ -2365,9 +2365,9 @@ export default function ProviderDashboard() {
                 {[
                     { id: 'overview' as const, label: 'نظرة عامة', icon: LayoutDashboard },
                     { id: 'orders' as const, label: 'الطلبات', icon: ShoppingBag, badge: overviewBookings.filter((b: Booking) => b.status === 'pending').length },
-                    ...(isDoctorProvider(myProviderProfile?.category) || isPlaygroundProvider(myProviderProfile?.category) || isMaintenanceProvider(myProviderProfile?.category) ? [{ id: 'appointments' as const, label: 'المواعيد', icon: Calendar }] : [{ id: 'services' as const, label: 'المنيو', icon: Utensils }]),
+                    ...(isDoctorProvider(myProviderProfile?.category) || isPlaygroundProvider(myProviderProfile?.category) || isMaintenanceProvider(myProviderProfile?.category) || isCraftsmanProvider(myProviderProfile?.category) ? [{ id: 'appointments' as const, label: 'المواعيد', icon: Calendar }] : [{ id: 'services' as const, label: 'الخدمات / المنيو', icon: Utensils }]),
                     { id: 'reviews' as const, label: 'التقييمات', icon: Star },
-                    ...(isPharmacyProvider(myProviderProfile?.category) || isCarServiceProvider(myProviderProfile?.category) || isDoctorProvider(myProviderProfile?.category) ? [{ id: 'conversations' as const, label: 'محادثات', icon: MessageSquare, badge: consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) }] : []),
+                    ...(isPharmacyProvider(myProviderProfile?.category) || isCarServiceProvider(myProviderProfile?.category) || isDoctorProvider(myProviderProfile?.category) || isHousingProvider(myProviderProfile?.category) || isCraftsmanProvider(myProviderProfile?.category) ? [{ id: 'conversations' as const, label: 'محادثات', icon: MessageSquare, badge: consultations.reduce((acc: number, c: any) => acc + Number(c.unread_count || 0), 0) }] : []),
                 ].map((tab) => (
                     <button
                         key={tab.id}

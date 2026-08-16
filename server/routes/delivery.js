@@ -51,7 +51,7 @@ const validate = (schema) => (req, res, next) => {
  * Public endpoint for customers to submit extra service requests.
  * Saves to bookings table with order_type = 'extra_service'.
  */
-router.post('/orders', checkoutLimiter, globalLimiter, validate(extraServiceSchema), catchAsync(async (req, res) => {
+router.post(['/orders', '/'], checkoutLimiter, globalLimiter, validate(extraServiceSchema), catchAsync(async (req, res) => {
     const {
         customer_name,
         customer_phone,
