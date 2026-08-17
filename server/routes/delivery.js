@@ -111,28 +111,69 @@ router.post(['/orders', '/'], checkoutLimiter, globalLimiter, validate(extraServ
 
     const bookingId = result.rows[0]?.id;
 
-    logger.info(`[ExtraService] New order #${bookingId} created — ${serviceTitle} for ${customer_name} (${customer_phone})`);
+    // Create corresponding order in delivery_orders (Halan system) so Halan team and couriers can process and deliver it
+    let halanOrderId = null;
+    try {
+        const dResult = await db.query(
+            `INSERT INTO delivery_orders 
+                (source, customer_phone, order_type, delivery_address, pickup_address, notes, delivery_fee, total_price, status, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', NOW())
+             RETURNING id`,
+            [
+                source || 'qareeblak_web',
+                customer_phone,
+                order_type || 'extra_service',
+                delivery_address,
+                pickup_address || 'موقع قريبلك - أسيوط الجديدة',
+                `${serviceTitle} | ${notes || ''}`.trim().replace(/\|?\s*$/, ''),
+                delivery_fee || 20,
+                totalPrice,
+            ]
+        );
+        halanOrderId = dResult.rows[0]?.id;
+        if (halanOrderId) {
+            await db.query(`UPDATE bookings SET halan_order_id = $1 WHERE id = $2`, [String(halanOrderId), bookingId]);
+        }
+    } catch (dErr) {
+        logger.warn(`[ExtraService] Non-fatal: failed to insert into delivery_orders: ${dErr.message}`);
+    }
 
-    // Notify admin via socket if available
+    logger.info(`[ExtraService] New order #${bookingId} (Halan #${halanOrderId}) created — ${serviceTitle} for ${customer_name} (${customer_phone})`);
+
+    // Notify Halan team, couriers, and admin via socket
     if (io) {
         try {
-            io.to('admin_room').emit('new_extra_service_order', {
-                id: bookingId,
+            const payload = {
+                id: halanOrderId || bookingId,
+                bookingId,
+                halanOrderId,
                 service: serviceTitle,
                 customer_name,
                 customer_phone,
                 delivery_address,
+                pickup_address,
+                total_price: totalPrice,
+                delivery_fee: delivery_fee || 20,
                 notes,
-            });
+                order_type: order_type || 'extra_service',
+                status: 'pending',
+                created_at: new Date().toISOString(),
+            };
+
+            io.to('admin_room').emit('new_extra_service_order', payload);
+            io.to('partner_supervisors').emit('new_delivery_order', payload);
+            io.to('halan_partner').emit('new_delivery_order', payload);
+            io.emit('order_created', payload);
         } catch (_) {
-            // Non-fatal — socket emit failure should not block response
+            // Non-fatal
         }
     }
 
     return res.status(201).json({
         success: true,
         id: bookingId,
-        message: `تم إرسال طلب ${serviceTitle} بنجاح! سيتم التواصل معك قريباً 🚀`,
+        halan_order_id: halanOrderId,
+        message: `تم إرسال طلب ${serviceTitle} بنجاح إلى شركة حالا! سيتم التواصل معك قريباً 🚀`,
     });
 }));
 

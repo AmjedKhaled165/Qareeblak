@@ -24,7 +24,8 @@ router.post('/orders', optionalAuth, globalLimiter, validate(createDeliveryOrder
 router.post('/public-create', optionalAuth, globalLimiter, validate(createDeliveryOrderSchema), deliveryController.createOrder);
 router.post('/:id/customer-cancel', globalLimiter, deliveryController.customerCancel);
 router.post('/:id/customer-remove-item', globalLimiter, deliveryController.customerRemoveItem);
-router.post('/:id/customer-add-items-bulk', globalLimiter, deliveryController.customerAddItemsBulk);
+// Public / Customer order creation (Allowed for all users, customers, and guests)
+router.post('/', validate(createDeliveryOrderSchema), deliveryController.createOrder);
 
 router.use(verifyToken);
 router.use(isPartnerOrAdmin);
@@ -38,9 +39,6 @@ router.get('/courier/history', deliveryController.getCourierHistory);
 
 // Track/Get Single Order
 router.get('/:id', deliveryController.getOrder);
-
-// Create New Order (Supports Normal & Split Mode)
-router.post('/', validate(createDeliveryOrderSchema), deliveryController.createOrder);
 
 // Update Generic Fields
 router.put('/:id', deliveryController.updateOrder);
