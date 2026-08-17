@@ -708,11 +708,38 @@ export const wheelApi = {
     }
 };
 
+// ==================== PROVIDER JOIN REQUESTS API ====================
+export const requestsApi = {
+    /** Get all provider join/registration requests */
+    async getAll(params: { status?: string; page?: number; limit?: number; search?: string } = {}) {
+        const qs = new URLSearchParams();
+        if (params.status && params.status !== 'all') qs.set('status', params.status);
+        if (params.page) qs.set('page', String(params.page));
+        if (params.limit) qs.set('limit', String(params.limit));
+        if (params.search) qs.set('search', params.search);
+        return apiCall(`/auth/requests?${qs.toString()}`);
+    },
+
+    /** Approve a provider request — activates the provider account */
+    async approve(id: string) {
+        return apiCall(`/auth/requests/${id}/approve`, { method: 'POST' });
+    },
+
+    /** Reject a provider request with optional reason */
+    async reject(id: string, reason?: string) {
+        return apiCall(`/auth/requests/${id}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ reason })
+        });
+    },
+};
+
 export default {
     auth: authApi,
     providers: providersApi,
     services: servicesApi,
     bookings: bookingsApi,
     users: usersApi,
-    wheel: wheelApi
+    wheel: wheelApi,
+    requests: requestsApi,
 };
