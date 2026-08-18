@@ -445,24 +445,6 @@ export const authApi = {
     }
 };
 
-// ==================== REQUESTS API (Admin) ====================
-export const requestsApi = {
-    async getAll() {
-        return apiCall('/auth/requests');
-    },
-
-    async approve(id: string) {
-        return apiCall(`/auth/requests/${id}/approve`, {
-            method: 'POST'
-        });
-    },
-
-    async reject(id: string) {
-        return apiCall(`/auth/requests/${id}/reject`, {
-            method: 'POST'
-        });
-    }
-};
 
 // ==================== PROVIDERS API ====================
 export const providersApi = {
