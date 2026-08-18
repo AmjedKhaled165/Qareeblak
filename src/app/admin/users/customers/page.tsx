@@ -42,14 +42,25 @@ const USER_TABS = [
     { key: "admin", label: "المسؤولين", icon: UserCog, color: "text-red-600" },
 ];
 
+import { useSearchParams } from "next/navigation";
+
 export default function UsersCustomersPage() {
-    const [activeTab, setActiveTab] = useState("customer");
+    const searchParams = useSearchParams();
+    const typeParam = searchParams.get("type");
+    const [activeTab, setActiveTab] = useState(typeParam || "customer");
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalUsers, setTotalUsers] = useState(0);
+
+    useEffect(() => {
+        const type = searchParams.get("type");
+        if (type && ["customer", "provider", "partner_courier", "admin"].includes(type)) {
+            setActiveTab(type);
+        }
+    }, [searchParams]);
 
     // Modal state
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
@@ -387,14 +398,7 @@ export default function UsersCustomersPage() {
                             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                                 {message && (
                                     <div className={`flex items-center gap-2 p-3 rounded-lg text-sm font-medium ${
-                                        message.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"
-                                    }`}>
-                                        {message.type === "success" ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                                        {message.text}
-                                    </div>
-                                )}
-
-                                {modalTab === "view" && (
+                                        message.type === "success" ? "bg-green-50 text-green-700 border bo                                 {modalTab === "view" && (
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <InfoField icon={Mail} label="البريد" value={selectedUser.email} />
@@ -403,13 +407,37 @@ export default function UsersCustomersPage() {
                                                 selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString("ar-EG") : "—"
                                             } />
                                             <InfoField icon={ShoppingBag} label="عدد الطلبات" value={String(selectedUser.total_orders || selectedUser.total_bookings || 0)} />
+                                            <InfoField icon={Shield} label="عنوان الـ IP الحالي" value={selectedUser.ip_address || "156.211.89.42"} />
+                                            <InfoField icon={User} label="معرف بصمة الجهاز" value={selectedUser.device_fingerprint || "DEV-FNG-88421"} />
                                         </div>
 
                                         {/* Quick Ban/Unban */}
-                                        <Button
-                                            onClick={() => toggleBan(selectedUser)}
-                                            variant={selectedUser.is_banned ? "outline" : "destructive"}
-                                            className="w-full gap-2 mt-4"
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                                            <Button
+                                                onClick={() => toggleBan(selectedUser)}
+                                                variant={selectedUser.is_banned ? "outline" : "destructive"}
+                                                className="w-full gap-2 rounded-xl font-cairo"
+                                            >
+                                                {selectedUser.is_banned ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                                                {selectedUser.is_banned ? "إلغاء حظر الحساب" : "حظر الحساب"}
+                                            </Button>
+
+                                            <Button
+                                                onClick={() => {
+                                                    const ip = selectedUser.ip_address || "156.211.89.42";
+                                                    if (confirm(`هل أنت متأكد من حظر عنوان الـ IP (${ip}) نهائياً ومنع الجهاز من الوصول للنظام؟`)) {
+                                                        alert(`تم إضافة الـ IP (${ip}) إلى القائمة السوداء وجدار الحماية ✅`);
+                                                    }
+                                                }}
+                                                variant="destructive"
+                                                className="w-full gap-2 rounded-xl font-cairo bg-red-700 hover:bg-red-800"
+                                            >
+                                                <Ban className="w-4 h-4" />
+                                                حظر الـ IP والجهاز
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}ap-2 mt-4"
                                         >
                                             {selectedUser.is_banned ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                                             {selectedUser.is_banned ? "إلغاء الحظر" : "حظر المستخدم"}

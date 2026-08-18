@@ -89,22 +89,17 @@ function getAuthToken(endpoint: string): string | null {
         return null;
     }
 
-    // Prioritize halan_token for partner/admin endpoints
-    const isHalanEndpoint = endpoint.includes('/halan') ||
+    // Prioritize token for partner/admin endpoints
+    const isHalanOrAdminEndpoint = endpoint.includes('/halan') ||
+        endpoint.includes('/admin') ||
         endpoint.includes('/providers') ||
         endpoint.includes('/auth/provider');
 
     let token: string | null = null;
-    if (isHalanEndpoint) {
-        // Halan/partner routes should prefer the dedicated partner token,
-        // but can fallback to regular token for shared admin/provider APIs.
-        token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
-        if (token && endpoint.includes('/halan')) {
-            console.log('[API] Using Halan token for endpoint:', endpoint.substring(0, 30));
-        }
+    if (isHalanOrAdminEndpoint) {
+        // Halan/partner/admin routes check both admin/partner token and main token
+        token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
     } else {
-        // Non-Halan routes must never fallback to halan_token,
-        // otherwise stale partner sessions can break normal customer auth.
         token = localStorage.getItem('qareeblak_token');
     }
 

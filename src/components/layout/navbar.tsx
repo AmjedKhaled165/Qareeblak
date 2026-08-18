@@ -43,9 +43,18 @@ export function Navbar() {
     const [isTogglingStatus, setIsTogglingStatus] = useState<boolean>(false);
 
     // Helper to determine the actual user type (fallback for different backends)
-    const normalizedUserType = String(currentUser?.type || (currentUser as any)?.user_type || '').toLowerCase();
-    const isProviderOrPartner = ['provider', 'partner', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].includes(normalizedUserType);
-    const isProviderUser = normalizedUserType === 'provider';
+    const activeUser = currentUser || halanUser;
+    const rawUserType = String(activeUser?.type || activeUser?.user_type || activeUser?.role || '').toLowerCase();
+
+    // Halan Staff / Partner checks (admin, owner, supervisor, manager, courier, driver, etc.)
+    const isHalanStaff = Boolean(halanUser) || ['admin', 'owner', 'supervisor', 'manager', 'courier', 'driver', 'partner'].some(role => rawUserType.includes(role));
+
+    // Service Provider checks (restaurant, pharmacy, provider, etc.)
+    const isServiceProvider = !isHalanStaff && ['provider', 'restaurant', 'pharmacy', 'maintenance', 'doctor', 'playground'].some(role => rawUserType.includes(role));
+    const isProviderUser = rawUserType === 'provider' || Boolean(activeUser?.is_provider);
+
+    const hasDashboard = isHalanStaff || isServiceProvider || Boolean(halanUser) || Boolean(activeUser?.is_provider);
+    const dashboardHref = isHalanStaff ? '/partner' : '/provider-dashboard';
 
     const updateLocalStorageStatus = (status: boolean) => {
         try {
@@ -155,6 +164,11 @@ export function Navbar() {
 
     const handleLogout = () => {
         logout();
+        try {
+            localStorage.removeItem('halan_user');
+            localStorage.removeItem('halan_token');
+        } catch (e) {}
+        setHalanUser(null);
         setIsUserMenuOpen(false);
         setIsMobileMenuOpen(false);
         router.push('/');

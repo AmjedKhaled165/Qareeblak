@@ -8,7 +8,7 @@ export default function RequestsPage() {
 
     useEffect(() => {
         // Redirect to main admin page with requests tab
-        router.replace("/admin");
+        router.replace("/admin?tab=requests");
     }, [router]);
 
     return (

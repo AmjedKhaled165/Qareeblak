@@ -206,7 +206,8 @@ const verifyToken = async (req, res, next) => {
  * Middleware to check if user has admin privileges
  */
 const isAdmin = (req, res, next) => {
-    if (!req.user || req.user.user_type !== 'admin') {
+    const adminTypes = ['admin', 'owner', 'partner_owner'];
+    if (!req.user || !adminTypes.includes(req.user.user_type)) {
         return res.status(403).json({ error: 'غير مصرح - تتطلب صلاحيات مسئول' });
     }
     next();

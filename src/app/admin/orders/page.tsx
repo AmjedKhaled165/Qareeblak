@@ -71,14 +71,20 @@ const ORDER_TYPES = [
     { value: "maintenance", label: "صيانة" },
 ];
 
+import { useSearchParams } from "next/navigation";
+
 export default function OrdersPage() {
+    const searchParams = useSearchParams();
+    const typeParam = searchParams.get("type");
+    const statusParam = searchParams.get("status");
+
     // ===== State =====
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("");
-    const [typeFilter, setTypeFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState(statusParam || "");
+    const [typeFilter, setTypeFilter] = useState(typeParam || "");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalOrders, setTotalOrders] = useState(0);
@@ -86,7 +92,13 @@ export default function OrdersPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [sortField, setSortField] = useState<string>("created_at");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-    // Filters are always visible in compact mode
+
+    useEffect(() => {
+        const type = searchParams.get("type");
+        const status = searchParams.get("status");
+        if (type !== null) setTypeFilter(type);
+        if (status !== null) setStatusFilter(status);
+    }, [searchParams]);
 
     // ===== Fetch Orders =====
     const fetchOrders = useCallback(async (silent = false) => {

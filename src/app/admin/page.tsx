@@ -11,6 +11,8 @@ import { useConfirm } from "@/components/providers/ConfirmProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { requestsApi } from "@/lib/api";
 
+import { useSearchParams } from "next/navigation";
+
 interface ProviderRequest {
     id: string;
     name: string;
@@ -22,14 +24,32 @@ interface ProviderRequest {
     date: string;
 }
 
+import { adminStatsApi } from "@/lib/admin-api";
+
 export default function AdminDashboard() {
     const { providers, bookings, deleteProvider, refreshProviders, isInitialized, isLoading } = useAppStore();
     const { toast } = useToast();
     const { confirm } = useConfirm();
-    const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'providers' | 'bookings'>('overview');
+    const searchParams = useSearchParams();
+    const initialTab = (searchParams.get("tab") as any) || "overview";
+    const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'providers' | 'bookings'>(
+        ['overview', 'requests', 'providers', 'bookings'].includes(initialTab) ? initialTab : 'overview'
+    );
     const [searchTerm, setSearchTerm] = useState("");
     const [requests, setRequests] = useState<ProviderRequest[]>([]);
     const [loadingRequests, setLoadingRequests] = useState(false);
+    const [serverStats, setServerStats] = useState<any>(null);
+
+    useEffect(() => {
+        const tabParam = searchParams.get("tab");
+        if (tabParam && ['overview', 'requests', 'providers', 'bookings'].includes(tabParam)) {
+            setActiveTab(tabParam as any);
+        }
+    }, [searchParams]);
+
+    useEffect(() => {
+        adminStatsApi.getDashboard().then(setServerStats).catch(() => {});
+    }, []);
 
     // Fetch requests on mount and when tab changes
     useEffect(() => {
@@ -55,9 +75,9 @@ export default function AdminDashboard() {
     const pendingRequests = requests.filter(r => r.status === 'pending');
 
     const stats = [
-        { label: "طلبات معلقة", value: pendingRequests.length.toString(), icon: Clock, color: "text-orange-400", bg: "bg-orange-400/10" },
-        { label: "مقدمي الخدمات", value: (providers || []).length.toString(), icon: Store, color: "text-indigo-400", bg: "bg-indigo-400/10" },
-        { label: "إجمالي الحجوزات", value: (bookings || []).length.toString(), icon: ShoppingBag, color: "text-emerald-400", bg: "bg-emerald-400/10" },
+        { label: "طلبات معلقة", value: serverStats?.pending_orders_count !== undefined ? String(serverStats.pending_orders_count) : pendingRequests.length.toString(), icon: Clock, color: "text-orange-400", bg: "bg-orange-400/10" },
+        { label: "مقدمي الخدمات", value: serverStats?.providers_count !== undefined ? String(serverStats.providers_count) : (providers || []).length.toString(), icon: Store, color: "text-indigo-400", bg: "bg-indigo-400/10" },
+        { label: "إجمالي الحجوزات والطلبات", value: serverStats?.total_orders_count !== undefined ? String(serverStats.total_orders_count) : (bookings || []).length.toString(), icon: ShoppingBag, color: "text-emerald-400", bg: "bg-emerald-400/10" },
     ];
 
     const handleApprove = async (id: string, name: string) => {

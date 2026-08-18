@@ -46,18 +46,18 @@ const navSections: { title: string; items: NavItem[] }[] = [
                 icon: Package,
                 children: [
                     { label: "جميع الطلبات", path: "/admin/orders", icon: ShoppingBag },
-                    { label: "طلبات التوصيل", path: "/admin/orders/delivery", icon: Truck },
-                    { label: "طلبات الصيانة", path: "/admin/orders/maintenance", icon: Settings },
+                    { label: "طلبات التوصيل", path: "/admin/orders?type=app", icon: Truck },
+                    { label: "طلبات الصيانة", path: "/admin/orders?type=maintenance", icon: Settings },
                 ],
             },
             {
                 label: "👥 إدارة المستخدمين",
                 icon: Users,
                 children: [
-                    { label: "العملاء", path: "/admin/users/customers", icon: Users },
-                    { label: "مقدمي الخدمات", path: "/admin/users/providers", icon: Store },
-                    { label: "المناديب", path: "/admin/users/couriers", icon: Truck },
-                    { label: "المسؤولين", path: "/admin/users/admins", icon: UserCog },
+                    { label: "العملاء", path: "/admin/users/customers?type=customer", icon: Users },
+                    { label: "مقدمي الخدمات", path: "/admin/users/customers?type=provider", icon: Store },
+                    { label: "المناديب", path: "/admin/users/customers?type=partner_courier", icon: Truck },
+                    { label: "المسؤولين", path: "/admin/users/customers?type=admin", icon: UserCog },
                 ],
             },
         ],
@@ -90,11 +90,12 @@ const navSections: { title: string; items: NavItem[] }[] = [
         ],
     },
     {
-        title: "المراقبة",
+        title: "المراقبة والشكاوى",
         items: [
             { label: "🌍 التحكم الجغرافي", icon: MapPin, path: "/admin/zones" },
             { label: "👁️ سجل المراقبة", icon: ScrollText, path: "/admin/audit-log" },
-            { label: "طلبات الانضمام", icon: FileText, path: "/admin/requests", badge: 3, badgeColor: "bg-red-500" },
+            { label: "📩 الشكاوى والدعم الفني", icon: ScrollText, path: "/admin/complaints", badge: "جديد", badgeColor: "bg-indigo-600" },
+            { label: "طلبات الانضمام", icon: FileText, path: "/admin?tab=requests", badge: 3, badgeColor: "bg-red-500" },
         ],
     },
     {
@@ -117,7 +118,7 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["📦 مركز العمليات", "👥 إدارة المستخدمين"]));
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["📦 مركز العمليات", "👥 إدارة المستخدمين", "💰 التقارير والعمولات", "🛠️ الخدمات والمنتجات"]));
 
     const toggleSection = (label: string) => {
         setExpandedSections((prev) => {
@@ -128,9 +129,14 @@ export default function AdminSidebar({ currentPath, onNavigate }: AdminSidebarPr
         });
     };
 
-    const isActive = (path?: string) => path === currentPath;
+    const isActive = (path?: string) => {
+        if (!path) return false;
+        const basePath = path.split('?')[0];
+        return basePath === currentPath;
+    };
+
     const isChildActive = (children?: { path: string }[]) =>
-        children?.some((c) => currentPath.startsWith(c.path));
+        children?.some((c) => currentPath.startsWith(c.path.split('?')[0]));
 
     const handleLogout = () => {
         localStorage.removeItem("qareeblak_token");
