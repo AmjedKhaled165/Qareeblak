@@ -14,18 +14,15 @@ const {
     courierPricingSchema
 } = require('../validations/delivery.validation');
 
-const { verifyToken, optionalAuth, isPartnerOrAdmin } = require('../middleware/auth');
+const { verifyToken, isPartnerOrAdmin } = require('../middleware/auth');
 
-// Public customer tracking & order creation endpoints (phone/user/code based)
+// Public customer tracking endpoints (phone/user/code based)
 router.get('/track/by-code/:code', globalLimiter, deliveryController.trackOrderByCode);
 router.post('/customer-orders', globalLimiter, deliveryController.getCustomerOrdersPublic);
 router.get('/track/:id', globalLimiter, deliveryController.trackOrderPublic);
-router.post('/orders', optionalAuth, globalLimiter, validate(createDeliveryOrderSchema), deliveryController.createOrder);
-router.post('/public-create', optionalAuth, globalLimiter, validate(createDeliveryOrderSchema), deliveryController.createOrder);
 router.post('/:id/customer-cancel', globalLimiter, deliveryController.customerCancel);
 router.post('/:id/customer-remove-item', globalLimiter, deliveryController.customerRemoveItem);
-// Public / Customer order creation (Allowed for all users, customers, and guests)
-router.post('/', validate(createDeliveryOrderSchema), deliveryController.createOrder);
+router.post('/:id/customer-add-items-bulk', globalLimiter, deliveryController.customerAddItemsBulk);
 
 router.use(verifyToken);
 router.use(isPartnerOrAdmin);
@@ -39,6 +36,9 @@ router.get('/courier/history', deliveryController.getCourierHistory);
 
 // Track/Get Single Order
 router.get('/:id', deliveryController.getOrder);
+
+// Create New Order (Supports Normal & Split Mode)
+router.post('/', validate(createDeliveryOrderSchema), deliveryController.createOrder);
 
 // Update Generic Fields
 router.put('/:id', deliveryController.updateOrder);

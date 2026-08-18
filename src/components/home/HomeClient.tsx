@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { Hero3DCanvas } from "@/components/animations/Hero3DCanvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,11 +10,6 @@ import { useAppStore } from "@/components/providers/AppProvider";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-
-const Hero3DCanvas = dynamic(
-  () => import("@/components/animations/Hero3DCanvas").then((mod) => mod.Hero3DCanvas),
-  { ssr: false }
-);
 import { ScrollReveal } from "@/components/animations/ScrollReveal";
 import { GradientText } from "@/components/animations/GradientText";
 import { BlurIn } from "@/components/animations/BlurIn";

@@ -18,7 +18,7 @@ import {
     Activity,
     Gift,
 } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
