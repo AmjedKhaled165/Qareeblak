@@ -398,7 +398,14 @@ export default function UsersCustomersPage() {
                             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                                 {message && (
                                     <div className={`flex items-center gap-2 p-3 rounded-lg text-sm font-medium ${
-                                        message.type === "success" ? "bg-green-50 text-green-700 border bo                                 {modalTab === "view" && (
+                                        message.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"
+                                    }`}>
+                                        {message.type === "success" ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                                        {message.text}
+                                    </div>
+                                )}
+
+                                {modalTab === "view" && (
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <InfoField icon={Mail} label="البريد" value={selectedUser.email} />
@@ -436,12 +443,6 @@ export default function UsersCustomersPage() {
                                                 حظر الـ IP والجهاز
                                             </Button>
                                         </div>
-                                    </div>
-                                )}ap-2 mt-4"
-                                        >
-                                            {selectedUser.is_banned ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
-                                            {selectedUser.is_banned ? "إلغاء الحظر" : "حظر المستخدم"}
-                                        </Button>
                                     </div>
                                 )}
 
