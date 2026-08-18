@@ -209,17 +209,17 @@ app.use('/api/services', servicesRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/halan/auth', halanAuthRoutes);
 app.use('/api/halan/users', halanUsersRoutes);
+app.use('/api/extra-services', deliveryRoutes);
+app.use('/api/delivery/orders', deliveryRoutes);
+app.use('/api/delivery', deliveryRoutes);
 app.use('/api/halan/orders', halanOrdersRoutes);
-app.use('/api/delivery/orders', halanOrdersRoutes);
-app.use('/api/delivery', halanOrdersRoutes);
+app.use('/api/halan/delivery', halanOrdersRoutes);
 app.use('/api/halan/products', halanProductRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wheel', wheelRoutes);
-app.use('/api/delivery', deliveryRoutes);
-app.use('/api/extra-services', deliveryRoutes);
 // Only load debug routes in development mode to prevent data exposure
 if (process.env.NODE_ENV !== 'production') {
     app.use('/api/debug', debugAuthRoutes);

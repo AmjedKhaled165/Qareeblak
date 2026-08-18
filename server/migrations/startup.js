@@ -126,9 +126,24 @@ async function ensureCoreTables(query) {
             appointment_date TIMESTAMP,
             appointment_type VARCHAR(50),
             discount_amount DECIMAL(10, 2) DEFAULT 0,
+            order_type VARCHAR(50) DEFAULT 'standard',
+            source VARCHAR(50) DEFAULT 'qareeblak_web',
+            items JSONB,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `);
+
+    const newBookingColumns = [
+        "order_type VARCHAR(50) DEFAULT 'standard'",
+        "source VARCHAR(50) DEFAULT 'qareeblak_web'",
+        "items JSONB"
+    ];
+    for (const colDef of newBookingColumns) {
+        const colName = colDef.split(' ')[0];
+        try {
+            await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ${colName} ${colDef.substring(colName.length + 1)}`);
+        } catch(e) { /* ignore if column exists */ }
+    }
 
     await query(`
         CREATE TABLE IF NOT EXISTS delivery_orders (
