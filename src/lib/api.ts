@@ -1,0 +1,731 @@
+// Always use same-origin proxy in the browser.
+// Vercel rewrites (next.config.ts) forward /api/* to the Azure backend,
+// so the browser never needs to make cross-origin requests — no CORS needed.
+const isBrowser = typeof window !== 'undefined';
+const useSameOriginProxy = isBrowser;
+
+const API_BASE_URL = useSameOriginProxy
+    ? ''
+    : (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+
+// Ensure we don't duplicate /api if it's already in the base URL
+const BASE_URL = useSameOriginProxy
+    ? '/api'
+    : (API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`);
+
+// Check if we should use mock API for development
+const USE_MOCK_API = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_USE_MOCK_API === 'true';
+
+// ⏱️ Timeout wrapper for fetch requests
+function fetchWithTimeout(url: string, options: RequestInit = {}, timeout: number = 60000): Promise<Response> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error('TIMEOUT'));
+        }, timeout);
+
+        fetch(url, options)
+            .then(response => {
+                clearTimeout(timer);
+                resolve(response);
+            })
+            .catch(err => {
+                clearTimeout(timer);
+                reject(err);
+            });
+    });
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getRequestTimeout(endpoint: string, options: RequestInit): number {
+    const method = (options.method || 'GET').toUpperCase();
+
+    if (endpoint.includes('/providers') && method === 'GET') {
+        return 60000;
+    }
+
+    // Order creation may include multiple writes/validations.
+    if (endpoint.includes('/orders') && method === 'POST') {
+        return 60000;
+    }
+
+    // Profile updates may include large base64 images (avatar, coverImage)
+    // which take longer to upload on slow connections.
+    if ((endpoint.includes('/auth/profile') || endpoint.includes('/halan/users')) && method === 'PUT') {
+        return 60000;
+    }
+
+    return 60000;
+}
+
+// Types for API Responses
+export interface ApiResponse<T = any> {
+    success: boolean;
+    data?: T;
+    error?: string;
+    message?: string;
+    token?: string;
+}
+
+// Helper to get the correct auth token from storage
+function getAuthToken(endpoint: string): string | null {
+    if (typeof window === 'undefined') return null;
+
+    // Clean the endpoint to match accurately
+    const cleanEndpointForAuth = endpoint.split('?')[0].replace(/^\/+/, '').replace(/^api\//, '');
+
+    // Public auth routes must never include Authorization headers.
+    const isPublicAuthEndpoint = [
+        'auth/login',
+        'auth/register',
+        'auth/guest-login',
+        'auth/google-sync',
+        'halan/auth/login'
+    ].includes(cleanEndpointForAuth);
+
+    if (isPublicAuthEndpoint) {
+        return null;
+    }
+
+    // Prioritize token for partner/admin endpoints
+    const isHalanOrAdminEndpoint = endpoint.includes('/halan') ||
+        endpoint.includes('/admin') ||
+        endpoint.includes('/providers') ||
+        endpoint.includes('/auth/provider');
+
+    let token: string | null = null;
+    if (isHalanOrAdminEndpoint) {
+        // Halan/partner/admin routes check both admin/partner token and main token
+        token = localStorage.getItem('qareeblak_token') || localStorage.getItem('halan_token');
+    } else {
+        token = localStorage.getItem('qareeblak_token');
+    }
+
+    if (!token && endpoint.includes('/halan')) {
+        console.warn('[API] ⚠️ No token found for Halan endpoint:', endpoint);
+    }
+
+    return token;
+}
+
+function getCookieValue(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${name}=`));
+    if (!match) return null;
+    return decodeURIComponent(match.substring(name.length + 1));
+}
+
+// [SECURITY ROTATION] Silent token refresh mechanism
+let _refreshPromise: Promise<boolean> | null = null;
+
+async function attemptTokenRefresh(): Promise<boolean> {
+    // Deduplicate concurrent refresh attempts
+    if (_refreshPromise) return _refreshPromise;
+
+    _refreshPromise = (async () => {
+        try {
+            const refreshUrl = `${BASE_URL}/auth/refresh`;
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            const csrfToken = getCookieValue('csrfToken');
+            if (csrfToken) {
+                headers['x-csrf-token'] = csrfToken;
+            }
+            const token = localStorage.getItem('halan_token') || localStorage.getItem('qareeblak_token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const res = await fetch(refreshUrl, {
+                method: 'POST',
+                credentials: 'include', // Send HttpOnly refresh cookie
+                headers
+            });
+            if (!res.ok) return false;
+            const data = await res.json();
+            // If the server returned a new token in the body, update localStorage
+            if (data.token || data.accessToken) {
+                const newToken = data.token || data.accessToken;
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('qareeblak_token', newToken);
+                }
+            }
+            return true;
+        } catch {
+            return false;
+        } finally {
+            _refreshPromise = null;
+        }
+    })();
+
+    return _refreshPromise;
+}
+
+// Helper function for API calls
+export async function apiCall<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = getAuthToken(endpoint);
+
+    // Clean up endpoint: remove leading / and leading api/ if present to avoid duplication
+    const cleanEndpoint = endpoint.replace(/^\/+/, '').replace(/^api\//, '');
+
+    // Construct final URL
+    const url = `${BASE_URL}/${cleanEndpoint}`;
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> || {})
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const method = (options.method || 'GET').toUpperCase();
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        const csrfToken = getCookieValue('csrfToken');
+        if (csrfToken) {
+            headers['x-csrf-token'] = csrfToken;
+        }
+    }
+    const timeout = getRequestTimeout(endpoint, options);
+    const maxAttempts = method === 'GET' ? 2 : 1;
+
+    // Build the options including cache: 'no-store' to prevent Next.js from aggressively caching data
+    const fetchOptions: RequestInit = {
+        credentials: 'include', // Ensure HttpOnly cookies are sent
+        ...options,
+        headers,
+        cache: options.cache || 'no-store'
+    };
+
+    let response: Response | null = null;
+    try {
+        let lastTimeoutError: Error | null = null;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                response = await fetchWithTimeout(url, fetchOptions, timeout);
+
+                // Success: stop retry loop.
+                lastTimeoutError = null;
+                break;
+            } catch (error: any) {
+                if (error?.message !== 'TIMEOUT') {
+                    throw error;
+                }
+
+                lastTimeoutError = error;
+
+                if (attempt < maxAttempts) {
+                    console.warn(`⏱️ Timeout for ${endpoint}, retrying (${attempt}/${maxAttempts - 1})...`);
+                    await sleep(500);
+                    continue;
+                }
+            }
+        }
+
+        if (lastTimeoutError) {
+            throw lastTimeoutError;
+        }
+    } catch (error: any) {
+        if (error.message === 'TIMEOUT') {
+            console.warn(`⏱️ Request timeout for ${endpoint} (${timeout}ms)`);
+            throw new Error('انتهت مهلة الطلب. يرجى التحقق من حالة الطلب في سجل الطلبات.');
+        }
+        throw error;
+    }
+
+    if (!response) {
+        throw new Error('No response received from server');
+    }
+
+    const text = await response.text();
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        console.error(`API Error (${endpoint}) -> ${url}: Received non-JSON response`, text.substring(0, 200));
+        throw new Error(`Server returned invalid response: ${response.status} ${response.statusText}`);
+    }
+
+    if (!response.ok) {
+        // Detailed error logging for debugging 401 and other issues
+        const isHalanEndpoint = endpoint.includes('/halan');
+        const halanToken = localStorage.getItem('halan_token');
+        const qareeblakToken = localStorage.getItem('qareeblak_token');
+
+        const debugPayload = {
+            status: response.status,
+            statusText: response.statusText,
+            url: url,
+            hasToken: !!token,
+            tokenType: token ? (token.startsWith('ey') ? 'JWT' : 'Other') : 'none',
+            isHalanEndpoint,
+            halanTokenSet: !!halanToken,
+            qareeblakTokenSet: !!qareeblakToken,
+            error: data?.error || data?.message,
+            fullResponse: data
+        };
+
+        if (response.status === 429) {
+            console.warn(`⚠️ API Rate Limited (${endpoint}):`, debugPayload);
+        } else if (response.status >= 500) {
+            console.error(`❌ API Error (${endpoint}):`, debugPayload);
+        } else {
+            console.warn(`⚠️ API Request Failed (${endpoint}):`, debugPayload);
+        }
+
+        // Handle different error scenarios
+        if (response.status === 404) {
+            throw new Error(`الطلب غير موجود (${response.status}) - ${endpoint}`);
+        } else if (response.status === 401) {
+            // [SECURITY ROTATION] Attempt silent token refresh before giving up
+            const baseEndpoint = endpoint.split('?')[0].replace(/^\/+/, '').replace(/^api\//, '');
+            const isAuthEndpoint = [
+                'auth/login',
+                'auth/register',
+                'auth/refresh',
+                'auth/guest-login',
+                'halan/auth/login'
+            ].includes(baseEndpoint);
+
+            if (!isAuthEndpoint) {
+                const refreshed = await attemptTokenRefresh();
+                if (refreshed) {
+                    // Retry the original request with the new token
+                    return apiCall<T>(endpoint, options);
+                }
+            }
+
+            console.warn(`[API] 401 Unauthorized for ${endpoint}.`);
+            throw new Error(`[401] ${data?.error || data?.message || 'عدم التفويض - يرجى تسجيل الدخول'}`);
+        } else if (response.status === 429) {
+            throw new Error(data?.error || data?.message || '⚠️ نشاط غير طبيعي من عنوانك. يرجى المحاولة لاحقاً.');
+        } else if (response.status === 500) {
+            throw new Error(data?.error || data?.message || `خطأ في الخادم (${response.status}) - حاول مرة أخرى لاحقاً`);
+        }
+
+        throw new Error(data?.error || data?.message || `حدث خطأ في الطلب (${response.status})`);
+    }
+
+    return data;
+}
+
+// ==================== AUTH API ====================
+export const authApi = {
+    async sendRegisterOtp(email: string) {
+        return apiCall('/auth/send-register-otp', {
+            method: 'POST',
+            body: JSON.stringify({ email })
+        });
+    },
+
+    async register(data: { name: string; email: string; password: string; phone: string; otp?: string; userType?: string }) {
+        const result = await apiCall('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: data.name,
+                email: data.email,
+                password: data.password,
+                phone: data.phone,
+                otp: data.otp,
+                userType: data.userType || 'customer'
+            })
+        });
+        const tokenToSave = result.token || result.data?.token;
+        if (tokenToSave) {
+            localStorage.setItem('qareeblak_token', tokenToSave);
+            localStorage.removeItem('halan_token');
+        } else if (result.success || result.user || result.data?.user) {
+            localStorage.setItem('qareeblak_cookie_session', 'true');
+            localStorage.removeItem('halan_token');
+        }
+
+        if (!result.user && result.data?.user) {
+            result.user = result.data.user;
+        }
+
+        return result;
+    },
+
+    async login(email: string, password: string) {
+        const result = await apiCall('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        });
+
+        const tokenToSave = result.token || result.data?.token;
+        if (tokenToSave) {
+            localStorage.setItem('qareeblak_token', tokenToSave);
+            localStorage.removeItem('halan_token');
+        } else if (result.success || result.user || result.data?.user) {
+            // We successfully logged in but no token in body -> HttpOnly cookie used
+            localStorage.setItem('qareeblak_cookie_session', 'true');
+            localStorage.removeItem('halan_token');
+        }
+
+        // Ensure user is correctly attached so loginUser works smoothly
+        if (!result.user && result.data?.user) {
+            result.user = result.data.user;
+        }
+
+        return result;
+    },
+
+    async guestLogin() {
+        const result = await apiCall('/auth/guest-login', {
+            method: 'POST'
+        });
+        const tokenToSave = result.token || result.data?.token;
+        if (tokenToSave) {
+            localStorage.setItem('qareeblak_token', tokenToSave);
+            localStorage.removeItem('halan_token');
+        } else if (result.success || result.user || result.data?.user) {
+            localStorage.setItem('qareeblak_cookie_session', 'true');
+            localStorage.removeItem('halan_token');
+        }
+
+        if (!result.user && result.data?.user) {
+            result.user = result.data.user;
+        }
+        return result;
+    },
+
+    async getCurrentUser() {
+        return apiCall('/auth/me');
+    },
+
+    async submitProviderRequest(data: {
+        name: string;
+        email: string;
+        password: string;
+        phone: string;
+        category: string;
+        location: string;
+    }) {
+        return apiCall('/auth/provider-request', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async updateProfile(data: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        avatar?: string;
+        oldPassword?: string;
+        newPassword?: string;
+        category?: string;
+        location?: string;
+        coverImage?: string;
+    }) {
+        return apiCall('/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
+    logout() {
+        localStorage.removeItem('qareeblak_token');
+        localStorage.removeItem('qareeblak_cookie_session');
+        localStorage.removeItem('qareeblak_user');
+        localStorage.removeItem('halan_token');
+        localStorage.removeItem('halan_user');
+        localStorage.removeItem('user');
+    }
+};
+
+// ==================== REQUESTS API (Admin) ====================
+export const requestsApi = {
+    async getAll() {
+        return apiCall('/auth/requests');
+    },
+
+    async approve(id: string) {
+        return apiCall(`/auth/requests/${id}/approve`, {
+            method: 'POST'
+        });
+    },
+
+    async reject(id: string) {
+        return apiCall(`/auth/requests/${id}/reject`, {
+            method: 'POST'
+        });
+    }
+};
+
+// ==================== PROVIDERS API ====================
+export const providersApi = {
+    async updateProfile(data: any) {
+        return apiCall('/providers/profile', {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async getAll() {
+        try {
+            const result = await apiCall<any>('/providers');
+
+            // Backend list endpoint may return either an array or a paginated object.
+            if (Array.isArray(result)) return result;
+            if (Array.isArray(result?.providers)) return result.providers;
+            return [];
+        } catch (error: any) {
+            if (String(error?.message || '').includes('انتهت مهلة الطلب')) {
+                // Do not break app startup in slow networks; keep UI usable.
+                return [];
+            }
+            throw error;
+        }
+    },
+
+    async getById(id: string) {
+        return apiCall(`/providers/${id}`);
+    },
+
+    async getByEmail(email: string) {
+        return apiCall(`/providers/by-email/${encodeURIComponent(email)}`);
+    },
+
+    async addReview(providerId: string, data: { userName: string; rating: number; comment: string }) {
+        return apiCall(`/providers/${providerId}/reviews`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async delete(id: string) {
+        return apiCall(`/providers/${id}`, {
+            method: 'DELETE'
+        });
+    }
+};
+
+// ==================== SERVICES API ====================
+export const servicesApi = {
+    async add(data: {
+        providerId?: string | number;
+        name: string;
+        description?: string;
+        price: number;
+        image?: string;
+        offer?: {
+            type: 'discount' | 'bundle';
+            discountPercent?: number;
+            bundleCount?: number;
+            bundleFreeCount?: number;
+            endDate?: string;
+        };
+    }) {
+        return apiCall('/services', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async update(id: string, data: any) {
+        return apiCall(`/services/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async delete(id: string) {
+        return apiCall(`/services/${id}`, {
+            method: 'DELETE'
+        });
+    },
+
+    async getByProvider(providerId: string) {
+        return apiCall(`/services/provider/${providerId}`);
+    }
+};
+
+// ==================== BOOKINGS API ====================
+export const bookingsApi = {
+    async create(data: {
+        userId?: string | number;
+        providerId: string;
+        serviceId?: string;
+        userName: string;
+        serviceName: string;
+        providerName: string;
+        price?: number;
+        details?: string;
+        items?: any[];
+        bundleId?: string;
+    }) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.create(data);
+        }
+        return apiCall('/bookings', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async checkout(data: {
+        userId: string | number;
+        items: any[];
+        addressInfo?: any;
+        userPrizeId?: number;
+    }) {
+        if (USE_MOCK_API) {
+            // No mock implementation for checkout yet, fallback to single calls or error
+            console.warn('Mock checkout not implemented');
+            return { success: false };
+        }
+        return apiCall('/bookings/checkout', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async getById(id: string) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.getById(id);
+        }
+        return apiCall(`/bookings/${id}`);
+    },
+
+    async update(id: string, data: { items?: any[]; status?: string; halanOrderId?: number }) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.update(id, data);
+        }
+        return apiCall(`/bookings/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async getByProvider(providerId: string, page: number = 1, limit: number = 10) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.getByProvider(providerId);
+        }
+        const response = await apiCall(`/bookings/provider/${providerId}?page=${page}&limit=${limit}`);
+        // Backend returns: { bookings: Booking[], pagination: { page, limit, total, totalPages } }
+        return response;
+    },
+
+    async getByUser(userId: string) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.getByUser(userId);
+        }
+        return apiCall(`/bookings/user/${userId}`);
+    },
+
+    async getAll() {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.getAll();
+        }
+        return apiCall('/bookings');
+    },
+
+    async updateStatus(id: string, status: string, price?: number) {
+        if (USE_MOCK_API) {
+            const { mockBookingsApi } = await import('./mock-api');
+            return mockBookingsApi.updateStatus(id, status);
+        }
+        return apiCall(`/bookings/${id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status, price })
+        });
+    }
+};
+// ==================== USERS API (Partner Profile) ====================
+export const usersApi = {
+    async updateUser(userId: number, data: {
+        name_ar?: string;
+        email?: string;
+        phone?: string;
+        avatar?: string;
+        oldPassword?: string;
+        newPassword?: string;
+    }) {
+        return apiCall(`/halan/users/${userId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    }
+};
+
+// ==================== WHEEL API ====================
+export const wheelApi = {
+    async getPrizes() {
+        return apiCall('/wheel/prizes');
+    },
+
+    async spin() {
+        return apiCall('/wheel/spin', {
+            method: 'POST'
+        });
+    },
+
+    async getMyPrizes() {
+        return apiCall('/wheel/my-prizes');
+    },
+
+    // Admin
+    async adminGetPrizes() {
+        return apiCall('/wheel/admin/prizes');
+    },
+
+    async adminAddPrize(data: any) {
+        return apiCall('/wheel/admin/prizes', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async adminUpdatePrize(id: number, data: any) {
+        return apiCall(`/wheel/admin/prizes/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async adminDeletePrize(id: number) {
+        return apiCall(`/wheel/admin/prizes/${id}`, {
+            method: 'DELETE'
+        });
+    }
+};
+
+// ==================== PROVIDER ORDERS API ====================
+export const providerOrdersApi = {
+    async create(data: { items: { name: string; price: number; quantity: number }[] }) {
+        return apiCall('/provider-orders', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
+    async updateStatus(bookingId: string | number, status: 'preparing' | 'ready') {
+        return apiCall(`/provider-orders/${bookingId}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status })
+        });
+    }
+};
+
+export default {
+    auth: authApi,
+    providers: providersApi,
+    services: servicesApi,
+    bookings: bookingsApi,
+    users: usersApi,
+    wheel: wheelApi,
+    providerOrders: providerOrdersApi
+};

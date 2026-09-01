@@ -1,0 +1,1 @@
+const { z } = require('zod'); const updateProfileSchema = z.object({ cash_number: z.string().optional().nullable(), instapay_account: z.string().optional().nullable() }); const parsed = updateProfileSchema.parse({ cash_number: '123', instapay_account: 'test' }); console.log(parsed);

@@ -1,0 +1,19 @@
+name: Aiven Redis Keep Alive
+
+on:
+  schedule:
+    # سيتم التنفيذ كل ساعة (الدقيقة 0 من كل ساعة)
+    - cron: '0 * * * *'
+  workflow_dispatch: # هذا السطر يسمح لك بتشغيله يدوياً للتجربة
+
+jobs:
+  ping_redis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Redis Tools
+        run: sudo apt-get update && sudo apt-get install -y redis-tools
+
+      - name: Send Ping to Aiven
+        run: |
+          # محاولة إرسال أمر PING، إذا نجح سيرد بـ PONG
+          redis-cli -u ${{ secrets.REDIS_URL }} PING

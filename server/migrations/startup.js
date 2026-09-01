@@ -1,0 +1,647 @@
+const db = require('../db');
+const logger = require('../utils/logger');
+
+async function ensureCoreTables(query) {
+    // Order matters because of foreign keys.
+    await query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255),
+            email VARCHAR(255) UNIQUE,
+            password VARCHAR(255),
+            username VARCHAR(255) UNIQUE,
+            phone VARCHAR(50),
+            user_type VARCHAR(50) DEFAULT 'customer',
+            latitude DECIMAL(10, 8),
+            longitude DECIMAL(11, 8),
+            last_location_update TIMESTAMP,
+            is_available BOOLEAN DEFAULT false,
+            is_online BOOLEAN DEFAULT false,
+            courier_status VARCHAR(50) DEFAULT 'متاح',
+            max_active_orders INTEGER DEFAULT 10,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS providers (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name VARCHAR(255),
+            email VARCHAR(255),
+            category VARCHAR(100),
+            location VARCHAR(255),
+            phone VARCHAR(50),
+            cover_image TEXT,
+            rating DECIMAL(2, 1) DEFAULT 0.0,
+            reviews_count INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS requests (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            phone VARCHAR(50),
+            category VARCHAR(100) NOT NULL,
+            location VARCHAR(255),
+            status VARCHAR(50) DEFAULT 'pending',
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Compatibility table for deployments expecting a dedicated drivers relation.
+    await query(`
+        CREATE TABLE IF NOT EXISTS drivers (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            is_available BOOLEAN DEFAULT false,
+            latitude DECIMAL(10, 8),
+            longitude DECIMAL(11, 8),
+            last_location_update TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS services (
+            id SERIAL PRIMARY KEY,
+            provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+            name VARCHAR(255),
+            description TEXT,
+            price DECIMAL(10, 2),
+            image VARCHAR(255),
+            has_offer BOOLEAN DEFAULT false,
+            offer_type VARCHAR(50),
+            discount_percent DECIMAL(5, 2),
+            bundle_count INTEGER,
+            bundle_free_count INTEGER,
+            offer_end_date TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Dynamically add columns for existing databases
+    const newServicesColumns = [
+        'description TEXT',
+        'price DECIMAL(10, 2)',
+        'image VARCHAR(255)',
+        'has_offer BOOLEAN DEFAULT false',
+        'offer_type VARCHAR(50)',
+        'discount_percent DECIMAL(5, 2)',
+        'bundle_count INTEGER',
+        'bundle_free_count INTEGER',
+        'offer_end_date TIMESTAMP'
+    ];
+    for (const colDef of newServicesColumns) {
+        const colName = colDef.split(' ')[0];
+        try {
+            await query(`ALTER TABLE services ADD COLUMN IF NOT EXISTS ${colName} ${colDef.substring(colName.length + 1)}`);
+        } catch(e) { /* ignore if already exists */ }
+    }
+
+    const newDeliveryColumns = [
+        'is_deleted BOOLEAN DEFAULT false',
+        'is_modified_by_courier BOOLEAN DEFAULT false',
+        'courier_modified_at TIMESTAMP',
+        'courier_modifications JSONB'
+    ];
+    for (const colDef of newDeliveryColumns) {
+        const colName = colDef.split(' ')[0];
+        try {
+            await query(`ALTER TABLE delivery_orders ADD COLUMN IF NOT EXISTS ${colName} ${colDef.substring(colName.length + 1)}`);
+        } catch(e) { /* ignore if already exists or table missing */ }
+    }
+    await query(`
+        CREATE TABLE IF NOT EXISTS bookings (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+            service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
+            parent_order_id INTEGER,
+            halan_order_id VARCHAR(100),
+            appointment_date TIMESTAMP,
+            appointment_type VARCHAR(50),
+            discount_amount DECIMAL(10, 2) DEFAULT 0,
+            order_type VARCHAR(50) DEFAULT 'standard',
+            source VARCHAR(50) DEFAULT 'qareeblak_web',
+            items JSONB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    const newBookingColumns = [
+        "order_type VARCHAR(50) DEFAULT 'standard'",
+        "source VARCHAR(50) DEFAULT 'qareeblak_web'",
+        "items JSONB"
+    ];
+    for (const colDef of newBookingColumns) {
+        const colName = colDef.split(' ')[0];
+        try {
+            await query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ${colName} ${colDef.substring(colName.length + 1)}`);
+        } catch(e) { /* ignore if column exists */ }
+    }
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS delivery_orders (
+            id SERIAL PRIMARY KEY,
+            source TEXT,
+            customer_phone VARCHAR(50),
+            customer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            order_type VARCHAR(20) DEFAULT 'manual',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS parent_orders (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            discount_amount DECIMAL(10, 2) DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS consultations (
+            id SERIAL PRIMARY KEY,
+            customer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+            status VARCHAR(50) DEFAULT 'active',
+            order_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS courier_supervisors (
+            courier_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            supervisor_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            PRIMARY KEY (courier_id, supervisor_id)
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS order_history (
+            id SERIAL PRIMARY KEY,
+            order_id INTEGER REFERENCES delivery_orders(id) ON DELETE CASCADE,
+            status VARCHAR(50) NOT NULL,
+            changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            notes TEXT,
+            latitude DECIMAL(10, 8),
+            longitude DECIMAL(11, 8),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id SERIAL PRIMARY KEY,
+            consultation_id INTEGER REFERENCES consultations(id) ON DELETE CASCADE,
+            sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            sender_type VARCHAR(50) DEFAULT 'customer',
+            message TEXT,
+            message_type VARCHAR(50) DEFAULT 'text',
+            image_url TEXT,
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            is_read BOOLEAN DEFAULT false,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS reviews (
+            id SERIAL PRIMARY KEY,
+            provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+            review_date DATE DEFAULT CURRENT_DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+}
+
+/**
+ * Run idempotent startup migrations
+ */
+async function runStartupMigrations() {
+    logger.info('🚀 Starting database migrations...');
+    const query = (text, params) => db.query(text, params);
+
+    try {
+        // Ensure required DB extensions exist before any schema/table operations.
+        await query('CREATE EXTENSION IF NOT EXISTS postgis;');
+        await query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
+        await query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+
+        // Ensure core relations exist before any update/cleanup/index logic.
+        await ensureCoreTables(query);
+
+        // Chat tables: ensure all required columns exist (idempotent for old schemas)
+        const chatColMigrations = [
+            'ALTER TABLE consultations ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES users(id) ON DELETE CASCADE',
+            'ALTER TABLE consultations ADD COLUMN IF NOT EXISTS provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE',
+            "ALTER TABLE consultations ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'",
+            'ALTER TABLE consultations ADD COLUMN IF NOT EXISTS order_id INTEGER',
+            'ALTER TABLE consultations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+            'ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE',
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sender_type VARCHAR(50) DEFAULT 'customer'",
+            'ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS message TEXT',
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS message_type VARCHAR(50) DEFAULT 'text'",
+            'ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS image_url TEXT',
+            'ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE',
+        ];
+        for (const sql of chatColMigrations) {
+            try { await query(sql); } catch(e) { /* column may already exist */ }
+        }
+        logger.info('✅ Chat tables columns ensured');
+
+        // 1. Migration: Ensure default ratings are 0.0 for providers with no reviews
+        const ratingRes = await query("UPDATE providers SET rating = 0.0 WHERE reviews_count = 0");
+        if (ratingRes.rowCount > 0) {
+            logger.info(`✅ Rating Migration: Updated ${ratingRes.rowCount} providers to 0.0 rating`);
+        }
+
+        // 1.1 Migration: Add cover_image to providers if missing
+        try {
+            await query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS cover_image TEXT");
+            logger.info('✅ Providers Migration: Ensured cover_image column exists');
+        } catch (e) {
+            // column may already exist
+        }
+
+        // 2. Migration: Safe column and index checks for bookings
+        const colCheck = await query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'bookings' AND column_name = 'appointment_date'
+        `);
+
+        if (colCheck.rows.length === 0) {
+            logger.info('🔄 Attempting to add appointment columns...');
+            await query(`
+                ALTER TABLE bookings 
+                ADD COLUMN IF NOT EXISTS appointment_date TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS appointment_type VARCHAR(50)
+            `);
+            logger.info(`✅ Bookings Migration: Added appointment columns`);
+        }
+
+        // 2.1 Migration: Legacy bookings schema compatibility (old/new deployments)
+        // Some production databases use customer_name instead of user_name.
+        // Ensure canonical columns always exist so API queries don't crash.
+        await query(`
+            ALTER TABLE bookings
+            ADD COLUMN IF NOT EXISTS user_name VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS service_name VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS provider_name VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS details TEXT,
+            ADD COLUMN IF NOT EXISTS items TEXT,
+            ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pending',
+            ADD COLUMN IF NOT EXISTS price DECIMAL(10,2)
+        `);
+
+        const bookingsColumnsRes = await query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'bookings'
+        `);
+        const bookingsColumns = new Set(bookingsColumnsRes.rows.map((r) => r.column_name));
+
+        if (bookingsColumns.has('customer_name')) {
+            await query(`
+                UPDATE bookings
+                SET user_name = COALESCE(user_name, customer_name)
+                WHERE user_name IS NULL
+            `);
+        }
+
+        if (bookingsColumns.has('created_at')) {
+            await query(`
+                UPDATE bookings
+                SET booking_date = COALESCE(booking_date, created_at)
+                WHERE booking_date IS NULL
+            `);
+        }
+
+        // Fill provider_name from providers table when possible.
+        await query(`
+            UPDATE bookings b
+            SET provider_name = COALESCE(b.provider_name, p.name)
+            FROM providers p
+            WHERE b.provider_name IS NULL
+              AND b.provider_id = p.id
+        `);
+
+        // Final safety defaults to avoid NOT NULL style assumptions in app responses.
+        await query(`UPDATE bookings SET user_name = COALESCE(user_name, 'عميل') WHERE user_name IS NULL`);
+        await query(`UPDATE bookings SET service_name = COALESCE(service_name, 'خدمة') WHERE service_name IS NULL`);
+        await query(`UPDATE bookings SET provider_name = COALESCE(provider_name, 'مقدم خدمة') WHERE provider_name IS NULL`);
+        logger.info('✅ Bookings compatibility migration applied (legacy name columns ensured)');
+
+        // 3. Check for appointment index
+        const indexCheck = await query(`
+            SELECT indexname 
+            FROM pg_indexes 
+            WHERE tablename = 'bookings' AND indexname = 'idx_bookings_appointment_date'
+        `);
+
+        if (indexCheck.rows.length === 0) {
+            logger.info('🔄 Attempting to create appointment index...');
+            await query(`
+                CREATE INDEX IF NOT EXISTS idx_bookings_appointment_date 
+                ON bookings(appointment_date)
+            `);
+            logger.info(`✅ Index Migration: Created appointment_date index`);
+        }
+
+        // 4. Migration: Add order_type column to delivery_orders
+        await query("ALTER TABLE delivery_orders ADD COLUMN IF NOT EXISTS order_type VARCHAR(20) DEFAULT 'manual'");
+        const orderRes = await query(`
+            UPDATE delivery_orders 
+            SET order_type = 'app' 
+            WHERE source ILIKE '%qareeblak%' 
+            AND (order_type IS NULL OR order_type = 'manual')
+        `);
+        if (orderRes.rowCount > 0) {
+            logger.info(`✅ Order Type Migration: Backfilled ${orderRes.rowCount} app orders`);
+        }
+
+        // 4.1 Migration: Add missing columns to services table
+        logger.info('🔄 Checking services table schema...');
+        await query(`
+            ALTER TABLE services 
+            ADD COLUMN IF NOT EXISTS description TEXT,
+            ADD COLUMN IF NOT EXISTS price DECIMAL(10, 2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS image TEXT,
+            ADD COLUMN IF NOT EXISTS has_offer BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS offer_type VARCHAR(50),
+            ADD COLUMN IF NOT EXISTS discount_percent DECIMAL(5, 2),
+            ADD COLUMN IF NOT EXISTS bundle_count INTEGER,
+            ADD COLUMN IF NOT EXISTS bundle_free_count INTEGER,
+            ADD COLUMN IF NOT EXISTS offer_end_date TIMESTAMP
+        `);
+        logger.info('✅ Services Migration: Ensured service item columns exist');
+
+
+        // 5. Migration: Add is_online, max_active_orders, and courier_status columns
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS courier_status VARCHAR(50) DEFAULT 'متصل'");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS max_active_orders INTEGER DEFAULT 10");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cash_number VARCHAR(100)");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS instapay_account VARCHAR(100)");
+        await query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false");
+
+        // 6. Migration: Wheel of Luck Tables
+        await query(`
+            CREATE TABLE IF NOT EXISTS wheel_prizes (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                prize_type VARCHAR(50) NOT NULL,
+                prize_value DECIMAL(10, 2),
+                provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+                probability INTEGER NOT NULL DEFAULT 10,
+                color VARCHAR(20) DEFAULT '#f44336',
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS user_prizes (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                prize_id INTEGER REFERENCES wheel_prizes(id) ON DELETE CASCADE,
+                is_used BOOLEAN DEFAULT FALSE,
+                won_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                used_at TIMESTAMP,
+                booking_id INTEGER REFERENCES bookings(id) ON DELETE SET NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Seed default prizes if wheel_prizes is empty
+        try {
+            const prizeCount = await query('SELECT COUNT(*) FROM wheel_prizes');
+            if (parseInt(prizeCount.rows[0].count, 10) === 0) {
+                logger.info('🌱 Seeding default fortune wheel prizes...');
+                await query(`
+                    INSERT INTO wheel_prizes (name, prize_type, prize_value, probability, color) VALUES
+                    ('توصيل مجاني', 'free_delivery', 0, 30, '#4CAF50'),
+                    ('خصم 10% مجاني', 'discount_percent', 10, 40, '#2196F3'),
+                    ('خصم 20% مجاني', 'discount_percent', 20, 20, '#FFC107'),
+                    ('خصم 50 جنيه', 'discount_flat', 50, 10, '#E91E63')
+                `);
+                logger.info('✅ Default fortune wheel prizes seeded successfully');
+            }
+        } catch (err) {
+            logger.error('Failed to seed default wheel prizes: ' + err.message);
+        }
+
+        // Migrations: Add advanced controls to wheel_prizes and user_prizes
+        await query("ALTER TABLE wheel_prizes ADD COLUMN IF NOT EXISTS min_order_amount DECIMAL(10, 2) DEFAULT 0");
+        await query("ALTER TABLE wheel_prizes ADD COLUMN IF NOT EXISTS expiry_days INTEGER DEFAULT 7");
+        await query("ALTER TABLE wheel_prizes ADD COLUMN IF NOT EXISTS max_uses INTEGER DEFAULT NULL");
+        await query("ALTER TABLE wheel_prizes ADD COLUMN IF NOT EXISTS used_count INTEGER DEFAULT 0");
+        await query("ALTER TABLE user_prizes ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP");
+
+        // 7. Migration: Add discount columns to orders
+        await query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
+        await query("ALTER TABLE parent_orders ADD COLUMN IF NOT EXISTS prize_id INTEGER REFERENCES user_prizes(id)");
+        await query("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0");
+        await query("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+        // 8. Migration: Add Critical Performance Indexes for Halan Orders & Tracking
+        logger.info('🔄 Attempting to create critical tracking indexes...');
+        await query(`
+            CREATE INDEX IF NOT EXISTS idx_delivery_customer_phone ON delivery_orders(customer_phone);
+            CREATE INDEX IF NOT EXISTS idx_delivery_customer_id ON delivery_orders(customer_id);
+            CREATE INDEX IF NOT EXISTS idx_bookings_halan_order ON bookings(halan_order_id);
+            CREATE INDEX IF NOT EXISTS idx_bookings_parent_order ON bookings(parent_order_id);
+            CREATE INDEX IF NOT EXISTS idx_parent_orders_user_date ON parent_orders(user_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_consultation ON chat_messages(consultation_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read) WHERE is_read = false;
+            CREATE INDEX IF NOT EXISTS idx_services_provider_id ON services(provider_id);
+            CREATE INDEX IF NOT EXISTS idx_reviews_provider_id ON reviews(provider_id, review_date DESC);
+        `);
+        // 9. Migration: Password Reset Tokens
+        await query(`
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                token TEXT NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        logger.info(`✅ Auth Migration: Enabled Password Reset system`);
+
+        // 10. Migration: Wallet System (Retention & Fintech)
+        await query(`
+            CREATE TABLE IF NOT EXISTS wallets (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                balance DECIMAL(15, 2) DEFAULT 0.00,
+                currency VARCHAR(10) DEFAULT 'EGP',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        // Ensure is_locked column exists (required by WalletService fraud protection)
+        await query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE`);
+
+        await query(`
+            CREATE TABLE IF NOT EXISTS wallet_transactions (
+                id SERIAL PRIMARY KEY,
+                wallet_id INTEGER REFERENCES wallets(id) ON DELETE CASCADE,
+                amount DECIMAL(15, 2) NOT NULL,
+                type VARCHAR(20) NOT NULL, -- 'credit', 'debit'
+                purpose VARCHAR(50), -- 'order_payment', 'refund', 'referral_bonus'
+                reference_id VARCHAR(100), -- order_id or other ref
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Ensure hash-chain ledger columns exist (required by WalletService immutable ledger)
+        const walletTxCols = [
+            'balance_after DECIMAL(15, 2)',
+            'record_hash TEXT',
+            'previous_record_hash TEXT',
+            'sequence_number INTEGER DEFAULT 0',
+            "status VARCHAR(20) DEFAULT 'success'",
+            'metadata JSONB',
+            'device_id VARCHAR(100)'
+        ];
+        for (const colDef of walletTxCols) {
+            const colName = colDef.split(' ')[0];
+            try {
+                await query(`ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS ${colDef}`);
+            } catch(e) { /* column may already exist */ }
+        }
+
+        // 11. Migration: Promo Code Engine
+        await query(`
+            CREATE TABLE IF NOT EXISTS promo_codes (
+                id SERIAL PRIMARY KEY,
+                code VARCHAR(50) UNIQUE NOT NULL,
+                discount_type VARCHAR(20) NOT NULL, -- 'percentage', 'fixed'
+                discount_value DECIMAL(10, 2) NOT NULL,
+                min_order_value DECIMAL(10, 2) DEFAULT 0,
+                max_discount DECIMAL(10, 2),
+                usage_limit INTEGER DEFAULT NULL,
+                usage_count INTEGER DEFAULT 0,
+                expires_at TIMESTAMP,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        logger.info(`✅ BI Migration: Wallets and Promo Engine initialized`);
+
+        // 12. Migration: Clean up duplicate emails, phones, and usernames (keep the most recently created account)
+        logger.info('🔄 Cleaning up duplicate accounts...');
+        
+        try {
+            // Remove duplicate emails
+            await query(`
+                DELETE FROM users 
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER(PARTITION BY LOWER(email) ORDER BY id DESC) as rn 
+                        FROM users 
+                        WHERE email IS NOT NULL AND email != ''
+                    ) t WHERE t.rn > 1
+                )
+            `);
+        } catch (e) {
+            logger.warn('⚠️ Duplicate email cleanup skipped: ' + e.message);
+        }
+        
+        try {
+            // Remove duplicate usernames
+            await query(`
+                DELETE FROM users 
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER(PARTITION BY LOWER(username) ORDER BY id DESC) as rn 
+                        FROM users 
+                        WHERE username IS NOT NULL AND username != ''
+                    ) t WHERE t.rn > 1
+                )
+            `);
+        } catch (e) {
+            logger.warn('⚠️ Duplicate username cleanup skipped: ' + e.message);
+        }
+        
+        try {
+            // Remove duplicate phones
+            await query(`
+                DELETE FROM users 
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER(PARTITION BY phone ORDER BY id DESC) as rn 
+                        FROM users 
+                        WHERE phone IS NOT NULL AND phone != ''
+                    ) t WHERE t.rn > 1
+                )
+            `);
+        } catch (e) {
+            logger.warn('⚠️ Duplicate phone cleanup skipped: ' + e.message);
+        }
+
+        // Now enforce strict unique indexes if they don't exist
+        logger.info('🔄 Enforcing strict unique constraints for email, username, phone...');
+        
+        // Lowercase email unique index
+        try {
+            await query('CREATE UNIQUE INDEX IF NOT EXISTS users_lower_email_idx ON users (LOWER(email))');
+        } catch(e) { logger.warn('Could not create users_lower_email_idx: ' + e.message); }
+
+        // Lowercase username unique index
+        try {
+            await query('CREATE UNIQUE INDEX IF NOT EXISTS users_lower_username_idx ON users (LOWER(username))');
+        } catch(e) { logger.warn('Could not create users_lower_username_idx: ' + e.message); }
+
+        // Phone unique constraint (if not already unique)
+        try {
+            await query('ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone)');
+        } catch(e) { /* constraint might already exist */ }
+
+        logger.info('✨ All migrations completed successfully');
+        return true;
+    } catch (err) {
+        console.dir(err, { depth: null });
+        console.error('Migration Error JSON:', JSON.stringify({
+            message: err?.message,
+            code: err?.code,
+            detail: err?.detail,
+            hint: err?.hint,
+            where: err?.where,
+            schema: err?.schema,
+            table: err?.table,
+            column: err?.column,
+            constraint: err?.constraint,
+            routine: err?.routine,
+        }, null, 2));
+        // Log error but don't crash - if columns already exist or permission issues, we might be fine
+        if (err.message.includes('permission denied') || err.message.includes('must be owner')) {
+            console.warn('⚠️ Migration Warning: Insufficient permissions to modify schema. If columns already exist, this can be ignored.');
+            logger.warn('Migration warning details:', err.stack || err.message || err);
+        } else {
+            logger.error('❌ Migration Error:', err.stack || err.message || err);
+        }
+        return false;
+    }
+}
+
+module.exports = runStartupMigrations;

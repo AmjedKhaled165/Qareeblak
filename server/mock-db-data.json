@@ -1,0 +1,74 @@
+{
+    "providers": [
+        {
+            "id": "1",
+            "name": "صيدلية الشفاء",
+            "email": "shefaa@example.com",
+            "category": "pharmacy",
+            "location": "أسيوط، شارع النميس",
+            "phone": "0123456789",
+            "rating": "4.8",
+            "reviews": 120,
+            "services": [
+                {
+                    "id": "101",
+                    "name": "استشارة طبية",
+                    "description": "استشارة مع صيدلي متخصص",
+                    "price": 50,
+                    "image": "/uploads/consultation.jpg",
+                    "offer": {
+                        "type": "discount",
+                        "discountPercent": 10
+                    }
+                }
+            ],
+            "reviewsList": [
+                {
+                    "id": "201",
+                    "rating": 5,
+                    "comment": "خدمة ممتازة وسريعة"
+                }
+            ],
+            "isApproved": true,
+            "joinedDate": "2024-01-15T10:00:00Z"
+        },
+        {
+            "id": "2",
+            "name": "سوبر ماركت الهدى",
+            "email": "hoda@example.com",
+            "category": "grocery",
+            "location": "أسيوط، حي شرق",
+            "phone": "0100000001",
+            "rating": "4.5",
+            "reviews": 85,
+            "services": [
+                {
+                    "id": "201",
+                    "name": "توصيل منزلي",
+                    "description": "توصيل كافة الطلبات للمنزل",
+                    "price": 20,
+                    "image": "/uploads/delivery.jpg"
+                }
+            ],
+            "reviewsList": [],
+            "isApproved": true,
+            "joinedDate": "2024-01-20T10:00:00Z"
+        }
+    ],
+    "bookings": [],
+    "users": [
+        {
+            "id": "1",
+            "name": "Admin",
+            "email": "admin@qareeblak.com",
+            "role": "admin"
+        },
+        {
+            "id": 817842,
+            "name": "زياد محمود",
+            "email": "zyad262006@gmail.com",
+            "password": "$2a$10$SmzNbnLcfH.twHXe6yTbEeg1dpHU/Q4fv2q0aQ4gSD4iUrDjN3jPq",
+            "user_type": "customer"
+        }
+    ]
+}

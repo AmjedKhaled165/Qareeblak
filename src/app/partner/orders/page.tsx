@@ -1,0 +1,689 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import {
+    ArrowRight,
+    Package,
+    Clock,
+    CheckCircle,
+    XCircle,
+    Truck,
+    MapPin,
+    RefreshCw,
+    Plus,
+    Trash2,
+    CheckSquare,
+    UserCheck,
+    X,
+    Home
+} from "lucide-react";
+
+import { apiCall } from "@/lib/api";
+import StatusModal from "@/components/ui/status-modal";
+import ConfirmModal from "@/components/ui/confirm-modal";
+
+interface Order {
+    id: number;
+    display_id?: number | string;
+    order_number: string;
+    customer_name: string;
+    customer_phone: string;
+    pickup_address: string;
+    delivery_address: string;
+    status: string;
+    created_at: string;
+    courier_name?: string;
+    delivery_fee?: number;
+    items?: any;
+    source?: string;
+    notes?: string;
+}
+
+export default function OrdersPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const supervisorId = searchParams.get('supervisorId');
+
+    const [user, setUser] = useState<any>(null);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [filter, setFilter] = useState<'all' | 'extra_services' | 'pending' | 'preparing' | 'ready' | 'in_transit' | 'delivered' | 'edited' | 'cancelled'>('all');
+
+    // Multi-select state
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+    const [bulkAssignCourierId, setBulkAssignCourierId] = useState<string>('');
+    const [isAssigning, setIsAssigning] = useState(false);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const [drivers, setDrivers] = useState<any[]>([]);
+
+    // Status Modal State
+    const [modalState, setModalState] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: 'success' | 'error' | 'info' | 'warning';
+        onCloseAction?: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'info'
+    });
+
+    // Confirm Modal State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { }
+    });
+
+    useEffect(() => {
+        const storedUser = localStorage.getItem('halan_user');
+        if (!storedUser) {
+            router.push('/login/partner');
+            return;
+        }
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+
+        // Real-time updates
+        const socket = (window as any).__qareeblak_socket;
+        if (socket) {
+            console.log('[OrdersPage] 📡 Attaching real-time listeners');
+
+            const handleUpdate = () => {
+                console.log('[OrdersPage] 🔄 Triggering refresh from socket event');
+                fetchOrders();
+            };
+
+            socket.on('booking-updated', handleUpdate);
+            socket.on('order-status-changed', handleUpdate);
+            socket.on('order-updated', handleUpdate);
+
+            return () => {
+                socket.off('booking-updated', handleUpdate);
+                socket.off('order-status-changed', handleUpdate);
+                socket.off('order-updated', handleUpdate);
+            };
+        }
+    }, []);
+
+    useEffect(() => {
+        const fetchDrivers = async () => {
+            try {
+                const usersData = await apiCall('/halan/users');
+                if (usersData.success) {
+                    const allUsers = usersData.data;
+                    setDrivers(allUsers.filter((u: any) => u.role === 'courier' && u.isAvailable === true));
+                }
+            } catch (error) {
+                console.error('Error fetching drivers', error);
+            }
+        };
+        fetchDrivers();
+    }, []);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [filter, supervisorId]);
+
+    const fetchOrders = async () => {
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams();
+
+            // Only send 'deleted' or 'edited' to backend filtering.
+            // For status groups (pending, in_transit, delivered), fetch 'all' (active orders) and filter locally.
+            if (filter === 'edited' || filter === 'cancelled') {
+                params.append('status', filter === 'cancelled' ? 'deleted' : filter);
+            }
+
+            if (supervisorId) params.append('supervisorId', supervisorId);
+
+            const queryString = params.toString();
+            const endpoint = `/halan/orders${queryString ? `?${queryString}` : ''}`;
+
+            const data = await apiCall(endpoint);
+
+            if (data.success) {
+                setOrders(data.data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDelete = async (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        // if (!confirm('هل أنت متأكد من حذف هذا الطلب؟')) return;
+        setConfirmModal({
+            isOpen: true,
+            title: 'حذف الطلب',
+            message: 'هل أنت متأكد من حذف هذا الطلب نهائياً؟',
+            onConfirm: () => executeDelete(id)
+        });
+        return;
+
+    };
+
+    const executeDelete = async (id: number) => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+            const data = await apiCall(`/halan/orders/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (data.success) {
+                fetchOrders(); // Refresh list
+                setModalState({
+                    isOpen: true,
+                    title: 'تم بنجاح',
+                    message: 'تم حذف الطلب بنجاح',
+                    type: 'success'
+                });
+            } else {
+                setModalState({
+                    isOpen: true,
+                    title: 'خطأ',
+                    message: data.error || 'فشل حذف الطلب',
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: 'حدث خطأ أثناء الحذف',
+                type: 'error'
+            });
+        }
+    };
+
+    const handleEdit = (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        router.push(`/partner/orders/edit/${id}`);
+    };
+
+    const handleBulkAssign = async () => {
+        if (!bulkAssignCourierId || selectedOrderIds.length === 0) return;
+        setIsAssigning(true);
+        try {
+            const courierId = Number(bulkAssignCourierId);
+            await Promise.all(
+                selectedOrderIds.map(id =>
+                    apiCall(`/halan/orders/${id}/assign-courier`, { method: 'PATCH', body: JSON.stringify({ courierId }) })
+                )
+            );
+            setIsSelectionMode(false);
+            setSelectedOrderIds([]);
+            setBulkAssignCourierId('');
+            fetchOrders();
+            setModalState({
+                isOpen: true,
+                title: 'تم بنجاح',
+                message: 'تم تعيين المندوب للطلبات المحددة بنجاح',
+                type: 'success'
+            });
+        } catch (e) {
+            console.error('Failed to bulk assign', e);
+            setModalState({
+                isOpen: true,
+                title: 'خطأ',
+                message: 'حدث خطأ أثناء تعيين المندوب',
+                type: 'error'
+            });
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
+    const handlePointerDown = (e: React.PointerEvent, orderId: number) => {
+        if (isSelectionMode) return;
+        longPressTimerRef.current = setTimeout(() => {
+            setIsSelectionMode(true);
+            setSelectedOrderIds([orderId]);
+            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(50);
+            }
+        }, 600); // 600ms long press
+    };
+
+    const clearLongPressTimer = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case 'pending': return 'قيد الانتظار';
+            case 'confirmed': return 'جاري التحضير';
+            case 'assigned': return 'قيد الانتظار';
+            case 'ready_for_pickup': return 'تم التجهيز';
+            case 'completed': return 'تم التجهيز';
+            case 'picked_up': return 'جاري التوصيل';
+            case 'in_transit': return 'جاري التوصيل';
+            case 'delivered': return 'تم التوصيل';
+            case 'cancelled': return 'ملغي';
+            case 'edited': return 'معدل';
+            default: return status;
+        }
+    };
+
+    const getStatusStyle = (status: string) => {
+        switch (status) {
+            case 'pending': return 'bg-amber-100 text-amber-700';
+            case 'confirmed': return 'bg-blue-100 text-blue-700';
+            case 'assigned': return 'bg-amber-100 text-amber-700';
+            case 'ready_for_pickup': return 'bg-emerald-100 text-emerald-700';
+            case 'completed': return 'bg-emerald-100 text-emerald-700';
+            case 'picked_up': return 'bg-violet-100 text-violet-700';
+            case 'in_transit': return 'bg-violet-100 text-violet-700';
+            case 'delivered': return 'bg-green-100 text-green-700';
+            case 'cancelled': return 'bg-red-100 text-red-700';
+            case 'edited': return 'bg-yellow-100 text-yellow-700';
+            default: return 'bg-slate-100 text-slate-700';
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'pending': return Clock;
+            case 'confirmed': return Package;
+            case 'assigned': return Clock;
+            case 'ready_for_pickup': return CheckCircle;
+            case 'completed': return CheckCircle;
+            case 'picked_up': return Truck;
+            case 'in_transit': return Truck;
+            case 'delivered': return CheckCircle;
+            case 'cancelled': return XCircle;
+            case 'edited': return RefreshCw;
+            default: return Package;
+        }
+    };
+
+    // Check if user is a courier
+    const userRole = user?.role || user?.type || user?.user_type || '';
+    const isCourier = userRole === 'courier' || userRole === 'partner_courier';
+
+    // Client-side filtering for status groups
+    const filteredOrders = orders.filter(order => {
+        if (filter === 'all') return true;
+        if (filter === 'extra_services') {
+            return (order as any).order_type === 'extra_service' || (order as any).source === 'extra_service' || String(order.notes || '').includes('خدمات إضافية');
+        }
+        if (filter === 'cancelled' || filter === 'edited') return true; // Already filtered by backend
+
+        // Custom groupings
+        if (filter === 'pending') {
+            // Pending Tab: Orders waiting for providers
+            return ['pending', 'assigned'].includes(order.status);
+        }
+        const isEffectivelyReady = (order as any).sub_orders?.length > 0 && (order as any).providers_ready_for_pickup && ['pending', 'assigned', 'confirmed'].includes(order.status);
+        const effectiveStatus = isEffectivelyReady ? 'ready_for_pickup' : order.status;
+
+        if (filter === 'preparing') {
+            return ['confirmed'].includes(effectiveStatus);
+        }
+        if (filter === 'ready') {
+            return ['ready_for_pickup', 'completed'].includes(effectiveStatus);
+        }
+        if (filter === 'in_transit') {
+            return ['picked_up', 'in_transit'].includes(effectiveStatus);
+        }
+        if (filter === 'delivered') return ['delivered'].includes(effectiveStatus);
+
+        return true;
+    });
+
+    return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100" dir="rtl">
+            {/* Header */}
+            <div className="bg-white dark:bg-slate-900 p-4 border-b dark:border-slate-800 sticky top-0 z-10 flex items-center gap-3">
+                <button onClick={() => router.push('/partner')} className="p-2" title="العودة للوحة التحكم" aria-label="العودة للوحة التحكم">
+                    <ArrowRight className="w-6 h-6 text-slate-800 dark:text-slate-100" />
+                </button>
+                <button onClick={() => router.push('/')} className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400" title="الصفحة الرئيسية للموقع" aria-label="الصفحة الرئيسية للموقع">
+                    <Home className="w-6 h-6" />
+                </button>
+                <h1 className="text-xl font-bold">{isCourier ? 'طلباتي' : 'كل الطلبات'}</h1>
+                <div className="mr-auto flex items-center gap-2">
+                    <ThemeToggle />
+                    <button
+                        onClick={fetchOrders}
+                        title="تحديث الطلبات"
+                        aria-label="تحديث الطلبات"
+                        className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center"
+                    >
+                        <RefreshCw className={`w-5 h-5 text-slate-600 dark:text-slate-300 ${isLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Filter Tabs - Hidden for couriers */}
+            {!isCourier && (
+                <div className="bg-white dark:bg-slate-900 p-4 shadow-sm mb-4 overflow-x-auto">
+                    <div className="flex gap-2 min-w-max">
+                        {[
+                            { key: 'all', label: 'الكل' },
+                            { key: 'extra_services', label: 'الخدمات الإضافية ⚡' },
+                            { key: 'pending', label: 'قيد الانتظار' },
+                            { key: 'preparing', label: 'جاري التحضير' },
+                            { key: 'ready', label: 'تم التجهيز' },
+                            { key: 'in_transit', label: 'جاري التوصيل' },
+                            { key: 'delivered', label: 'مكتمل' },
+                            { key: 'edited', label: 'المعدلة' },
+                            { key: 'cancelled', label: 'ملغي' },
+                        ].map((s) => (
+                            <button
+                                key={s.key}
+                                onClick={() => setFilter(s.key as any)}
+                                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${filter === s.key
+                                    ? 'bg-violet-600 text-white shadow-md'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                            >
+                                {s.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Content */}
+            <div className="p-4 pb-24">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <div className="w-10 h-10 border-4 border-violet-600 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                ) : filteredOrders?.length === 0 ? (
+                    <div className="text-center py-16">
+                        <Package className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                        <p className="text-slate-500 dark:text-slate-400 text-lg">لا توجد طلبات</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {filteredOrders?.map((order, index) => {
+                            const StatusIcon = getStatusIcon(order.status);
+                            const isSelected = selectedOrderIds.includes(order.id);
+                            return (
+                                <motion.div
+                                    key={order.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    onPointerDown={(e) => handlePointerDown(e, order.id)}
+                                    onPointerUp={clearLongPressTimer}
+                                    onPointerLeave={clearLongPressTimer}
+                                    onPointerCancel={clearLongPressTimer}
+                                    onClick={() => {
+                                        if (isSelectionMode) {
+                                            setSelectedOrderIds(prev =>
+                                                prev.includes(order.id) ? prev.filter(id => id !== order.id) : [...prev, order.id]
+                                            );
+                                            return;
+                                        }
+                                        router.push(`/partner/orders/${order.id}`);
+                                    }}
+                                    className={`bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-all border ${isSelected ? 'border-violet-500 ring-1 ring-violet-500 dark:border-violet-400 dark:ring-violet-400 bg-violet-50/50 dark:bg-violet-900/10' : 'border-slate-100 dark:border-slate-700'} relative overflow-hidden`}
+                                >
+
+
+                                    {/* Header */}
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-3">
+                                                {isSelectionMode && (
+                                                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-colors ${isSelected ? 'bg-violet-600 border-violet-600' : 'border-slate-300 dark:border-slate-600'}`}>
+                                                        {isSelected && <CheckSquare className="w-4 h-4 text-white" />}
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <StatusIcon className={`w-5 h-5 ${isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-300'}`} />
+                                                    <span className="font-bold text-slate-800 dark:text-slate-100">
+                                                        {isCourier ? `${order.customer_name} ` : ''}#{order.display_id || order.id}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {((order as any).order_type === 'extra_service' || String(order.notes || '').includes('خدمات إضافية')) && (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-bold rounded-full w-fit">
+                                                    ⚡ خدمات إضافية
+                                                </span>
+                                            )}
+                                            {(order as any).source === 'qareeblak' && (order as any).order_type !== 'extra_service' && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 text-[10px] font-bold rounded-full w-fit">
+                                                    🌐 طلب من قريبلك
+                                                </span>
+                                            )}
+                                            {(order as any).source && (order as any).source !== 'qareeblak' && (order as any).source !== 'manual' && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-600 text-[10px] font-bold rounded-full w-fit">
+                                                    📋 {(order as any).source}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {(() => {
+                                            const isEffectivelyReady = (order as any).sub_orders?.length > 0 && (order as any).providers_ready_for_pickup && ['pending', 'assigned', 'confirmed'].includes(order.status);
+                                            const effectiveStatus = isEffectivelyReady ? 'ready_for_pickup' : order.status;
+                                            return (
+                                                <div className="flex flex-col items-end gap-1.5">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusStyle(effectiveStatus)}`}>
+                                                        {getStatusLabel(effectiveStatus)}
+                                                    </span>
+                                                    {((order as any).is_edited || (order as any).is_deleted || order.status === 'cancelled') && (
+                                                        <div className="flex items-center gap-1">
+                                                            {(order as any).is_edited && (
+                                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                                                    معدل
+                                                                </span>
+                                                            )}
+                                                            {((order as any).is_deleted || order.status === 'cancelled') && (
+                                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-200">
+                                                                    ملغي
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Courier Info for Managers */}
+                                    {!isCourier && (
+                                        <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                                            <span className="flex items-center gap-1"><Truck className="w-3 h-3" />{order.courier_name ? `معين لـ ${order.courier_name}` : 'غير معين'}</span>
+                                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /><span className="truncate max-w-[200px]">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span></span>
+                                        </div>
+                                    )}
+
+                                    {/* Customer Info */}
+                                    {isCourier && (
+                                        <div className="mb-3">
+                                            <p className="font-bold text-slate-800 dark:text-slate-100">{order.customer_name}</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">{order.customer_phone}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Address */}
+                                    {isCourier && (
+                                        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-sm">
+                                            <div className="flex items-start gap-2">
+                                                <div className="w-5 h-5 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                    <MapPin className="w-3 h-3 text-green-600 dark:text-green-400" />
+                                                </div>
+                                                <span className="text-slate-700 dark:text-slate-200">{order.delivery_address}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Footer (Date + Actions) */}
+                                    <div className="flex justify-between items-center mt-3 pt-3 border-t dark:border-slate-700">
+                                        <div className="flex flex-col items-start">
+                                            <span className="text-xs text-slate-400">
+                                                {new Date(order.created_at).toLocaleDateString('ar-EG')}
+                                            </span>
+                                            {(() => {
+                                                const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+                                                const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item?.price || item?.unit_price) || 0) * (parseFloat(item?.quantity) || 1)), 0);
+                                                const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
+                                                const grandTotal = itemsTotal + deliFee;
+
+                                                if (grandTotal === 0 && deliFee === 0) return null;
+
+                                                return (
+                                                    <div className="mt-1 flex flex-col">
+                                                        <span className="font-bold text-green-600 dark:text-green-400 text-sm">
+                                                            {grandTotal.toFixed(0)} ج.م
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400">
+                                                            + {deliFee} توصيل
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {/* Edit and Delete Buttons */}
+                                            {!isCourier && filter !== 'cancelled' && (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => handleEdit(e, order.id)}
+                                                        title="تعديل"
+                                                        aria-label="تعديل الطلب"
+                                                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
+                                                    {order.source !== 'qareeblak' && (
+                                                        <button
+                                                            onClick={(e) => handleDelete(e, order.id)}
+                                                            title="إلغاء / حذف"
+                                                            aria-label="إلغاء الطلب"
+                                                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* FAB - Create Order (for managers only) */}
+            {!isCourier && (
+                <button
+                    onClick={() => router.push('/partner/orders/create')}
+                    title="إنشاء طلب جديد"
+                    aria-label="إنشاء طلب جديد"
+                    className="fixed left-5 bottom-8 w-14 h-14 rounded-full bg-violet-600 text-white shadow-lg flex items-center justify-center hover:bg-violet-700 transition-colors z-50"
+                >
+                    <Plus className="w-7 h-7" />
+                </button>
+            )}
+
+            <StatusModal
+                isOpen={modalState.isOpen}
+                onClose={() => {
+                    setModalState(prev => ({ ...prev, isOpen: false }));
+                    if (modalState.onCloseAction) modalState.onCloseAction();
+                }}
+                title={modalState.title}
+                message={modalState.message}
+                type={modalState.type}
+            />
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                confirmText="حذف نهائي"
+                cancelText="إلغاء"
+                isDestructive={true}
+            />
+
+            {/* Selection Mode Bottom Action Bar */}
+            <AnimatePresence>
+                {isSelectionMode && !isCourier && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 100 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 100 }}
+                        className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col sm:flex-row items-center justify-between gap-4"
+                    >
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                            <button
+                                onClick={() => {
+                                    setIsSelectionMode(false);
+                                    setSelectedOrderIds([]);
+                                    setBulkAssignCourierId('');
+                                }}
+                                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                            <span className="font-bold text-lg text-violet-600 dark:text-violet-400">
+                                {selectedOrderIds.length} طلبات محددة
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <select
+                                value={bulkAssignCourierId}
+                                onChange={(e) => setBulkAssignCourierId(e.target.value)}
+                                className="flex-1 sm:w-64 appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500 border border-slate-200 dark:border-slate-700"
+                            >
+                                <option value="">اختر المندوب...</option>
+                                {drivers.map((d) => (
+                                    <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>
+                                ))}
+                            </select>
+
+                            <button
+                                onClick={handleBulkAssign}
+                                disabled={isAssigning || !bulkAssignCourierId || selectedOrderIds.length === 0}
+                                className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-violet-600/20"
+                            >
+                                {isAssigning ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        جاري التعيين...
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserCheck className="w-4 h-4" />
+                                        تعيين
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}

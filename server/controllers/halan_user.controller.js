@@ -1,0 +1,220 @@
+const userRepo = require('../repositories/halan_user.repository');
+const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
+const bcrypt = require('bcryptjs');
+
+exports.assignCourier = catchAsync(async (req, res) => {
+    let { userId, supervisorId, action } = req.body;
+    userId = decodeEntityId('user', userId) || userId;
+    supervisorId = decodeEntityId('user', supervisorId) || supervisorId;
+    const { role } = req.user;
+
+    if (role !== 'owner' && role !== 'partner_owner') throw new AppError('Unauthorized', 403);
+
+    if (action === 'add') await userRepo.assignCourier(userId, supervisorId);
+    else await userRepo.unassignCourier(userId, supervisorId);
+
+    res.json({ success: true, message: 'تم التحديث بنجاح' });
+});
+
+const { decodeEntityId } = require('../utils/obfuscate');
+
+exports.getUsers = catchAsync(async (req, res) => {
+    let { role, supervisorId } = req.query;
+    if (supervisorId) {
+        supervisorId = decodeEntityId('user', supervisorId) || supervisorId;
+    }
+    const currentUserId = req.user.userId || req.user.id;
+    const currentUserRole = req.user.role;
+
+    const rows = await userRepo.getUsers({ role, supervisorId, currentUserId, currentUserRole });
+    const users = rows.map(user => ({
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        role: user.user_type.replace('partner_', ''),
+        isAvailable: user.is_available,
+        courierStatus: user.courier_status || 'متاح',
+        supervisorIds: user.supervisor_ids || [],
+        createdAt: user.created_at
+    }));
+
+    res.json({ success: true, data: users });
+});
+
+exports.getUser = catchAsync(async (req, res) => {
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const user = await userRepo.getById(id);
+    if (!user) throw new AppError('المستخدم غير موجود', 404);
+    res.json({
+        success: true,
+        data: {
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            email: user.email,
+            phone: user.phone,
+            avatar: user.avatar,
+            cash_number: user.cash_number,
+            instapay_account: user.instapay_account,
+            role: user.user_type.replace('partner_', ''),
+            isAvailable: user.is_available,
+            courierStatus: user.courier_status || 'متاح'
+        }
+    });
+});
+
+exports.updateAvailability = catchAsync(async (req, res) => {
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const currentUserId = req.user.id || req.user.userId;
+    const currentUserRole = req.user.role;
+    const isSelf = String(currentUserId) === String(id);
+    const isAdmin = ['owner', 'partner_owner', 'admin', 'supervisor', 'partner_supervisor'].includes(currentUserRole);
+
+    if (!isSelf && !isAdmin) {
+        throw new AppError('Unauthorized', 403);
+    }
+
+    const { isAvailable } = req.body;
+    await userRepo.updateAvailability(id, isAvailable);
+
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('driver-status-changed', { driverId: id, status: isAvailable ? 'online' : 'offline' });
+    }
+    res.json({ success: true, message: 'تم تحديث الحالة' });
+});
+
+exports.updateCourierStatus = catchAsync(async (req, res) => {
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const currentUserId = req.user.id || req.user.userId;
+    const currentUserRole = req.user.role;
+    const isSelf = String(currentUserId) === String(id);
+    const isAdmin = ['owner', 'partner_owner', 'admin', 'supervisor', 'partner_supervisor'].includes(currentUserRole);
+
+    if (!isSelf && !isAdmin) {
+        throw new AppError('Unauthorized', 403);
+    }
+
+    const { courierStatus } = req.body;
+    await userRepo.updateCourierStatus(id, courierStatus);
+
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('driver-courier-status-changed', { driverId: id, courierStatus });
+    }
+    res.json({ success: true, message: 'تم تحديث حالة المندوب', courierStatus });
+});
+
+
+exports.updateProfile = catchAsync(async (req, res) => {
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const currentUserId = req.user.id || req.user.userId;
+    const currentUserRole = req.user.role;
+    const isSelf = String(currentUserId) === String(id);
+    const isAdmin = ['owner', 'partner_owner', 'admin'].includes(currentUserRole);
+
+    if (!isSelf && !isAdmin) {
+        throw new AppError('غير مصرح لك بتعديل بيانات هذا المستخدم', 403);
+    }
+
+    const { name_ar, username, email, phone, avatar, oldPassword, newPassword, cash_number, instapay_account } = req.body;
+
+    const currentUser = await userRepo.getById(id);
+    if (!currentUser) throw new AppError('المستخدم غير موجود', 404);
+
+    const updates = {};
+    if (name_ar) updates.name = name_ar;
+    if (username) updates.username = username;
+    if (email && email !== currentUser.email) {
+        throw new AppError('لا يمكن تغيير البريد الإلكتروني بعد التسجيل', 400);
+    }
+    if (phone) updates.phone = phone;
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (cash_number !== undefined) updates.cash_number = cash_number;
+    if (instapay_account !== undefined) updates.instapay_account = instapay_account;
+
+    if (newPassword) {
+        if (!oldPassword) throw new AppError('يجب إدخال كلمة المرور الحالية', 400);
+        const isMatch = await bcrypt.compare(oldPassword, currentUser.password);
+        if (!isMatch) throw new AppError('كلمة المرور الحالية غير صحيحة', 400);
+        updates.password = await bcrypt.hash(newPassword, 10);
+    }
+
+    if (Object.keys(updates).length === 0) return res.json({ success: true, message: 'لا توجد تغييرات' });
+
+    let updated;
+    try {
+        updated = await userRepo.updateProfile(id, updates);
+    } catch (error) {
+        if (error.code === '23505') {
+            if (error.constraint === 'users_email_key' || error.constraint === 'users_lower_email_idx') throw new AppError('هذا البريد الإلكتروني مسجل مسبقاً', 400);
+            if (error.constraint === 'users_phone_key') throw new AppError('رقم الهاتف هذا مسجل مسبقاً', 400);
+            if (error.constraint === 'users_username_key' || error.constraint === 'users_lower_username_idx') throw new AppError('اسم المستخدم هذا مستخدم بالفعل', 400);
+        }
+        throw error;
+    }
+    
+    res.json({
+        success: true,
+        message: 'تم تحديث البيانات بنجاح',
+        data: {
+            ...updated,
+            name_ar: updated.name,
+            role: updated.user_type.replace('partner_', '')
+        }
+    });
+});
+
+exports.deleteUser = catchAsync(async (req, res) => {
+    const id = decodeEntityId('user', req.params.id) || req.params.id;
+    const { role } = req.user;
+
+    if (role !== 'owner' && role !== 'partner_owner') throw new AppError('Unauthorized', 403);
+
+    const success = await userRepo.deleteUser(id);
+    if (!success) throw new AppError('المستخدم غير موجود', 404);
+
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('user-deleted', { id, role: 'partner' });
+        io.emit('driver-status-changed', { driverId: id, status: 'offline' });
+    }
+    res.json({ success: true, message: 'تم حذف المستخدم بنجاح' });
+});
+
+const db = require('../db');
+
+exports.startDailySession = catchAsync(async (req, res) => {
+    const courierId = req.user.id || req.user.userId;
+    const localDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
+
+    const result = await db.query(
+        'INSERT INTO courier_daily_sessions (courier_id, session_date, started_at) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT (courier_id, session_date) DO NOTHING RETURNING *',
+        [courierId, localDateStr]
+    );
+
+    res.json({ success: true, message: 'Session started successfully' });
+});
+
+exports.getDailySessions = catchAsync(async (req, res) => {
+    const { role } = req.user;
+    if (role !== 'owner' && role !== 'partner_owner' && role !== 'supervisor' && role !== 'partner_supervisor') {
+        throw new AppError('Unauthorized', 403);
+    }
+    
+    const courierId = req.query.courierId;
+    let query = 'SELECT * FROM courier_daily_sessions ORDER BY session_date DESC';
+    let params = [];
+    
+    if (courierId) {
+        query = 'SELECT * FROM courier_daily_sessions WHERE courier_id = $1 ORDER BY session_date DESC';
+        params = [courierId];
+    }
+    
+    const result = await db.query(query, params);
+    res.json({ success: true, data: result.rows });
+});

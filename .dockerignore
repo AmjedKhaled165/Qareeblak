@@ -1,0 +1,40 @@
+# Dependency and package manager artifacts
+node_modules
+**/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js / build outputs
+.next
+out
+dist
+coverage
+
+# Environment and secrets
+.env
+.env.*
+
+# Git and editor metadata
+.git
+.gitignore
+.vscode
+.idea
+
+# Logs and temp
+logs
+*.log
+tmp
+temp
+
+# Local/backup folders that should never be sent in Docker context
+archive
+halan
+server
+tmpclaude-*
+**/tmpclaude-*
+
+# OS files
+.DS_Store
+Thumbs.db

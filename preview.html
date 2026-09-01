@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قريبلك - عرض توضيحي</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #1f2937;
+        }
+
+        .container {
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1200px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 20px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border: 2px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-color: #4F46E5;
+        }
+
+        .status-card h3 {
+            color: #4F46E5;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .status-card p {
+            color: #6b7280;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .status-card ul {
+            list-style: none;
+            margin: 15px 0;
+        }
+
+        .status-card li {
+            padding: 8px 0;
+            color: #374151;
+        }
+
+        .status-card li:before {
+            content: "✅ ";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .link-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #4F46E5, #6366F1);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 15px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+        }
+
+        .link-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+        }
+
+        .demo-section {
+            background: linear-gradient(135deg, #f0f4ff 0%, #f9f5ff 100%);
+            padding: 40px;
+            border-radius: 20px;
+            margin: 40px 0;
+            border-left: 5px solid #4F46E5;
+        }
+
+        .demo-section h2 {
+            color: #4F46E5;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .feature {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .feature h4 {
+            color: #4F46E5;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .feature p {
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .live-info {
+            background: #ecfdf5;
+            border: 2px solid #10b981;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .live-info strong {
+            color: #10b981;
+        }
+
+        .code-block {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 20px;
+            border-radius: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 20px 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .stat-box {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4F46E5;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 32px;
+            }
+            .header p {
+                font-size: 16px;
+            }
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .animation {
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container animation">
+        <div class="header">
+            <h1>🚀 قريبلك</h1>
+            <p>منصة خدمات محلية موحدة | الويب + الموبايل</p>
+        </div>
+
+        <div class="content">
+            <!-- Status Cards -->
+            <div class="status-grid">
+                <!-- Web App -->
+                <div class="status-card animation">
+                    <h3>🌐 الويب (Web)</h3>
+                    <p><strong>Next.js 15.5</strong> مع React 19</p>
+                    <ul>
+                        <li>حركات وتأثيرات متقدمة</li>
+                        <li>Dark Mode متكامل</li>
+                        <li>3D Canvas</li>
+                        <li>أداء عالي جداً</li>
+                    </ul>
+                    <p style="margin-top: 15px; font-size: 14px;">
+                        <strong>الرابط:</strong> http://localhost:3001
+                    </p>
+                    <button class="link-button" onclick="window.open('http://localhost:3001', '_blank')">
+                        افتح الآن 🔗
+                    </button>
+                </div>
+
+                <!-- Mobile App -->
+                <div class="status-card animation">
+                    <h3>📱 الموبايل (Mobile)</h3>
+                    <p><strong>Flutter</strong> تطبيق احترافي</p>
+                    <ul>
+                        <li>4 شاشات رئيسية</li>
+                        <li>نفس الديزاين والحركات</li>
+                        <li>متصل بنفس API</li>
+                        <li>Dark Mode support</li>
+                    </ul>
+                    <p style="margin-top: 15px; font-size: 14px;">
+                        <strong>المجلد:</strong> flutter_app/
+                    </p>
+                    <button class="link-button" onclick="alert('شغّل: flutter pub get\\nثم: flutter run -d chrome')">
+                        تعليمات التشغيل 📖
+                    </button>
+                </div>
+
+                <!-- Backend -->
+                <div class="status-card animation">
+                    <h3>⚙️ الخادم (Backend)</h3>
+                    <p><strong>Node.js + Express</strong></p>
+                    <ul>
+                        <li>API REST متكامل</li>
+                        <li>WebSocket للـ Real-time</li>
+                        <li>Firebase Authentication</li>
+                        <li>PostgreSQL Database</li>
+                    </ul>
+                    <p style="margin-top: 15px; font-size: 14px;">
+                        <strong>الرابط:</strong> http://localhost:5000
+                    </p>
+                </div>
+            </div>
+
+            <!-- Live Info -->
+            <div class="live-info">
+                <strong>✅ الحالة الحالية:</strong>
+                <p style="margin-top: 10px;">
+                    ✓ الويب يعمل على http://localhost:3001<br>
+                    ✓ الموبايل جاهز للتشغيل<br>
+                    ✓ جميع الملفات تم إنشاؤها بنجاح<br>
+                    ✓ التطبيقان متصلان ببنفس API والبيانات
+                </p>
+            </div>
+
+            <!-- Features Section -->
+            <div class="demo-section">
+                <h2>✨ المميزات الجديدة</h2>
+
+                <h3 style="color: #6b7280; margin: 25px 0 15px 0; font-size: 20px;">للويب:</h3>
+                <div class="features">
+                    <div class="feature">
+                        <h4>ScrollReveal</h4>
+                        <p>ظهور العناصر تدريجياً عند التمرير</p>
+                    </div>
+                    <div class="feature">
+                        <h4>GradientText</h4>
+                        <p>نصوص بتدرجات لونية متحركة</p>
+                    </div>
+                    <div class="feature">
+                        <h4>BlurIn</h4>
+                        <p>تأثير طمس احترافي عند الظهور</p>
+                    </div>
+                    <div class="feature">
+                        <h4>FloatingParticles</h4>
+                        <p>جزيئات عائمة متحركة في الخلفية</p>
+                    </div>
+                    <div class="feature">
+                        <h4>StaggerContainer</h4>
+                        <p>حركات متتالية سلسة للعناصر</p>
+                    </div>
+                    <div class="feature">
+                        <h4>Dark Mode</h4>
+                        <p>دعم كامل للوضع الليلي</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Architecture -->
+            <div class="demo-section" style="border-left-color: #f97316;">
+                <h2 style="color: #f97316;">🏗️ معمارية التطبيق</h2>
+                <div class="code-block">
+┌─────────────────────────────────────────┐
+│        المستخدم (الويب + الموبايل)      │
+└────────────────┬────────────────────────┘
+                 │
+                 ↓
+        ┌────────────────┐
+        │   API Server   │
+        │ (localhost:5000│
+        │  Node.js)      │
+        └────────┬───────┘
+                 │
+    ┌────────────┴────────────┐
+    ↓                         ↓
+┌─────────────┐      ┌──────────────┐
+│ PostgreSQL  │      │    Redis     │
+│ Database    │      │   Cache      │
+└─────────────┘      └──────────────┘
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div style="margin: 40px 0;">
+                <h2 style="color: #4F46E5; margin-bottom: 20px;">📊 الإحصائيات</h2>
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-number">5</div>
+                        <div class="stat-label">مكونات جديدة</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">13</div>
+                        <div class="stat-label">ملف Flutter</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">4</div>
+                        <div class="stat-label">شاشات موبايل</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">100%</div>
+                        <div class="stat-label">تطابق ديزاين</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="demo-section" style="border-left-color: #8b5cf6;">
+                <h2 style="color: #8b5cf6;">🚀 كيفية التشغيل</h2>
+
+                <h3 style="color: #6b7280; margin: 20px 0 10px 0;">1️⃣ الويب (يعمل الآن):</h3>
+                <div class="code-block">
+# افتح في المتصفح:
+http://localhost:3001
+                </div>
+
+                <h3 style="color: #6b7280; margin: 20px 0 10px 0;">2️⃣ الموبايل:</h3>
+                <div class="code-block">
+cd flutter_app
+flutter pub get
+flutter run -d chrome    # للويب
+# أو: flutter run        # للهاتف
+                </div>
+
+                <h3 style="color: #6b7280; margin: 20px 0 10px 0;">3️⃣ الاثنين معاً:</h3>
+                <div class="code-block">
+# Terminal 1:
+npm run dev
+
+# Terminal 2:
+cd flutter_app && flutter run -d chrome
+                </div>
+            </div>
+
+            <!-- Documentation Links -->
+            <div style="margin: 40px 0; padding: 30px; background: #f3f4f6; border-radius: 20px;">
+                <h2 style="color: #4F46E5; margin-bottom: 20px;">📚 التوثيق الكامل</h2>
+                <div class="features">
+                    <div class="feature" style="cursor: pointer; border: 2px solid #4F46E5;">
+                        <h4>⚡ QUICK_START.md</h4>
+                        <p>ابدأ في دقيقة واحدة</p>
+                    </div>
+                    <div class="feature" style="cursor: pointer; border: 2px solid #4F46E5;">
+                        <h4>🚀 STARTUP_GUIDE.md</h4>
+                        <p>دليل التشغيل الكامل</p>
+                    </div>
+                    <div class="feature" style="cursor: pointer; border: 2px solid #4F46E5;">
+                        <h4>📊 PROJECT_SUMMARY.md</h4>
+                        <p>ملخص المشروع الشامل</p>
+                    </div>
+                    <div class="feature" style="cursor: pointer; border: 2px solid #4F46E5;">
+                        <h4>🔗 INTEGRATION_GUIDE.md</h4>
+                        <p>كيفية الربط والتكامل</p>
+                    </div>
+                    <div class="feature" style="cursor: pointer; border: 2px solid #4F46E5;">
+                        <h4>🎬 DEMO.md</h4>
+                        <p>العرض التوضيحي والشاشات</p>
+                    </div>
+                    <div class="feature" style="cursor: pointer; border: 2px solid #4F46E5;">
+                        <h4>📱 flutter_app/README.md</h4>
+                        <p>توثيق تطبيق Flutter</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px; margin-top: 30px;">
+                <h2>🎉 تطبيق احترافي 100% جاهز!</h2>
+                <p style="margin: 10px 0; font-size: 16px;">نفس الديزاين والحركات والبيانات على الويب والموبايل</p>
+                <p style="margin-top: 15px; opacity: 0.9;">صُنِع بـ ❤️ باستخدام أحدث التقنيات</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add animation on load
+        document.querySelectorAll('.status-card').forEach((card, index) => {
+            setTimeout(() => {
+                card.style.animation = 'slideUp 0.6s ease-out forwards';
+            }, index * 100);
+        });
+    </script>
+</body>
+</html>

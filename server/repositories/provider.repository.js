@@ -1,0 +1,408 @@
+const pool = require('../db');
+
+let providersColumnsCache = null;
+let reviewsColumnsCache = null;
+
+// Allow migrations to force a re-check of table columns
+function clearColumnsCache() {
+    providersColumnsCache = null;
+    reviewsColumnsCache = null;
+}
+
+async function getProvidersColumns() {
+    if (providersColumnsCache) return providersColumnsCache;
+
+    const colsResult = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'providers'`
+    );
+
+    providersColumnsCache = new Set(colsResult.rows.map((r) => r.column_name));
+    return providersColumnsCache;
+}
+
+async function getReviewsColumns() {
+    if (reviewsColumnsCache) return reviewsColumnsCache;
+
+    const colsResult = await pool.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'reviews'`
+    );
+
+    reviewsColumnsCache = new Set(colsResult.rows.map((r) => r.column_name));
+    return reviewsColumnsCache;
+}
+
+class ProviderRepository {
+    /**
+     * @param {{limit: number, lastId: number, lastRating: number, category: string}} options
+     */
+    async getProviders({ limit = 20, lastId, lastRating, category }) {
+        try {
+            const cols = await getProvidersColumns();
+
+            // [ENTERPRISE PERFORMANCE] Cursor-based pagination using composite (rating, id)
+            const params = [limit];
+            const conditions = [];
+
+            if (cols.has('is_approved')) {
+                conditions.push('p.is_approved = TRUE');
+            }
+            if (cols.has('is_banned')) {
+                conditions.push('p.is_banned = FALSE');
+            }
+            if (cols.has('is_online')) {
+                conditions.push('p.is_online = TRUE');
+            }
+
+            if (category && cols.has('category')) {
+                params.push(category);
+                conditions.push(`p.category = $${params.length}`);
+            }
+
+            if (lastRating !== undefined && lastId !== undefined && cols.has('rating')) {
+                params.push(lastRating, lastId);
+                const rIdx = params.length - 1;
+                const iIdx = params.length;
+                conditions.push(`(p.rating < $${rIdx} OR (p.rating = $${rIdx} AND p.id > $${iIdx}))`);
+            }
+
+            const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+            const userIdSelect = cols.has('user_id') ? 'p.user_id' : 'NULL::bigint AS user_id';
+            const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
+            const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
+            const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+            const orderBy = cols.has('rating') ? 'p.rating DESC, p.id ASC' : 'p.id ASC';
+
+            const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL AS cover_image';
+            const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
+            const avatarSelect = cols.has('user_id') ? 'u.avatar AS image' : 'NULL AS image';
+
+            const query = `
+                SELECT
+                    p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
+                    ${ratingSelect}, ${reviewsSelect}, ${joinedDateSelect},
+                    ${coverImageSelect}, ${avatarSelect},
+                    COALESCE((SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id), '[]'::json) as services_raw,
+                    (SELECT COUNT(*) FROM bookings WHERE provider_id = p.id) AS orders_count,
+                    (SELECT COUNT(*) FROM services WHERE provider_id = p.id AND has_offer = TRUE) AS offers_count
+                FROM providers p
+                ${userJoin}
+                ${whereClause}
+                ORDER BY ${orderBy}
+                LIMIT $1
+            `;
+
+            const result = await pool.query(query, params);
+            return result.rows;
+        } catch (error) {
+            // If providers table is missing in a partial/legacy backup, fail gracefully.
+            if (error && error.code === '42P01') {
+                return [];
+            }
+            throw error;
+        }
+    }
+
+    async getByIdWithDetails(id) {
+        const cols = await getProvidersColumns();
+        const userIdSelect = cols.has('user_id') ? 'p.user_id' : 'NULL::bigint AS user_id';
+        const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
+        const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
+        const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : (cols.has('user_id') ? 'u.is_online' : 'TRUE AS is_online');
+        const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+        const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
+        const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
+        const avatarSelect = cols.has('user_id') ? 'u.avatar AS image_url' : 'NULL::text AS image_url';
+        const reviewCols = await getReviewsColumns();
+        const reviewUserNameSelect = reviewCols.has('user_name')
+            ? 'user_name'
+            : (reviewCols.has('customer_name') ? 'customer_name AS user_name' : "'عميل' AS user_name");
+        const reviewRatingSelect = reviewCols.has('rating') ? 'rating' : '0::numeric AS rating';
+        const reviewCommentSelect = reviewCols.has('comment') ? 'comment' : 'NULL::text AS comment';
+        const reviewDateSelect = reviewCols.has('review_date')
+            ? 'review_date'
+            : (reviewCols.has('created_at') ? 'created_at AS review_date' : 'NOW() AS review_date');
+
+        // Single provider details with limited aggregation is acceptable
+        const result = await pool.query(`
+            SELECT 
+                p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${avatarSelect},
+                COALESCE(
+                    (SELECT json_agg(s.*) FROM services s WHERE s.provider_id = p.id),
+                    '[]'::json
+                ) as services_raw,
+                COALESCE(
+                    (SELECT json_agg(rev.*) FROM (
+                        SELECT id, ${reviewUserNameSelect}, ${reviewRatingSelect}, ${reviewCommentSelect}, ${reviewDateSelect}
+                        FROM reviews
+                        WHERE provider_id = p.id
+                        ORDER BY review_date DESC
+                        LIMIT 50
+                    ) rev),
+                    '[]'::json
+                ) as reviews_raw
+            FROM providers p
+            ${userJoin}
+            WHERE p.id = $1
+        `, [id]);
+        return result.rows[0];
+    }
+
+    async getServices(providerId) {
+        const result = await pool.query(`
+            SELECT 
+                id, name, description, price, image,
+                has_offer, offer_type, discount_percent, 
+                bundle_count, bundle_free_count, offer_end_date
+            FROM services
+            WHERE provider_id = $1
+        `, [providerId]);
+        return result.rows;
+    }
+
+    async getReviews(providerId) {
+        const reviewCols = await getReviewsColumns();
+        const reviewUserNameSelect = reviewCols.has('user_name')
+            ? 'user_name'
+            : (reviewCols.has('customer_name') ? 'customer_name AS user_name' : "'عميل' AS user_name");
+        const reviewRatingSelect = reviewCols.has('rating') ? 'rating' : '0::numeric AS rating';
+        const reviewCommentSelect = reviewCols.has('comment') ? 'comment' : 'NULL::text AS comment';
+        const reviewDateSelect = reviewCols.has('review_date')
+            ? 'review_date'
+            : (reviewCols.has('created_at') ? 'created_at AS review_date' : 'NOW() AS review_date');
+
+        const result = await pool.query(`
+            SELECT id, ${reviewUserNameSelect}, ${reviewRatingSelect}, ${reviewCommentSelect}, ${reviewDateSelect}
+            FROM reviews
+            WHERE provider_id = $1
+            ORDER BY review_date DESC
+        `, [providerId]);
+        return result.rows;
+    }
+
+    async search(query, type) {
+        const cols = await getProvidersColumns();
+        const approvalCondition = cols.has('is_approved') ? 'is_approved = TRUE AND' : '';
+        
+        // If type is 'order', do not strictly require them to be online (so they always show in the dropdown)
+        const onlineCondition = (cols.has('is_online') && type !== 'order') ? 'is_online = TRUE AND' : '';
+        const categoryField = cols.has('category') ? 'category' : 'name';
+
+        let categoryFilter = '';
+        if (type === 'order') {
+            // Exclude booking-based categories based on user's request
+            categoryFilter = `AND ${categoryField} NOT IN ('صيانة', 'صيانه', 'صيانة وسباكة', 'ممرض', 'دكتور', 'دكتور وممرض', 'ممرض ودكتور', 'ملاعب', 'ملعب', 'خدمات سيارات', 'توصيل سيارات', 'ونش')`;
+        }
+
+        const result = await pool.query(`
+            SELECT id, name, ${categoryField} AS category, phone
+            FROM providers
+            WHERE ${approvalCondition} ${onlineCondition} (name ILIKE $1 OR ${categoryField} ILIKE $1) ${categoryFilter}
+            ORDER BY name ASC
+            LIMIT 20
+        `, [`%${query.trim()}%`]);
+        return result.rows;
+    }
+
+    async getById(id) {
+        const cols = await getProvidersColumns();
+        const userIdSelect = cols.has('user_id') ? 'p.user_id' : 'NULL::bigint AS user_id';
+        const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
+        const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
+        const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : (cols.has('user_id') ? 'u.is_online' : 'TRUE AS is_online');
+        const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+        const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
+        const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
+        const avatarSelect = cols.has('user_id') ? 'u.avatar AS image_url' : 'NULL::text AS image_url';
+
+        const result = await pool.query(`
+            SELECT 
+                p.id, p.name, p.email, p.category, p.location, p.phone, ${userIdSelect},
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${avatarSelect}
+            FROM providers p
+            ${userJoin}
+            WHERE p.id = $1
+        `, [id]);
+        return result.rows[0];
+    }
+
+    async getByEmail(email) {
+        const cols = await getProvidersColumns();
+        const ratingSelect = cols.has('rating') ? 'p.rating' : '0::numeric AS rating';
+        const reviewsSelect = cols.has('reviews_count') ? 'p.reviews_count AS reviews' : '0::int AS reviews';
+        const approvedSelect = cols.has('is_approved') ? 'p.is_approved' : 'TRUE AS is_approved';
+        const onlineSelect = cols.has('is_online') ? 'p.is_online' : (cols.has('user_id') ? 'u.is_online' : 'TRUE AS is_online');
+        const joinedDateSelect = cols.has('joined_date') ? 'p.joined_date' : 'NOW() AS joined_date';
+        const coverImageSelect = cols.has('cover_image') ? 'p.cover_image' : 'NULL::text AS cover_image';
+        const userJoin = cols.has('user_id') ? 'LEFT JOIN users u ON p.user_id = u.id' : '';
+        const avatarSelect = cols.has('user_id') ? 'u.avatar AS image_url' : 'NULL::text AS image_url';
+
+        const result = await pool.query(`
+            SELECT 
+                p.id, p.name, p.email, p.category, p.location, p.phone,
+                ${ratingSelect}, ${reviewsSelect}, ${approvedSelect}, ${onlineSelect}, ${joinedDateSelect}, ${coverImageSelect}, ${avatarSelect}
+            FROM providers p
+            ${userJoin}
+            WHERE p.email = $1
+        `, [email]);
+        return result.rows[0];
+    }
+
+    async addReview(data) {
+        const cols = await getReviewsColumns();
+        const userNameCol = cols.has('user_name') ? 'user_name' : (cols.has('customer_name') ? 'customer_name' : null);
+
+        const insertCols = ['provider_id', 'rating', 'comment'];
+        const values = ['$1', '$2', '$3'];
+        const params = [data.providerId, data.rating, data.comment];
+
+        if (userNameCol) {
+            insertCols.push(userNameCol);
+            params.push(data.userName);
+            values.push(`$${params.length}`);
+        }
+
+        await pool.query(
+            `INSERT INTO reviews (${insertCols.join(', ')}) VALUES (${values.join(', ')})`,
+            params
+        );
+    }
+
+    async updateProviderRating(providerId) {
+        const providerCols = await getProvidersColumns();
+        if (!providerCols.has('rating') || !providerCols.has('reviews_count')) return;
+
+        // Calculate average rating and count
+        const result = await pool.query(
+            `SELECT COUNT(*) as count, AVG(rating) as average 
+             FROM reviews 
+             WHERE provider_id = $1`,
+            [providerId]
+        );
+
+        if (result.rows.length > 0) {
+            const count = parseInt(result.rows[0].count) || 0;
+            let average = parseFloat(result.rows[0].average) || 0;
+            
+            // Round to 1 decimal place
+            average = Math.round(average * 10) / 10;
+
+            await pool.query(
+                `UPDATE providers 
+                 SET rating = $1, reviews_count = $2 
+                 WHERE id = $3`,
+                [average, count, providerId]
+            );
+        }
+    }
+
+    async deleteProvider(id) {
+        const provider = await this.getById(id);
+        if (!provider) return null;
+
+        await pool.query('DELETE FROM providers WHERE id = $1', [id]);
+        if (provider.user_id) {
+            await pool.query('DELETE FROM users WHERE id = $1', [provider.user_id]);
+        }
+        return true;
+    }
+
+    async updateStatus(id, is_online) {
+        const cols = await getProvidersColumns();
+        if (!cols.has('is_online')) {
+            // Fallback: column may not exist yet. Clear cache and re-check once.
+            clearColumnsCache();
+            const freshCols = await getProvidersColumns();
+            if (!freshCols.has('is_online')) {
+                // If the column STILL doesn't exist, at least update the users table to keep it in sync!
+                const userRow = await pool.query('SELECT user_id FROM providers WHERE id = $1 LIMIT 1', [id]);
+                if (userRow.rows[0]?.user_id) {
+                    await pool.query('UPDATE users SET is_online = $1 WHERE id = $2', [is_online, userRow.rows[0].user_id]);
+                }
+                return { is_online };
+            }
+        }
+
+        const result = await pool.query(
+            'UPDATE providers SET is_online = $1 WHERE id = $2 RETURNING *',
+            [is_online, id]
+        );
+
+        // Keep users.is_online in sync for consistency
+        if (result.rows[0]?.user_id) {
+            try {
+                await pool.query('UPDATE users SET is_online = $1 WHERE id = $2', [is_online, result.rows[0].user_id]);
+            } catch(e) { /* non-fatal */ }
+        }
+
+        return result.rows[0];
+    }
+
+    async getProviderIdByUserId(userId) {
+        const cols = await getProvidersColumns();
+
+        // Primary mapping: providers.user_id -> users.id
+        if (cols.has('user_id')) {
+            const byUserId = await pool.query('SELECT id FROM providers WHERE user_id = $1 LIMIT 1', [userId]);
+            if (byUserId.rows[0]?.id) return byUserId.rows[0].id;
+        }
+
+        // Fallback for legacy DBs where provider isn't linked by user_id yet.
+        const userResult = await pool.query('SELECT email, phone, name FROM users WHERE id = $1 LIMIT 1', [userId]);
+        const user = userResult.rows[0];
+        if (!user) return null;
+
+        if (cols.has('email') && user.email) {
+            const byEmail = await pool.query(
+                'SELECT id FROM providers WHERE LOWER(email) = LOWER($1) LIMIT 1',
+                [user.email]
+            );
+            if (byEmail.rows[0]?.id) return byEmail.rows[0].id;
+        }
+
+        // Add phone fallback
+        if (cols.has('phone') && user.phone) {
+            const byPhone = await pool.query(
+                'SELECT id FROM providers WHERE phone = $1 OR phone LIKE $2 LIMIT 1',
+                [user.phone, `%${user.phone.slice(-9)}`]
+            );
+            if (byPhone.rows[0]?.id) return byPhone.rows[0].id;
+        }
+
+        return null;
+    }
+
+    async updateProvider(id, data) {
+        const query = `
+            UPDATE providers SET 
+                name = COALESCE($1, name),
+                category = COALESCE($2, category),
+                location = COALESCE($3, location),
+                phone = COALESCE($4, phone),
+                cover_image = COALESCE($5, cover_image)
+            WHERE id = $6
+        `;
+        const coverImg = data.coverImage !== undefined ? data.coverImage : (data.cover_photo !== undefined ? data.cover_photo : (data.cover_image !== undefined ? data.cover_image : undefined));
+        
+        const params = [
+            data.name !== undefined ? data.name : null, 
+            data.category !== undefined ? data.category : null, 
+            data.location !== undefined ? data.location : null, 
+            data.phone !== undefined ? data.phone : null, 
+            coverImg !== undefined ? coverImg : null, 
+            id
+        ];
+        await pool.query(query, params);
+    }
+}
+
+const repo = new ProviderRepository();
+repo.clearColumnsCache = clearColumnsCache;
+module.exports = repo;

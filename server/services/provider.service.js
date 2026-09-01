@@ -1,0 +1,148 @@
+const providerRepo = require('../repositories/provider.repository');
+const logger = require('../utils/logger');
+const { getCache, setCache } = require('../utils/redis-cache');
+
+const PROVIDERS_CACHE_TTL = 300; // 5 minutes (Lists are less volatile)
+
+class ProviderService {
+
+    async getProviders(lastId = null, limit = 20, lastRating = null, category = null) {
+        const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+        // [ENTERPRISE] Cache key includes category and pagination anchors
+        const cacheKey = `providers:list:${category || 'all'}:${lastRating || 'top'}:${lastId || 'start'}:${safeLimit}`;
+
+        const cached = await getCache(cacheKey);
+        if (cached) return cached;
+
+        const providersRaw = await providerRepo.getProviders({
+            limit: safeLimit,
+            lastId: lastId ? parseInt(lastId, 10) : undefined,
+            lastRating: lastRating !== null ? parseFloat(lastRating) : undefined,
+            category
+        });
+
+        const providers = providersRaw.map(p => {
+            const provider = { ...p };
+            if (p.services_raw) {
+                provider.services = this._formatServices(p.services_raw);
+                delete provider.services_raw;
+            }
+            this._sanitizeProvider(provider);
+            return provider;
+        });
+
+        const result = {
+            providers,
+            // Keyset anchors for next page
+            nextLastId: providers.length > 0 ? providers[providers.length - 1].id : null,
+            nextLastRating: providers.length > 0 ? providers[providers.length - 1].rating : null,
+            hasMore: providers.length === safeLimit
+        };
+
+        await setCache(cacheKey, result, PROVIDERS_CACHE_TTL);
+        return result;
+    }
+
+    async getProviderById(id) {
+        const p = await providerRepo.getByIdWithDetails(id);
+        if (!p) return null;
+
+        const provider = { ...p };
+        provider.services = this._formatServices(p.services_raw || []);
+        provider.reviewsList = this._formatReviews(p.reviews_raw || []);
+        this._sanitizeProvider(provider);
+        delete provider.services_raw;
+        delete provider.reviews_raw;
+
+        return provider;
+    }
+
+    async getProviderByEmail(email) {
+        const provider = await providerRepo.getByEmail(email);
+        if (!provider) return null;
+
+        const [services, reviews] = await Promise.all([
+            providerRepo.getServices(provider.id),
+            providerRepo.getReviews(provider.id)
+        ]);
+        provider.services = this._formatServices(services);
+        provider.reviewsList = this._formatReviews(reviews);
+
+        this._sanitizeProvider(provider);
+        return provider;
+    }
+
+    _formatServices(services) {
+        const now = new Date();
+        return services.map(s => {
+            let isValidOffer = s.has_offer;
+            if (isValidOffer && s.offer_end_date) {
+                const endDate = new Date(s.offer_end_date);
+                if (endDate < now) {
+                    isValidOffer = false;
+                }
+            }
+            return {
+                id: s.id.toString(),
+                name: s.name,
+                description: s.description,
+                price: parseFloat(s.price),
+                image: s.image,
+                offer: isValidOffer ? {
+                    type: s.offer_type,
+                    discountPercent: s.discount_percent,
+                    bundleCount: s.bundle_count,
+                    bundleFreeCount: s.bundle_free_count,
+                    endDate: s.offer_end_date
+                } : undefined
+            };
+        });
+    }
+
+    _formatReviews(reviews) {
+        return reviews.map(r => ({
+            id: r.id.toString(),
+            userName: r.user_name,
+            rating: r.rating,
+            comment: r.comment,
+            date: r.review_date
+        }));
+    }
+
+    _sanitizeProvider(p) {
+        const { encodeEntityId } = require('../utils/obfuscate');
+        p.id = encodeEntityId('provider', p.id);
+        p.userId = p.user_id ? encodeEntityId('user', p.user_id) : undefined;
+        p.isApproved = p.is_approved;
+        p.isOnline = p.is_online;
+        p.joinedDate = p.joined_date;
+        delete p.user_id;
+        delete p.is_approved;
+        delete p.is_online;
+        delete p.joined_date;
+    }
+
+    async updateStatus(userId, isOnline) {
+        let result = { is_online: isOnline };
+        const providerId = await providerRepo.getProviderIdByUserId(userId);
+        
+        if (providerId) {
+            result = await providerRepo.updateStatus(providerId, isOnline);
+        } else {
+            // Update users table directly if provider record doesn't exist
+            const pool = require('../db');
+            await pool.query('UPDATE users SET is_online = $1 WHERE id = $2', [isOnline, userId]);
+        }
+        
+        // Invalidate cache
+        const { invalidatePattern } = require('../utils/redis-cache');
+        if (invalidatePattern) {
+            await invalidatePattern('route:*providers*');
+            await invalidatePattern('providers:list:*');
+        }
+
+        return result;
+    }
+}
+
+module.exports = new ProviderService();
