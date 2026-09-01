@@ -25,8 +25,7 @@ export default function CatalogCategoriesPage() {
             if (Array.isArray(list) && list.length > 0) {
                 setCategories(list);
             } else {
-                const fallback = await requestsApi.getCategories();
-                setCategories(Array.isArray(fallback) && fallback.length > 0 ? fallback : defaultCategories);
+                setCategories(defaultCategories);
             }
         } catch {
             setCategories(defaultCategories);
