@@ -32,6 +32,8 @@ interface UserProfile {
     total_orders?: number;
     total_bookings?: number;
     rating?: number;
+    ip_address?: string;
+    device_fingerprint?: string;
 }
 
 // ========== Tabs Config ==========
