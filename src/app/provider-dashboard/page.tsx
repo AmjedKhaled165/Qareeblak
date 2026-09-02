@@ -198,6 +198,9 @@ export default function ProviderDashboard() {
     const [createOrderItems, setCreateOrderItems] = useState<{ name: string; price: string; quantity: string }[]>([{ name: '', price: '', quantity: '1' }]);
     const [isCreatingOrder, setIsCreatingOrder] = useState(false);
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+    const [editingOrder, setEditingOrder] = useState<Booking | null>(null);
+    const [editOrderItems, setEditOrderItems] = useState<{ name: string; price: string; quantity: string }[]>([]);
+    const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
 
     // Maintenance Modals State
     const [isPriceEstimationOpen, setIsPriceEstimationOpen] = useState(false);
@@ -1983,7 +1986,7 @@ export default function ProviderDashboard() {
                                                                                                     booking.status}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-8 py-6" onClick={(e) => e.stopPropagation()}>
+                                                            <td className="px-8 py-6 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                                 {booking.status === 'confirmed' && (
                                                                     <Button
                                                                         size="sm"
@@ -2017,6 +2020,20 @@ export default function ProviderDashboard() {
                                                                 )}
                                                                 {booking.status === 'pending' && (
                                                                     <span className="text-xs font-bold text-orange-400 font-cairo">بانتظار القبول</span>
+                                                                )}
+                                                                {['pending', 'confirmed', 'completed'].includes(booking.status) && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setEditingOrder(booking);
+                                                                            setEditOrderItems(Array.isArray(booking.items) ? booking.items.map((i: any) => ({ name: i.name || i.product_name || '', price: String(i.price || 0), quantity: String(i.quantity || 1) })) : [{ name: '', price: '', quantity: '1' }]);
+                                                                        }}
+                                                                        className="rounded-xl font-bold font-cairo text-xs h-9 px-4 border-border/50 text-muted-foreground hover:text-primary transition-all hover:border-primary/30 active:scale-95 shrink-0"
+                                                                    >
+                                                                        تعديل
+                                                                    </Button>
                                                                 )}
                                                             </td>
                                                         </tr>
@@ -2472,6 +2489,133 @@ export default function ProviderDashboard() {
                         <Button 
                             variant="outline"
                             onClick={() => setIsCreateOrderOpen(false)}
+                            className="rounded-xl h-12 px-8 font-bold border-border/50 hover:bg-muted text-muted-foreground flex-1 sm:flex-none"
+                        >
+                            إلغاء
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Order Modal */}
+            <Dialog open={!!editingOrder} onOpenChange={(open) => !open && setEditingOrder(null)}>
+                <DialogContent className="max-w-2xl p-0 overflow-hidden bg-background border-border/50 shadow-2xl rounded-3xl" dir="rtl">
+                    <DialogHeader className="p-6 pb-4 border-b border-border/50 bg-muted/20">
+                        <DialogTitle className="text-xl font-black font-cairo flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                                <Package className="w-5 h-5" />
+                            </div>
+                            تعديل الطلب #{editingOrder?.display_id || String(editingOrder?.id).substring(0, 8)}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4 font-cairo">
+                        {editOrderItems.map((item, index) => (
+                            <div key={index} className="flex flex-col md:flex-row gap-3 p-4 rounded-2xl bg-muted/30 border border-border/50 relative group">
+                                <div className="flex-1 space-y-2">
+                                    <Label className="text-xs font-bold text-muted-foreground">اسم الصنف / الخدمة</Label>
+                                    <Input 
+                                        placeholder="مثال: دجاج مشوي، تصليح سباكة..." 
+                                        value={item.name}
+                                        onChange={(e) => {
+                                            const newItems = [...editOrderItems];
+                                            newItems[index].name = e.target.value;
+                                            setEditOrderItems(newItems);
+                                        }}
+                                        className="h-11 rounded-xl bg-background border-border"
+                                    />
+                                </div>
+                                <div className="w-full md:w-32 space-y-2">
+                                    <Label className="text-xs font-bold text-muted-foreground">السعر (ج.م)</Label>
+                                    <Input 
+                                        type="number" 
+                                        placeholder="0" 
+                                        min="0"
+                                        value={item.price}
+                                        onChange={(e) => {
+                                            const newItems = [...editOrderItems];
+                                            newItems[index].price = e.target.value;
+                                            setEditOrderItems(newItems);
+                                        }}
+                                        className="h-11 rounded-xl bg-background border-border"
+                                    />
+                                </div>
+                                <div className="w-full md:w-24 space-y-2">
+                                    <Label className="text-xs font-bold text-muted-foreground">الكمية</Label>
+                                    <Input 
+                                        type="number" 
+                                        placeholder="1" 
+                                        min="1"
+                                        value={item.quantity}
+                                        onChange={(e) => {
+                                            const newItems = [...editOrderItems];
+                                            newItems[index].quantity = e.target.value;
+                                            setEditOrderItems(newItems);
+                                        }}
+                                        className="h-11 rounded-xl bg-background border-border text-center"
+                                    />
+                                </div>
+                                {editOrderItems.length > 1 && (
+                                    <button 
+                                        onClick={() => {
+                                            const newItems = editOrderItems.filter((_, i) => i !== index);
+                                            setEditOrderItems(newItems);
+                                        }}
+                                        className="absolute -top-3 -right-3 md:top-auto md:-right-4 md:bottom-2 w-8 h-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center opacity-100 md:opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive hover:text-white"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setEditOrderItems([...editOrderItems, { name: '', price: '', quantity: '1' }])}
+                            className="w-full h-12 rounded-xl border-dashed border-2 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary font-bold gap-2"
+                        >
+                            <Plus className="w-4 h-4" />
+                            إضافة صنف آخر
+                        </Button>
+
+                        <div className="flex justify-between items-center p-4 rounded-xl bg-primary/10 border border-primary/20">
+                            <span className="font-bold text-foreground">إجمالي الطلب:</span>
+                            <span className="text-xl font-black text-primary">
+                                {editOrderItems.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0).toFixed(2)} ج.م
+                            </span>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="p-6 border-t border-border/50 bg-muted/20 flex gap-3 sm:justify-start">
+                        <Button 
+                            className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 px-8 font-black flex-1 shadow-lg shadow-primary/20 transition-all active:scale-95 gap-2"
+                            disabled={isUpdatingOrder || editOrderItems.some(i => !i.name.trim() || !i.price || Number(i.price) <= 0)}
+                            onClick={async () => {
+                                if (!editingOrder) return;
+                                setIsUpdatingOrder(true);
+                                try {
+                                    const items = editOrderItems.map(i => ({
+                                        name: i.name,
+                                        price: Number(i.price),
+                                        quantity: Number(i.quantity) || 1
+                                    }));
+                                    await providerOrdersApi.update(editingOrder.id, { items });
+                                    toast('تم تعديل الطلب بنجاح ✅', 'success');
+                                    setEditingOrder(null);
+                                    if (providerId) fetchPaginatedBookings();
+                                } catch (err: any) {
+                                    toast(err?.message || 'حدث خطأ في تعديل الطلب', 'error');
+                                } finally {
+                                    setIsUpdatingOrder(false);
+                                }
+                            }}
+                        >
+                            {isUpdatingOrder ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                            حفظ التعديلات
+                        </Button>
+                        <Button 
+                            variant="outline"
+                            onClick={() => setEditingOrder(null)}
                             className="rounded-xl h-12 px-8 font-bold border-border/50 hover:bg-muted text-muted-foreground flex-1 sm:flex-none"
                         >
                             إلغاء

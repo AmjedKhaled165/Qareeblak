@@ -243,8 +243,8 @@ router.patch('/:id/status', isProviderOrAdmin, catchAsync(async (req, res) => {
 
     // Update booking status
     await db.query(
-        'UPDATE bookings SET status = $1, last_updated_by = $2 WHERE id = $3',
-        [newBookingStatus, 'provider', bookingId]
+        'UPDATE bookings SET status = $1 WHERE id = $2',
+        [newBookingStatus, bookingId]
     );
 
     // Update delivery order status if exists
@@ -328,6 +328,135 @@ router.patch('/:id/status', isProviderOrAdmin, catchAsync(async (req, res) => {
         message: statusMessage,
         status: newBookingStatus,
         deliveryStatus: newDeliveryStatus
+    });
+}));
+
+/**
+ * PUT /api/provider-orders/:id
+ * Edit an existing provider-initiated order.
+ * Body: { items: [{ name, price, quantity }] }
+ */
+router.put('/:id', isProviderOrAdmin, catchAsync(async (req, res) => {
+    const bookingId = req.params.id;
+    const userId = req.user.id;
+    const io = req.app.get('io');
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, error: 'يجب إضافة عنصر واحد على الأقل' });
+    }
+
+    // Validate each item
+    for (const item of items) {
+        if (!item.name || item.name.trim().length === 0) {
+            return res.status(400).json({ success: false, error: 'اسم المنتج مطلوب' });
+        }
+        if (!item.price || Number(item.price) <= 0) {
+            return res.status(400).json({ success: false, error: 'السعر يجب أن يكون أكبر من صفر' });
+        }
+        if (!item.quantity || Number(item.quantity) <= 0) {
+            return res.status(400).json({ success: false, error: 'الكمية يجب أن تكون أكبر من صفر' });
+        }
+    }
+
+    // Fetch the booking and corresponding delivery order
+    const bookingResult = await db.query(
+        'SELECT b.id, b.provider_id, b.halan_order_id, b.status as booking_status, b.provider_name, d.status as delivery_status FROM bookings b LEFT JOIN delivery_orders d ON b.halan_order_id = d.id WHERE b.id = $1',
+        [bookingId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'الطلب غير موجود' });
+    }
+
+    const booking = bookingResult.rows[0];
+
+    // Restrict editing if courier has started delivery or order is completed/canceled
+    const restrictedStatuses = ['delivering', 'delivered', 'completed', 'canceled', 'cancelled'];
+    if (restrictedStatuses.includes(booking.delivery_status) || restrictedStatuses.includes(booking.booking_status)) {
+        return res.status(403).json({ success: false, error: 'لا يمكن تعديل الطلب في هذه المرحلة (جاري التوصيل أو منتهي)' });
+    }
+
+    const totalPrice = items.reduce((sum, item) =>
+        sum + (Number(item.price) * Number(item.quantity || 1)), 0
+    );
+
+    const mappedItems = items.map(item => ({
+        name: item.name.trim(),
+        product_name: item.name.trim(),
+        quantity: Number(item.quantity) || 1,
+        price: Number(item.price),
+        total: Number(item.price) * (Number(item.quantity) || 1)
+    }));
+
+    const serviceTitle = items.length === 1
+        ? items[0].name.trim()
+        : `${items.length} أصناف`;
+
+    // Update booking
+    await db.query(
+        'UPDATE bookings SET service_name = $1, price = $2, items = $3::jsonb WHERE id = $4',
+        [serviceTitle, totalPrice, JSON.stringify(mappedItems), bookingId]
+    );
+
+    // Update delivery order if it exists
+    if (booking.halan_order_id) {
+        try {
+            await db.query(
+                'UPDATE delivery_orders SET items = $1::jsonb, updated_at = NOW() WHERE id = $2',
+                [JSON.stringify(mappedItems), booking.halan_order_id]
+            );
+        } catch (err) {
+            logger.error(`[ProviderOrder] Failed to update delivery order #${booking.halan_order_id} items:`, err.message);
+        }
+    }
+
+    logger.info(`[ProviderOrder] Order #${bookingId} updated by user ${userId}`);
+
+    // Emit Socket.io events for real-time sync
+    if (io) {
+        const enrichedBooking = {
+            id: Number(bookingId),
+            bookingId: Number(bookingId),
+            halanOrderId: booking.halan_order_id,
+            price: totalPrice,
+            service_name: serviceTitle,
+            items: mappedItems,
+            is_edited: true
+        };
+
+        io.emit('booking-updated', enrichedBooking);
+        io.to(`provider-${booking.provider_id}`).emit('booking-updated', enrichedBooking);
+
+        if (booking.halan_order_id) {
+            io.emit('order-updated', {
+                orderId: booking.halan_order_id,
+                updates: { items: mappedItems }
+            });
+        }
+    }
+
+    // Send notifications to partners
+    try {
+        const partners = await db.query(
+            `SELECT id FROM users WHERE user_type IN ('partner_owner', 'admin', 'partner_supervisor', 'partner_courier') AND is_banned = false`
+        );
+        for (const partner of partners.rows) {
+            await createNotification(
+                partner.id,
+                `تم تعديل طلب ${booking.provider_name}: ${serviceTitle} — ${totalPrice} ج.م`,
+                'order_updated',
+                String(bookingId),
+                io
+            );
+        }
+    } catch (err) {
+        logger.warn('[ProviderOrder] Failed to send update notifications:', err.message);
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: 'تم تعديل الطلب بنجاح'
     });
 }));
 

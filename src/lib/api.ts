@@ -712,6 +712,13 @@ export const providerOrdersApi = {
         });
     },
 
+    async update(bookingId: string | number, data: { items: { name: string; price: number; quantity: number }[] }) {
+        return apiCall(`/provider-orders/${bookingId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    },
+
     async updateStatus(bookingId: string | number, status: 'preparing' | 'ready') {
         return apiCall(`/provider-orders/${bookingId}/status`, {
             method: 'PATCH',
