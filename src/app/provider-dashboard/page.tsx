@@ -197,9 +197,13 @@ export default function ProviderDashboard() {
     const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
     const [createOrderItems, setCreateOrderItems] = useState<{ name: string; price: string; quantity: string }[]>([{ name: '', price: '', quantity: '1' }]);
     const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+    const [createCustomerPhone, setCreateCustomerPhone] = useState('');
+    const [createDeliveryAddress, setCreateDeliveryAddress] = useState('');
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
     const [editingOrder, setEditingOrder] = useState<Booking | null>(null);
     const [editOrderItems, setEditOrderItems] = useState<{ name: string; price: string; quantity: string }[]>([]);
+    const [editCustomerPhone, setEditCustomerPhone] = useState('');
+    const [editDeliveryAddress, setEditDeliveryAddress] = useState('');
     const [isUpdatingOrder, setIsUpdatingOrder] = useState(false);
 
     // Maintenance Modals State
@@ -2029,6 +2033,8 @@ export default function ProviderDashboard() {
                                                                             e.stopPropagation();
                                                                             setEditingOrder(booking);
                                                                             setEditOrderItems(Array.isArray(booking.items) ? booking.items.map((i: any) => ({ name: i.name || i.product_name || '', price: String(i.price || 0), quantity: String(i.quantity || 1) })) : [{ name: '', price: '', quantity: '1' }]);
+                                                                            setEditCustomerPhone((booking as any).customerPhone || (booking as any).customer_phone || '');
+                                                                            setEditDeliveryAddress((booking as any).deliveryAddress || (booking as any).delivery_address || '');
                                                                         }}
                                                                         className="rounded-xl font-bold font-cairo text-xs h-9 px-4 border-border/50 text-muted-foreground hover:text-primary transition-all hover:border-primary/30 active:scale-95 shrink-0"
                                                                     >
@@ -2384,6 +2390,28 @@ export default function ProviderDashboard() {
                     </DialogHeader>
 
                     <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+                        <div className="flex flex-col md:flex-row gap-4 p-4 rounded-xl border border-border/50 bg-card">
+                            <div className="flex-1 space-y-2">
+                                <Label className="text-xs font-bold text-muted-foreground">رقم تليفون العميل</Label>
+                                <Input 
+                                    placeholder="مثال: 01012345678" 
+                                    value={createCustomerPhone}
+                                    onChange={(e) => setCreateCustomerPhone(e.target.value)}
+                                    className="h-11 rounded-xl bg-background border-border text-left"
+                                    dir="ltr"
+                                />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                                <Label className="text-xs font-bold text-muted-foreground">العنوان بالتفصيل</Label>
+                                <Input 
+                                    placeholder="شارع المحطة، عمارة 5..." 
+                                    value={createDeliveryAddress}
+                                    onChange={(e) => setCreateDeliveryAddress(e.target.value)}
+                                    className="h-11 rounded-xl bg-background border-border"
+                                />
+                            </div>
+                        </div>
+
                         {createOrderItems.map((item, index) => (
                             <div key={index} className="flex flex-col md:flex-row gap-4 p-4 rounded-xl border border-border/50 bg-muted/10 relative group">
                                 <div className="flex-1 space-y-2">
@@ -2472,9 +2500,16 @@ export default function ProviderDashboard() {
                                         price: Number(i.price),
                                         quantity: Number(i.quantity) || 1
                                     }));
-                                    await providerOrdersApi.create({ items });
+                                    await providerOrdersApi.create({ 
+                                        items, 
+                                        customerPhone: createCustomerPhone, 
+                                        deliveryAddress: createDeliveryAddress 
+                                    });
                                     toast('تم إنشاء الطلب بنجاح وهو الآن قيد التجهيز ✅', 'success');
                                     setIsCreateOrderOpen(false);
+                                    setCreateCustomerPhone('');
+                                    setCreateDeliveryAddress('');
+                                    setCreateOrderItems([{ name: '', price: '', quantity: '1' }]);
                                     if (providerId) fetchPaginatedBookings();
                                 } catch (err: any) {
                                     toast(err?.message || 'حدث خطأ في إنشاء الطلب', 'error');
@@ -2510,6 +2545,28 @@ export default function ProviderDashboard() {
                     </DialogHeader>
 
                     <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4 font-cairo">
+                        <div className="flex flex-col md:flex-row gap-4 p-4 rounded-xl border border-border/50 bg-card">
+                            <div className="flex-1 space-y-2">
+                                <Label className="text-xs font-bold text-muted-foreground">رقم تليفون العميل</Label>
+                                <Input 
+                                    placeholder="مثال: 01012345678" 
+                                    value={editCustomerPhone}
+                                    onChange={(e) => setEditCustomerPhone(e.target.value)}
+                                    className="h-11 rounded-xl bg-background border-border text-left"
+                                    dir="ltr"
+                                />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                                <Label className="text-xs font-bold text-muted-foreground">العنوان بالتفصيل</Label>
+                                <Input 
+                                    placeholder="شارع المحطة، عمارة 5..." 
+                                    value={editDeliveryAddress}
+                                    onChange={(e) => setEditDeliveryAddress(e.target.value)}
+                                    className="h-11 rounded-xl bg-background border-border"
+                                />
+                            </div>
+                        </div>
+
                         {editOrderItems.map((item, index) => (
                             <div key={index} className="flex flex-col md:flex-row gap-3 p-4 rounded-2xl bg-muted/30 border border-border/50 relative group">
                                 <div className="flex-1 space-y-2">
@@ -2599,7 +2656,11 @@ export default function ProviderDashboard() {
                                         price: Number(i.price),
                                         quantity: Number(i.quantity) || 1
                                     }));
-                                    await providerOrdersApi.update(editingOrder.id, { items });
+                                    await providerOrdersApi.update(editingOrder.id, { 
+                                        items,
+                                        customerPhone: editCustomerPhone,
+                                        deliveryAddress: editDeliveryAddress
+                                    });
                                     toast('تم تعديل الطلب بنجاح ✅', 'success');
                                     setEditingOrder(null);
                                     if (providerId) fetchPaginatedBookings();

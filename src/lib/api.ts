@@ -705,7 +705,7 @@ export const wheelApi = {
 
 // ==================== PROVIDER ORDERS API ====================
 export const providerOrdersApi = {
-    async create(data: { items: { name: string; price: number; quantity: number }[] }) {
+    async create(data: { items: { name: string; price: number; quantity: number }[], customerPhone?: string, deliveryAddress?: string }) {
         return apiCall('/provider-orders', {
             method: 'POST',
             body: JSON.stringify(data)

@@ -23,7 +23,7 @@ router.use(verifyToken);
 router.post('/', isProviderOrAdmin, catchAsync(async (req, res) => {
     const userId = req.user.id;
     const io = req.app.get('io');
-    const { items } = req.body;
+    const { items, customerPhone, deliveryAddress } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ success: false, error: 'يجب إضافة عنصر واحد على الأقل' });
@@ -103,9 +103,9 @@ router.post('/', isProviderOrAdmin, catchAsync(async (req, res) => {
             [
                 orderNumber,
                 provider.name,
-                '', // No customer phone for provider-initiated orders
+                customerPhone || '', // Use provided phone or fallback to empty
                 provider.name, // Pickup from the provider
-                'يحدد لاحقاً', // Delivery address to be determined
+                deliveryAddress || 'يحدد لاحقاً', // Use provided address or fallback
                 'pending',
                 `طلب من مقدم الخدمة: ${provider.name}`,
                 '[]', // Prevent duplicate items by not inserting into delivery_orders.items
@@ -340,7 +340,7 @@ router.put('/:id', isProviderOrAdmin, catchAsync(async (req, res) => {
     const bookingId = req.params.id;
     const userId = req.user.id;
     const io = req.app.get('io');
-    const { items } = req.body;
+    const { items, customerPhone, deliveryAddress } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ success: false, error: 'يجب إضافة عنصر واحد على الأقل' });
@@ -402,9 +402,24 @@ router.put('/:id', isProviderOrAdmin, catchAsync(async (req, res) => {
     // Update delivery order if it exists
     if (booking.halan_order_id) {
         try {
+            const updateFields = ['items = $1::jsonb', 'updated_at = NOW()'];
+            const updateValues = ['[]', booking.halan_order_id];
+            let valueIdx = 3;
+
+            if (customerPhone !== undefined) {
+                updateFields.push(`customer_phone = $${valueIdx}`);
+                updateValues.push(customerPhone);
+                valueIdx++;
+            }
+            if (deliveryAddress !== undefined) {
+                updateFields.push(`delivery_address = $${valueIdx}`);
+                updateValues.push(deliveryAddress);
+                valueIdx++;
+            }
+
             await db.query(
-                'UPDATE delivery_orders SET items = $1::jsonb, updated_at = NOW() WHERE id = $2',
-                ['[]', booking.halan_order_id]
+                `UPDATE delivery_orders SET ${updateFields.join(', ')} WHERE id = $2`,
+                updateValues
             );
         } catch (err) {
             logger.error(`[ProviderOrder] Failed to update delivery order #${booking.halan_order_id} items:`, err.message);
