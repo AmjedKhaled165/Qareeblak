@@ -42,7 +42,7 @@ export default function CatalogCategoriesPage() {
         { id: 5, name: "حلويات ومخبوزات", name_ar: "حلويات ومخبوزات", icon: "🍰", count: 12, status: true },
     ];
 
-    const filtered = categories.filter(c => (c.name_ar || c.name || "").includes(searchTerm));
+    const filtered = categories.filter((c: any) => (c.name_ar || c.name || "").includes(searchTerm));
 
     return (
         <div className="space-y-6" dir="rtl">
@@ -68,7 +68,7 @@ export default function CatalogCategoriesPage() {
                         <Input
                             placeholder="بحث في التصنيفات..."
                             value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
+                            onChange={(e: any) => setSearchTerm(e.target.value)}
                             className="pr-9 h-9 text-sm rounded-xl font-cairo"
                         />
                     </div>
@@ -81,7 +81,7 @@ export default function CatalogCategoriesPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filtered.map((cat, idx) => (
+                            {filtered.map((cat: any, idx: number) => (
                                 <div key={cat.id || idx} className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <span className="text-3xl p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">{cat.icon || "📂"}</span>
