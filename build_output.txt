@@ -16,3 +16,19 @@ Retrying 1/3...
 Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
   npx update-browserslist-db@latest
   Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ Compiled successfully in 3.4min
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./src/components/layout/navbar.tsx:261:138
+Type error: Cannot find name 'isProviderOrPartner'.
+
+[0m [90m 259 |[39m
+ [90m 260 |[39m                     {[90m/* Cart Trigger */[39m}
+[31m[1m>[22m[39m[90m 261 |[39m                     {[33m![39m(pathname[33m.[39mstartsWith([32m'/provider-dashboard'[39m) [33m||[39m pathname[33m.[39mstartsWith([32m'/partner'[39m) [33m||[39m pathname[33m.[39mstartsWith([32m'/admin'[39m) [33m||[39m isProviderOrPartner) [33m&&[39m (
+ [90m     |[39m                                                                                                                                          [31m[1m^[22m[39m
+ [90m 262 |[39m                         [33m<[39m[33mbutton[39m
+ [90m 263 |[39m                             onClick[33m=[39m{() [33m=>[39m setIsCartOpen([36mtrue[39m)}
+ [90m 264 |[39m                             className[33m=[39m[32m"relative p-2.5 text-foreground hover:bg-accent rounded-full transition-colors group pop-hover"[39m[0m
+Next.js build worker exited with code: 1 and signal: null

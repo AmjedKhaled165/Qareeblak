@@ -258,7 +258,7 @@ export function Navbar() {
                     {currentUser && <div className="pop-hover"><NotificationBell /></div>}
 
                     {/* Cart Trigger */}
-                    {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || isProviderOrPartner) && (
+                    {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || (isProviderUser || isHalanStaff)) && (
                         <button
                             onClick={() => setIsCartOpen(true)}
                             className="relative p-2.5 text-foreground hover:bg-accent rounded-full transition-colors group pop-hover"
@@ -331,7 +331,7 @@ export function Navbar() {
                                                     إعدادات الحساب
                                                 </Link>
 
-                                                {isProviderOrPartner && (
+                                                {(isProviderUser || isHalanStaff) && (
                                                     <Link
                                                         href="/provider-dashboard"
                                                         onClick={() => setIsUserMenuOpen(false)}
@@ -393,7 +393,7 @@ export function Navbar() {
                         className="md:hidden w-full overflow-hidden border-t border-slate-200/50 dark:border-slate-800/50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg shadow-2xl"
                     >
                         <div className="space-y-2.5 p-6">
-                            {(!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || isProviderOrPartner) ? [
+                            {(!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || (isProviderUser || isHalanStaff)) ? [
                                 { label: 'الرئيسية', href: '/', icon: Home },
                                 { label: 'تصفح الخدمات', href: '/explore', icon: Search },
                                 { label: 'الصنايعية 🛠️', href: '/craftsmen', icon: Wrench },
