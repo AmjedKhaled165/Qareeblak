@@ -109,7 +109,7 @@ router.post('/', isProviderOrAdmin, catchAsync(async (req, res) => {
                 'pending',
                 `طلب من مقدم الخدمة: ${provider.name}`,
                 JSON.stringify(mappedItems),
-                'provider_initiated',
+                'qareeblak_web',
                 'provider'
             ]
         );
