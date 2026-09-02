@@ -210,7 +210,7 @@ export function Navbar() {
                 </div>
 
                 {/* 2. Desktop Navigation - Center */}
-                {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || isProviderOrPartner) && (
+                {!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || (isProviderUser || isHalanStaff)) && (
                     <nav className="hidden md:flex shrink-0 justify-center items-center gap-6 lg:gap-8 text-[15px] font-bold font-cairo">
                         {[
                             { label: 'الرئيسية', href: '/' },
