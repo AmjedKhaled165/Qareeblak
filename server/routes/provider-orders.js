@@ -72,8 +72,8 @@ router.post('/', isProviderOrAdmin, catchAsync(async (req, res) => {
     // Create booking with status 'confirmed' (provider created it, so it's already accepted)
     const bookingResult = await db.query(
         `INSERT INTO bookings
-            (user_id, provider_id, user_name, service_name, provider_name, price, status, details, items, booking_date, last_updated_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW(), 'provider')
+            (user_id, provider_id, user_name, service_name, provider_name, price, status, details, items, booking_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW())
          RETURNING id`,
         [
             userId,
