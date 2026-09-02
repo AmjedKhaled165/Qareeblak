@@ -108,7 +108,7 @@ router.post('/', isProviderOrAdmin, catchAsync(async (req, res) => {
                 'يحدد لاحقاً', // Delivery address to be determined
                 'pending',
                 `طلب من مقدم الخدمة: ${provider.name}`,
-                JSON.stringify(mappedItems),
+                '[]', // Prevent duplicate items by not inserting into delivery_orders.items
                 'qareeblak_web',
                 'provider'
             ]
@@ -404,7 +404,7 @@ router.put('/:id', isProviderOrAdmin, catchAsync(async (req, res) => {
         try {
             await db.query(
                 'UPDATE delivery_orders SET items = $1::jsonb, updated_at = NOW() WHERE id = $2',
-                [JSON.stringify(mappedItems), booking.halan_order_id]
+                ['[]', booking.halan_order_id]
             );
         } catch (err) {
             logger.error(`[ProviderOrder] Failed to update delivery order #${booking.halan_order_id} items:`, err.message);

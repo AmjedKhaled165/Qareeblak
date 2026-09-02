@@ -207,9 +207,9 @@ export default function DriverDashboard() {
                 const currentUser = userRef.current;
 
                 const active = response.data.filter((o: any) => {
-                    // The backend already filters to only show orders assigned to the courier OR their supervisor.
-                    // Allow the courier to see the order if it's assigned to them OR if it's not assigned to any courier yet.
-                    const isVisible = (String(o.courierId) === String(currentUser.id)) || (String(o.courier_id) === String(currentUser.id)) || !o.courier_id;
+                    // Only show orders that are strictly assigned to this courier.
+                    // (The user explicitly requested that unassigned orders should never be visible).
+                    const isVisible = (String(o.courierId) === String(currentUser.id)) || (String(o.courier_id) === String(currentUser.id));
 
                     return isVisible && !['delivered', 'تم التوصيل'].includes(o.status) && !['cancelled', 'ملغي'].includes(o.status);
                 }).map((o: any) => {
