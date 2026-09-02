@@ -712,7 +712,7 @@ export const providerOrdersApi = {
         });
     },
 
-    async update(bookingId: string | number, data: { items: { name: string; price: number; quantity: number }[] }) {
+    async update(bookingId: string | number, data: { items: { name: string; price: number; quantity: number }[], customerPhone?: string, deliveryAddress?: string }) {
         return apiCall(`/provider-orders/${bookingId}`, {
             method: 'PUT',
             body: JSON.stringify(data)
