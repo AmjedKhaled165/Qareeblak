@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from "framer-motion";
 import { DollarSign, CheckCircle, ListOrdered, Bike, MapPin, Users, ShoppingBag } from "lucide-react";
@@ -115,26 +115,26 @@ export default function OwnerOverviewTab({ stats, onNavigateTab }: OverviewTabPr
             {stats?.summary && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <StatsCard
-                        title="إجمالي الإيرادات"
-                        value={`${parseFloat(stats.summary.total_delivery_fees || 0).toFixed(0)} ج.م`}
+                        title="Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø¥ÙŠØ±Ø§Ø¯Ø§Øª"
+                        value={`${parseFloat(stats.summary.total_delivery_fees || 0).toFixed(0)} Ø¬.Ù…`}
                         icon={DollarSign}
                         color="#10B981"
                     />
                     <StatsCard
-                        title="Qareeblak - رسوم التوصيل"
-                        value={`${parseFloat(stats.summary.qareeblak_delivery_revenue || 0).toFixed(0)} ج.م`}
+                        title="Qareeblak - Ø±Ø³ÙˆÙ… Ø§Ù„ØªÙˆØµÙŠÙ„"
+                        value={`${parseFloat(stats.summary.qareeblak_delivery_revenue || 0).toFixed(0)} Ø¬.Ù…`}
                         icon={Bike}
                         color="#8B5CF6"
                         onClick={() => onNavigateTab('orders')}
                     />
                     <StatsCard
-                        title="طلبات ناجحة"
+                        title="Ø·Ù„Ø¨Ø§Øª Ù†Ø§Ø¬Ø­Ø©"
                         value={stats.summary.delivered}
                         icon={CheckCircle}
                         color="#6366F1"
                     />
                     <StatsCard
-                        title="كل الطلبات"
+                        title="ÙƒÙ„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª"
                         value={stats.summary.total_orders}
                         icon={ListOrdered}
                         color="#F59E0B"
@@ -150,21 +150,21 @@ export default function OwnerOverviewTab({ stats, onNavigateTab }: OverviewTabPr
                     className="flex items-center gap-2 px-4 py-2.5 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 rounded-xl text-xs font-bold hover:bg-indigo-200 dark:hover:bg-indigo-500/20 transition-all shadow-sm"
                 >
                     <ListOrdered className="w-4 h-4" />
-                    كل الطلبات
+                    ÙƒÙ„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª
                 </button>
                 <button
                     onClick={() => onNavigateTab('team')}
                     className="flex items-center gap-2 px-4 py-2.5 bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/20 rounded-xl text-xs font-bold hover:bg-orange-200 dark:hover:bg-orange-500/20 transition-all shadow-sm"
                 >
                     <Users className="w-4 h-4" />
-                    إدارة الفريق
+                    Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„ÙØ±ÙŠÙ‚
                 </button>
                 <button
                     onClick={() => onNavigateTab('products')}
                     className="flex items-center gap-2 px-4 py-2.5 bg-pink-100 dark:bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-pink-500/20 rounded-xl text-xs font-bold hover:bg-pink-200 dark:hover:bg-pink-500/20 transition-all shadow-sm"
                 >
                     <ShoppingBag className="w-4 h-4" />
-                    المنتجات
+                    Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª
                 </button>
             </div>
 
@@ -172,13 +172,13 @@ export default function OwnerOverviewTab({ stats, onNavigateTab }: OverviewTabPr
             <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
                     <span className="w-1 h-6 bg-indigo-500 rounded-full" />
-                    أداء المناطق (المسؤولين)
+                    Ø£Ø¯Ø§Ø¡ Ø§Ù„Ù…Ù†Ø§Ø·Ù‚ (Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„ÙŠÙ†)
                 </h2>
 
                 <div className="space-y-4">
                     {stats?.managers?.length === 0 ? (
                         <div className="text-center py-16 bg-slate-100 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-300 dark:border-white/10">
-                            <p className="text-slate-500">لا يوجد مسؤولين حالياً</p>
+                            <p className="text-slate-500">Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø³Ø¤ÙˆÙ„ÙŠÙ† Ø­Ø§Ù„ÙŠØ§Ù‹</p>
                         </div>
                     ) : (
                         stats?.managers?.map((manager: any, idx: number) => (
@@ -203,25 +203,25 @@ export default function OwnerOverviewTab({ stats, onNavigateTab }: OverviewTabPr
                                         </div>
                                         <div>
                                             <p className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-primary transition-colors">{manager.manager_name}</p>
-                                            <p className="text-xs text-slate-500 font-medium">مسؤول منطقة</p>
+                                            <p className="text-xs text-slate-500 font-medium">Ù…Ø³Ø¤ÙˆÙ„ Ù…Ù†Ø·Ù‚Ø©</p>
                                         </div>
                                     </div>
                                     <span className="px-5 py-2 bg-indigo-100 dark:bg-primary/10 text-indigo-600 dark:text-primary border border-indigo-200 dark:border-primary/20 rounded-full text-xs font-bold">
-                                        {manager.driver_count || 0} مناديب
+                                        {manager.driver_count || 0} Ù…Ù†Ø§Ø¯ÙŠØ¨
                                     </span>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-black/20 rounded-xl p-4 border border-slate-100 dark:border-white/5">
                                     <div className="p-3 rounded-xl text-center hover:bg-white dark:hover:bg-white/5 transition-all">
-                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">الطلبات</p>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Ø§Ù„Ø·Ù„Ø¨Ø§Øª</p>
                                         <p className="text-xl font-bold text-slate-900 dark:text-white">{manager.total_orders}</p>
                                     </div>
                                     <div className="p-3 rounded-xl text-center border-x border-slate-200 dark:border-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all">
-                                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">التوصيل</p>
+                                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">Ø§Ù„ØªÙˆØµÙŠÙ„</p>
                                         <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{parseFloat(manager.delivery_fees || 0).toFixed(0)}</p>
                                     </div>
                                     <div className="p-3 rounded-xl text-center">
-                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">المبيعات</p>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª</p>
                                         <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{parseFloat(manager.sales || 0).toFixed(0)}</p>
                                     </div>
                                 </div>

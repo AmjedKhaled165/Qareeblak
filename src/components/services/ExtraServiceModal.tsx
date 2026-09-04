@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Car, Package, MapPin, Phone, CheckCircle2, Loader2, DollarSign, FileText } from "lucide-react";
+import { Zap, Car, Package, MapPin, Phone, CheckCircle2, Loader2, DollarSign, FileText, LogIn, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { apiCall } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 interface ExtraServiceModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ interface ExtraServiceModalProps {
 export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility" }: ExtraServiceModalProps) {
   const { toast } = useToast();
   const { currentUser } = useAppStore();
+  const router = useRouter();
 
   const [serviceType, setServiceType] = useState<"utility" | "ride" | "parcel">(defaultCategory);
   const [utilityType, setUtilityType] = useState<"electricity" | "water" | "gas">("electricity");
@@ -46,7 +48,28 @@ export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility"
     setServiceType(defaultCategory);
   }, [defaultCategory]);
 
+  // Handle redirect to login - save pending service info
+  const handleLoginRedirect = () => {
+    // Save pending service data to sessionStorage so user can resume after login
+    try {
+      sessionStorage.setItem("pendingExtraService", JSON.stringify({
+        category: serviceType,
+        timestamp: Date.now(),
+      }));
+    } catch (e) {
+      // Ignore sessionStorage errors
+    }
+    onClose();
+    router.push("/login/user");
+  };
+
   const handleSubmit = async () => {
+    // Double-check login status
+    if (!currentUser) {
+      handleLoginRedirect();
+      return;
+    }
+
     if (!address.trim()) {
       toast("يرجى إدخال عنوان الخدمة بالتفصيل", "error");
       return;
@@ -76,14 +99,17 @@ export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility"
       }
 
       const orderPayload = {
-        customer_name: currentUser?.name || "عميل قريبلك",
+        customer_name: currentUser.name || "عميل قريبلك",
         customer_phone: phone.trim(),
+        customer_id: currentUser.id,
         delivery_address: address.trim(),
         pickup_address: "موقع قريبلك - أسيوط الجديدة",
         order_type: "extra_service",
-        source: "qareeblak_web",
+        source: "qareeblak_extra_service",
+        provider_name: "خدمات إضافية - قريبلك",
         delivery_fee: 20,
-        notes: notes.trim() || undefined,
+        locked: true,
+        notes: `⚡ خدمات إضافية - قريبلك | ${serviceTitle}${notes.trim() ? ` | ${notes.trim()}` : ''}`,
         items: [
           {
             name_ar: serviceTitle,
@@ -135,6 +161,9 @@ export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility"
     }
   };
 
+  // Check if user needs to login
+  const needsLogin = !currentUser;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md dir-rtl font-cairo bg-card rounded-3xl p-6 border-white/20 shadow-2xl overflow-y-auto max-h-[90vh]">
@@ -152,206 +181,262 @@ export function ExtraServiceModal({ isOpen, onClose, defaultCategory = "utility"
           </DialogDescription>
         </DialogHeader>
 
-        {/* Service Type Selector */}
-        <div className="grid grid-cols-3 gap-2 mt-4">
-          <button
-            type="button"
-            onClick={() => setServiceType("utility")}
-            className={`p-3 rounded-2xl flex flex-col items-center gap-2 border transition-all text-xs font-bold ${
-              serviceType === "utility"
-                ? "bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-400 shadow-md"
-                : "border-border/60 hover:bg-muted/50 text-muted-foreground"
-            }`}
-          >
-            <Zap className="w-5 h-5 text-amber-500" />
-            <span>شحن كروت</span>
-          </button>
+        {/* Login Required Screen */}
+        {needsLogin ? (
+          <div className="flex flex-col items-center text-center py-6 space-y-5">
+            {/* Icon */}
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-indigo-500/20 flex items-center justify-center border-2 border-primary/30 shadow-lg shadow-primary/10">
+                <LogIn className="w-9 h-9 text-primary" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center shadow-md">
+                <ShieldCheck className="w-4 h-4 text-white" />
+              </div>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => setServiceType("ride")}
-            className={`p-3 rounded-2xl flex flex-col items-center gap-2 border transition-all text-xs font-bold ${
-              serviceType === "ride"
-                ? "bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-md"
-                : "border-border/60 hover:bg-muted/50 text-muted-foreground"
-            }`}
-          >
-            <Car className="w-5 h-5 text-blue-500" />
-            <span>توصيلة مشوار</span>
-          </button>
+            {/* Message */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-black text-foreground">
+                سجّل دخولك الأول! 👋
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-[280px] mx-auto">
+                عشان تقدر تطلب خدمة إضافية وتتابع طلبك، لازم تكون مسجّل دخولك في قريبلك
+              </p>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => setServiceType("parcel")}
-            className={`p-3 rounded-2xl flex flex-col items-center gap-2 border transition-all text-xs font-bold ${
-              serviceType === "parcel"
-                ? "bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-md"
-                : "border-border/60 hover:bg-muted/50 text-muted-foreground"
-            }`}
-          >
-            <Package className="w-5 h-5 text-emerald-500" />
-            <span>توصيل طرد</span>
-          </button>
-        </div>
-
-        {/* Utility Sub-Options */}
-        {serviceType === "utility" && (
-          <div className="space-y-3 mt-4 p-4 rounded-2xl bg-muted/30 border border-border/40">
-            <Label className="text-xs font-bold text-foreground/80">نوع الكارت المراد شحنه</Label>
-            <div className="flex gap-2">
+            {/* Features list */}
+            <div className="w-full space-y-2 px-2">
               {[
-                { id: "electricity", label: "⚡ كهرباء" },
-                { id: "water", label: "💧 مياه" },
-                { id: "gas", label: "🔥 غاز" },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setUtilityType(item.id as any)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
-                    utilityType === item.id
-                      ? "bg-primary text-white border-primary shadow-sm"
-                      : "bg-background border-border/50 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {item.label}
-                </button>
+                "متابعة طلبك لحظة بلحظة",
+                "تواصل مباشر مع المندوب",
+                "سجل كامل بطلباتك السابقة",
+              ].map((feature, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-xl px-3 py-2 border border-border/30">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{feature}</span>
+                </div>
               ))}
             </div>
 
-            {/* Amount Option */}
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-xs font-bold text-foreground/80 flex items-center gap-1">
-                  <DollarSign className="w-3.5 h-3.5 text-primary" />
-                  مبلغ الشحن
-                </Label>
-                <div className="flex items-center gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setAmountMode("preset")}
-                    className={`px-2 py-1 rounded-lg font-bold ${amountMode === "preset" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
-                  >
-                    تحديد مبلغ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAmountMode("none")}
-                    className={`px-2 py-1 rounded-lg font-bold ${amountMode === "none" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
-                  >
-                    بدون تحديد
-                  </button>
-                </div>
-              </div>
+            {/* Login Button */}
+            <Button
+              onClick={handleLoginRedirect}
+              className="w-full bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20 transition active:scale-95 text-sm"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <LogIn className="w-4 h-4" />
+                تسجيل الدخول
+              </span>
+            </Button>
 
-              {amountMode === "preset" && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {[50, 100, 200].map((amt) => (
+            <p className="text-[11px] text-muted-foreground">
+              مش عندك حساب؟ هتقدر تعمل واحد من صفحة التسجيل
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Service Type Selector */}
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setServiceType("utility")}
+                className={`p-3 rounded-2xl flex flex-col items-center gap-2 border transition-all text-xs font-bold ${
+                  serviceType === "utility"
+                    ? "bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-400 shadow-md"
+                    : "border-border/60 hover:bg-muted/50 text-muted-foreground"
+                }`}
+              >
+                <Zap className="w-5 h-5 text-amber-500" />
+                <span>شحن كروت</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setServiceType("ride")}
+                className={`p-3 rounded-2xl flex flex-col items-center gap-2 border transition-all text-xs font-bold ${
+                  serviceType === "ride"
+                    ? "bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-md"
+                    : "border-border/60 hover:bg-muted/50 text-muted-foreground"
+                }`}
+              >
+                <Car className="w-5 h-5 text-blue-500" />
+                <span>توصيلة مشوار</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setServiceType("parcel")}
+                className={`p-3 rounded-2xl flex flex-col items-center gap-2 border transition-all text-xs font-bold ${
+                  serviceType === "parcel"
+                    ? "bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-md"
+                    : "border-border/60 hover:bg-muted/50 text-muted-foreground"
+                }`}
+              >
+                <Package className="w-5 h-5 text-emerald-500" />
+                <span>توصيل طرد</span>
+              </button>
+            </div>
+
+            {/* Utility Sub-Options */}
+            {serviceType === "utility" && (
+              <div className="space-y-3 mt-4 p-4 rounded-2xl bg-muted/30 border border-border/40">
+                <Label className="text-xs font-bold text-foreground/80">نوع الكارت المراد شحنه</Label>
+                <div className="flex gap-2">
+                  {[
+                    { id: "electricity", label: "⚡ كهرباء" },
+                    { id: "water", label: "💧 مياه" },
+                    { id: "gas", label: "🔥 غاز" },
+                  ].map((item) => (
                     <button
-                      key={amt}
+                      key={item.id}
                       type="button"
-                      onClick={() => setSelectedAmount(amt)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                        selectedAmount === amt
-                          ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                          : "bg-background border-border/50 text-muted-foreground"
+                      onClick={() => setUtilityType(item.id as any)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        utilityType === item.id
+                          ? "bg-primary text-white border-primary shadow-sm"
+                          : "bg-background border-border/50 text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {amt} ج.م
+                      {item.label}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedAmount("custom")}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                      selectedAmount === "custom"
-                        ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                        : "bg-background border-border/50 text-muted-foreground"
-                    }`}
-                  >
-                    مبلغ آخر
-                  </button>
+                </div>
 
-                  {selectedAmount === "custom" && (
-                    <Input
-                      type="number"
-                      placeholder="أدخل المبلغ (ج.م)"
-                      value={customAmount}
-                      onChange={(e) => setCustomAmount(e.target.value)}
-                      className="h-9 text-xs mt-1 bg-background text-right"
-                    />
+                {/* Amount Option */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs font-bold text-foreground/80 flex items-center gap-1">
+                      <DollarSign className="w-3.5 h-3.5 text-primary" />
+                      مبلغ الشحن
+                    </Label>
+                    <div className="flex items-center gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setAmountMode("preset")}
+                        className={`px-2 py-1 rounded-lg font-bold ${amountMode === "preset" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
+                      >
+                        تحديد مبلغ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAmountMode("none")}
+                        className={`px-2 py-1 rounded-lg font-bold ${amountMode === "none" ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
+                      >
+                        بدون تحديد
+                      </button>
+                    </div>
+                  </div>
+
+                  {amountMode === "preset" && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {[50, 100, 200].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setSelectedAmount(amt)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            selectedAmount === amt
+                              ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                              : "bg-background border-border/50 text-muted-foreground"
+                          }`}
+                        >
+                          {amt} ج.م
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAmount("custom")}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                          selectedAmount === "custom"
+                            ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                            : "bg-background border-border/50 text-muted-foreground"
+                        }`}
+                      >
+                        مبلغ آخر
+                      </button>
+
+                      {selectedAmount === "custom" && (
+                        <Input
+                          type="number"
+                          placeholder="أدخل المبلغ (ج.م)"
+                          value={customAmount}
+                          onChange={(e) => setCustomAmount(e.target.value)}
+                          className="h-9 text-xs mt-1 bg-background text-right"
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Inputs Form */}
-        <div className="space-y-4 mt-4">
-          <div className="space-y-2 text-right">
-            <Label className="text-xs font-bold flex items-center gap-1.5 justify-end">
-              <span>العنوان بالتفصيل</span>
-              <MapPin className="w-3.5 h-3.5 text-primary" />
-            </Label>
-            <textarea
-              rows={2}
-              className="w-full p-3 rounded-xl border border-border/50 bg-background text-xs text-right focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
-              placeholder="مثال: الحي الثاني - مجاورة 3 - عمارة 12 - شقة 4"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2 text-right">
-            <Label className="text-xs font-bold flex items-center gap-1.5 justify-end">
-              <span>رقم التليفون للتواصل</span>
-              <Phone className="w-3.5 h-3.5 text-primary" />
-            </Label>
-            <Input
-              type="tel"
-              className="h-11 rounded-xl bg-background border-border/50 text-right text-xs"
-              placeholder="01012345678"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2 text-right">
-            <Label className="text-xs font-bold flex items-center gap-1.5 justify-end">
-              <span>ملاحظات إضافية (اختياري)</span>
-              <FileText className="w-3.5 h-3.5 text-primary" />
-            </Label>
-            <Input
-              type="text"
-              className="h-11 rounded-xl bg-background border-border/50 text-right text-xs"
-              placeholder={
-                serviceType === "utility"
-                  ? "مثال: الكارت محتاج شحن سريع قبل الساعة 5"
-                  : serviceType === "ride"
-                  ? "مثال: عدد الأفراد 2 سكوتر أو سيارة"
-                  : "مثال: الطرد عبارة عن شنطة ملابس"
-              }
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20 transition active:scale-95 text-sm mt-2"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-5 h-5 animate-spin mx-auto" />
-            ) : (
-              <span className="flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
-                اطلب مندوب الآن
-              </span>
+              </div>
             )}
-          </Button>
-        </div>
+
+            {/* Inputs Form */}
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2 text-right">
+                <Label className="text-xs font-bold flex items-center gap-1.5 justify-end">
+                  <span>العنوان بالتفصيل</span>
+                  <MapPin className="w-3.5 h-3.5 text-primary" />
+                </Label>
+                <textarea
+                  rows={2}
+                  className="w-full p-3 rounded-xl border border-border/50 bg-background text-xs text-right focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
+                  placeholder="مثال: الحي الثاني - مجاورة 3 - عمارة 12 - شقة 4"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2 text-right">
+                <Label className="text-xs font-bold flex items-center gap-1.5 justify-end">
+                  <span>رقم التليفون للتواصل</span>
+                  <Phone className="w-3.5 h-3.5 text-primary" />
+                </Label>
+                <Input
+                  type="tel"
+                  className="h-11 rounded-xl bg-background border-border/50 text-right text-xs"
+                  placeholder="01012345678"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2 text-right">
+                <Label className="text-xs font-bold flex items-center gap-1.5 justify-end">
+                  <span>ملاحظات إضافية (اختياري)</span>
+                  <FileText className="w-3.5 h-3.5 text-primary" />
+                </Label>
+                <Input
+                  type="text"
+                  className="h-11 rounded-xl bg-background border-border/50 text-right text-xs"
+                  placeholder={
+                    serviceType === "utility"
+                      ? "مثال: الكارت محتاج شحن سريع قبل الساعة 5"
+                      : serviceType === "ride"
+                      ? "مثال: عدد الأفراد 2 سكوتر أو سيارة"
+                      : "مثال: الطرد عبارة عن شنطة ملابس"
+                  }
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+
+              <Button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="w-full bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20 transition active:scale-95 text-sm mt-2"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    اطلب مندوب الآن
+                  </span>
+                )}
+              </Button>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

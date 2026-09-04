@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { apiCall } from "@/lib/api";
@@ -28,17 +28,17 @@ export default function DebugAssignmentsPage() {
 
     return (
         <div className="p-10 bg-white min-h-screen text-black" dir="rtl">
-            <h1 className="text-2xl font-bold mb-6">صفحة فحص تعيينات المناديب (Debug)</h1>
+            <h1 className="text-2xl font-bold mb-6">ØµÙØ­Ø© ÙØ­Øµ ØªØ¹ÙŠÙŠÙ†Ø§Øª Ø§Ù„Ù…Ù†Ø§Ø¯ÙŠØ¨ (Debug)</h1>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div>
-                    <h2 className="text-xl font-bold mb-4">1. المناديب (Couriers)</h2>
+                    <h2 className="text-xl font-bold mb-4">1. Ø§Ù„Ù…Ù†Ø§Ø¯ÙŠØ¨ (Couriers)</h2>
                     <table className="w-full border collapse">
                         <thead>
                             <tr className="bg-gray-100">
                                 <th className="border p-2">ID</th>
-                                <th className="border p-2">الاسم</th>
-                                <th className="border p-2">المسؤولين (Supervisor IDs)</th>
+                                <th className="border p-2">Ø§Ù„Ø§Ø³Ù…</th>
+                                <th className="border p-2">Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„ÙŠÙ† (Supervisor IDs)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -56,14 +56,14 @@ export default function DebugAssignmentsPage() {
                 </div>
 
                 <div>
-                    <h2 className="text-xl font-bold mb-4">2. المسؤولين (Supervisors)</h2>
+                    <h2 className="text-xl font-bold mb-4">2. Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„ÙŠÙ† (Supervisors)</h2>
                     <table className="w-full border collapse">
                         <thead>
                             <tr className="bg-gray-100">
                                 <th className="border p-2">ID</th>
-                                <th className="border p-2">الاسم</th>
-                                <th className="border p-2">عدد المناديب المحسوب</th>
-                                <th className="border p-2">أسماء المناديب</th>
+                                <th className="border p-2">Ø§Ù„Ø§Ø³Ù…</th>
+                                <th className="border p-2">Ø¹Ø¯Ø¯ Ø§Ù„Ù…Ù†Ø§Ø¯ÙŠØ¨ Ø§Ù„Ù…Ø­Ø³ÙˆØ¨</th>
+                                <th className="border p-2">Ø£Ø³Ù…Ø§Ø¡ Ø§Ù„Ù…Ù†Ø§Ø¯ÙŠØ¨</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -36,6 +36,7 @@ interface Order {
     provider_id?: number;
     status: string;
     order_type?: string;
+    source?: string;
     items: OrderItem[];
     price: number;
     delivery_fee: number;
@@ -138,6 +139,9 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
 
     if (!order) return null;
 
+    // ===== Extra Service Lock =====
+    const isExtraService = order.order_type === 'extra_service' || order.source === 'qareeblak_extra_service' || String(order.notes || '').includes('خدمات إضافية');
+
     // ===== Computed =====
     const totalItemsPrice = editItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const statusInfo = STATUS_MAP[order.status] || STATUS_MAP.pending;
@@ -226,12 +230,16 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
     };
 
     // ===== Tab Navigation =====
-    const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
+    const allTabs: { key: Tab; label: string; icon: React.ElementType }[] = [
         { key: "details", label: "التفاصيل", icon: FileText },
         { key: "edit", label: "تعديل السعر", icon: DollarSign },
         { key: "reassign", label: "إعادة تعيين", icon: ArrowLeftRight },
         { key: "status", label: "تغيير الحالة", icon: Shield },
     ];
+    // Hide edit and status tabs for extra service orders (locked from Qareeblak)
+    const tabs = isExtraService
+        ? allTabs.filter(t => t.key === 'details' || t.key === 'reassign')
+        : allTabs;
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -248,6 +256,11 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                                 <span className={`mr-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${statusInfo.color}`}>
                                     {statusInfo.label}
                                 </span>
+                                {isExtraService && (
+                                    <span className="mr-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                        🔒 خدمات إضافية - قريبلك
+                                    </span>
+                                )}
                             </div>
                         </DialogTitle>
                         <DialogDescription className="text-xs mt-1">
@@ -257,7 +270,7 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                             })}
                             {order.order_type && (
                                 <span className="mr-2 text-slate-400">
-                                    • {order.order_type === "app" ? "طلب من التطبيق" : order.order_type === "manual" ? "طلب يدوي" : "طلب صيانة"}
+                                    • {order.order_type === "app" ? "طلب من التطبيق" : order.order_type === "manual" ? "طلب يدوي" : order.order_type === "extra_service" ? "⚡ خدمات إضافية" : "طلب صيانة"}
                                 </span>
                             )}
                         </DialogDescription>
@@ -325,13 +338,15 @@ export default function OrderDetailsModal({ order, open, onClose, onRefresh }: O
                                 </div>
 
                                 {/* Provider */}
-                                <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                                <div className={`p-3 rounded-xl border ${isExtraService ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800' : 'bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800'}`}>
                                     <div className="flex items-center gap-2 mb-1.5">
-                                        <Store className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                                        <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">مقدم الخدمة</span>
+                                        <Store className={`w-4 h-4 ${isExtraService ? 'text-amber-600 dark:text-amber-400' : 'text-purple-600 dark:text-purple-400'}`} />
+                                        <span className={`text-xs font-semibold ${isExtraService ? 'text-amber-700 dark:text-amber-300' : 'text-purple-700 dark:text-purple-300'}`}>مقدم الخدمة</span>
                                     </div>
-                                    <p className="font-bold text-sm text-slate-800 dark:text-white">{order.provider_name || "—"}</p>
-                                    {order.provider_phone && (
+                                    <p className="font-bold text-sm text-slate-800 dark:text-white">
+                                        {isExtraService ? "⚡ خدمات إضافية - قريبلك" : (order.provider_name || "—")}
+                                    </p>
+                                    {!isExtraService && order.provider_phone && (
                                         <a
                                             href={`tel:${order.provider_phone}`}
                                             className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 mt-1 hover:underline"

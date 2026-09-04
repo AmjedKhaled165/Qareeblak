@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,14 +32,14 @@ export default function OwnerMapModal({ isOpen, onClose }: MapModalProps) {
                     {/* Header */}
                     <div className="bg-white dark:bg-slate-800 p-4 shadow-sm z-10 flex items-center justify-between">
                         <div>
-                            <h1 className="font-bold text-slate-800 dark:text-white">خريطة المناديب</h1>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">تتبع مباشر لأسطول التوصيل</p>
+                            <h1 className="font-bold text-slate-800 dark:text-white">Ø®Ø±ÙŠØ·Ø© Ø§Ù„Ù…Ù†Ø§Ø¯ÙŠØ¨</h1>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">ØªØªØ¨Ø¹ Ù…Ø¨Ø§Ø´Ø± Ù„Ø£Ø³Ø·ÙˆÙ„ Ø§Ù„ØªÙˆØµÙŠÙ„</p>
                         </div>
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
-                            title="إغلاق الخريطة"
-                            aria-label="إغلاق الخريطة"
+                            title="Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ø®Ø±ÙŠØ·Ø©"
+                            aria-label="Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ø®Ø±ÙŠØ·Ø©"
                         >
                             <X className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                         </button>

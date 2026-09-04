@@ -381,11 +381,11 @@ export default function OrdersManager({
 
                                             <td className="px-3 py-2.5">
                                                 <div className="flex items-center gap-2 min-w-[120px]">
-                                                    <div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                                                        <Store className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${order.order_type === 'extra_service' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-purple-100 dark:bg-purple-900/30'}`}>
+                                                        <Store className={`w-3.5 h-3.5 ${order.order_type === 'extra_service' ? 'text-amber-600 dark:text-amber-400' : 'text-purple-600 dark:text-purple-400'}`} />
                                                     </div>
-                                                    <p className="text-xs text-slate-700 dark:text-slate-300 truncate max-w-[110px]">
-                                                        {order.provider_name || "—"}
+                                                    <p className={`text-xs truncate max-w-[110px] ${order.order_type === 'extra_service' ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-700 dark:text-slate-300'}`}>
+                                                        {order.order_type === 'extra_service' ? "⚡ خدمات إضافية" : (order.provider_name || "—")}
                                                     </p>
                                                 </div>
                                             </td>

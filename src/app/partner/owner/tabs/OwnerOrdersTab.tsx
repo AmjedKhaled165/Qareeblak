@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -47,24 +47,24 @@ interface UserOption {
 const normalizeSourceKey = (source?: string) => {
     const value = String(source || '').toLowerCase();
     if (value.includes('qareeblak')) return 'qareeblak';
-    if (value.includes('whatsapp') || value.includes('واتس') || value.includes('وتس')) return 'whatsapp';
-    if (value.includes('maintenance') || value.includes('صيانة')) return 'maintenance';
-    if (value.includes('manual') || value.includes('يدوي')) return 'manual';
+    if (value.includes('whatsapp') || value.includes('ÙˆØ§ØªØ³') || value.includes('ÙˆØªØ³')) return 'whatsapp';
+    if (value.includes('maintenance') || value.includes('ØµÙŠØ§Ù†Ø©')) return 'maintenance';
+    if (value.includes('manual') || value.includes('ÙŠØ¯ÙˆÙŠ')) return 'manual';
     return value || 'unknown';
 };
 
 const mapSourceLabel = (source: string | undefined) => {
     const normalized = normalizeSourceKey(source);
     switch (normalized) {
-        case 'qareeblak': return 'قريبلك';
-        case 'manual': return 'يدوي';
-        case 'whatsapp': return 'وتس';
-        case 'maintenance': return 'صيانة';
-        default: return source || 'غير محدد';
+        case 'qareeblak': return 'Ù‚Ø±ÙŠØ¨Ù„Ùƒ';
+        case 'manual': return 'ÙŠØ¯ÙˆÙŠ';
+        case 'whatsapp': return 'ÙˆØªØ³';
+        case 'maintenance': return 'ØµÙŠØ§Ù†Ø©';
+        default: return source || 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯';
     }
 };
 
-// ─── Order Details Modal ───
+// â”€â”€â”€ Order Details Modal â”€â”€â”€
 function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }: {
     order: Order; drivers: UserOption[]; managers: UserOption[]; onClose: () => void; onUpdateOrder: (id: number, payload: any) => Promise<void>;
 }) {
@@ -98,113 +98,104 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                     <div className="sticky top-0 bg-white dark:bg-slate-900 p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center z-10">
                         <div>
                             <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-bold">{order.customer_name} - طلب #{order.display_id || order.id}</h2>
-                                {order.is_edited && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">معدل</span>}
+                                <h2 className="text-lg font-bold">{order.customer_name} - Ø·Ù„Ø¨ #{order.display_id || order.id}</h2>
+                                {order.is_edited && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Ù…Ø¹Ø¯Ù„</span>}
                             </div>
                             <div className="flex items-center gap-2 mt-2">
-                                <span className="text-xs font-bold text-slate-500">المصدر:</span>
-                                <select
-                                    className={`text-xs font-bold rounded-lg px-2 py-1 outline-none border border-slate-200 dark:border-slate-700 ${getSourceColor(order.source)} bg-white dark:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed`}
-                                    value={order.source || ''}
-                                    onChange={(e) => onUpdateOrder(order.id, { source: e.target.value })}
-                                    title="تحديث مصدر الطلب" aria-label="تحديث مصدر الطلب"
-                                    disabled={order.source === 'qareeblak'}
-                                >
-                                    <option value="qareeblak">قريبلك</option>
-                                    <option value="manual">يدوي</option>
-                                    <option value="whatsapp">وتس</option>
-                                    <option value="maintenance">صيانة</option>
-                                </select>
+                                <span className="text-xs font-bold text-slate-500">Ø§Ù„Ù…ØµØ¯Ø±:</span>
+                                <span className={`text-xs font-bold rounded-lg px-2 py-1 border border-slate-200 dark:border-slate-700 ${getSourceColor(order.source)} bg-white dark:bg-slate-800`}>
+                                    {mapSourceLabel(order.source)}
+                                </span>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full" title="إغلاق" aria-label="إغلاق"><X className="w-5 h-5" /></button>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full" title="Ø¥ØºÙ„Ø§Ù‚" aria-label="Ø¥ØºÙ„Ø§Ù‚"><X className="w-5 h-5" /></button>
                     </div>
 
                     <div className="p-4 space-y-4">
                         {/* Customer Info */}
                         <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
-                            <h3 className="font-bold text-sm text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2"><User className="w-4 h-4" />بيانات العميل</h3>
+                            <h3 className="font-bold text-sm text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2"><User className="w-4 h-4" />Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¹Ù…ÙŠÙ„</h3>
                             <div className="space-y-2">
-                                <div className="flex items-center gap-3"><span className="text-slate-600 dark:text-slate-400 text-sm">الاسم:</span><span className="text-slate-800 dark:text-slate-200 font-medium">{order.customer_name}</span></div>
+                                <div className="flex items-center gap-3"><span className="text-slate-600 dark:text-slate-400 text-sm">Ø§Ù„Ø§Ø³Ù…:</span><span className="text-slate-800 dark:text-slate-200 font-medium">{order.customer_name}</span></div>
                                 <div className="flex items-center gap-3"><Phone className="w-4 h-4 text-slate-400" /><a href={`tel:${order.customer_phone}`} className="text-blue-600 dark:text-blue-400">{order.customer_phone}</a></div>
-                                <div className="flex items-start gap-3"><MapPin className="w-4 h-4 text-green-500 mt-1" /><span className="text-slate-700 dark:text-slate-300 text-sm">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span></div>
+                                <div className="flex items-start gap-3"><MapPin className="w-4 h-4 text-green-500 mt-1" /><span className="text-slate-700 dark:text-slate-300 text-sm">{order.delivery_address || 'Ù„Ù… ÙŠÙØ­Ø¯ÙŽÙ‘Ø¯ Ø§Ù„Ø¹Ù†ÙˆØ§Ù† Ø¨Ø¹Ø¯'}</span></div>
                             </div>
                         </div>
 
                         {/* Driver & Manager */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-4">
-                                <h3 className="font-bold text-xs text-violet-600 dark:text-violet-400 mb-2 flex items-center gap-1"><Truck className="w-3 h-3" />المندوب</h3>
+                                <h3 className="font-bold text-xs text-violet-600 dark:text-violet-400 mb-2 flex items-center gap-1"><Truck className="w-3 h-3" />Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨</h3>
                                 <select className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-violet-200 dark:border-violet-700 outline-none focus:ring-2 focus:ring-violet-500"
                                     value={order.courier_id || ''} onChange={(e) => onUpdateOrder(order.id, { courier_id: e.target.value || null })}
-                                    title="تعيين المندوب" aria-label="تعيين المندوب">
-                                    <option value="">غير معين</option>
-                                    {order.courier_id && !drivers.some(d => Number(d.id) === Number(order.courier_id)) && <option value={order.courier_id}>{order.courier_name || `مندوب #${order.courier_id}`}</option>}
-                                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>)}
+                                    title="ØªØ¹ÙŠÙŠÙ† Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨" aria-label="ØªØ¹ÙŠÙŠÙ† Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨">
+                                    <option value="">ØºÙŠØ± Ù…Ø¹ÙŠÙ†</option>
+                                    {order.courier_id && !drivers.some(d => Number(d.id) === Number(order.courier_id)) && <option value={order.courier_id}>{order.courier_name || `Ù…Ù†Ø¯ÙˆØ¨ #${order.courier_id}`}</option>}
+                                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'Ù…ØªØ§Ø­' : 'ØºÙŠØ± Ù…ØªØ§Ø­')}</option>)}
                                 </select>
                             </div>
                             <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4">
-                                <h3 className="font-bold text-xs text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-1"><UserCheck className="w-3 h-3" />المسؤول</h3>
+                                <h3 className="font-bold text-xs text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-1"><UserCheck className="w-3 h-3" />Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„</h3>
                                 <select className="w-full bg-white dark:bg-slate-800 rounded-lg p-2 text-sm font-medium border border-indigo-200 dark:border-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                     value={order.supervisor_id || ''} onChange={(e) => onUpdateOrder(order.id, { supervisor_id: e.target.value || null })}
-                                    title="تغيير المسؤول" aria-label="تغيير المسؤول"
+                                    title="ØªØºÙŠÙŠØ± Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„" aria-label="ØªØºÙŠÙŠØ± Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„"
                                     disabled={order.source === 'qareeblak'}>
-                                    <option value="">غير معين</option>
-                                    {order.supervisor_id && !managers.some(m => Number(m.id) === Number(order.supervisor_id)) && <option value={order.supervisor_id}>{resolvedSupervisorName || `مسؤول #${order.supervisor_id}`}</option>}
+                                    <option value="">ØºÙŠØ± Ù…Ø¹ÙŠÙ†</option>
+                                    {order.supervisor_id && !managers.some(m => Number(m.id) === Number(order.supervisor_id)) && <option value={order.supervisor_id}>{resolvedSupervisorName || `Ù…Ø³Ø¤ÙˆÙ„ #${order.supervisor_id}`}</option>}
                                     {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                 </select>
                             </div>
                             <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
-                                <h3 className="font-bold text-xs text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1"><Globe className="w-3 h-3" />المصدر</h3>
+                                <h3 className="font-bold text-xs text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1"><Globe className="w-3 h-3" />Ø§Ù„Ù…ØµØ¯Ø±</h3>
                                 <p className="text-slate-800 dark:text-slate-200 font-medium text-sm">{mapSourceLabel(order.source)}</p>
                             </div>
                         </div>
 
                         {/* Products */}
                         <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
-                            <h3 className="font-bold text-sm text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2"><ShoppingBag className="w-4 h-4" />المنتجات ({items.length})</h3>
+                            <h3 className="font-bold text-sm text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2"><ShoppingBag className="w-4 h-4" />Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª ({items.length})</h3>
                             <div className="space-y-2">
                                 {items.length > 0 ? items.map((item: any, idx: number) => (
                                     <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700 last:border-0">
-                                        <div><p className="font-medium text-slate-800 dark:text-slate-200">{item.name || item.product_name || 'منتج'}</p><p className="text-xs text-slate-500">الكمية: {item.quantity || 1}</p></div>
-                                        <p className="font-bold text-slate-800 dark:text-slate-200">{(item.price || item.unit_price || 0)} ج.م</p>
+                                        <div><p className="font-medium text-slate-800 dark:text-slate-200">{item.name || item.product_name || 'Ù…Ù†ØªØ¬'}</p><p className="text-xs text-slate-500">Ø§Ù„ÙƒÙ…ÙŠØ©: {item.quantity || 1}</p></div>
+                                        <p className="font-bold text-slate-800 dark:text-slate-200">{(item.price || item.unit_price || 0)} Ø¬.Ù…</p>
                                     </div>
-                                )) : <p className="text-slate-500 text-center py-2">لا توجد منتجات مسجلة</p>}
+                                )) : <p className="text-slate-500 text-center py-2">Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ù†ØªØ¬Ø§Øª Ù…Ø³Ø¬Ù„Ø©</p>}
                             </div>
                         </div>
 
                         {/* Summary */}
                         <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-4 text-white">
-                            <div className="flex justify-between items-center mb-1 text-sm opacity-90"><span>مجموع المنتجات</span><span>{items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0).toFixed(0)} ج.م</span></div>
-                            <div className="flex justify-between items-center mb-2 text-sm opacity-90"><span>رسوم التوصيل</span><span>{(Number(order.delivery_fee) || 0).toFixed(0)} ج.م</span></div>
-                            <div className="border-t border-white/30 pt-2 mt-2"><div className="flex justify-between items-center"><span className="font-bold text-lg">الإجمالي</span><span className="font-bold text-lg">{(items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0) + parseFloat(order.delivery_fee?.toString() || '0')).toFixed(0)} ج.م</span></div></div>
+                            <div className="flex justify-between items-center mb-1 text-sm opacity-90"><span>Ù…Ø¬Ù…ÙˆØ¹ Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª</span><span>{items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0).toFixed(0)} Ø¬.Ù…</span></div>
+                            <div className="flex justify-between items-center mb-2 text-sm opacity-90"><span>Ø±Ø³ÙˆÙ… Ø§Ù„ØªÙˆØµÙŠÙ„</span><span>{(Number(order.delivery_fee) || 0).toFixed(0)} Ø¬.Ù…</span></div>
+                            <div className="border-t border-white/30 pt-2 mt-2"><div className="flex justify-between items-center"><span className="font-bold text-lg">Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ</span><span className="font-bold text-lg">{(items.reduce((sum: number, item: any) => sum + ((parseFloat(item.price || item.unit_price) || 0) * (parseFloat(item.quantity) || 1)), 0) + parseFloat(order.delivery_fee?.toString() || '0')).toFixed(0)} Ø¬.Ù…</span></div></div>
                         </div>
 
                         {/* Dates */}
                         <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
-                            <h3 className="font-bold text-sm text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2"><Calendar className="w-4 h-4" />التواريخ</h3>
+                            <h3 className="font-bold text-sm text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2"><Calendar className="w-4 h-4" />Ø§Ù„ØªÙˆØ§Ø±ÙŠØ®</h3>
                             <div className="space-y-2 text-sm">
-                                <div className="flex justify-between"><span className="text-slate-500">تاريخ الإنشاء:</span><span className="text-slate-800 dark:text-slate-200">{new Date(order.created_at).toLocaleString('ar-EG')}</span></div>
-                                {order.delivered_at && <div className="flex justify-between"><span className="text-slate-500">تاريخ التسليم:</span><span className="text-green-600 dark:text-green-400">{new Date(order.delivered_at).toLocaleString('ar-EG')}</span></div>}
+                                <div className="flex justify-between"><span className="text-slate-500">ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¥Ù†Ø´Ø§Ø¡:</span><span className="text-slate-800 dark:text-slate-200">{new Date(order.created_at).toLocaleString('ar-EG')}</span></div>
+                                {order.delivered_at && <div className="flex justify-between"><span className="text-slate-500">ØªØ§Ø±ÙŠØ® Ø§Ù„ØªØ³Ù„ÙŠÙ…:</span><span className="text-green-600 dark:text-green-400">{new Date(order.delivered_at).toLocaleString('ar-EG')}</span></div>}
                             </div>
                         </div>
 
                         {order.notes && (
                             <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4">
-                                <h3 className="font-bold text-sm text-amber-600 dark:text-amber-400 mb-2">ملاحظات</h3>
+                                <h3 className="font-bold text-sm text-amber-600 dark:text-amber-400 mb-2">Ù…Ù„Ø§Ø­Ø¸Ø§Øª</h3>
                                 <p className="text-slate-700 dark:text-slate-300 text-sm">{order.notes}</p>
                             </div>
                         )}
 
                         {editHistory.length > 0 && (
                             <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-4">
-                                <h3 className="font-bold text-sm text-yellow-600 dark:text-yellow-400 mb-3 flex items-center gap-2"><Edit3 className="w-4 h-4" />سجل التعديلات ({editHistory.length})</h3>
+                                <h3 className="font-bold text-sm text-yellow-600 dark:text-yellow-400 mb-3 flex items-center gap-2"><Edit3 className="w-4 h-4" />Ø³Ø¬Ù„ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„Ø§Øª ({editHistory.length})</h3>
                                 <div className="space-y-3 max-h-40 overflow-y-auto">
                                     {editHistory.map((edit: any, idx: number) => (
                                         <div key={idx} className="border-r-2 border-yellow-400 pr-3 py-1">
                                             <p className="text-xs text-slate-500">{new Date(edit.timestamp || edit.edited_at).toLocaleString('ar-EG')}</p>
-                                            <p className="text-sm text-slate-700 dark:text-slate-300">{edit.change || edit.description || 'تم التعديل'}</p>
-                                            {edit.edited_by && <p className="text-xs text-slate-400">بواسطة: {edit.edited_by}</p>}
+                                            <p className="text-sm text-slate-700 dark:text-slate-300">{edit.change || edit.description || 'ØªÙ… Ø§Ù„ØªØ¹Ø¯ÙŠÙ„'}</p>
+                                            {edit.edited_by && <p className="text-xs text-slate-400">Ø¨ÙˆØ§Ø³Ø·Ø©: {edit.edited_by}</p>}
                                         </div>
                                     ))}
                                 </div>
@@ -217,7 +208,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
     );
 }
 
-// ─── Main Orders Tab ───
+// â”€â”€â”€ Main Orders Tab â”€â”€â”€
 export default function OwnerOrdersTab({ period = 'today', customDate }: { period?: string, customDate?: string }) {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
@@ -257,7 +248,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
             }
         } catch (error: any) {
             const message = String(error?.message || '');
-            if (message.includes('نشاط غير طبيعي')) return;
+            if (message.includes('Ù†Ø´Ø§Ø· ØºÙŠØ± Ø·Ø¨ÙŠØ¹ÙŠ')) return;
             console.error('Error fetching filters:', error);
         }
     }, []);
@@ -291,7 +282,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
             }
         } catch (error: any) {
             const message = String(error?.message || '');
-            if (message.includes('نشاط غير طبيعي')) {
+            if (message.includes('Ù†Ø´Ø§Ø· ØºÙŠØ± Ø·Ø¨ÙŠØ¹ÙŠ')) {
                 setOrders([]);
             } else {
                 console.error('Error fetching orders:', error);
@@ -357,14 +348,14 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
 
     const getStatusLabel = (status: string) => {
         switch (status) {
-            case 'pending': return 'قيد الانتظار';
-            case 'confirmed': return 'جاري التحضير';
-            case 'assigned': return 'تم التعيين';
-            case 'ready_for_pickup': return 'تم التجهيز';
-            case 'picked_up': return 'تم الاستلام';
-            case 'in_transit': return 'جاري التوصيل';
-            case 'delivered': return 'تم التوصيل';
-            case 'cancelled': return 'ملغي';
+            case 'pending': return 'Ù‚ÙŠØ¯ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±';
+            case 'confirmed': return 'Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ø¶ÙŠØ±';
+            case 'assigned': return 'ØªÙ… Ø§Ù„ØªØ¹ÙŠÙŠÙ†';
+            case 'ready_for_pickup': return 'ØªÙ… Ø§Ù„ØªØ¬Ù‡ÙŠØ²';
+            case 'picked_up': return 'ØªÙ… Ø§Ù„Ø§Ø³ØªÙ„Ø§Ù…';
+            case 'in_transit': return 'Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªÙˆØµÙŠÙ„';
+            case 'delivered': return 'ØªÙ… Ø§Ù„ØªÙˆØµÙŠÙ„';
+            case 'cancelled': return 'Ù…Ù„ØºÙŠ';
             default: return status;
         }
     };
@@ -467,10 +458,10 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
             {/* Search and Filters */}
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
                 <div className="flex items-center justify-between">
-                    <h2 className="font-bold text-lg text-slate-900 dark:text-white">كل الطلبات</h2>
+                    <h2 className="font-bold text-lg text-slate-900 dark:text-white">ÙƒÙ„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª</h2>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-500">{isLoading ? 'جاري التحميل...' : totalOrders > 0 ? `${totalOrders} طلب` : 'لا توجد طلبات'}</span>
-                        <button onClick={fetchOrders} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="تحديث">
+                        <span className="text-sm text-slate-500">{isLoading ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„...' : totalOrders > 0 ? `${totalOrders} Ø·Ù„Ø¨` : 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ø·Ù„Ø¨Ø§Øª'}</span>
+                        <button onClick={fetchOrders} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" aria-label="ØªØ­Ø¯ÙŠØ«">
                             <RefreshCw className={`w-4 h-4 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
                         </button>
                     </div>
@@ -479,57 +470,57 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                 {/* Search Bar */}
                 <div className="relative">
                     <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input type="text" placeholder="ابحث عن: اسم، موبايل، منتج، عنوان، سعر..."
+                    <input type="text" placeholder="Ø§Ø¨Ø­Ø« Ø¹Ù†: Ø§Ø³Ù…ØŒ Ù…ÙˆØ¨Ø§ÙŠÙ„ØŒ Ù…Ù†ØªØ¬ØŒ Ø¹Ù†ÙˆØ§Ù†ØŒ Ø³Ø¹Ø±..."
                         value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
                         className="w-full bg-slate-100 dark:bg-slate-800 rounded-2xl py-3 pr-11 pl-4 text-sm outline-none focus:ring-2 focus:ring-violet-500 transition-all shadow-sm"
                     />
                     {searchQuery && (
-                        <button onClick={() => { setSearchQuery(''); setPage(1); }} className="absolute left-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors" aria-label="مسح البحث">
+                        <button onClick={() => { setSearchQuery(''); setPage(1); }} className="absolute left-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors" aria-label="Ù…Ø³Ø­ Ø§Ù„Ø¨Ø­Ø«">
                             <X className="w-4 h-4 text-slate-500" />
                         </button>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2"><Filter className="w-4 h-4 text-slate-500" /><span className="text-sm font-semibold text-slate-600 dark:text-slate-400">تصفية النتائج</span></div>
+                <div className="flex items-center gap-2"><Filter className="w-4 h-4 text-slate-500" /><span className="text-sm font-semibold text-slate-600 dark:text-slate-400">ØªØµÙÙŠØ© Ø§Ù„Ù†ØªØ§Ø¦Ø¬</span></div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div className="relative">
                         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="تصفية حسب الحالة">
-                            <option value="all">كل الحالات</option>
-                            <option value="pending">قيد الانتظار</option>
-                            <option value="ready_for_pickup">تم التجهيز</option>
-                            <option value="in_transit">جاري التوصيل</option>
-                            <option value="delivered">مكتملة</option>
-                            <option value="cancelled">ملغي</option>
-                            <option value="edited">المعدلة</option>
+                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="ØªØµÙÙŠØ© Ø­Ø³Ø¨ Ø§Ù„Ø­Ø§Ù„Ø©">
+                            <option value="all">ÙƒÙ„ Ø§Ù„Ø­Ø§Ù„Ø§Øª</option>
+                            <option value="pending">Ù‚ÙŠØ¯ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±</option>
+                            <option value="ready_for_pickup">ØªÙ… Ø§Ù„ØªØ¬Ù‡ÙŠØ²</option>
+                            <option value="in_transit">Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªÙˆØµÙŠÙ„</option>
+                            <option value="delivered">Ù…ÙƒØªÙ…Ù„Ø©</option>
+                            <option value="cancelled">Ù…Ù„ØºÙŠ</option>
+                            <option value="edited">Ø§Ù„Ù…Ø¹Ø¯Ù„Ø©</option>
                         </select>
                         <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
                     <div className="relative">
                         <select value={driverFilter} onChange={(e) => { setDriverFilter(e.target.value); setPage(1); }}
-                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="تصفية حسب المندوب">
-                            <option value="all">كل المناديب</option>
-                            {drivers.map((d) => <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>)}
+                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="ØªØµÙÙŠØ© Ø­Ø³Ø¨ Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨">
+                            <option value="all">ÙƒÙ„ Ø§Ù„Ù…Ù†Ø§Ø¯ÙŠØ¨</option>
+                            {drivers.map((d) => <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'Ù…ØªØ§Ø­' : 'ØºÙŠØ± Ù…ØªØ§Ø­')}</option>)}
                         </select>
                         <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
                     <div className="relative">
                         <select value={managerFilter} onChange={(e) => { setManagerFilter(e.target.value); setPage(1); }}
-                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="تصفية حسب المسؤول">
-                            <option value="all">كل المسؤولين</option>
+                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="ØªØµÙÙŠØ© Ø­Ø³Ø¨ Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„">
+                            <option value="all">ÙƒÙ„ Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„ÙŠÙ†</option>
                             {managers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                         </select>
                         <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
                     <div className="relative">
                         <select value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
-                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="تصفية حسب المصدر">
-                            <option value="all">كل المصادر</option>
-                            <option value="qareeblak">قريبلك</option>
-                            <option value="manual">يدوي</option>
-                            <option value="whatsapp">وتس</option>
-                            <option value="maintenance">صيانة</option>
+                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="ØªØµÙÙŠØ© Ø­Ø³Ø¨ Ø§Ù„Ù…ØµØ¯Ø±">
+                            <option value="all">ÙƒÙ„ Ø§Ù„Ù…ØµØ§Ø¯Ø±</option>
+                            <option value="qareeblak">Ù‚Ø±ÙŠØ¨Ù„Ùƒ</option>
+                            <option value="manual">ÙŠØ¯ÙˆÙŠ</option>
+                            <option value="whatsapp">ÙˆØªØ³</option>
+                            <option value="maintenance">ØµÙŠØ§Ù†Ø©</option>
                         </select>
                         <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     </div>
@@ -544,7 +535,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
             ) : filteredOrdersList.length === 0 ? (
                 <div className="text-center py-16">
                     <Package className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                    <p className="text-slate-500 dark:text-slate-400 text-lg">لا توجد طلبات</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-lg">Ù„Ø§ ØªÙˆØ¬Ø¯ Ø·Ù„Ø¨Ø§Øª</p>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -577,7 +568,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                                 className={`bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-all border ${isSelected ? 'border-violet-500 ring-1 ring-violet-500 dark:border-violet-400 dark:ring-violet-400 bg-violet-50/50 dark:bg-violet-900/10' : 'border-slate-100 dark:border-slate-700'} relative overflow-hidden`}
                             >
                                 <div className={`absolute top-0 right-0 bottom-0 w-1 ${normalizeSourceKey(order.source) === 'qareeblak' ? 'bg-emerald-500' : normalizeSourceKey(order.source) === 'manual' ? 'bg-blue-500' : normalizeSourceKey(order.source) === 'whatsapp' ? 'bg-green-500' : 'bg-slate-300'}`} />
-                                {order.is_edited && <div className="absolute top-3 left-3 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full z-10">معدل</div>}
+                                {order.is_edited && <div className="absolute top-3 left-3 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full z-10">Ù…Ø¹Ø¯Ù„</div>}
 
                                 <div className="flex justify-between items-start mb-3 pr-3">
                                     <div className="flex items-center gap-3 mt-1">
@@ -600,8 +591,8 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                                 <p className="text-slate-600 dark:text-slate-400 text-sm mb-1 flex items-center gap-1 pr-3"><Phone className="w-3 h-3" />{order.customer_phone}</p>
 
                                 <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2 pr-3">
-                                    <span className="flex items-center gap-1"><Truck className="w-3 h-3" />{order.courier_name ? `معين لـ ${order.courier_name}` : 'غير معين'}</span>
-                                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /><span className="truncate max-w-[150px]">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span></span>
+                                    <span className="flex items-center gap-1"><Truck className="w-3 h-3" />{order.courier_name ? `Ù…Ø¹ÙŠÙ† Ù„Ù€ ${order.courier_name}` : 'ØºÙŠØ± Ù…Ø¹ÙŠÙ†'}</span>
+                                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /><span className="truncate max-w-[150px]">{order.delivery_address || 'Ù„Ù… ÙŠÙØ­Ø¯ÙŽÙ‘Ø¯ Ø§Ù„Ø¹Ù†ÙˆØ§Ù† Ø¨Ø¹Ø¯'}</span></span>
                                 </div>
 
                                 <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700 pr-3">
@@ -610,7 +601,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                                         const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
                                         const itemsTotal = items.reduce((sum: number, item: any) => sum + ((parseFloat(item?.price || item?.unit_price) || 0) * (parseFloat(item?.quantity) || 1)), 0);
                                         const deliFee = parseFloat(order.delivery_fee?.toString() || '0');
-                                        return <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">{(itemsTotal + deliFee).toFixed(0)} ج.م</span>;
+                                        return <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">{(itemsTotal + deliFee).toFixed(0)} Ø¬.Ù…</span>;
                                     })()}
                                 </div>
                             </motion.div>
@@ -623,12 +614,12 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
             {!isLoading && orders.length > 0 && (
                 <div className="flex justify-center items-center gap-4 mt-6">
                     <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                        className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" title="الصفحة السابقة" aria-label="الصفحة السابقة">
+                        className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" title="Ø§Ù„ØµÙØ­Ø© Ø§Ù„Ø³Ø§Ø¨Ù‚Ø©" aria-label="Ø§Ù„ØµÙØ­Ø© Ø§Ù„Ø³Ø§Ø¨Ù‚Ø©">
                         <ChevronRight className="w-5 h-5" />
                     </button>
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">صفحة {page} من {totalPages}</span>
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">ØµÙØ­Ø© {page} Ù…Ù† {totalPages}</span>
                     <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                        className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" title="الصفحة التالية" aria-label="الصفحة التالية">
+                        className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" title="Ø§Ù„ØµÙØ­Ø© Ø§Ù„ØªØ§Ù„ÙŠØ©" aria-label="Ø§Ù„ØµÙØ­Ø© Ø§Ù„ØªØ§Ù„ÙŠØ©">
                         <ChevronLeft className="w-5 h-5" />
                     </button>
                 </div>
@@ -660,7 +651,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                                 <X className="w-5 h-5 text-slate-500" />
                             </button>
                             <span className="font-bold text-lg text-violet-600 dark:text-violet-400">
-                                {selectedOrderIds.length} طلبات محددة
+                                {selectedOrderIds.length} Ø·Ù„Ø¨Ø§Øª Ù…Ø­Ø¯Ø¯Ø©
                             </span>
                         </div>
 
@@ -670,9 +661,9 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                                 onChange={(e) => setBulkAssignCourierId(e.target.value)}
                                 className="flex-1 sm:w-64 appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500 border border-slate-200 dark:border-slate-700"
                             >
-                                <option value="">اختر المندوب...</option>
+                                <option value="">Ø§Ø®ØªØ± Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨...</option>
                                 {drivers.map((d) => (
-                                    <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>
+                                    <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'Ù…ØªØ§Ø­' : 'ØºÙŠØ± Ù…ØªØ§Ø­')}</option>
                                 ))}
                             </select>
 
@@ -684,12 +675,12 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                                 {isAssigning ? (
                                     <>
                                         <RefreshCw className="w-4 h-4 animate-spin" />
-                                        جاري التعيين...
+                                        Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ¹ÙŠÙŠÙ†...
                                     </>
                                 ) : (
                                     <>
                                         <UserCheck className="w-4 h-4" />
-                                        تعيين
+                                        ØªØ¹ÙŠÙŠÙ†
                                     </>
                                 )}
                             </button>

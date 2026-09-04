@@ -651,7 +651,7 @@ export default function ProviderDashboard() {
                 return;
             } catch {
                 console.error('[ProviderDashboard] Error parsing halan_user');
-                router.replace('/login/provider');
+                router.replace('/login/partner');
                 return;
             }
         }
@@ -660,7 +660,7 @@ export default function ProviderDashboard() {
         // currentUser being present means AppProvider validated the session (e.g. via cookie)
         if (!qareeblakToken && !qareeblakCookieSession && !halanToken && !currentUser) {
             console.warn('[ProviderDashboard] No authentication detected. Redirecting to login.');
-            router.push('/login/provider');
+            router.push('/login/partner');
             return;
         }
 
@@ -1128,7 +1128,7 @@ export default function ProviderDashboard() {
                         className="w-full bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 text-lg font-bold"
                         onClick={() => {
                             if (currentUser) logout();
-                            router.push('/login/provider');
+                            router.push('/login/partner');
                         }}
                     >
                         تسجيل الدخول كشريك
@@ -1484,7 +1484,7 @@ export default function ProviderDashboard() {
                     <Button
                         variant="destructive"
                         className="w-full h-12 justify-start gap-4 rounded-xl font-bold"
-                        onClick={() => { logout(); router.push('/login/provider'); }}
+                        onClick={() => { logout(); router.push('/login/partner'); }}
                     >
                         <LogOut className="w-5 h-5" />
                         تسجيل الخروج
@@ -1967,12 +1967,12 @@ export default function ProviderDashboard() {
                                                             </td>
                                                             <td className="px-8 py-6 text-foreground/80 font-bold">{booking.serviceName}</td>
                                                             <td className="px-8 py-6">
-                                                                <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-black">
+                                                                <span className="whitespace-nowrap inline-flex bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-xs font-black">
                                                                     {displayPrice} ج.م
                                                                 </span>
                                                             </td>
                                                             <td className="px-8 py-6">
-                                                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase
+                                                                <span className={`whitespace-nowrap inline-flex px-4 py-1.5 rounded-full text-[10px] font-black uppercase
                                                                     ${booking.status === 'pending' || booking.status === 'pending_appointment' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
                                                                         booking.status === 'confirmed' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
                                                                             booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :

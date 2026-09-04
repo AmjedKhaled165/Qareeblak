@@ -83,7 +83,7 @@ export default function LoginPage() {
         <motion.div
           whileHover={{ y: -6 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => router.push("/login/provider")}
+          onClick={() => router.push("/login/partner")}
           className="flex-1 h-full"
         >
           <Card className="h-full cursor-pointer border shadow-2xl bg-gradient-to-br from-white/90 to-white/70 dark:from-slate-900/60 dark:to-slate-800/40 backdrop-blur-2xl border-white/40 dark:border-white/10 rounded-[3rem] overflow-hidden group transition-all duration-300 hover:shadow-2xl hover:border-secondary/50 relative before:absolute before:inset-0 before:rounded-[3rem] before:bg-gradient-to-br before:from-secondary/5 before:to-primary/5 before:opacity-0 before:group-hover:opacity-100 before:transition-opacity before:duration-300">

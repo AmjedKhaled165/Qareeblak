@@ -1,12 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Zap, Car, Package, ChevronLeft, ShieldCheck, Sparkles } from "lucide-react";
 import { ExtraServiceModal } from "@/components/services/ExtraServiceModal";
+import { useAppStore } from "@/components/providers/AppProvider";
 
 export function ExtraServicesSection() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<"utility" | "ride" | "parcel">("utility");
+  const { currentUser } = useAppStore();
+
+  // Check for pending extra service after login redirect
+  useEffect(() => {
+    if (!currentUser) return;
+    try {
+      const pending = sessionStorage.getItem("pendingExtraService");
+      if (pending) {
+        const data = JSON.parse(pending);
+        // Only restore if saved less than 30 minutes ago
+        if (data.timestamp && Date.now() - data.timestamp < 30 * 60 * 1000) {
+          const category = data.category as "utility" | "ride" | "parcel";
+          if (["utility", "ride", "parcel"].includes(category)) {
+            setSelectedCategory(category);
+            setModalOpen(true);
+          }
+        }
+        sessionStorage.removeItem("pendingExtraService");
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+  }, [currentUser]);
 
   const openServiceModal = (category: "utility" | "ride" | "parcel") => {
     setSelectedCategory(category);
