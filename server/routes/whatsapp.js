@@ -38,7 +38,7 @@ if (EVOLUTION_API_URL) {
 }
 
 if (!EVOLUTION_API_KEY && process.env.NODE_ENV === 'production') {
-    logger.error('âš ï¸ CRITICAL: EVOLUTION_API_KEY is missing in production!');
+    logger.error('⚠️ CRITICAL: EVOLUTION_API_KEY is missing in production!');
 }
 
 const { verifyToken, isAdmin } = require('../middleware/auth');
@@ -123,7 +123,7 @@ function generateInvoiceMessage(order, courier, items) {
         const price = Number(item.price || item.unit_price || 0);
         const qty = Number(item.quantity || 1);
         const total = (price * qty).toFixed(2);
-        return `- ${item.name || item.product_name || 'Ù…Ù†ØªØ¬'} (x${qty}): ${total} Ø¬.Ù…`;
+        return `- ${item.name || item.product_name || 'منتج'} (x${qty}): ${total} ج.م`;
     }).join('\n');
 
     const itemsTotal = items.reduce((sum, item) => {
@@ -133,24 +133,24 @@ function generateInvoiceMessage(order, courier, items) {
     const deliveryFee = Number(order.delivery_fee || 0);
     const grandTotal = itemsTotal + deliveryFee;
 
-    const message = `ðŸ§¾ *ÙØ§ØªÙˆØ±Ø© Ø·Ù„Ø¨ - Ø§Ø·Ù„Ø¨ Ø­Ø§Ù„Ø§*
+    const message = `🧾 *فاتورة طلب - اطلب حالا*
 ------------------------------
-ðŸ‘¤ *Ø§Ù„Ø¹Ù…ÙŠÙ„:* ${order.customer_name}
-ðŸ“± *Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ:* ${order.customer_phone}
-ðŸ“ *Ø§Ù„Ø¹Ù†ÙˆØ§Ù†:* ${order.delivery_address}
+👤 *العميل:* ${order.customer_name}
+📱 *رقم الهاتف:* ${order.customer_phone}
+📍 *العنوان:* ${order.delivery_address}
 ------------------------------
-ðŸ›’ *Ø§Ù„Ø£ØµÙ†Ø§Ù:*
+🛒 *الأصناف:*
 ${itemsList}
 
-ðŸšš *Ø®Ø¯Ù…Ø© Ø§Ù„ØªÙˆØµÙŠÙ„:* ${deliveryFee.toFixed(2)} EGP
+🚚 *خدمة التوصيل:* ${deliveryFee.toFixed(2)} EGP
 ------------------------------
-ðŸ’° *Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ:* ${grandTotal.toFixed(2)} EGP
+💰 *الإجمالي:* ${grandTotal.toFixed(2)} EGP
 ------------------------------
-ðŸï¸ *Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨:* ${courier?.name || 'ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ'}
-ðŸ“± *Ø±Ù‚Ù… Ø§Ù„Ù…Ù†Ø¯ÙˆØ¨:* ${courier?.phone || 'ØºÙŠØ± Ù…ØªÙˆÙØ±'}
-â° *ÙˆÙ‚Øª Ø§Ù„ØªÙˆØµÙŠÙ„:* ${formatArabicDate(new Date())}
+🏍️ *المندوب:* ${courier?.name || 'غير معروف'}
+📱 *رقم المندوب:* ${courier?.phone || 'غير متوفر'}
+⏰ *وقت التوصيل:* ${formatArabicDate(new Date())}
 ------------------------------
-        Ø´ÙƒØ±Ø§Ù‹ Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù…ÙƒÙ… ØªØ·Ø¨ÙŠÙ‚ Ø§Ø·Ù„Ø¨ Ø­Ø§Ù„Ø§! ðŸŒ¹`;
+        شكراً لاستخدامكم تطبيق اطلب حالا! 🌹`;
 
     return message;
 }
@@ -172,7 +172,7 @@ async function sendWhatsAppMessage(phone, message) {
 
     try {
         const targetUrl = `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`;
-        logger.info('ðŸ”— Attempting to connect to WhatsApp API at:', targetUrl);
+        logger.info('🔗 Attempting to connect to WhatsApp API at:', targetUrl);
         const response = await fetch(targetUrl, {
             method: 'POST',
             headers: {
@@ -188,14 +188,14 @@ async function sendWhatsAppMessage(phone, message) {
         const data = await response.json();
 
         if (response.ok) {
-            logger.info('âœ… WhatsApp message sent successfully to:', formattedPhone);
+            logger.info('✅ WhatsApp message sent successfully to:', formattedPhone);
             return { success: true, data };
         } else {
-            logger.error('âŒ Failed to send WhatsApp message:', data);
+            logger.error('❌ Failed to send WhatsApp message:', data);
             return { success: false, error: data };
         }
     } catch (error) {
-        logger.error('âŒ WhatsApp API error:', error.message);
+        logger.error('❌ WhatsApp API error:', error.message);
         return { success: false, error: error.message };
     }
 }
@@ -255,7 +255,7 @@ async function sendOrderInvoice(orderId) {
 
         // Log the invoice sending
         if (result.success) {
-            logger.info(`ðŸ“§ Invoice sent for order #${orderId} to ${customerPhone}`);
+            logger.info(`📧 Invoice sent for order #${orderId} to ${customerPhone}`);
         } else {
             logger.error(`Invoice send failed for order #${orderId}:`, result.error);
         }
@@ -315,7 +315,7 @@ router.post('/webhook', async (req, res) => {
     try {
         const event = req.body;
 
-        logger.info('ðŸ“¥ Received Evolution API webhook:', event.event);
+        logger.info('📥 Received Evolution API webhook:', event.event);
 
         // Handle different event types
         switch (event.event) {

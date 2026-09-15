@@ -157,7 +157,7 @@ export default function OwnerOverviewTab({ stats, onNavigateTab }: OverviewTabPr
                     className="flex items-center gap-2 px-4 py-2.5 bg-orange-100 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/20 rounded-xl text-xs font-bold hover:bg-orange-200 dark:hover:bg-orange-500/20 transition-all shadow-sm"
                 >
                     <Users className="w-4 h-4" />
-                    إدارة Ø§Ù„ÙØ±ÙŠÙ‚
+                    إدارة الفريق
                 </button>
                 <button
                     onClick={() => onNavigateTab('products')}

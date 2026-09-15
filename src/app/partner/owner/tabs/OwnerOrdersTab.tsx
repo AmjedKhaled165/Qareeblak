@@ -118,7 +118,7 @@ function OrderDetailsModal({ order, drivers, managers, onClose, onUpdateOrder }:
                             <div className="space-y-2">
                                 <div className="flex items-center gap-3"><span className="text-slate-600 dark:text-slate-400 text-sm">الاسم:</span><span className="text-slate-800 dark:text-slate-200 font-medium">{order.customer_name}</span></div>
                                 <div className="flex items-center gap-3"><Phone className="w-4 h-4 text-slate-400" /><a href={`tel:${order.customer_phone}`} className="text-blue-600 dark:text-blue-400">{order.customer_phone}</a></div>
-                                <div className="flex items-start gap-3"><MapPin className="w-4 h-4 text-green-500 mt-1" /><span className="text-slate-700 dark:text-slate-300 text-sm">{order.delivery_address || 'لم ÙŠÙØ­Ø¯ÙŽÙ‘Ø¯ العنوان بعد'}</span></div>
+                                <div className="flex items-start gap-3"><MapPin className="w-4 h-4 text-green-500 mt-1" /><span className="text-slate-700 dark:text-slate-300 text-sm">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span></div>
                             </div>
                         </div>
 
@@ -481,12 +481,12 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                     )}
                 </div>
 
-                <div className="flex items-center gap-2"><Filter className="w-4 h-4 text-slate-500" /><span className="text-sm font-semibold text-slate-600 dark:text-slate-400">ØªØµÙÙŠØ© النتائج</span></div>
+                <div className="flex items-center gap-2"><Filter className="w-4 h-4 text-slate-500" /><span className="text-sm font-semibold text-slate-600 dark:text-slate-400">تصفية النتائج</span></div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div className="relative">
                         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="ØªØµÙÙŠØ© حسب الحالة">
+                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="تصفية حسب الحالة">
                             <option value="all">كل الحالات</option>
                             <option value="pending">قيد الانتظار</option>
                             <option value="ready_for_pickup">تم التجهيز</option>
@@ -499,7 +499,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                     </div>
                     <div className="relative">
                         <select value={driverFilter} onChange={(e) => { setDriverFilter(e.target.value); setPage(1); }}
-                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="ØªØµÙÙŠØ© حسب المندوب">
+                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="تصفية حسب المندوب">
                             <option value="all">كل المناديب</option>
                             {drivers.map((d) => <option key={d.id} value={d.id}>{d.name} - {d.courierStatus || (d.isAvailable ? 'متاح' : 'غير متاح')}</option>)}
                         </select>
@@ -507,7 +507,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                     </div>
                     <div className="relative">
                         <select value={managerFilter} onChange={(e) => { setManagerFilter(e.target.value); setPage(1); }}
-                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="ØªØµÙÙŠØ© حسب المسؤول">
+                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="تصفية حسب المسؤول">
                             <option value="all">كل المسؤولين</option>
                             {managers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                         </select>
@@ -515,7 +515,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
                     </div>
                     <div className="relative">
                         <select value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
-                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="ØªØµÙÙŠØ© حسب المصدر">
+                            className="w-full appearance-none bg-slate-100 dark:bg-slate-800 rounded-xl py-2.5 px-3 pr-8 text-sm outline-none focus:ring-2 focus:ring-violet-500" aria-label="تصفية حسب المصدر">
                             <option value="all">كل المصادر</option>
                             <option value="qareeblak">قريبلك</option>
                             <option value="manual">يدوي</option>
@@ -592,7 +592,7 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
 
                                 <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400 mb-2 pr-3">
                                     <span className="flex items-center gap-1"><Truck className="w-3 h-3" />{order.courier_name ? `معين لـ ${order.courier_name}` : 'غير معين'}</span>
-                                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /><span className="truncate max-w-[150px]">{order.delivery_address || 'لم ÙŠÙØ­Ø¯ÙŽÙ‘Ø¯ العنوان بعد'}</span></span>
+                                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /><span className="truncate max-w-[150px]">{order.delivery_address || 'لم يُحدَّد العنوان بعد'}</span></span>
                                 </div>
 
                                 <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700 pr-3">
@@ -614,12 +614,12 @@ export default function OwnerOrdersTab({ period = 'today', customDate }: { perio
             {!isLoading && orders.length > 0 && (
                 <div className="flex justify-center items-center gap-4 mt-6">
                     <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                        className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" title="Ø§Ù„ØµÙØ­Ø© السابقة" aria-label="Ø§Ù„ØµÙØ­Ø© السابقة">
+                        className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" title="الصفحة السابقة" aria-label="الصفحة السابقة">
                         <ChevronRight className="w-5 h-5" />
                     </button>
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">ØµÙØ­Ø© {page} من {totalPages}</span>
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">صفحة {page} من {totalPages}</span>
                     <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                        className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" title="Ø§Ù„ØµÙØ­Ø© التالية" aria-label="Ø§Ù„ØµÙØ­Ø© التالية">
+                        className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" title="الصفحة التالية" aria-label="الصفحة التالية">
                         <ChevronLeft className="w-5 h-5" />
                     </button>
                 </div>

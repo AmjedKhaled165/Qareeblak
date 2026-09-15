@@ -746,6 +746,21 @@ class DeliveryService {
                 });
             }
 
+            // Notify Courier via Push Notifications
+            try {
+                const { createNotification } = require('../routes/notifications');
+                await createNotification(
+                    courierId,
+                    `طلب جديد للوصيل #${orderId}`,
+                    `تم تعيينك لتوصيل طلب جديد. يرجى مراجعة قائمة الطلبات.`,
+                    'assigned',
+                    String(orderId),
+                    io
+                );
+            } catch (err) {
+                logger.error('Failed to notify courier on assignment:', err);
+            }
+
             return updatedRes.rows[0] || null;
         } catch (error) {
             await client.query('ROLLBACK');

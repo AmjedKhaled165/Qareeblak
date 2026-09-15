@@ -28,7 +28,7 @@ export default function DebugAssignmentsPage() {
 
     return (
         <div className="p-10 bg-white min-h-screen text-black" dir="rtl">
-            <h1 className="text-2xl font-bold mb-6">ØµÙØ­Ø© ÙØ­Øµ تعيينات المناديب (Debug)</h1>
+            <h1 className="text-2xl font-bold mb-6">صفحة فحص تعيينات المناديب (Debug)</h1>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div>

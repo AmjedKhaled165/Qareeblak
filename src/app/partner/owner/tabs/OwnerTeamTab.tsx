@@ -120,12 +120,12 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
         try {
             const data = await apiCall('/halan/auth/register', { method: 'POST', body: JSON.stringify(newManager) });
             if (data.success) {
-                setModalState({ isOpen: true, title: 'تم بنجاح', message: 'تم Ø¥Ø¶Ø§ÙØ© المسؤول بنجاح', type: 'success' });
+                setModalState({ isOpen: true, title: 'تم بنجاح', message: 'تم إضافة المسؤول بنجاح', type: 'success' });
                 setShowAddManagerModal(false);
                 setNewManager({ name: '', username: '', email: '', phone: '', password: '', role: 'supervisor' });
                 fetchAll();
             } else {
-                setModalState({ isOpen: true, title: 'خطأ', message: data.error || 'ÙØ´Ù„ Ø¥Ø¶Ø§ÙØ© المسؤول', type: 'error' });
+                setModalState({ isOpen: true, title: 'خطأ', message: data.error || 'فشل إضافة المسؤول', type: 'error' });
             }
         } catch (error: any) {
             setModalState({ isOpen: true, title: 'خطأ', message: error?.message || 'حدث خطأ غير متوقع', type: 'error' });
@@ -136,18 +136,18 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
 
     const handleDeleteManager = (id: number) => {
         setConfirmModal({
-            isOpen: true, title: 'تأكيد Ø§Ù„Ø­Ø°Ù', message: 'هل أنت متأكد من Ø­Ø°Ù هذا المسؤول نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.',
+            isOpen: true, title: 'تأكيد الحذف', message: 'هل أنت متأكد من حذف هذا المسؤول نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.',
             onConfirm: async () => {
                 setIsActionLoading(true);
                 try {
                     const data = await apiCall(`/halan/users/${id}`, { method: 'DELETE' });
                     if (data.success) {
-                        setModalState({ isOpen: true, title: 'تم بنجاح', message: 'تم Ø§Ù„Ø­Ø°Ù بنجاح', type: 'success', onCloseAction: () => fetchAll() });
+                        setModalState({ isOpen: true, title: 'تم بنجاح', message: 'تم الحذف بنجاح', type: 'success', onCloseAction: () => fetchAll() });
                     } else {
-                        setModalState({ isOpen: true, title: 'خطأ', message: data.error || 'ÙØ´Ù„ عملية Ø§Ù„Ø­Ø°Ù', type: 'error' });
+                        setModalState({ isOpen: true, title: 'خطأ', message: data.error || 'فشل عملية الحذف', type: 'error' });
                     }
                 } catch (error: any) {
-                    setModalState({ isOpen: true, title: 'خطأ', message: error.message || 'حدث خطأ غير متوقع أثناء Ø§Ù„Ø­Ø°Ù', type: 'error' });
+                    setModalState({ isOpen: true, title: 'خطأ', message: error.message || 'حدث خطأ غير متوقع أثناء الحذف', type: 'error' });
                 } finally {
                     setIsActionLoading(false);
                 }
@@ -180,12 +180,12 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
         try {
             const data = await apiCall('/halan/auth/register', { method: 'POST', body: JSON.stringify(newDriver) });
             if (data.success) {
-                setModalState({ isOpen: true, title: 'تم بنجاح', message: 'تم Ø¥Ø¶Ø§ÙØ© المندوب بنجاح', type: 'success' });
+                setModalState({ isOpen: true, title: 'تم بنجاح', message: 'تم إضافة المندوب بنجاح', type: 'success' });
                 setShowAddDriverModal(false);
                 setNewDriver({ name: '', username: '', email: '', phone: '', password: '', role: 'courier', supervisorId: '' });
                 fetchAll();
             } else {
-                setModalState({ isOpen: true, title: 'خطأ', message: data.error || 'ÙØ´Ù„ Ø¥Ø¶Ø§ÙØ© المندوب', type: 'error' });
+                setModalState({ isOpen: true, title: 'خطأ', message: data.error || 'فشل إضافة المندوب', type: 'error' });
             }
         } catch (error: any) {
             setModalState({ isOpen: true, title: 'خطأ', message: error?.message || 'حدث خطأ غير متوقع', type: 'error' });
@@ -196,17 +196,17 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
 
     const handleDeleteDriver = (id: number) => {
         setConfirmModal({
-            isOpen: true, title: 'Ø­Ø°Ù المندوب', message: 'هل أنت متأكد من Ø­Ø°Ù هذا المندوب نهائياً؟ لا يمكن التراجع عن هذا الإجراء.',
+            isOpen: true, title: 'حذف المندوب', message: 'هل أنت متأكد من حذف هذا المندوب نهائياً؟ لا يمكن التراجع عن هذا الإجراء.',
             onConfirm: async () => {
                 setConfirmModal(prev => ({ ...prev, isOpen: false }));
                 setIsActionLoading(true);
                 try {
                     const data = await apiCall(`/halan/users/${id}`, { method: 'DELETE' });
                     if (data.success) {
-                        setModalState({ isOpen: true, title: 'تم بنجاح', message: 'تم Ø§Ù„Ø­Ø°Ù بنجاح', type: 'success', onCloseAction: () => fetchAll() });
+                        setModalState({ isOpen: true, title: 'تم بنجاح', message: 'تم الحذف بنجاح', type: 'success', onCloseAction: () => fetchAll() });
                     }
                 } catch {
-                    setModalState({ isOpen: true, title: 'خطأ', message: 'حدث خطأ غير متوقع أثناء Ø§Ù„Ø­Ø°Ù', type: 'error' });
+                    setModalState({ isOpen: true, title: 'خطأ', message: 'حدث خطأ غير متوقع أثناء الحذف', type: 'error' });
                 } finally {
                     setIsActionLoading(false);
                 }
@@ -327,14 +327,14 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
             const wsData: any[][] = [];
 
             // Title row
-            wsData.push([`تقرير Ø§Ù„ÙØ±ÙŠÙ‚ - ${getPeriodLabel()}`]);
+            wsData.push([`تقرير الفريق - ${getPeriodLabel()}`]);
             wsData.push([`تاريخ التصدير: ${new Date().toLocaleString('ar-EG')}`]);
             wsData.push([]); // Empty row
 
-            // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• SUPERVISORS SECTION â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-            wsData.push(['â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•']);
+            // ════════════════ SUPERVISORS SECTION ════════════════
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
             wsData.push(['قسم المسؤولين']);
-            wsData.push(['â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•']);
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
             wsData.push([]);
 
             // Supervisor Summary Header
@@ -361,10 +361,10 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
             wsData.push([]); // Separator
             wsData.push([]); // Separator
 
-            // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• COURIERS SECTION â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-            wsData.push(['â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•']);
+            // ════════════════ COURIERS SECTION ════════════════
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
             wsData.push(['قسم المناديب']);
-            wsData.push(['â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•']);
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
             wsData.push([]);
 
             // Courier Summary Header
@@ -397,10 +397,10 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
             wsData.push([]); // Separator
             wsData.push([]); // Separator
 
-            // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• DETAILED ORDERS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-            wsData.push(['â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•']);
-            wsData.push(['ØªÙØ§ØµÙŠÙ„ جميع الطلبات']);
-            wsData.push(['â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•']);
+            // ════════════════ DETAILED ORDERS ════════════════
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
+            wsData.push(['تفاصيل جميع الطلبات']);
+            wsData.push(['═══════════════════════════════════════════════════════════════']);
             wsData.push([]);
 
             wsData.push([
@@ -411,7 +411,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
 
             const statusLabels: Record<string, string> = {
                 pending: 'قيد الانتظار', assigned: 'تم التعيين', in_progress: 'قيد التوصيل',
-                out_for_delivery: 'ÙÙŠ الطريق', delivered: 'مكتمل', cancelled: 'ملغي', deleted: 'ملغي'
+                out_for_delivery: 'في الطريق', delivered: 'مكتمل', cancelled: 'ملغي', deleted: 'ملغي'
             };
 
             for (const order of filteredOrders) {
@@ -455,12 +455,12 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
             ];
 
             const periodForFileName = period === 'custom' ? (customDate || 'custom') : period;
-            XLSX.utils.book_append_sheet(wb, ws, 'تقرير Ø§Ù„ÙØ±ÙŠÙ‚');
-            XLSX.writeFile(wb, `تقرير_Ø§Ù„ÙØ±ÙŠÙ‚_${periodForFileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, 'تقرير الفريق');
+            XLSX.writeFile(wb, `تقرير_الفريق_${periodForFileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 
         } catch (error) {
             console.error('Export error:', error);
-            setModalState({ isOpen: true, title: 'خطأ', message: 'حدث خطأ أثناء تصدير Ø§Ù„Ù…Ù„Ù', type: 'error' });
+            setModalState({ isOpen: true, title: 'خطأ', message: 'حدث خطأ أثناء تصدير الملف', type: 'error' });
         } finally {
             setIsExporting(false);
         }
@@ -503,7 +503,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                 </button>
             </div>
 
-            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• MANAGERS SUB-TAB â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ══════════════ MANAGERS SUB-TAB ══════════════ */}
             {subTab === 'managers' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                     {/* Header + Add */}
@@ -517,7 +517,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                         {isOwner && (
                             <button onClick={() => setShowAddManagerModal(true)}
                                 className="bg-violet-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1 shadow-sm active:scale-95 transition-all mr-3">
-                                <UserPlus className="w-4 h-4" />Ø¥Ø¶Ø§ÙØ© مسؤول
+                                <UserPlus className="w-4 h-4" />إضافة مسؤول
                             </button>
                         )}
                     </div>
@@ -555,8 +555,8 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                                         {manager.phone && <a href={`tel:${manager.phone}`} className="flex items-center gap-1 hover:text-violet-600"><Phone className="w-4 h-4" />{manager.phone}</a>}
                                         <div className="flex-1" />
                                         {isOwner && (
-                                            <label className="inline-flex items-center gap-2 cursor-pointer select-none" title="تشغيل أو Ø¥ÙŠÙ‚Ø§Ù المسؤول">
-                                                <span className={`text-xs font-bold ${manager.isAvailable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>{manager.isAvailable ? 'شغال' : 'Ù…Ù‚ÙÙˆÙ„'}</span>
+                                            <label className="inline-flex items-center gap-2 cursor-pointer select-none" title="تشغيل أو إيقاف المسؤول">
+                                                <span className={`text-xs font-bold ${manager.isAvailable ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>{manager.isAvailable ? 'شغال' : 'مقفول'}</span>
                                                 <input type="checkbox" checked={Boolean(manager.isAvailable)} onChange={() => handleToggleManagerAvailability(manager)} className="sr-only" />
                                                 <span className={`relative inline-block w-11 h-6 rounded-full transition-colors ${manager.isAvailable ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
                                                     <span className={`absolute top-1 h-4 w-4 bg-white rounded-full transition-all ${manager.isAvailable ? 'left-1' : 'right-1'}`} />
@@ -564,7 +564,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                                             </label>
                                         )}
                                         {isOwner && (
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteManager(manager.id); }} title="Ø­Ø°Ù المسؤول" aria-label="Ø­Ø°Ù المسؤول"
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteManager(manager.id); }} title="حذف المسؤول" aria-label="حذف المسؤول"
                                                 className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><Trash2 className="w-5 h-5" /></button>
                                         )}
                                     </div>
@@ -575,7 +575,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                 </motion.div>
             )}
 
-            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• DRIVERS SUB-TAB â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ══════════════ DRIVERS SUB-TAB ══════════════ */}
             {subTab === 'drivers' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -588,7 +588,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                         {isOwner && (
                             <button onClick={() => setShowAddDriverModal(true)}
                                 className="bg-violet-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1 shadow-sm active:scale-95 transition-all mr-3">
-                                <UserPlus className="w-4 h-4" />Ø¥Ø¶Ø§ÙØ© مندوب
+                                <UserPlus className="w-4 h-4" />إضافة مندوب
                             </button>
                         )}
                     </div>
@@ -616,7 +616,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                                         </div>
                                         <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                                             <label className="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" className="sr-only peer" checked={Boolean(driver.isAvailable)} title="تبديل ØªÙˆÙØ± المندوب" onChange={() => handleToggleDriverAvailability(driver)} />
+                                                <input type="checkbox" className="sr-only peer" checked={Boolean(driver.isAvailable)} title="تبديل توفر المندوب" onChange={() => handleToggleDriverAvailability(driver)} />
                                                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
                                             </label>
                                             <button onClick={() => router.push(`/partner/tracking/${driver.id}?name=${encodeURIComponent(driver.name)}&username=${driver.username}`)} title="تتبع الموقع"
@@ -624,7 +624,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                                                 <MapPin className="w-5 h-5" />
                                             </button>
                                             {isOwner && (
-                                                <button onClick={() => handleDeleteDriver(driver.id)} title="Ø­Ø°Ù المندوب"
+                                                <button onClick={() => handleDeleteDriver(driver.id)} title="حذف المندوب"
                                                     className="w-10 h-10 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
                                                     <Trash2 className="w-5 h-5" />
                                                 </button>
@@ -657,13 +657,13 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                 </motion.div>
             )}
 
-            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• ADD MANAGER MODAL â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ══════════════ ADD MANAGER MODAL ══════════════ */}
             {showAddManagerModal && (
                 <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddManagerModal(false)} />
                     <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[30px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
-                            <h2 className="text-xl font-bold">Ø¥Ø¶Ø§ÙØ© مسؤول جديد</h2>
+                            <h2 className="text-xl font-bold">إضافة مسؤول جديد</h2>
                             <button onClick={() => setShowAddManagerModal(false)} title="إغلاق" aria-label="إغلاق" className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-6 h-6" /></button>
                         </div>
                         <form onSubmit={handleAddManager} className="p-6 space-y-4">
@@ -671,12 +671,12 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                             <div><label className="text-xs text-slate-500 mr-2">اسم المستخدم (للدخول)</label><input type="text" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 font-mono" placeholder="مثلاً: manager_1" value={newManager.username} onChange={(e) => setNewManager({ ...newManager, username: e.target.value })} required /></div>
                             <div><label className="text-xs text-slate-500 mr-2">كلمة المرور</label><PasswordInput className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3" placeholder="********" value={newManager.password} onChange={(e) => setNewManager({ ...newManager, password: e.target.value })} required /></div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div><label className="text-xs text-slate-500 mr-2">رقم Ø§Ù„Ù‡Ø§ØªÙ</label><input type="tel" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 font-mono text-sm" placeholder="01xxxxxxxxx" value={newManager.phone} onChange={(e) => setNewManager({ ...newManager, phone: e.target.value })} dir="ltr" /></div>
+                                <div><label className="text-xs text-slate-500 mr-2">رقم الهاتف</label><input type="tel" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 font-mono text-sm" placeholder="01xxxxxxxxx" value={newManager.phone} onChange={(e) => setNewManager({ ...newManager, phone: e.target.value })} dir="ltr" /></div>
                                 <div><label className="text-xs text-slate-500 mr-2">البريد الإلكتروني</label><input type="email" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm" placeholder="user@example.com" value={newManager.email} onChange={(e) => setNewManager({ ...newManager, email: e.target.value })} dir="ltr" /></div>
                             </div>
                             <div className="pt-4 flex gap-3">
                                 <button type="submit" disabled={isActionLoading} className="flex-1 bg-violet-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-violet-700 transition-all">
-                                    {isActionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}تأكيد Ø§Ù„Ø¥Ø¶Ø§ÙØ©
+                                    {isActionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}تأكيد الإضافة
                                 </button>
                                 <button type="button" onClick={() => setShowAddManagerModal(false)} className="px-6 bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl font-bold">إلغاء</button>
                             </div>
@@ -685,13 +685,13 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                 </div>
             )}
 
-            {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• ADD DRIVER MODAL â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ══════════════ ADD DRIVER MODAL ══════════════ */}
             {showAddDriverModal && (
                 <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddDriverModal(false)} />
                     <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[30px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
-                            <h2 className="text-xl font-bold">Ø¥Ø¶Ø§ÙØ© مندوب جديد</h2>
+                            <h2 className="text-xl font-bold">إضافة مندوب جديد</h2>
                             <button onClick={() => setShowAddDriverModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full" title="إغلاق"><X className="w-6 h-6" /></button>
                         </div>
                         <form onSubmit={handleAddDriver} className="p-6 space-y-4">
@@ -699,10 +699,10 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                             <div><label className="text-xs text-slate-500 mr-2">اسم المستخدم (للدخول)</label><input type="text" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 font-mono" placeholder="مثلاً: ahmed_2024" value={newDriver.username} onChange={(e) => setNewDriver({ ...newDriver, username: e.target.value })} required /></div>
                             <div><label className="text-xs text-slate-500 mr-2">كلمة المرور</label><PasswordInput className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3" placeholder="********" value={newDriver.password} onChange={(e) => setNewDriver({ ...newDriver, password: e.target.value })} required /></div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div><label className="text-xs text-slate-500 mr-2">رقم Ø§Ù„Ù‡Ø§ØªÙ</label><input type="tel" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 font-mono text-sm" placeholder="01xxxxxxxxx" value={newDriver.phone} onChange={(e) => setNewDriver({ ...newDriver, phone: e.target.value })} dir="ltr" /></div>
+                                <div><label className="text-xs text-slate-500 mr-2">رقم الهاتف</label><input type="tel" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 font-mono text-sm" placeholder="01xxxxxxxxx" value={newDriver.phone} onChange={(e) => setNewDriver({ ...newDriver, phone: e.target.value })} dir="ltr" /></div>
                                 <div><label className="text-xs text-slate-500 mr-2">البريد الإلكتروني</label><input type="email" className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm" placeholder="user@example.com" value={newDriver.email} onChange={(e) => setNewDriver({ ...newDriver, email: e.target.value })} dir="ltr" /></div>
                             </div>
-                            <div><label className="text-xs text-slate-500 mr-2">تعيين لمسؤول (Ù…Ø´Ø±Ù)</label>
+                            <div><label className="text-xs text-slate-500 mr-2">تعيين لمسؤول (مشرف)</label>
                                 <select className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-4 py-3" value={newDriver.supervisorId} onChange={(e) => setNewDriver({ ...newDriver, supervisorId: e.target.value })} title="اختر المسؤول">
                                     <option value="">-- بدون تعيين حالياً --</option>
                                     {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -710,7 +710,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
                             </div>
                             <div className="pt-4 flex gap-3">
                                 <button type="submit" disabled={isActionLoading} className="flex-1 bg-violet-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-violet-700 transition-all">
-                                    {isActionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}تأكيد Ø§Ù„Ø¥Ø¶Ø§ÙØ©
+                                    {isActionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}تأكيد الإضافة
                                 </button>
                                 <button type="button" onClick={() => setShowAddDriverModal(false)} className="px-6 bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl font-bold">إلغاء</button>
                             </div>
@@ -721,7 +721,7 @@ export default function OwnerTeamTab({ period, customDate, rawOrders, rawUsers }
 
             {/* Shared Modals */}
             <StatusModal isOpen={modalState.isOpen} onClose={() => { setModalState(prev => ({ ...prev, isOpen: false })); if (modalState.onCloseAction) modalState.onCloseAction(); }} title={modalState.title} message={modalState.message} type={modalState.type} />
-            <ConfirmModal isOpen={confirmModal.isOpen} onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} onConfirm={confirmModal.onConfirm} title={confirmModal.title} message={confirmModal.message} confirmText="Ø­Ø°Ù نهائي" cancelText="إلغاء" isDestructive={true} />
+            <ConfirmModal isOpen={confirmModal.isOpen} onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} onConfirm={confirmModal.onConfirm} title={confirmModal.title} message={confirmModal.message} confirmText="حذف نهائي" cancelText="إلغاء" isDestructive={true} />
         </motion.div>
     );
 }

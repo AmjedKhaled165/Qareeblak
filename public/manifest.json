@@ -3,6 +3,7 @@
   "short_name": "قريبلك",
   "description": "منصتك الأولى لجميع خدمات أسيوط الجديدة",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "dir": "rtl",
   "lang": "ar",
