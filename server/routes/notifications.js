@@ -221,10 +221,34 @@ async function createNotification(userId, message, type, referenceId = null, io 
             });
         }
 
+        // ── Send Native Web Push Notification ───────────────────────────
+        try {
+            const webPushService = require('../services/web-push.service');
+            if (webPushService.isConfigured()) {
+                await webPushService.sendNotification(userId, notification.title, notification.message, {
+                    type: notification.type,
+                    referenceId: notification.reference_id,
+                    url: getUrlForNotification(notification.type, notification.reference_id)
+                });
+            }
+        } catch (pushErr) {
+            console.error('[WebPush] Error sending push from createNotification:', pushErr);
+        }
+
         return notification;
     } catch (error) {
         console.error('Create notification error:', error);
         return null;
+    }
+}
+
+function getUrlForNotification(type, referenceId) {
+    if (!referenceId) return '/';
+    switch (type) {
+        case 'chat_alert': return `/chat/${referenceId}`;
+        case 'appointment_update': return `/provider-dashboard`;
+        case 'status_update': return `/partner/tracking/${referenceId}`;
+        default: return '/';
     }
 }
 

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/components/providers/AppProvider";
 import { apiCall } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { requestNotificationPermission, subscribeToPushNotifications, isPushSubscribed } from "@/lib/push-notifications";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const API_BASE = API_URL.replace(/\/api$/, '');
@@ -37,10 +38,14 @@ export function NotificationBell() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [mounted, setMounted] = useState(false);
+    const [pushEnabled, setPushEnabled] = useState(true); // Assume true initially to avoid flicker
     const socketRef = useRef<any>(null);
 
     useEffect(() => {
         setMounted(true);
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+            setPushEnabled(Notification.permission === 'granted');
+        }
     }, []);
 
     const hasQareeblakToken = typeof window !== 'undefined' && !!localStorage.getItem('qareeblak_token');
@@ -175,6 +180,14 @@ export function NotificationBell() {
         return `منذ ${days} يوم`;
     };
 
+    const handleEnablePush = async () => {
+        const granted = await requestNotificationPermission();
+        if (granted) {
+            const subscribed = await subscribeToPushNotifications();
+            setPushEnabled(subscribed);
+        }
+    };
+
     if (!currentUser || !hasQareeblakToken) return null;
 
     return (
@@ -237,6 +250,22 @@ export function NotificationBell() {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Push Notifications Prompt */}
+                            {!pushEnabled && (
+                                <div className="bg-primary/10 border-b border-primary/20 px-4 py-3 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Bell className="w-4 h-4 text-primary" />
+                                        <span className="text-xs font-medium text-foreground">قم بتفعيل الإشعارات لتصلك التحديثات فوراً</span>
+                                    </div>
+                                    <button
+                                        onClick={handleEnablePush}
+                                        className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-full font-bold hover:bg-primary/90 transition-colors"
+                                    >
+                                        تفعيل
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Notifications List */}
                             <div className="overflow-y-auto flex-1">

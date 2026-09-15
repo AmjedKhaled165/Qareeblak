@@ -171,6 +171,7 @@ const wheelRoutes = require('./routes/wheel');
 const debugAuthRoutes = require('./routes/debug-auth');
 const deliveryRoutes = require('./routes/delivery');
 const providerOrdersRoutes = require('./routes/provider-orders');
+const pushRoutes = require('./routes/push');
 
 // ================== API ROUTES ==================
 const { csrfProtection } = require('./middleware/security');
@@ -223,6 +224,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wheel', wheelRoutes);
 app.use('/api/provider-orders', providerOrdersRoutes);
+app.use('/api/push', pushRoutes);
 // Only load debug routes in development mode to prevent data exposure
 if (process.env.NODE_ENV !== 'production') {
     app.use('/api/debug', debugAuthRoutes);

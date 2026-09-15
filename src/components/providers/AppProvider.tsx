@@ -6,6 +6,7 @@ import { io } from "socket.io-client";
 import { auth, googleProvider, isFirebaseConfigured, signInWithPopup } from "@/lib/firebase";
 import { useToast } from "./ToastProvider";
 import { usePathname, useRouter } from "next/navigation";
+import { subscribeToPushNotifications, unsubscribeFromPushNotifications } from "@/lib/push-notifications";
 
 // ================= TYPES =================
 interface ProviderService {
@@ -481,6 +482,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 newSocket.emit('user-join', { userId: user.id, userType: user.type || user.user_type });
             });
 
+            // Request permission & subscribe to push notifications
+            subscribeToPushNotifications().catch(err => console.error("Push subscription failed", err));
+
             await Promise.all([loadProviders(), loadUserBookings(user)]);
             return user;
         } catch (error) {
@@ -493,6 +497,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
 
     const logout = () => {
+        // Unsubscribe from push notifications before clearing user
+        unsubscribeFromPushNotifications().catch(err => console.error("Push unsubscription failed", err));
+
         authApi.logout();
         localStorage.removeItem('qareeblak_user');
         localStorage.removeItem('user');
