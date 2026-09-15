@@ -187,6 +187,24 @@ function ExploreContent() {
         return counts;
     }, [normalizedProviders]);
 
+    const displayCategories = useMemo(() => {
+        const defaultCategoryIds = new Set(CATEGORIES.map(c => c.id));
+        const defaultCategoryLabels = new Set(CATEGORIES.map(c => c.label));
+        const genericIcon = CATEGORIES.find(c => c.id === "بقالة")?.icon || Sparkles;
+
+        const customCategories = Object.keys(categoryCounts)
+            .filter(id => id !== 'all' && !defaultCategoryIds.has(id) && !defaultCategoryLabels.has(id))
+            .map(id => ({
+                id,
+                label: id,
+                icon: genericIcon,
+                color: "from-slate-500 to-slate-600",
+                bgLight: "bg-slate-500/10 text-slate-600 dark:text-slate-400"
+            }));
+            
+        return [...CATEGORIES, ...customCategories];
+    }, [categoryCounts]);
+
     const filteredProviders = useMemo(() => {
         const normalizedQuery = normalizeText(debouncedSearchQuery.trim());
         const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
@@ -318,26 +336,12 @@ function ExploreContent() {
                                 )}
                             </div>
 
-                            {/* Quick Search Tag Pills */}
-                            <div className="flex flex-wrap items-center gap-2 mt-4 pt-1">
-                                <span className="text-xs text-slate-400 font-bold ml-1">الأكثر بحثاً:</span>
-                                {QUICK_TAGS.map((tag, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setSearchQuery(tag.query)}
-                                        className="text-xs font-bold px-3 py-1 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-slate-200 transition-all active:scale-95 cursor-pointer"
-                                    >
-                                        {tag.label}
-                                    </button>
-                                ))}
-                            </div>
-
                             {/* Compact Categories Pills */}
-                            <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-700/30">
+                            <div className="flex flex-wrap items-center gap-2 mt-4">
                                 <span className="text-xs text-slate-400 font-bold ml-1 flex items-center gap-1">
                                     <Sparkles className="w-3 h-3" /> الأقسام:
                                 </span>
-                                {CATEGORIES.map((cat) => {
+                                {displayCategories.map((cat) => {
                                     const count = categoryCounts[cat.id] || 0;
                                     const isActive = activeCategory === cat.id;
 

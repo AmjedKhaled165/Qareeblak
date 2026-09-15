@@ -14,6 +14,7 @@ export default function JoinPage() {
     const [submitted, setSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [customCategory, setCustomCategory] = useState("");
 
     const [formData, setFormData] = useState({
         name: "",
@@ -31,14 +32,21 @@ export default function JoinPage() {
             return;
         }
 
+        if (formData.category === "أخرى" && !customCategory.trim()) {
+            setError("يرجى كتابة التخصص في المربع المخصص");
+            return;
+        }
+
         setIsLoading(true);
         setError("");
+
+        const finalCategory = formData.category === "أخرى" ? customCategory.trim() : formData.category;
 
         try {
             await authApi.submitProviderRequest({
                 name: formData.name,
                 phone: formData.phone,
-                category: formData.category,
+                category: finalCategory,
                 location: formData.location,
                 email: formData.email,
                 password: formData.password
@@ -185,6 +193,18 @@ export default function JoinPage() {
                                         </optgroup>
                                     </select>
                                 </div>
+
+                                {formData.category === "أخرى" && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">التخصص (يرجى التحديد)</label>
+                                        <Input
+                                            className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-950 border-transparent focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all shadow-inner"
+                                            value={customCategory}
+                                            onChange={(e) => setCustomCategory(e.target.value)}
+                                            placeholder="اكتب تخصصك هنا..."
+                                        />
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-slate-700 dark:text-slate-300">العنوان بالتفصيل</label>
