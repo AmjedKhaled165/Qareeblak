@@ -2023,15 +2023,26 @@ export default function ProviderDashboard() {
                                                                 {booking.status === 'pending' && (
                                                                     <span className="text-xs font-bold text-orange-400 font-cairo">بانتظار القبول</span>
                                                                 )}
-                                                                {['pending', 'confirmed', 'completed'].includes(booking.status) && (
+                                                                {['pending', 'confirmed'].includes(booking.status) && (
                                                                     <Button
                                                                         size="sm"
                                                                         variant="outline"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             setEditingOrder(booking);
-                                                                            setEditOrderItems(Array.isArray(booking.items) ? booking.items.map((i: any) => ({ name: i.name || i.product_name || '', price: String(i.price || 0), quantity: String(i.quantity || 1) })) : [{ name: '', price: '', quantity: '1' }]);
-                                                                            setEditCustomerPhone((booking as any).customerPhone || (booking as any).customer_phone || '');
+                                                                            
+                                                                            let parsedItems = booking.items;
+                                                                            if (typeof booking.items === 'string') {
+                                                                                try { parsedItems = JSON.parse(booking.items); } catch(e) { parsedItems = []; }
+                                                                            }
+                                                                            
+                                                                            setEditOrderItems(Array.isArray(parsedItems) && parsedItems.length > 0 ? parsedItems.map((i: any) => ({ name: i.name || i.product_name || '', price: String(i.price || 0), quantity: String(i.quantity || 1) })) : [{ name: '', price: '', quantity: '1' }]);
+                                                                            
+                                                                            let phone = (booking as any).customerPhone || (booking as any).customer_phone || (booking as any).courierPhone || (booking as any).userPhone || '';
+                                                                            if (!phone && (booking as any).userName && String((booking as any).userName).match(/^01\d{9}$/)) {
+                                                                                phone = (booking as any).userName;
+                                                                            }
+                                                                            setEditCustomerPhone(phone);
                                                                             setEditDeliveryAddress((booking as any).deliveryAddress || (booking as any).delivery_address || '');
                                                                         }}
                                                                         className="rounded-xl font-bold font-cairo text-xs h-9 px-4 border-border/50 text-muted-foreground hover:text-primary transition-all hover:border-primary/30 active:scale-95 shrink-0"
