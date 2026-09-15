@@ -13,6 +13,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
+import { ExtraServicesSection } from "@/components/home/ExtraServicesSection";
+
 import { useAppStore } from "@/components/providers/AppProvider";
 import { useCartStore } from "@/components/providers/CartProvider";
 import { SkeletonCard } from "@/components/features/skeleton-card";
@@ -34,6 +36,7 @@ const CartModal = dynamic(
 
 const CATEGORIES = [
     { id: "all", label: "جميع الخدمات", icon: Sparkles, color: "from-indigo-500 to-purple-600", bgLight: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" },
+    { id: "extra", label: "خدمات إضافية 🚀", icon: Zap, color: "from-amber-500 to-orange-600", bgLight: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
     { id: "مطاعم", label: "مطاعم وكافيهات", icon: Utensils, color: "from-orange-500 to-amber-600", bgLight: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
     { id: "صنايعية", label: "صنايعية ومهنيين 🛠️", icon: Wrench, color: "from-blue-500 to-indigo-600", bgLight: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
     { id: "سكن", label: "سكن الطلاب والعقارات 🏠", icon: Home, color: "from-cyan-500 to-teal-600", bgLight: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
@@ -370,7 +373,8 @@ function ExploreContent() {
 
 
                 {/* Controls & Quick Filter Toolbar */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                {activeCategory !== 'extra' && (
+                    <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                     {/* Active summary status */}
                     <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 text-sm font-bold w-full sm:w-auto justify-between sm:justify-start">
                         <span>
@@ -433,11 +437,18 @@ function ExploreContent() {
                                 <List className="w-4 h-4" />
                             </button>
                         </div>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Service Cards Grid Container */}
-                <AnimatePresence mode="wait">
+                {activeCategory === 'extra' ? (
+                    <div className="mt-8 bg-slate-950/20 rounded-3xl p-4 lg:p-8 border border-slate-200 dark:border-slate-800">
+                        <ExtraServicesSection />
+                    </div>
+                ) : (
+                    <>
+                        <AnimatePresence mode="wait">
                     <motion.div
                         key={`${activeCategory}-${debouncedSearchQuery}-${sortBy}-${viewMode}`}
                         initial={{ opacity: 0, y: 15 }}
@@ -486,18 +497,20 @@ function ExploreContent() {
                             </motion.div>
                         )}
                     </motion.div>
-                </AnimatePresence>
+                        </AnimatePresence>
 
-                {/* Load More Button */}
-                {!isLoading && visibleCount < filteredProviders.length && (
-                    <div className="mt-12 text-center">
-                        <Button 
-                            onClick={handleLoadMore} 
-                            className="px-10 py-6 rounded-2xl font-black text-base bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg hover:shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer font-cairo"
-                        >
-                            عرض المزيد من الخدمات ({filteredProviders.length - visibleCount} متبقي)
-                        </Button>
-                    </div>
+                        {/* Load More Button */}
+                        {!isLoading && visibleCount < filteredProviders.length && (
+                            <div className="mt-12 text-center">
+                                <Button 
+                                    onClick={handleLoadMore} 
+                                    className="px-10 py-6 rounded-2xl font-black text-base bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg hover:shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer font-cairo"
+                                >
+                                    عرض المزيد من الخدمات ({filteredProviders.length - visibleCount} متبقي)
+                                </Button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
