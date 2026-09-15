@@ -328,64 +328,46 @@ function ExploreContent() {
                                     </button>
                                 ))}
                             </div>
+
+                            {/* Compact Categories Pills */}
+                            <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-700/30">
+                                <span className="text-xs text-slate-400 font-bold ml-1 flex items-center gap-1">
+                                    <Sparkles className="w-3 h-3" /> الأقسام:
+                                </span>
+                                {CATEGORIES.map((cat) => {
+                                    const count = categoryCounts[cat.id] || 0;
+                                    const isActive = activeCategory === cat.id;
+
+                                    return (
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => setActiveCategory(cat.id)}
+                                            className={cn(
+                                                "flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border transition-all active:scale-95 cursor-pointer",
+                                                isActive
+                                                    ? "bg-indigo-500 hover:bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-500/20"
+                                                    : "bg-white/5 hover:bg-white/15 border-white/10 text-slate-200"
+                                            )}
+                                        >
+                                            {cat.icon && <cat.icon className="w-3 h-3" />}
+                                            <span>{cat.label}</span>
+                                            {count > 0 && (
+                                                <span className={cn(
+                                                    "px-1.5 py-0.5 rounded-full text-[10px]",
+                                                    isActive ? "bg-white/20 text-white" : "bg-white/10 text-slate-300"
+                                                )}>
+                                                    {count}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 </motion.div>
 
-                {/* Interactive Categories Bar */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-indigo-500" />
-                            <span>الأقسام المتاحة</span>
-                        </h2>
-                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                            {normalizedProviders.length} مزود خدمة مسجّل
-                        </span>
-                    </div>
 
-                    <div className="flex overflow-x-auto pb-3 gap-3 no-scrollbar scroll-smooth">
-                        {CATEGORIES.map((cat) => {
-                            const count = categoryCounts[cat.id] || 0;
-                            const isActive = activeCategory === cat.id;
-
-                            return (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setActiveCategory(cat.id)}
-                                    className={cn(
-                                        "flex items-center gap-2.5 px-5 py-3 rounded-2xl whitespace-nowrap transition-all duration-300 text-sm font-bold border cursor-pointer shrink-0 relative overflow-hidden group shadow-sm",
-                                        isActive
-                                            ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-lg shadow-indigo-500/10 scale-[1.02]"
-                                            : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-slate-50 dark:hover:bg-slate-800/80"
-                                    )}
-                                >
-                                    {cat.icon && (
-                                        <div className={cn(
-                                            "w-7 h-7 rounded-xl flex items-center justify-center transition-colors",
-                                            isActive
-                                                ? "bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900"
-                                                : cat.bgLight
-                                        )}>
-                                            <cat.icon className="h-4 w-4" />
-                                        </div>
-                                    )}
-                                    <span>{cat.label}</span>
-                                    {count > 0 && (
-                                        <span className={cn(
-                                            "text-xs px-2 py-0.5 rounded-full font-bold transition-colors",
-                                            isActive
-                                                ? "bg-white/20 dark:bg-slate-900/20 text-white dark:text-slate-900"
-                                                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-                                        )}>
-                                            {count}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
 
                 {/* Controls & Quick Filter Toolbar */}
                 <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
