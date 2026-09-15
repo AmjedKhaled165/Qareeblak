@@ -2,11 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-    Search, SlidersHorizontal, Utensils, Pill, Car, 
-    ShoppingBag, ShoppingCart, Star, Stethoscope, Wrench, Home,
-    Sparkles, Zap, Flame, ShieldCheck, RotateCcw, X, Grid, List, Clock
-} from "lucide-react";
+import { Heart, Search, Star, Utensils, Zap, Sparkles, Building, Pill, Stethoscope, Scissors, ShoppingBag, Truck, Gift, Info, CheckCircle2, Phone, MessageSquare, Briefcase, MapPin, Grid, List, Wrench, Home, Car, Moon, TrendingUp, Filter, X, ShoppingCart, SlidersHorizontal, Flame, ShieldCheck, RotateCcw, Clock } from "lucide-react";
+import CraftsmenPage from "../craftsmen/page";
+import HousingPage from "../housing/page";
 import { useState, useEffect, Suspense, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -377,7 +375,7 @@ function ExploreContent() {
 
 
                 {/* Controls & Quick Filter Toolbar */}
-                {activeCategory !== 'extra' && (
+                {activeCategory !== 'extra' && activeCategory !== 'صنايعية' && activeCategory !== 'سكن' && (
                     <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                     {/* Active summary status */}
                     <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 text-sm font-bold w-full sm:w-auto justify-between sm:justify-start">
@@ -449,6 +447,14 @@ function ExploreContent() {
                 {activeCategory === 'extra' ? (
                     <div className="mt-8 bg-slate-950/20 rounded-3xl p-4 lg:p-8 border border-slate-200 dark:border-slate-800">
                         <ExtraServicesSection />
+                    </div>
+                ) : activeCategory === 'صنايعية' ? (
+                    <div className="mt-8 -mx-4 sm:mx-0">
+                        <CraftsmenPage />
+                    </div>
+                ) : activeCategory === 'سكن' ? (
+                    <div className="mt-8 -mx-4 sm:mx-0">
+                        <HousingPage />
                     </div>
                 ) : (
                     <>

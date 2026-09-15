@@ -215,8 +215,6 @@ export function Navbar() {
                         {[
                             { label: 'الرئيسية', href: '/' },
                             { label: 'تصفح الخدمات', href: '/explore' },
-                            { label: 'الصنايعية 🛠️', href: '/craftsmen' },
-                            { label: 'سكن الطلاب 🏠', href: '/housing' },
                             { label: 'تتبع طلبك', href: '/track' }
                         ].map((item) => (
                             <Link 
@@ -396,8 +394,6 @@ export function Navbar() {
                             {(!(pathname.startsWith('/provider-dashboard') || pathname.startsWith('/partner') || pathname.startsWith('/admin') || (isProviderUser || isHalanStaff)) ? [
                                 { label: 'الرئيسية', href: '/', icon: Home },
                                 { label: 'تصفح الخدمات', href: '/explore', icon: Search },
-                                { label: 'الصنايعية 🛠️', href: '/craftsmen', icon: Wrench },
-                                { label: 'سكن الطلاب 🏠', href: '/housing', icon: Building },
                                 ...(!currentUser ? [{ label: 'تسجيل الدخول', href: '/login', icon: UserCircle }] : []),
                                 { label: 'عجلة الحظ', href: '/wheel', icon: Gift, highlight: true },
                                 { label: 'تتبع طلبك', href: '/track', icon: Briefcase }
